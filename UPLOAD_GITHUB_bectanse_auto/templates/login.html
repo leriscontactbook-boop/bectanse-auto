@@ -310,5 +310,16 @@ html, body {
 
   </div>
 </div>
+<script>
+// Pré-remplir le code si présent dans l'URL (?code=BCT-XXXXXXXX)
+window.addEventListener('DOMContentLoaded', function() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code) {
+    const input = document.querySelector('input[name="code"]');
+    if (input) input.value = code;
+  }
+});
+</script>
 </body>
 </html>
