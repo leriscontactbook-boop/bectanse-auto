@@ -3,7 +3,6 @@ from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import pg8000.native
-from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bectanse2026secretkeyprod")
@@ -892,7 +891,28 @@ def admin_add():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 with app.app_context():
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        app.logger.error(f"DB init: {e}")
+
+# ── SCHEDULER ──────────────────────────────────────────────────────────────────
+def start_scheduler():
+    try:
+                scheduler = BackgroundScheduler(timezone="Europe/Paris")
+        scheduler.add_job(verifier_expirations, 'cron', hour=9, minute=0)
+        scheduler.add_job(envoyer_relances,     'cron', hour=10, minute=0)
+        scheduler.start()
+        import atexit
+        atexit.register(lambda: scheduler.shutdown(wait=False))
+        app.logger.info("Scheduler démarré")
+    except Exception as e:
+        app.logger.error(f"Scheduler error: {e}")
+
+# Démarrer le scheduler seulement en production (pas pendant les tests)
+import os as _os
+if _os.environ.get("RAILWAY_ENVIRONMENT") or _os.environ.get("DATABASE_URL"):
+    start_scheduler()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(_os.environ.get("PORT", 5000)))
