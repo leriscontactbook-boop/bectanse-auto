@@ -309,7 +309,22 @@ def inscription():
         f"⚡ *ACTION REQUISE* — Connecter ce membre sur Sociate Trade\n"
         f"Une fois connecté, le membre peut accéder à son espace avec son code."
     )
-    send_telegram(notif)
+    # Ajouter bouton URL pour définir les dates directement depuis Telegram
+    set_dates_url = f"https://bectanse-auto.up.railway.app/set-dates/{code}?t={ADMIN_KEY}"
+    markup = {
+        "inline_keyboard": [[
+            {"text": "📅 Définir les dates d'abonnement", "url": set_dates_url}
+        ]]
+    }
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": ADMIN_ID, "text": notif, "parse_mode": "Markdown",
+                  "reply_markup": markup},
+            timeout=5
+        )
+    except Exception as e:
+        app.logger.error(f"Telegram notif inscription: {e}")
 
     # Code conservé dans la notif admin — envoi manuel si besoin
 
@@ -349,6 +364,111 @@ def toggle_copy():
     except Exception as e:
         app.logger.error(f"toggle_copy error: {e}")
         return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/set-dates/<code>", methods=["GET", "POST"])
+def set_dates(code):
+    """Page admin pour définir les dates d'abonnement d'un membre"""
+    # Vérif sécurité basique via token admin
+    token_param = request.args.get("t", "")
+    if token_param != ADMIN_KEY:
+        return "<h2 style='font-family:sans-serif;padding:40px;color:red'>⛔ Non autorisé</h2>", 403
+
+    _, member = get_member(code) if False else (None, None)
+    # Récupérer le membre
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom, capital, date_souscription, date_fin FROM members WHERE code=:c", c=code)
+        conn.close()
+        if not rows:
+            return "<h2 style='font-family:sans-serif;padding:40px'>❌ Membre introuvable</h2>"
+        nom, capital, date_sous, date_fin_actuelle = rows[0]
+    except Exception as e:
+        return f"<h2>Erreur: {e}</h2>"
+
+    if request.method == "POST":
+        debut   = request.form.get("debut", "")
+        duree   = int(request.form.get("duree", 30))
+        try:
+            from datetime import datetime, timedelta
+            date_debut = datetime.strptime(debut, "%Y-%m-%d")
+            date_fin_new = date_debut + timedelta(days=duree)
+            conn = get_conn()
+            conn.run(
+                "UPDATE members SET date_souscription=:ds, date_fin=:df WHERE code=:c",
+                ds=date_debut, df=date_fin_new, c=code
+            )
+            conn.close()
+            send_telegram(
+                f"✅ *Dates d'abonnement définies*\n\n"
+                f"👤 *{nom}*\n"
+                f"📅 Début : *{date_debut.strftime('%d/%m/%Y')}*\n"
+                f"📅 Fin : *{date_fin_new.strftime('%d/%m/%Y')}*\n"
+                f"⏱ Durée : *{duree} jours*"
+            )
+            return f"""<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center;'>
+                <h1 style='color:#059669'>✅ Dates définies !</h1>
+                <p><strong>{nom}</strong></p>
+                <p>Début : <strong>{date_debut.strftime('%d/%m/%Y')}</strong></p>
+                <p>Fin : <strong>{date_fin_new.strftime('%d/%m/%Y')}</strong> ({duree} jours)</p>
+                <p style='color:#6B7280;font-size:14px'>Le membre voit ses dates dans son espace.</p>
+                </body></html>"""
+        except Exception as e:
+            return f"<h2>Erreur: {e}</h2>"
+
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    return f"""<html>
+    <head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+    <title>Définir les dates — {nom}</title>
+    <style>
+        body {{ font-family: 'Segoe UI', sans-serif; background:#0d0d0d; color:#fff; 
+               display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }}
+        .card {{ background:#1F2937; border:1px solid rgba(91,33,182,0.3); border-radius:16px; 
+                padding:36px 32px; width:100%; max-width:400px; }}
+        h2 {{ color:#F59E0B; font-size:20px; margin-bottom:4px; }}
+        .sub {{ color:rgba(255,255,255,0.4); font-size:13px; margin-bottom:24px; }}
+        label {{ display:block; font-size:11px; font-weight:700; letter-spacing:0.12em; 
+                text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:6px; }}
+        input, select {{ width:100%; background:rgba(255,255,255,0.06); border:1px solid rgba(91,33,182,0.3);
+                border-radius:8px; padding:11px 14px; color:#fff; font-size:14px; margin-bottom:16px;
+                box-sizing:border-box; outline:none; }}
+        .pills {{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }}
+        .pill {{ padding:7px 16px; border-radius:20px; border:1px solid rgba(91,33,182,0.3);
+                background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.5); 
+                cursor:pointer; font-size:13px; font-weight:600; }}
+        .pill:hover, .pill.active {{ background:#5B21B6; border-color:#5B21B6; color:#fff; }}
+        button {{ width:100%; background:#5B21B6; color:#fff; border:none; border-radius:10px;
+                 padding:14px; font-size:15px; font-weight:700; cursor:pointer; margin-top:4px; }}
+        button:hover {{ background:#4C1D95; }}
+    </style>
+    </head>
+    <body>
+    <div class='card'>
+        <h2>📅 Définir l'abonnement</h2>
+        <div class='sub'>👤 {nom} — 💰 {capital}</div>
+        <form method='POST'>
+            <label>Date de début</label>
+            <input type='date' name='debut' value='{today}' required>
+            <label>Durée</label>
+            <div class='pills'>
+                <div class='pill' onclick="setDuree(30,this)">30 jours</div>
+                <div class='pill active' onclick="setDuree(30,this)">1 mois</div>
+                <div class='pill' onclick="setDuree(60,this)">2 mois</div>
+                <div class='pill' onclick="setDuree(90,this)">3 mois</div>
+            </div>
+            <label>Nombre de jours exact</label>
+            <input type='number' name='duree' id='duree' value='30' min='1' max='365' required>
+            <button type='submit'>✅ Enregistrer les dates</button>
+        </form>
+    </div>
+    <script>
+    function setDuree(n, el) {{
+        document.getElementById('duree').value = n;
+        document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        el.classList.add('active');
+    }}
+    </script>
+    </body></html>"""
 
 @app.route("/health")
 def health():
