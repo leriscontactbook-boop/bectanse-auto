@@ -810,95 +810,962 @@ input[name="objectif_periode"] { display: none; }
 @media(max-width:900px){
   .app { grid-template-columns: 200px 1fr; }
 }
-/* ── RESPONSIVE MOBILE COMPLET ── */
 @media(max-width:768px){
-  .app { grid-template-columns: 1fr; min-height: 100vh; }
-
-  /* SIDEBAR devient barre de nav en bas */
+  .app { grid-template-columns: 1fr; }
   .sidebar {
-    position: fixed; bottom: 0; left: 0; right: 0; top: auto;
-    height: 68px; width: 100%;
-    background: rgba(10,10,15,0.98);
+    display: block;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: auto; width: 100%;
     border-right: none;
-    border-top: 1px solid rgba(91,33,182,0.25);
+    border-top: 1px solid rgba(91,33,182,0.3);
     flex-direction: row;
-    overflow: visible;
-    z-index: 200;
-    backdrop-filter: blur(20px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 100;
     padding: 0;
   }
+  .sidebar-brand, .member-card, .nav-section, .sidebar-bottom { display: none; }
+  .nav { display: flex; flex-direction: row; padding: 0; overflow-x: auto; }
+  .nav-item {
+    flex-shrink: 0; padding: 14px 16px;
+    border-left: none; border-top: 2px solid transparent;
+    font-size: 11px; flex-direction: column; gap: 4px;
+    text-align: center;
+  }
+  .nav-item .icon { font-size: 18px; }
+  .nav-item.active, .nav-item:hover { border-top-color: var(--purple); border-left: none; }
+  .content {
+    padding: 20px 16px;
+    padding-bottom: 80px;
+  }
+  .header-top { flex-direction: column; gap: 12px; }
+  .page-title { font-size: 22px; }
+  .field-row.cols-3 { grid-template-columns: 1fr; }
+  .btn-envoyer { width: 100%; font-size: 14px; padding: 12px 20px; }
+  .hist-table { font-size: 11px; }
+  .hist-table th, .hist-table td { padding: 8px 6px; }
+}
 
-  /* Cacher éléments sidebar desktop */
+/* ── MOBILE ── */
+@media(max-width:768px){
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; bottom: 0; left: 0; right: 0; top: auto;
+    height: 64px; width: 100%;
+    background: rgba(10,10,15,0.98);
+    border-right: none; border-top: 1px solid rgba(91,33,182,0.25);
+    overflow: hidden; z-index: 200;
+    flex-direction: row; align-items: stretch;
+  }
   .sidebar-brand, .member-card, .nav-section,
-  .sidebar-bottom, .status-indicator, .copy-toggle-wrap,
-  .logout-btn { display: none !important; }
-
-  /* Nav horizontale */
+  .sidebar-bottom { display: none !important; }
   .nav {
     display: flex; flex-direction: row;
-    width: 100%; overflow-x: auto; overflow-y: hidden;
-    padding: 0; flex: 1;
+    width: 100%; overflow-x: auto; padding: 0;
     scrollbar-width: none;
   }
   .nav::-webkit-scrollbar { display: none; }
   .nav-item {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 3px; flex: 1; min-width: 60px;
-    padding: 8px 4px 10px;
+    gap: 2px; flex: 1; min-width: 58px;
+    padding: 6px 4px 8px;
     border-left: none !important;
     border-top: 2px solid transparent;
-    font-size: 10px; font-weight: 600;
-    color: rgba(255,255,255,0.4);
-    text-decoration: none; transition: all 0.15s;
-    white-space: nowrap;
+    font-size: 9px; font-weight: 600;
+    color: rgba(255,255,255,0.45);
+    text-decoration: none;
   }
-  .nav-item .icon { font-size: 20px; line-height: 1; }
-  .nav-item.active { color: #fff; border-top-color: #5B21B6; background: rgba(91,33,182,0.1); }
-  .nav-item:hover { color: #fff; background: rgba(91,33,182,0.08); }
-
-  /* CONTENT padding pour la nav du bas */
-  .content {
-    padding: 16px 14px 90px;
-    margin-left: 0 !important;
-    width: 100% !important;
-  }
-
-  /* HEADER mobile */
-  .header-top {
-    flex-direction: column; gap: 10px; margin-bottom: 16px;
-  }
-  .page-title { font-size: 22px; }
-  .btn-envoyer {
-    width: 100%; font-size: 13px; padding: 12px 16px;
-    position: fixed; bottom: 76px; left: 0; right: 0;
-    border-radius: 0; z-index: 150;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-  }
-
-  /* PANELS risque */
-  .field-row.cols-3 { grid-template-columns: 1fr; }
-  .field-row { grid-template-columns: 1fr; }
-
-  /* HISTORIQUE table */
-  .hist-table { font-size: 11px; }
-  .hist-table th, .hist-table td { padding: 8px 6px; }
-  .hist-table th:nth-child(3),
-  .hist-table td:nth-child(3) { display: none; }
-
-  /* SECTIONS CARDS */
-  .param-section { padding: 16px; }
-  .section-header-row { gap: 10px; }
-
-  /* WA float button */
-  .wa-float { bottom: 80px; right: 16px; width: 50px; height: 50px; }
+  .nav-item .icon { font-size: 19px; }
+  .nav-item.active { color: #fff; border-top-color: #5B21B6; }
+  .content { padding: 16px 14px 80px !important; margin-left: 0 !important; }
+  .header-top { flex-direction: column; gap: 10px; }
+  .btn-envoyer { width: 100%; font-size: 13px; padding: 12px; }
+  .wa-float { bottom: 74px !important; right: 14px; width: 48px; height: 48px; }
+  .field-row.cols-3 { grid-template-columns: 1fr 1fr; }
 }
 
-@media(max-width:380px){
-  .nav-item { font-size: 9px; min-width: 52px; }
-  .nav-item .icon { font-size: 18px; }
+</style>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#5B21B6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+</head>
+<body>
+<div class="app">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">B€CTAN$€ AUTO</div>
+      <div class="sidebar-tagline">Espace Membre</div>
+    </div>
+
+    <!-- MEMBER CARD FUSIONNÉE -->
+    <div style="margin:10px 12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:14px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#5B21B6,#F59E0B,#5B21B6);"></div>
+      <div style="padding:12px 14px 10px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff;">{{ member.nom }}</div>
+      </div>
+      {% if date_fin %}
+      <div style="padding:6px 14px 10px;border-top:1px solid rgba(255,255,255,0.06);">
+        {% if date_souscription %}
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Début</span>
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);">{{ date_souscription.strftime('%d/%m/%Y') }}</span>
+        </div>
+        {% endif %}
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Expiration</span>
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);">{{ date_fin.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Restant</span>
+          {% if statut_abo == 'expiré' %}
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(220,38,38,0.15);color:#FCA5A5;border:1px solid rgba(220,38,38,0.3);">Expiré</span>
+          {% elif statut_abo == 'expire_bientot' %}
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(245,158,11,0.15);color:#FCD34D;border:1px solid rgba(245,158,11,0.3);">{{ jours_restants }}j</span>
+          {% else %}
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3);">{{ jours_restants }}j</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section">Navigation</div>
+      <a class="nav-item active" href="#">
+        <span class="icon">⚙️</span> Mes paramètres
+      </a>
+      <a class="nav-item" href="/offres" style="color:#F59E0B;">
+        <span class="icon">🚀</span> Renouveler / Upgrader
+      </a>
+      <a class="nav-item" href="https://wa.me/436785328698?text=Bonjour,%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j'ai%20besoin%20d'assistance." target="_blank">
+        <span class="icon">💬</span> Discuter avec un agent
+      </a>
+      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span class="icon">🎁</span> Parrainage VIP</a>
+      <a class="nav-item" href="/faq">
+        <span class="icon">❓</span> FAQ &amp; Guide
+      </a>
+      <a class="nav-item" href="#historique">
+        <span class="icon">📜</span> Historique
+      </a>
+
+      <div class="nav-section">Informations</div>
+      <div class="nav-item">
+        <span class="icon">📊</span> Mode actuel :
+        <strong style="color:var(--gold);font-size:11px;margin-left:4px;">{{ params.mode_risque }}</strong>
+      </div>
+      <div class="nav-item">
+        <span class="icon">📈</span> Lots : <strong style="color:var(--white);margin-left:4px;">{{ params.lots }}</strong>
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        Système actif
+      </div>
+
+      <div class="copy-toggle-wrap">
+      <button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
+              id="copyToggleBtn" onclick="showCopyConfirm()">
+        <div class="copy-dot {% if copy_actif %}actif{% else %}inactif{% endif %}"></div>
+        <span class="copy-status-label">
+          {% if copy_actif %}Copy Trading Actif{% else %}Copy Trading Inactif{% endif %}
+        </span>
+        <span class="copy-arrow">⏯</span>
+      </button>
+      <div class="copy-confirm" id="copyConfirm">
+        {% if copy_actif %}
+          ⚠️ Désactiver le copy trading ?<br>Les trades auto s'arrêteront.
+        {% else %}
+          ▶️ Réactiver le copy trading ?
+        {% endif %}
+        <div class="copy-confirm-btns">
+          <button class="copy-confirm-yes" onclick="toggleCopy()">Confirmer</button>
+          <button class="copy-confirm-no" onclick="hideCopyConfirm()">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+      <a class="logout-btn" href="/logout">
+        <span>🚪</span> Déconnexion
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Paramètres de risque</div>
+        <div class="topbar-sub">Toutes les modifications seront envoyées à l'équipe Bectanse pour application.</div>
+      </div>
+      <button class="save-btn" onclick="saveParams()" id="saveBtn">
+        Envoyer la demande →
+      </button>
+    </div>
+
+    <div class="content">
+
+      {% if afficher_alerte %}
+      <div class="alerte-banner" id="alerte-banner">
+        <div class="alerte-text">
+          <div class="alerte-title">
+            {% if jours_restants == 0 %}🚨 Ton abonnement expire aujourd'hui !
+            {% elif jours_restants == 1 %}🔴 Ton abonnement expire demain !
+            {% elif jours_restants <= 3 %}⚠️ Ton abonnement expire dans {{ jours_restants }} jours
+            {% else %}⚠️ Ton abonnement expire dans {{ jours_restants }} jours
+            {% endif %}
+          </div>
+          <div class="alerte-desc">
+            Pour continuer à bénéficier du copy trading sans interruption,
+            contacte notre équipe dès maintenant pour renouveler.
+          </div>
+        </div>
+        <a href="https://t.me/LERISGANGSUPPORT" target="_blank" class="alerte-btn">
+          Renouveler →
+        </a>
+        <button class="alerte-close" onclick="fermerAlerte()" title="Fermer">✕</button>
+      </div>
+      {% endif %}
+
+
+
+      <!-- ── MODE DE RISQUE ── -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-icon">⚙️</div>
+          <div>
+            <div class="section-title">Mode de risque</div>
+            <div class="section-desc">Comment le système calcule la taille de tes positions</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="field-row cols-1">
+            <div class="field">
+              <label>Mode de calcul du risque</label>
+              <select name="mode_risque" id="mode_risque">
+                {% set modes = ["Lots fixes","Lot par symbole","Copier les lots de l'envoyeur","Risque par solde (Balance)","Risque par capitaux (Equity)","Risque en %"] %}
+                {% for m in modes %}
+                <option value="{{ m }}" {% if params.mode_risque == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+              </select>
+              
+          <!-- PANNEAUX CONTEXTUELS SELON MODE -->
+          <div id="panel-risque-pct" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Risque en %</label>
+              <input type="number" name="risque_pct" id="risque_pct" value="{{ params.get('risque_pct', 1) }}" min="0.01" max="100" step="0.01">
+              <div class="field-help">Risquez un pourcentage fixe de votre solde sur chaque trade</div>
+            </div>
+          </div>
+
+          <div id="panel-multiplicateur" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Multiplicateur</label>
+              <input type="number" name="multiplicateur" id="multiplicateur" value="{{ params.get('multiplicateur', 1) }}" min="0.01" step="0.01">
+              <div class="field-help">Copie exactement la même taille de lot que l'émetteur, multipliée par ce facteur</div>
+            </div>
+          </div>
+
+          <div id="panel-risque-balance" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Risque par Balance (%)</label>
+              <input type="number" name="risque_balance_pct" id="risque_balance_pct" value="{{ params.get('risque_balance_pct', 1) }}" min="0.01" max="100" step="0.01">
+              <div class="field-help">Calcule le lot en % du solde de votre compte à chaque trade</div>
+            </div>
+          </div>
+
+          <div id="panel-risque-equity" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Risque par Equity (%)</label>
+              <input type="number" name="risque_equity_pct" id="risque_equity_pct" value="{{ params.get('risque_equity_pct', 1) }}" min="0.01" max="100" step="0.01">
+              <div class="field-help">Calcule le lot en % des capitaux propres à chaque trade</div>
+            </div>
+          </div>
+
+              <div class="field-help" id="mode-help">Lots fixes : taille fixe quelle que soit la position de l'émetteur</div>
+            </div>
+          </div>
+
+          <div id="panel-lot-symbole" style="display:none; margin-top:14px;">
+            <div class="field">
+              <label>Symboles (séparés par des virgules)</label>
+              <input type="text" name="lot_symbole_liste" id="lot_symbole_liste" placeholder="Ex: XAUUSD, EURUSD, GBPUSD" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.25);border-radius:8px;padding:10px 12px;font-size:14px;color:#fff;width:100%;outline:none;">
+              <div class="field-help">Indique les symboles sur lesquels appliquer ce lot</div>
+            </div
+            </div>
+          </div>
+          <div class="field-row cols-3" id="lots-section">
+            <div class="field">
+              <label>Lots</label>
+              <input type="number" name="lots" id="lots" value="{{ params.lots }}" min="0.01" max="100" step="0.01">
+              <div class="field-help">Taille de lot par trade</div>
+            </div>
+            <div class="field">
+              <label>Lots maximaux</label>
+              <input type="number" name="lots_max" id="lots_max" value="{{ params.lots_max }}" min="1" max="1000" step="1">
+              <div class="field-help">Plafond absolu</div>
+            </div>
+            <div class="field">
+              <label>Slippage</label>
+              <input type="number" name="slippage" id="slippage" value="{{ params.slippage }}" min="0" max="1000" step="1">
+              <div class="field-help">Standard : 100</div>
+            </div>
+          </div>
+
+          <!-- LOT PAR SYMBOLE PANEL -->
+          <div class="lot-symbole-panel" id="lot-symbole-panel">
+            <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:200px;">
+                <input type="text" class="lot-symbole-search" id="sym-search" placeholder="🔍 Rechercher un symbole..." oninput="filterSymbols(this.value)">
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">FOREX LOTS</label>
+                  <input type="number" id="bulk-forex" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">MATIÈRES PREMIÈRES</label>
+                  <input type="number" id="bulk-commo" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">INDICES</label>
+                  <input type="number" id="bulk-index" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">CRYPTO LOTS</label>
+                  <input type="number" id="bulk-crypto" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <button class="lot-symbole-apply" onclick="applyBulk()">Appliquer</button>
+              </div>
+            </div>
+            <div class="lot-symbole-table" id="sym-table">
+              <!-- Généré par JS -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── OPTIONS ── -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-icon">🔧</div>
+          <div>
+            <div class="section-title">Options</div>
+            <div class="section-desc">Comportement du copy trading</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="toggle-grid">
+
+            <label class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Forcer le lot minimum si applicable
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Si le lot calculé par le système est inférieur au lot minimum autorisé par ton broker, cette option force l'utilisation du lot minimum. Utile pour les petits capitaux.</span>
+                </span>
+              </div>
+                <div class="toggle-desc">Utilise le lot minimum du broker si le lot calculé est inférieur</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="forcer_lot_minimum" id="forcer_lot_minimum" {% if params.forcer_lot_minimum %}checked{% endif %}>
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+            <label class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Inverser les trades
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Au lieu de copier le trade dans le même sens que l'émetteur, le système fait l'inverse. Ex : si l'émetteur achète, toi tu vends. Réservé aux traders expérimentés.</span>
+                </span>
+              </div>
+                <div class="toggle-desc">Ouvre la position opposée à celle de l'émetteur</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="inverser_trades" id="inverser_trades" {% if params.inverser_trades %}checked{% endif %}>
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+            <label class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Copier les ordres en attente
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Copie aussi les ordres en attente (Limit, Stop) et pas seulement les ordres exécutés immédiatement. Recommandé : activé pour ne manquer aucun signal.</span>
+                </span>
+              </div>
+                <div class="toggle-desc">Copie aussi les pending orders (stop, limit) pas seulement les trades au marché</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="copier_ordres_en_attente" id="copier_ordres_en_attente" {% if params.copier_ordres_en_attente %}checked{% endif %}>
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+            <label class="toggle-row" id="row_convertir" style="{% if not params.copier_ordres_en_attente %}opacity:0.4;pointer-events:none{% endif %}">
+              <div class="toggle-info">
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Convertir en ordre au marché si le pending est invalide
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Si un ordre en attente ne peut pas être placé (prix trop éloigné), le système le convertit automatiquement en ordre au marché. Évite les signaux manqués.</span>
+                </span>
+              </div>
+                <div class="toggle-desc">Si un pending order ne peut pas être placé, le convertit en ordre au marché</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="convertir_pending_invalide" id="convertir_pending_invalide" {% if params.convertir_pending_invalide %}checked{% endif %}>
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+            <label class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Copier le Stop Loss (SL)
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Reproduit exactement le Stop Loss de l'émetteur sur ton compte. Fortement recommandé pour protéger ton capital en cas de mauvais trade.</span>
+                </span>
+              </div>
+                <div class="toggle-desc">Reproduit exactement le stop loss de l'émetteur sur ton compte</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="copier_sl" id="copier_sl" {% if params.copier_sl %}checked{% endif %}>
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DRAWDOWN ── -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-icon">🛡️</div>
+          <div>
+            <div class="section-title">Protection du drawdown de la balance</div>
+            <div class="section-desc">Fermeture automatique de tous les trades si un seuil est dépassé</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="toggle-grid">
+
+            <label class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Fermer tous les trades si le drawdown total dépasse</div>
+                <div class="toggle-desc">Protection automatique en cas de perte excessive</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="drawdown_actif" id="drawdown_actif"
+                  {% if params.drawdown_actif %}checked{% endif %}
+                  onchange="togglePanel('dd_perte_panel', this.checked)">
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+            <div class="dd-panel {% if params.drawdown_actif %}visible{% endif %}" id="dd_perte_panel">
+              <div class="field">
+                <label>Seuil de drawdown perte (%)</label>
+                <input type="number" name="drawdown_pct" id="drawdown_pct"
+                  value="{{ params.drawdown_pct }}" min="0.1" max="100" step="0.1">
+                <div class="field-help">Ex : 5 = ferme tout si tu perds 5% du solde</div>
+              </div>
+            </div>
+
+            <label class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Fermer tous les trades si le gain total dépasse</div>
+                <div class="toggle-desc">Sécurise automatiquement les gains atteints</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="drawdown_gain_actif" id="drawdown_gain_actif"
+                  {% if params.drawdown_gain_actif %}checked{% endif %}
+                  onchange="togglePanel('dd_gain_panel', this.checked)">
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+            <div class="dd-panel {% if params.drawdown_gain_actif %}visible{% endif %}" id="dd_gain_panel">
+              <div class="field">
+                <label>Seuil de gain maximum (%)</label>
+                <input type="number" name="drawdown_gain_pct" id="drawdown_gain_pct"
+                  value="{{ params.drawdown_gain_pct }}" min="0.1" max="10000" step="0.1">
+                <div class="field-help">Ex : 5 = ferme tout si tu gagnes 5% du solde</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ── OBJECTIF ARRÊT ── -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-icon">🎯</div>
+          <div>
+            <div class="section-title">Objectif d'arrêt de trading</div>
+            <div class="section-desc">Le système s'arrête automatiquement quand l'objectif gain/perte est atteint</div>
+          </div>
+        </div>
+        <div class="section-body">
+
+          <label class="toggle-row" style="margin-bottom:14px;">
+            <div class="toggle-info">
+              <div class="toggle-label">Arrêter le trading si l'objectif de gain/perte est atteint</div>
+              <div class="toggle-desc">Se réinitialise automatiquement au début de chaque nouvelle période</div>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" name="objectif_actif" id="objectif_actif"
+                {% if params.objectif_actif %}checked{% endif %}
+                onchange="togglePanel('obj_panel', this.checked)">
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+
+          <div class="dd-panel {% if params.objectif_actif %}visible{% endif %}" id="obj_panel">
+
+            <div class="field" style="margin-bottom:14px;">
+              <label>Période</label>
+              <div class="period-pills">
+                {% for per in ["Mensuel","Hebdomadaire","Quotidien"] %}
+                <div class="period-pill {% if params.objectif_periode == per %}active{% endif %}"
+                     onclick="setPeriode('{{ per }}')">{{ per }}</div>
+                {% endfor %}
+              </div>
+              <input type="hidden" name="objectif_periode" id="objectif_periode" value="{{ params.objectif_periode }}">
+            </div>
+
+            <div class="field-row cols-2">
+              <div class="field">
+                <label>Objectif de gain (%)</label>
+                <input type="number" name="objectif_gain_pct" id="objectif_gain_pct"
+                  value="{{ params.objectif_gain_pct }}" min="0.1" max="10000" step="0.1">
+                <div class="field-help">Le robot s'arrête quand ce gain est atteint</div>
+              </div>
+              <div class="field">
+                <label>Seuil de perte (%)</label>
+                <input type="number" name="objectif_perte_pct" id="objectif_perte_pct"
+                  value="{{ params.objectif_perte_pct }}" min="0.1" max="100" step="0.1">
+                <div class="field-help">Le robot s'arrête si cette perte est atteinte</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FILTRE NEWS ── -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-icon">📅</div>
+          <div>
+            <div class="section-title">Filtre du calendrier économique</div>
+            <div class="section-desc">Pause automatique pendant les annonces macro à fort impact</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <label class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Utiliser le filtre du calendrier économique</div>
+              <div class="toggle-desc">Le système se met en pause automatiquement pendant NFP, Fed, CPI et autres annonces majeures</div>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" name="filtre_news" id="filtre_news" {% if params.filtre_news %}checked{% endif %}>
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- ── HISTORIQUE ── -->
+      <div class="section-card" id="historique">
+        <div class="section-header">
+          <div class="section-icon">📜</div>
+          <div>
+            <div class="section-title">Historique des demandes</div>
+            <div class="section-desc">Tes 10 dernières modifications</div>
+          </div>
+        </div>
+        <div class="section-body" style="padding:0;">
+          {% if historique %}
+          <table class="hist-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Mode</th>
+                <th>Lots</th>
+                <th>Drawdown</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in historique %}
+              <tr>
+                <td>{{ h.date }}</td>
+                <td>{{ h.params.mode_risque if h.params else '—' }}</td>
+                <td>{{ h.params.lots if h.params else '—' }}</td>
+                <td>{% if h.params and h.params.drawdown_actif %}{{ h.params.drawdown_pct }}%{% else %}OFF{% endif %}</td>
+                <td>
+                  {% if h.statut == 'applique' %}
+                    <span class="badge badge-ok">✓ Appliqué</span>
+                  {% else %}
+                    <span class="badge badge-wait">⏳ En attente</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="empty-hist">Aucune demande enregistrée pour le moment.</div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-icon">✅</span>
+  <span id="toast-msg">Demande envoyée avec succès !</span>
+</div>
+
+<script>
+
+// ── SYMBOLES DATA ──
+const SYMBOLS = [
+  // Forex majeurs
+  {sym:'EURUSD', desc:'Euro vs US Dollar', cat:'forex'},
+  {sym:'GBPUSD', desc:'British Pound vs US Dollar', cat:'forex'},
+  {sym:'USDJPY', desc:'US Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'USDCHF', desc:'US Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'AUDUSD', desc:'Australian Dollar vs US Dollar', cat:'forex'},
+  {sym:'USDCAD', desc:'US Dollar vs Canadian Dollar', cat:'forex'},
+  {sym:'NZDUSD', desc:'New Zealand Dollar vs US Dollar', cat:'forex'},
+  {sym:'EURGBP', desc:'Euro vs British Pound', cat:'forex'},
+  {sym:'EURJPY', desc:'Euro vs Japanese Yen', cat:'forex'},
+  {sym:'GBPJPY', desc:'British Pound vs Japanese Yen', cat:'forex'},
+  {sym:'AUDCAD', desc:'Australian Dollar vs Canadian Dollar', cat:'forex'},
+  {sym:'AUDCHF', desc:'Australian Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'AUDJPY', desc:'Australian Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'AUDNZD', desc:'Australian Dollar vs New Zealand Dollar', cat:'forex'},
+  {sym:'CADCHF', desc:'Canadian Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'CADJPY', desc:'Canadian Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'CHFJPY', desc:'Swiss Franc vs Japanese Yen', cat:'forex'},
+  {sym:'EURCAD', desc:'Euro vs Canadian Dollar', cat:'forex'},
+  {sym:'EURCHF', desc:'Euro vs Swiss Franc', cat:'forex'},
+  {sym:'EURAUD', desc:'Euro vs Australian Dollar', cat:'forex'},
+  {sym:'EURNZD', desc:'Euro vs New Zealand Dollar', cat:'forex'},
+  {sym:'GBPAUD', desc:'British Pound vs Australian Dollar', cat:'forex'},
+  {sym:'GBPCAD', desc:'British Pound vs Canadian Dollar', cat:'forex'},
+  {sym:'GBPCHF', desc:'British Pound vs Swiss Franc', cat:'forex'},
+  {sym:'GBPNZD', desc:'British Pound vs New Zealand Dollar', cat:'forex'},
+  {sym:'NZDCAD', desc:'New Zealand Dollar vs Canadian Dollar', cat:'forex'},
+  {sym:'NZDCHF', desc:'New Zealand Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'NZDJPY', desc:'New Zealand Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'USDSGD', desc:'US Dollar vs Singapore Dollar', cat:'forex'},
+  // Matières premières
+  {sym:'XAUUSD', desc:'Or vs US Dollar', cat:'commo'},
+  {sym:'XAGUSD', desc:'Argent vs US Dollar', cat:'commo'},
+  {sym:'XPTUSD', desc:'Platine vs US Dollar', cat:'commo'},
+  {sym:'USOIL',  desc:'Pétrole Brut WTI', cat:'commo'},
+  {sym:'UKOIL',  desc:'Pétrole Brut Brent', cat:'commo'},
+  {sym:'NATGAS', desc:'Gaz Naturel', cat:'commo'},
+  // Indices
+  {sym:'US30',   desc:'Dow Jones Industrial Average', cat:'index'},
+  {sym:'SPX500', desc:'S&P 500', cat:'index'},
+  {sym:'NAS100', desc:'Nasdaq 100', cat:'index'},
+  {sym:'GER40',  desc:'DAX 40', cat:'index'},
+  {sym:'UK100',  desc:'FTSE 100', cat:'index'},
+  {sym:'FRA40',  desc:'CAC 40', cat:'index'},
+  {sym:'JPN225', desc:'Nikkei 225', cat:'index'},
+  {sym:'AUS200', desc:'ASX 200', cat:'index'},
+  // Crypto
+  {sym:'BTCUSD', desc:'Bitcoin vs US Dollar', cat:'crypto'},
+  {sym:'ETHUSD', desc:'Ethereum vs US Dollar', cat:'crypto'},
+  {sym:'LTCUSD', desc:'Litecoin vs US Dollar', cat:'crypto'},
+  {sym:'XRPUSD', desc:'Ripple vs US Dollar', cat:'crypto'},
+  {sym:'ADAUSD', desc:'Cardano vs US Dollar', cat:'crypto'},
+  {sym:'SOLUSD', desc:'Solana vs US Dollar', cat:'crypto'},
+  {sym:'BTCEUR', desc:'Bitcoin vs Euro', cat:'crypto'},
+  {sym:'ETCUSD', desc:'Ethereum Classic vs US Dollar', cat:'crypto'},
+];
+
+let symLots = {};
+SYMBOLS.forEach(s => { symLots[s.sym] = 0.01; });
+
+function renderSymbols(filter='') {
+  const table = document.getElementById('sym-table');
+  if (!table) return;
+  const filtered = SYMBOLS.filter(s =>
+    s.sym.toLowerCase().includes(filter.toLowerCase()) ||
+    s.desc.toLowerCase().includes(filter.toLowerCase())
+  );
+  table.innerHTML = filtered.map(s => `
+    <div class="lot-symbole-row">
+      <div><div class="sym-name">${s.sym}</div></div>
+      <div class="sym-desc">${s.desc}</div>
+      <input type="number" class="sym-lot" data-sym="${s.sym}"
+        value="${symLots[s.sym] || 0.01}" min="0.01" step="0.01"
+        onchange="symLots['${s.sym}']=parseFloat(this.value)||0.01">
+    </div>
+  `).join('');
 }
 
+function filterSymbols(val) { renderSymbols(val); }
+
+function applyBulk() {
+  const forex  = parseFloat(document.getElementById('bulk-forex').value)  || 0.01;
+  const commo  = parseFloat(document.getElementById('bulk-commo').value)  || 0.01;
+  const index  = parseFloat(document.getElementById('bulk-index').value)  || 0.01;
+  const crypto = parseFloat(document.getElementById('bulk-crypto').value) || 0.01;
+  SYMBOLS.forEach(s => {
+    if (s.cat==='forex')  symLots[s.sym] = forex;
+    if (s.cat==='commo')  symLots[s.sym] = commo;
+    if (s.cat==='index')  symLots[s.sym] = index;
+    if (s.cat==='crypto') symLots[s.sym] = crypto;
+  });
+  renderSymbols(document.getElementById('sym-search')?.value || '');
+}
+
+// ── Mode risque → panneaux contextuels
+const modeHelps = {
+  'Lots fixes': "Taille de lot fixe quelle que soit la position de l'émetteur",
+  'Lot par symbole': "Définissez un lot différent pour chaque symbole",
+  "Copier les lots de l'envoyeur": "Copie exactement la même taille de lot, multipliée par un facteur",
+  'Risque par solde (Balance)': "Calcule le lot en % du solde de votre compte",
+  'Risque par capitaux (Equity)': "Calcule le lot en % des capitaux propres",
+  'Risque en %': "Risquez un pourcentage fixe de votre solde sur chaque trade"
+};
+
+function updateModePanel(mode) {
+  // Cacher tous les panneaux contextuels avec style.display direct
+  ['panel-risque-pct','panel-multiplicateur','panel-risque-balance',
+   'panel-risque-equity','lot-symbole-panel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  // Afficher le bon panneau
+  const show = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'block';
+  };
+
+  // Lots/Lots max/Slippage — UNIQUEMENT pour Lots fixes
+  const lotsSection = document.getElementById('lots-section');
+  if (lotsSection) {
+    lotsSection.style.display = (mode === 'Lots fixes') ? 'block' : 'none';
+  }
+
+  if (mode === 'Risque en %') {
+    show('panel-risque-pct');
+  } else if (mode === "Copier les lots de l'envoyeur") {
+    show('panel-multiplicateur');
+  } else if (mode === 'Risque par solde (Balance)') {
+    show('panel-risque-balance');
+  } else if (mode === 'Risque par capitaux (Equity)') {
+    show('panel-risque-equity');
+  } else if (mode === 'Lot par symbole') {
+    show('lot-symbole-panel');
+    if (typeof renderSymbols === 'function') renderSymbols();
+  }
+
+  // Mettre à jour le texte d'aide
+  const help = document.getElementById('mode-help');
+  if (help && modeHelps[mode]) help.textContent = modeHelps[mode];
+}
+
+document.getElementById('mode_risque').addEventListener('change', function() {
+  updateModePanel(this.value);
+});
+
+// Init au chargement
+updateModePanel(document.getElementById('mode_risque').value);
+
+
+// ── COPY TRADING TOGGLE ──
+function showCopyConfirm() {
+  document.getElementById('copyConfirm').classList.toggle('show');
+}
+function hideCopyConfirm() {
+  document.getElementById('copyConfirm').classList.remove('show');
+}
+async function toggleCopy() {
+  const btn = document.getElementById('copyToggleBtn');
+  const confirmBox = document.getElementById('copyConfirm');
+  btn.style.opacity = '0.5';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/toggle-copy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin'
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.ok) {
+      confirmBox.classList.remove('show');
+      showToast(
+        data.copy_actif
+          ? '✅ Copy trading activé ! Notification envoyée.'
+          : '⏸️ Copy trading désactivé. Notification envoyée.',
+        data.copy_actif ? 'success' : 'error'
+      );
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      showToast('Erreur : ' + (data.error || 'Réessaie.'), 'error');
+      btn.style.opacity = '1';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    showToast('Erreur de connexion : ' + e.message, 'error');
+    btn.style.opacity = '1';
+    btn.disabled = false;
+  }
+}
+
+// ── Fermer alerte renouvellement
+async function fermerAlerte() {
+  document.getElementById('alerte-banner').style.display = 'none';
+  try {
+    await fetch('/marquer-alerte-lue', { method: 'POST', credentials: 'same-origin' });
+  } catch(e) {}
+}
+
+// ── Toggle panels
+function togglePanel(id, show) {
+  const el = document.getElementById(id);
+  if (show) el.classList.add('visible');
+  else el.classList.remove('visible');
+}
+
+// ── Lier copier_ordres → convertir
+document.getElementById('copier_ordres_en_attente').addEventListener('change', function() {
+  const row = document.getElementById('row_convertir');
+  row.style.opacity = this.checked ? '1' : '0.4';
+  row.style.pointerEvents = this.checked ? 'auto' : 'none';
+  if (!this.checked) document.getElementById('convertir_pending_invalide').checked = false;
+});
+
+// ── Période pills
+function setPeriode(val) {
+  document.getElementById('objectif_periode').value = val;
+  document.querySelectorAll('.period-pill').forEach(p => {
+    p.classList.toggle('active', p.textContent.trim() === val);
+  });
+}
+
+// ── Toast
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = type === 'success' ? '✅' : '❌';
+  t.className = `toast ${type} show`;
+  setTimeout(() => { t.classList.remove('show'); }, 4000);
+}
+
+// ── Save
+async function saveParams() {
+  const btn = document.getElementById('saveBtn');
+  btn.classList.add('loading');
+  btn.textContent = 'Envoi en cours...';
+
+  const bool = id => document.getElementById(id).checked;
+  const val  = id => document.getElementById(id).value;
+
+  const payload = {
+    mode_risque:              val('mode_risque'),
+    lots:                     parseFloat(val('lots')),
+    lots_max:                 parseFloat(val('lots_max')),
+    slippage:                 parseInt(val('slippage')),
+    forcer_lot_minimum:       bool('forcer_lot_minimum'),
+    inverser_trades:          bool('inverser_trades'),
+    copier_ordres_en_attente: bool('copier_ordres_en_attente'),
+    convertir_pending_invalide: bool('convertir_pending_invalide'),
+    copier_sl:                bool('copier_sl'),
+    drawdown_actif:           bool('drawdown_actif'),
+    drawdown_pct:             parseFloat(val('drawdown_pct')),
+    drawdown_gain_actif:      bool('drawdown_gain_actif'),
+    drawdown_gain_pct:        parseFloat(val('drawdown_gain_pct')),
+    objectif_actif:           bool('objectif_actif'),
+    objectif_gain_pct:        parseFloat(val('objectif_gain_pct')),
+    objectif_perte_pct:       parseFloat(val('objectif_perte_pct')),
+    objectif_periode:         val('objectif_periode'),
+    filtre_news:              bool('filtre_news'),
+    lot_symboles: (val('mode_risque') === 'Lot par symbole') ? JSON.parse(JSON.stringify(symLots)) : {},
+    risque_pct:               parseFloat(val('risque_pct') || 1),
+    multiplicateur:           parseFloat(val('multiplicateur') || 1),
+    risque_balance_pct:       parseFloat(val('risque_balance_pct') || 1),
+    risque_equity_pct:        parseFloat(val('risque_equity_pct') || 1),
+    lot_symboles:             (val('mode_risque') === 'Lot par symbole') ? symLots : {},
+  };
+
+  try {
+    const res  = await fetch('/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      showToast('Demande envoyée ! L\'équipe va appliquer tes paramètres.', 'success');
+    } else {
+      showToast('Erreur : ' + (data.error || 'Réessaie.'), 'error');
+    }
+  } catch (e) {
+    showToast('Erreur de connexion. Réessaie.', 'error');
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = 'Envoyer la demande →';
+}
+</script>
+
+<!-- WHATSAPP FLOATING BUTTON -->
+<a href="https://wa.me/436785328698?text=Bonjour,%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j'ai%20besoin%20d'assistance." target="_blank" class="wa-float" title="Contacter le support WhatsApp">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+  </svg>
+</a>
+
+<style>
+.wa-float {
+  position: fixed; bottom: 28px; right: 28px; z-index: 1000;
+  width: 58px; height: 58px; border-radius: 50%;
+  background: #25D366;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(37,211,102,0.4);
+  transition: all 0.2s; text-decoration: none;
+  animation: wa-pulse 2.5s ease-in-out infinite;
+}
+.wa-float:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 28px rgba(37,211,102,0.6);
+}
+@keyframes wa-pulse {
+  0%,100% { box-shadow: 0 4px 20px rgba(37,211,102,0.4), 0 0 0 0 rgba(37,211,102,0.3); }
+  50% { box-shadow: 0 4px 20px rgba(37,211,102,0.4), 0 0 0 12px rgba(37,211,102,0); }
+}
 /* ── RESPONSIVE MOBILE ── */
 @media(max-width:900px){
   .app { grid-template-columns: 200px 1fr; }
@@ -938,71 +1805,6 @@ input[name="objectif_periode"] { display: none; }
   .hist-table { font-size: 11px; }
   .hist-table th, .hist-table td { padding: 8px 6px; }
 }
-
-/* ── MOBILE TOP BAR ── */
-.mobile-topbar {
-  display: none;
-}
-@media(max-width:768px){
-  .mobile-topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    position: fixed; top: 0; left: 0; right: 0; z-index: 199;
-    background: rgba(10,10,15,0.97);
-    border-bottom: 1px solid rgba(91,33,182,0.2);
-    padding: 10px 16px;
-    backdrop-filter: blur(20px);
-    height: 52px;
-  }
-  .mobile-member-name {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 16px; font-weight: 700; color: #fff;
-    margin-bottom: 1px;
-  }
-  .mobile-abo-badge {
-    font-size: 10px; font-weight: 700;
-    padding: 2px 8px; border-radius: 10px;
-    display: inline-block;
-  }
-  .mobile-abo-badge.active { background: rgba(5,150,105,0.15); color: #6EE7B7; border: 1px solid rgba(5,150,105,0.3); }
-  .mobile-abo-badge.warning { background: rgba(245,158,11,0.15); color: #FCD34D; border: 1px solid rgba(245,158,11,0.3); }
-  .mobile-abo-badge.expired { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
-  .mobile-copy-toggle {
-    display: flex; align-items: center; gap: 6px;
-    padding: 7px 14px; border-radius: 20px; border: none;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px; font-weight: 700; letter-spacing: 0.05em;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .mobile-copy-toggle.on { background: rgba(5,150,105,0.2); color: #6EE7B7; border: 1px solid rgba(5,150,105,0.4); }
-  .mobile-copy-toggle.off { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
-  .mobile-copy-toggle .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-  }
-  .mobile-copy-toggle.on .dot { background: #6EE7B7; }
-  .mobile-copy-toggle.off .dot { background: #FCA5A5; }
-  /* Content offset for top bar */
-  .content { padding-top: 68px !important; }
-  /* Hide desktop envoyer btn, use mobile sticky version */
-  .btn-envoyer-desktop { display: none; }
-}
-
-
-@media(max-width:768px){
-  .mobile-send-wrap {
-    position: fixed; bottom: 68px; left: 0; right: 0;
-    z-index: 149; padding: 10px 14px;
-    background: linear-gradient(to top, rgba(10,10,15,0.98) 60%, transparent);
-  }
-  .mobile-send-btn {
-    width: 100%; background: #5B21B6; color: #fff;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 15px; font-weight: 700; letter-spacing: 0.1em;
-    border: none; border-radius: 12px; padding: 14px;
-    cursor: pointer; box-shadow: 0 4px 20px rgba(91,33,182,0.4);
-  }
-}
-@media(min-width:769px){ .mobile-send-wrap { display: none; } }
-
 </style>
 
 
