@@ -1455,7 +1455,37 @@ input[name="objectif_periode"] { display: none; }
         </div>
       </div>
 
-      <!-- ── HISTORIQUE ── -->
+      
+      <!-- ── COPY TRADING MOBILE ── -->
+      <div class="param-section" id="copy-section" style="margin-bottom:16px;">
+        <div class="section-header-row">
+          <div class="section-icon-wrap" style="background:rgba(91,33,182,0.15);">⏯️</div>
+          <div>
+            <div class="section-title">COPY TRADING</div>
+            <div class="section-desc">Active ou désactive le copy trading sur ton compte</div>
+          </div>
+        </div>
+        <div style="padding:16px;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.02);border-radius:12px;margin-top:12px;border:1px solid rgba(255,255,255,0.06);">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#fff;">Statut actuel</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">
+              {% if copy_actif %}Tes trades sont copiés automatiquement{% else %}Le copy trading est en pause{% endif %}
+            </div>
+          </div>
+          <button onclick="showCopyConfirm()" style="
+            display:flex;align-items:center;gap:8px;
+            padding:10px 18px;border-radius:20px;border:none;
+            font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;
+            cursor:pointer;transition:all 0.2s;
+            {% if copy_actif %}background:rgba(5,150,105,0.2);color:#6EE7B7;border:1px solid rgba(5,150,105,0.4);{% else %}background:rgba(220,38,38,0.15);color:#FCA5A5;border:1px solid rgba(220,38,38,0.3);{% endif %}
+          ">
+            <span style="width:8px;height:8px;border-radius:50%;{% if copy_actif %}background:#6EE7B7;{% else %}background:#FCA5A5;{% endif %}"></span>
+            {% if copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
+          </button>
+        </div>
+      </div>
+
+<!-- ── HISTORIQUE ── -->
       <div class="section-card" id="historique">
         <div class="section-header">
           <div class="section-icon">📜</div>
@@ -1929,24 +1959,7 @@ async function saveParams() {
   }
   .m-topbar-abo.warn { color: #FCD34D; }
   .m-topbar-abo.exp  { color: #FCA5A5; }
-  .m-copy-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    border-radius: 20px;
-    border: none;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .m-copy-btn.on  { background: rgba(5,150,105,0.2);  color: #6EE7B7; border: 1px solid rgba(5,150,105,0.4); }
-  .m-copy-btn.off { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
-  .m-copy-btn .dot { width: 7px; height: 7px; border-radius: 50%; }
-  .m-copy-btn.on .dot  { background: #6EE7B7; }
-  .m-copy-btn.off .dot { background: #FCA5A5; }
+
 
   /* Compenser le topbar */
   .content { padding-top: 80px !important; }
@@ -2003,22 +2016,21 @@ async function saveParams() {
 <!-- TOP BAR -->
 <div class="m-topbar">
   <div class="m-topbar-left">
-    <div class="m-topbar-name">{{ member.nom.split()[0] }}</div>
+    <div class="m-topbar-name">{{ member.nom }}</div>
     {% if date_fin %}
+    <div class="m-topbar-dates">
+      📅 {{ date_souscription.strftime('%d/%m/%y') if date_souscription else '—' }} → {{ date_fin.strftime('%d/%m/%y') }}
+      &nbsp;·&nbsp;
       {% if statut_abo == 'expiré' %}
-        <div class="m-topbar-abo exp">Abonnement expiré</div>
+        <span style="color:#FCA5A5;">Expiré</span>
       {% elif statut_abo == 'expire_bientot' %}
-        <div class="m-topbar-abo warn">{{ jours_restants }}j restants ⚠️</div>
+        <span style="color:#FCD34D;">{{ jours_restants }}j ⚠️</span>
       {% else %}
-        <div class="m-topbar-abo">{{ jours_restants }}j restants ✓</div>
+        <span style="color:#6EE7B7;">{{ jours_restants }}j restants</span>
       {% endif %}
+    </div>
     {% endif %}
   </div>
-  <button class="m-copy-btn {% if copy_actif %}on{% else %}off{% endif %}"
-          onclick="showCopyConfirm()">
-    <span class="dot"></span>
-    {% if copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
-  </button>
 </div>
 
 <!-- BOTTOM NAV -->
