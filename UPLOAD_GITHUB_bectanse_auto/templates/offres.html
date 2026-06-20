@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bectanse AUTO — Renouveler mon accès</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --purple:#5B21B6; --purple-dark:#3B0764; --purple-mid:#4C1D95;
+  --gold:#F59E0B; --gold-light:rgba(245,158,11,0.12);
+  --dark:#0A0A0F; --dark-2:#111827; --dark-3:#1F2937;
+  --white:#FFFFFF; --grey:rgba(255,255,255,0.4);
+  --green:#059669; --border:rgba(91,33,182,0.2);
+}
+html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--dark); color:var(--white); overflow-x:hidden; }
+
+/* ── BG ── */
+.bg-wrap { position:fixed; inset:0; z-index:0; overflow:hidden; }
+.bg-wrap::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse 90% 60% at 50% -10%, rgba(91,33,182,0.5) 0%, transparent 65%),
+             radial-gradient(ellipse 60% 50% at 85% 90%, rgba(59,7,100,0.3) 0%, transparent 60%),
+             var(--dark);
+}
+.bg-grid {
+  position:absolute; inset:0;
+  background-image:linear-gradient(rgba(91,33,182,0.06) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(91,33,182,0.06) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+
+/* ── LAYOUT ── */
+.page { position:relative; z-index:1; min-height:100vh; padding:48px 16px 80px; }
+.container { max-width:980px; margin:0 auto; }
+
+/* ── HEADER ── */
+.back-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  color:rgba(255,255,255,0.35); font-size:13px; font-family:'Barlow Condensed',sans-serif;
+  font-weight:600; letter-spacing:0.08em; text-decoration:none;
+  margin-bottom:48px; transition:color 0.15s;
+}
+.back-btn:hover { color:rgba(255,255,255,0.7); }
+
+.hero { text-align:center; margin-bottom:16px; }
+.hero-eyebrow {
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:0.22em; text-transform:uppercase; color:var(--gold);
+  background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25);
+  border-radius:30px; padding:6px 18px; margin-bottom:20px;
+}
+.hero-title {
+  font-family:'Bebas Neue',sans-serif; font-size:clamp(36px,6vw,64px);
+  line-height:0.95; letter-spacing:0.02em; color:var(--white);
+  margin-bottom:16px;
+}
+.hero-title span { color:var(--gold); text-shadow:0 0 40px rgba(245,158,11,0.5); }
+.hero-sub {
+  font-size:15px; color:rgba(255,255,255,0.45); max-width:520px;
+  margin:0 auto 12px; line-height:1.7;
+}
+
+/* ── STATS BAR ── */
+.stats-bar {
+  display:flex; justify-content:center; gap:40px; flex-wrap:wrap;
+  margin:32px 0 48px; padding:20px 32px;
+  background:rgba(255,255,255,0.03); border:1px solid var(--border);
+  border-radius:16px;
+}
+.stat-item { text-align:center; }
+.stat-num {
+  font-family:'Bebas Neue',sans-serif; font-size:32px;
+  color:var(--gold); letter-spacing:0.05em;
+  text-shadow:0 0 20px rgba(245,158,11,0.4);
+}
+.stat-label { font-size:11px; color:rgba(255,255,255,0.3); letter-spacing:0.1em; text-transform:uppercase; margin-top:2px; }
+
+/* ── PSYCHO BLOCK ── */
+.psycho-block {
+  background:linear-gradient(135deg,rgba(91,33,182,0.12),rgba(59,7,100,0.08));
+  border:1px solid rgba(91,33,182,0.25); border-radius:20px;
+  padding:32px 36px; margin-bottom:48px; position:relative; overflow:hidden;
+}
+.psycho-block::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--purple),var(--gold),transparent);
+}
+.psycho-block p {
+  font-size:15px; color:rgba(255,255,255,0.65); line-height:1.8; margin-bottom:16px;
+}
+.psycho-block p:last-child { margin-bottom:0; }
+.psycho-block strong { color:var(--white); }
+.psycho-block .highlight {
+  color:var(--gold); font-weight:600;
+}
+
+/* ── OFFRES GRID ── */
+.offres-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:16px; margin-bottom:48px;
+}
+
+.offre-card {
+  background:rgba(17,24,39,0.8); border:1px solid var(--border);
+  border-radius:20px; padding:28px 24px 32px;
+  position:relative; overflow:hidden;
+  transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s, box-shadow 0.2s;
+  cursor:pointer; text-decoration:none; display:block;
+}
+.offre-card::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg,rgba(91,33,182,0.08),transparent);
+  opacity:0; transition:opacity 0.2s;
+}
+.offre-card:hover { transform:translateY(-6px); border-color:rgba(91,33,182,0.5); box-shadow:0 20px 60px rgba(0,0,0,0.4); }
+.offre-card:hover::before { opacity:1; }
+
+/* Card populaire */
+.offre-card.popular {
+  border-color:var(--gold);
+  box-shadow:0 0 0 1px rgba(245,158,11,0.2), 0 8px 32px rgba(245,158,11,0.1);
+}
+.offre-card.popular:hover { box-shadow:0 0 0 1px rgba(245,158,11,0.4), 0 24px 60px rgba(245,158,11,0.15); }
+
+/* Card best value */
+.offre-card.best {
+  border-color:var(--green);
+  box-shadow:0 0 0 1px rgba(5,150,105,0.2), 0 8px 32px rgba(5,150,105,0.08);
+}
+.offre-card.best:hover { box-shadow:0 0 0 1px rgba(5,150,105,0.4), 0 24px 60px rgba(5,150,105,0.12); }
+
+.badge-wrap { position:absolute; top:16px; right:16px; }
+.badge {
+  font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:700;
+  letter-spacing:0.14em; text-transform:uppercase;
+  padding:4px 12px; border-radius:20px;
+}
+.badge.gold { background:rgba(245,158,11,0.2); color:var(--gold); border:1px solid rgba(245,158,11,0.4); }
+.badge.green { background:rgba(5,150,105,0.2); color:#6EE7B7; border:1px solid rgba(5,150,105,0.4); }
+.badge.purple { background:rgba(91,33,182,0.2); color:#C4B5FD; border:1px solid rgba(91,33,182,0.4); }
+
+.offre-duration {
+  font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700;
+  letter-spacing:0.2em; text-transform:uppercase; color:rgba(255,255,255,0.35);
+  margin-bottom:12px;
+}
+.offre-price {
+  font-family:'Bebas Neue',sans-serif; font-size:52px; line-height:1;
+  color:var(--white); letter-spacing:0.02em; margin-bottom:4px;
+}
+.offre-price span { font-size:28px; color:rgba(255,255,255,0.5); }
+.offre-per-day {
+  font-size:12px; color:rgba(255,255,255,0.35); margin-bottom:16px;
+}
+.offre-per-day strong { color:var(--gold); }
+
+.offre-economy {
+  display:inline-block; font-family:'Barlow Condensed',sans-serif;
+  font-size:12px; font-weight:700; letter-spacing:0.06em;
+  padding:4px 12px; border-radius:6px; margin-bottom:20px;
+}
+.economy-gold { background:rgba(245,158,11,0.1); color:var(--gold); border:1px solid rgba(245,158,11,0.25); }
+.economy-green { background:rgba(5,150,105,0.1); color:#6EE7B7; border:1px solid rgba(5,150,105,0.25); }
+.economy-none { opacity:0; }
+
+.offre-features { list-style:none; margin-bottom:28px; }
+.offre-features li {
+  font-size:12px; color:rgba(255,255,255,0.5); padding:5px 0;
+  display:flex; align-items:center; gap:8px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.offre-features li:last-child { border-bottom:none; }
+.offre-features li::before { content:'✓'; color:var(--green); font-weight:700; flex-shrink:0; }
+
+.offre-cta {
+  display:block; width:100%; text-align:center;
+  font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase;
+  padding:13px 20px; border-radius:10px; border:none;
+  cursor:pointer; text-decoration:none; transition:all 0.2s;
+  position:relative; overflow:hidden;
+}
+.cta-default { background:rgba(91,33,182,0.2); color:rgba(255,255,255,0.7); border:1px solid rgba(91,33,182,0.3); }
+.cta-default:hover { background:var(--purple); color:#fff; }
+.cta-gold { background:var(--gold); color:#0a0a0f; box-shadow:0 4px 20px rgba(245,158,11,0.3); }
+.cta-gold:hover { background:#D97706; box-shadow:0 6px 28px rgba(245,158,11,0.5); transform:translateY(-1px); }
+.cta-green { background:var(--green); color:#fff; box-shadow:0 4px 20px rgba(5,150,105,0.3); }
+.cta-green:hover { background:#047857; box-shadow:0 6px 28px rgba(5,150,105,0.4); transform:translateY(-1px); }
+.cta-default::before, .cta-gold::before, .cta-green::before {
+  content:''; position:absolute; top:0; left:-100%; width:60%; height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);
+  animation:shimmer 2.5s ease-in-out infinite;
+}
+@keyframes shimmer { 0%{left:-100%} 60%,100%{left:160%} }
+
+/* ── URGENCE ── */
+.urgence-block {
+  background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.2);
+  border-radius:16px; padding:24px 28px; margin-bottom:48px;
+  display:flex; align-items:center; gap:20px;
+}
+.urgence-icon { font-size:32px; flex-shrink:0; animation:pulse-icon 2s ease-in-out infinite; }
+@keyframes pulse-icon { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+.urgence-text h3 { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:700; letter-spacing:0.05em; color:#FCA5A5; margin-bottom:4px; }
+.urgence-text p { font-size:13px; color:rgba(255,255,255,0.4); line-height:1.6; }
+
+/* ── GARANTIE ── */
+.garantie {
+  text-align:center; padding:28px;
+  background:rgba(5,150,105,0.05); border:1px solid rgba(5,150,105,0.15);
+  border-radius:16px; margin-bottom:32px;
+}
+.garantie-icon { font-size:36px; margin-bottom:10px; }
+.garantie h3 { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:700; color:#6EE7B7; letter-spacing:0.06em; margin-bottom:6px; }
+.garantie p { font-size:13px; color:rgba(255,255,255,0.4); line-height:1.6; }
+
+/* ── ANIMATIONS ── */
+.fade-up { opacity:0; transform:translateY(30px); transition:opacity 0.6s ease, transform 0.6s ease; }
+.fade-up.visible { opacity:1; transform:translateY(0); }
+.delay-1 { transition-delay:0.1s; }
+.delay-2 { transition-delay:0.2s; }
+.delay-3 { transition-delay:0.3s; }
+.delay-4 { transition-delay:0.4s; }
+
+@media(max-width:600px) {
+  .offres-grid { grid-template-columns:1fr 1fr; }
+  .stats-bar { gap:20px; }
+  .psycho-block { padding:24px 20px; }
+  .urgence-block { flex-direction:column; text-align:center; }
+}
+@media(max-width:400px) {
+  .offres-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="bg-wrap"><div class="bg-grid"></div></div>
+
+<div class="page">
+<div class="container">
+
+  <!-- BACK -->
+  <a href="/dashboard" class="back-btn">← Retour à mon espace</a>
+
+  <!-- HERO -->
+  <div class="hero fade-up">
+    <div class="hero-eyebrow">🚀 Espace membre exclusif</div>
+    <h1 class="hero-title">Plus longtemps tu trades,<br><span>plus tu gagnes.</span></h1>
+    <p class="hero-sub">Tu as déjà fait le plus dur — tu as rejoint Bectanse AUTO.<br>Maintenant laisse ton capital travailler <strong style="color:#fff">le plus longtemps possible.</strong></p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar fade-up delay-1">
+    <div class="stat-item">
+      <div class="stat-num">+114%</div>
+      <div class="stat-label">Performance mois</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">15 969</div>
+      <div class="stat-label">Membres actifs</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">24h/24</div>
+      <div class="stat-label">Système actif</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">0</div>
+      <div class="stat-label">Action requise</div>
+    </div>
+  </div>
+
+  <!-- PSYCHO -->
+  <div class="psycho-block fade-up delay-1">
+    <p>📈 <strong>Le copy trading, c'est comme un investissement — le temps est ton meilleur allié.</strong></p>
+    <p>Les premiers mois, le système se calibre. Les signaux s'affinent. Les positions se consolident. <span class="highlight">C'est dans la durée que les vrais résultats apparaissent.</span></p>
+    <p>Un membre qui reste <strong>1 mois</strong> voit des résultats. Un membre qui reste <strong>1 an</strong> voit sa vie changer. Ce n'est pas une opinion — <span class="highlight">c'est ce que nos chiffres prouvent chaque mois.</span></p>
+    <p>Et en plus ? <strong>Plus tu t'engages longtemps, moins tu paies par jour.</strong> C'est mathématique. C'est logique. C'est maintenant.</p>
+  </div>
+
+  <!-- OFFRES -->
+  <div class="offres-grid">
+
+    <!-- 1 MOIS -->
+    <a href="https://buy.stripe.com/28EeVcdoA8Ed9gr5HAgA802" target="_blank" class="offre-card fade-up delay-1">
+      <div class="offre-duration">1 Mois</div>
+      <div class="offre-price"><span>€</span>500</div>
+      <div class="offre-per-day"><strong>16,67€</strong>/jour</div>
+      <div class="offre-economy economy-none">—</div>
+      <ul class="offre-features">
+        <li>Accès complet copy trading</li>
+        <li>Signaux XAUUSD 24h/24</li>
+        <li>Espace membre</li>
+        <li>Support équipe</li>
+      </ul>
+      <span class="offre-cta cta-default">Choisir 1 mois →</span>
+    </a>
+
+    <!-- 3 MOIS -->
+    <a href="https://buy.stripe.com/eVq4gyesE3jTboz5HAgA80a" target="_blank" class="offre-card popular fade-up delay-2">
+      <div class="badge-wrap"><span class="badge gold">⭐ Populaire</span></div>
+      <div class="offre-duration">3 Mois</div>
+      <div class="offre-price"><span>€</span>1000</div>
+      <div class="offre-per-day"><strong>11,11€</strong>/jour</div>
+      <div class="offre-economy economy-gold">Tu économises 500€ — 33% moins cher</div>
+      <ul class="offre-features">
+        <li>Accès complet copy trading</li>
+        <li>Signaux XAUUSD 24h/24</li>
+        <li>Espace membre</li>
+        <li>Support prioritaire</li>
+      </ul>
+      <span class="offre-cta cta-gold">Choisir 3 mois →</span>
+    </a>
+
+    <!-- 6 MOIS -->
+    <a href="https://buy.stripe.com/00w28q84g5s1csDgmegA804" target="_blank" class="offre-card fade-up delay-3">
+      <div class="badge-wrap"><span class="badge purple">Recommandé</span></div>
+      <div class="offre-duration">6 Mois</div>
+      <div class="offre-price"><span>€</span>2500</div>
+      <div class="offre-per-day"><strong>13,89€</strong>/jour</div>
+      <div class="offre-economy economy-gold">Tu économises 500€ vs mois par mois</div>
+      <ul class="offre-features">
+        <li>Accès complet copy trading</li>
+        <li>Signaux XAUUSD 24h/24</li>
+        <li>Espace membre</li>
+        <li>Support VIP</li>
+      </ul>
+      <span class="offre-cta cta-default">Choisir 6 mois →</span>
+    </a>
+
+    <!-- 1 AN -->
+    <a href="https://buy.stripe.com/bJecN498kbQp64f7PIgA803" target="_blank" class="offre-card best fade-up delay-4">
+      <div class="badge-wrap"><span class="badge green">🏆 Meilleur ROI</span></div>
+      <div class="offre-duration">1 An</div>
+      <div class="offre-price"><span>€</span>4000</div>
+      <div class="offre-per-day"><strong>10,96€</strong>/jour</div>
+      <div class="offre-economy economy-green">Tu économises 2000€ — 34% moins cher</div>
+      <ul class="offre-features">
+        <li>Accès complet copy trading</li>
+        <li>Signaux XAUUSD 24h/24</li>
+        <li>Espace membre à vie</li>
+        <li>Support VIP + accès direct</li>
+      </ul>
+      <span class="offre-cta cta-green">Choisir 1 an →</span>
+    </a>
+
+  </div>
+
+  <!-- URGENCE -->
+  <div class="urgence-block fade-up">
+    <div class="urgence-icon">⚠️</div>
+    <div class="urgence-text">
+      <h3>Les places sont limitées — et les prix peuvent évoluer</h3>
+      <p>Chaque membre occupe une capacité sur notre système de copy. Nous n'acceptons pas de nouveaux membres indéfiniment. Si tu renouvelles maintenant, tu garantis ta place au tarif actuel avant toute révision de nos conditions.</p>
+    </div>
+  </div>
+
+  <!-- GARANTIE -->
+  <div class="garantie fade-up">
+    <div class="garantie-icon">🔒</div>
+    <h3>Paiement 100% sécurisé via Stripe</h3>
+    <p>Tes données bancaires ne transitent jamais par nos serveurs.<br>Stripe est le standard mondial des paiements en ligne — utilisé par Amazon, Google, Apple.</p>
+  </div>
+
+</div>
+</div>
+
+<script>
+// Animations au scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+// Compteur animé
+function animateCounter(el, target, suffix='') {
+  let current = 0;
+  const step = target / 60;
+  const timer = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = Math.floor(current).toLocaleString('fr') + suffix;
+    if (current >= target) clearInterval(timer);
+  }, 16);
+}
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    animateCounter(document.querySelectorAll('.stat-num')[1], 15969);
+  }, 400);
+});
+
+// Highlight carte au hover
+document.querySelectorAll('.offre-card').forEach(card => {
+  card.addEventListener('mouseenter', () => {
+    document.querySelectorAll('.offre-card').forEach(c => {
+      if (c !== card) c.style.opacity = '0.6';
+    });
+  });
+  card.addEventListener('mouseleave', () => {
+    document.querySelectorAll('.offre-card').forEach(c => c.style.opacity = '1');
+  });
+});
+</script>
+</body>
+</html>
