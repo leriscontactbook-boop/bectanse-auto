@@ -156,13 +156,15 @@ def build_notif(member, params, code):
         f"👉 Appliquer sur Sociate Trade."
     )
 
-def send_telegram(text):
+def send_telegram(text, reply_markup=None):
     if not BOT_TOKEN: return
     try:
+        payload = {"chat_id": ADMIN_ID, "text": text, "parse_mode": "Markdown"}
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={"chat_id": ADMIN_ID, "text": text, "parse_mode": "Markdown"},
-            timeout=5
+            json=payload, timeout=5
         )
     except: pass
 
@@ -173,6 +175,51 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
+
+@app.route("/confirm/<code>")
+def confirm_params(code):
+    """Admin clique sur ce lien depuis Telegram pour marquer comme appliqué"""
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT historique, nom FROM members WHERE code=:c", c=code)
+        if not rows:
+            conn.close()
+            return "<h2 style=\'font-family:sans-serif;padding:40px\'>❌ Membre introuvable</h2>"
+        nom = rows[0][1]
+        hist = json.loads(rows[0][0]) if rows[0][0] else []
+        # Marquer la dernière demande comme appliquée
+        for h in reversed(hist):
+            if h.get("statut") == "en_attente":
+                h["statut"] = "applique"
+                break
+        conn.run("UPDATE members SET historique=:h WHERE code=:c",
+                 h=json.dumps(hist), c=code)
+        conn.close()
+        # Notifier le membre via Telegram si possible
+        send_telegram(f"✅ *Paramètres appliqués !*\n\n👤 *{nom}* — ton compte Bectanse AUTO a été mis à jour.\n\nLe système tourne avec tes nouveaux réglages. 🚀")
+        return f"""<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center;'>
+            <h1 style='color:#059669'>✅ Appliqué !</h1>
+            <p>Les paramètres de <strong>{nom}</strong> ont été marqués comme appliqués.</p>
+            <p style='color:#6B7280;font-size:14px'>Le membre a reçu une confirmation automatique.</p>
+            </body></html>"""
+    except Exception as e:
+        return f"<h2>Erreur: {e}</h2>"
+
+@app.route("/problem/<code>")
+def problem_params(code):
+    """Admin clique pour signaler un problème"""
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom FROM members WHERE code=:c", c=code)
+        nom = rows[0][0] if rows else "Membre"
+        conn.close()
+        send_telegram(f"⚠️ *Problème signalé*\n\nLe membre *{nom}* (`{code}`) doit être contacté concernant sa dernière demande.")
+        return f"""<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center;'>
+            <h1 style='color:#F59E0B'>⚠️ Problème signalé</h1>
+            <p>Contacte <strong>{nom}</strong> pour résoudre le problème.</p>
+            </body></html>"""
+    except Exception as e:
+        return f"<h2>Erreur: {e}</h2>"
 
 @app.route("/health")
 def health():
@@ -239,7 +286,16 @@ def save():
     hist_entry = {"date": datetime.now().strftime("%d/%m/%Y %H:%M"), "statut": "en_attente", "params": p}
     ok = save_params_db(code, p, hist_entry)
     if ok:
-        send_telegram(build_notif(member, p, code))
+        # Boutons inline Telegram pour confirmer ou signaler un problème
+        confirm_url = f"https://bectanse-auto-eyq-production.up.railway.app/confirm/{code}"
+        problem_url = f"https://bectanse-auto-eyq-production.up.railway.app/problem/{code}"
+        markup = {
+            "inline_keyboard": [[
+                {"text": "✅ Appliqué sur Sociate Trade", "url": confirm_url},
+                {"text": "❌ Problème — Contacter", "url": problem_url}
+            ]]
+        }
+        send_telegram(build_notif(member, p, code), reply_markup=markup)
     return jsonify({"ok": ok})
 
 @app.route("/logout")
