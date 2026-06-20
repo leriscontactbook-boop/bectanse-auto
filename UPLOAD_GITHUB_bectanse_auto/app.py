@@ -154,6 +154,11 @@ def build_notif(member, params, code):
         + (f"  └ Risque balance : `{p.get('risque_balance_pct','—')}%`\n" if p.get('mode_risque')=='Risque par solde (Balance)' else "")
         + (f"  └ Risque equity : `{p.get('risque_equity_pct','—')}%`\n" if p.get('mode_risque')=='Risque par capitaux (Equity)' else "")
         + "\n"
+        + (("\n📋 *SYMBOLES CONFIGURÉS*\n" +
+            "".join([f"  `{sym}` : `{lot}` lots\n"
+                     for sym, lot in p.get("lot_symboles", {}).items()
+                     if float(lot) != 0.01])  # Afficher seulement les modifiés
+           ) if p.get("mode_risque") == "Lot par symbole" and p.get("lot_symboles") else "")
         f"🔧 *OPTIONS*\n"
         f"  {bool_icon(p['forcer_lot_minimum'])} Forcer lot min\n"
         f"  {bool_icon(p['inverser_trades'])} Inverser trades\n"
