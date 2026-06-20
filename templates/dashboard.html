@@ -196,6 +196,7 @@ html, body { min-height: 100vh; font-family: 'Barlow', sans-serif; background: v
   top: 0;
   z-index: 50;
 }
+@media(max-width:768px){ .topbar { display: none !important; } }
 
 .topbar-title {
   font-family: 'Barlow Condensed', sans-serif;
@@ -951,6 +952,20 @@ input[name="objectif_periode"] { display: none; }
   font-size: 14px; font-weight: 700; cursor: pointer;
 }
 
+
+.copy-content-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 20px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; border: 1px solid;
+}
+.copy-content-btn.copy-on  { background: rgba(5,150,105,0.2);  color: #6EE7B7; border-color: rgba(5,150,105,0.4); }
+.copy-content-btn.copy-off { background: rgba(220,38,38,0.15); color: #FCA5A5; border-color: rgba(220,38,38,0.3); }
+.copy-content-dot { width: 8px; height: 8px; border-radius: 50%; }
+.copy-content-btn.copy-on  .copy-content-dot { background: #6EE7B7; }
+.copy-content-btn.copy-off .copy-content-dot { background: #FCA5A5; }
+
 </style>
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#5B21B6">
@@ -1472,14 +1487,9 @@ input[name="objectif_periode"] { display: none; }
               {% if copy_actif %}Tes trades sont copiés automatiquement{% else %}Le copy trading est en pause{% endif %}
             </div>
           </div>
-          <button onclick="showCopyConfirm()" style="
-            display:flex;align-items:center;gap:8px;
-            padding:10px 18px;border-radius:20px;border:none;
-            font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;
-            cursor:pointer;transition:all 0.2s;
-            {% if copy_actif %}background:rgba(5,150,105,0.2);color:#6EE7B7;border:1px solid rgba(5,150,105,0.4);{% else %}background:rgba(220,38,38,0.15);color:#FCA5A5;border:1px solid rgba(220,38,38,0.3);{% endif %}
-          ">
-            <span style="width:8px;height:8px;border-radius:50%;{% if copy_actif %}background:#6EE7B7;{% else %}background:#FCA5A5;{% endif %}"></span>
+          <button onclick="showCopyConfirm()"
+            class="copy-content-btn {% if copy_actif %}copy-on{% else %}copy-off{% endif %}">
+            <span class="copy-content-dot"></span>
             {% if copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
           </button>
         </div>
