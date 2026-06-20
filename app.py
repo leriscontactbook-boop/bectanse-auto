@@ -543,6 +543,200 @@ def admin_add():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+
+# ── BOT TELEGRAM WEBHOOK ──────────────────────────────────────────────────────
+
+@app.route("/bot-webhook", methods=["POST"])
+def bot_webhook():
+    """Reçoit les messages/commandes du bot Telegram"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"ok": True})
+
+        # Message normal
+        message = data.get("message", {})
+        callback = data.get("callback_query", {})
+
+        if message:
+            chat_id = str(message.get("chat", {}).get("id", ""))
+            text    = message.get("text", "").strip()
+
+            # Sécurité — uniquement l'admin
+            if chat_id != ADMIN_ID:
+                return jsonify({"ok": True})
+
+            if text == "/membres" or text == "/liste":
+                handle_liste_membres(chat_id)
+
+            elif text == "/stats":
+                handle_stats(chat_id)
+
+            elif text.startswith("/supprimer "):
+                code = text.replace("/supprimer ", "").strip().upper()
+                handle_supprimer(chat_id, code)
+
+            elif text == "/start" or text == "/aide":
+                handle_aide(chat_id)
+
+        elif callback:
+            # Bouton inline cliqué
+            chat_id   = str(callback.get("from", {}).get("id", ""))
+            cb_data   = callback.get("data", "")
+            cb_id     = callback.get("id", "")
+
+            if chat_id != ADMIN_ID:
+                return jsonify({"ok": True})
+
+            if cb_data.startswith("del_confirm_"):
+                code = cb_data.replace("del_confirm_", "")
+                handle_supprimer(chat_id, code, confirmed=True)
+                # Répondre au callback
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+                    json={"callback_query_id": cb_id, "text": "✅ Membre supprimé"}, timeout=5)
+
+            elif cb_data.startswith("del_cancel_"):
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+                    json={"callback_query_id": cb_id, "text": "❌ Annulé"}, timeout=5)
+
+            elif cb_data == "liste_membres":
+                handle_liste_membres(chat_id)
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+                    json={"callback_query_id": cb_id}, timeout=5)
+
+    except Exception as e:
+        app.logger.error(f"bot_webhook: {e}")
+
+    return jsonify({"ok": True})
+
+
+def bot_send(chat_id, text, reply_markup=None):
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    try:
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=payload, timeout=5)
+    except: pass
+
+
+def handle_aide(chat_id):
+    msg = (
+        "🤖 *Bectanse AUTO — Bot Admin*\n\n"
+        "📋 *Commandes disponibles :*\n\n"
+        "/membres — Liste tous les membres actifs\n"
+        "/stats — Statistiques générales\n"
+        "/supprimer BCT-XXXXXXXX — Supprimer un membre\n\n"
+        "💡 Tu peux aussi cliquer sur les boutons inline."
+    )
+    markup = {"inline_keyboard": [[
+        {"text": "📋 Voir les membres", "callback_data": "liste_membres"}
+    ]]}
+    bot_send(chat_id, msg, markup)
+
+
+def handle_stats(chat_id):
+    try:
+        conn = get_conn()
+        total    = conn.run("SELECT COUNT(*) FROM members")[0][0]
+        actifs   = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")[0][0]
+        expires  = conn.run("SELECT COUNT(*) FROM members WHERE date_fin < NOW() AND actif=TRUE")[0][0]
+        copy_on  = conn.run("SELECT COUNT(*) FROM members WHERE copy_actif=TRUE AND actif=TRUE")[0][0]
+        conn.close()
+        msg = (
+            f"📊 *STATISTIQUES BECTANSE AUTO*\n\n"
+            f"👥 Total membres : *{total}*\n"
+            f"✅ Membres actifs : *{actifs}*\n"
+            f"⏸️ Copy trading ON : *{copy_on}*\n"
+            f"⚠️ Abonnements expirés : *{expires}*\n"
+        )
+        bot_send(chat_id, msg)
+    except Exception as e:
+        bot_send(chat_id, f"❌ Erreur : {e}")
+
+
+def handle_liste_membres(chat_id):
+    try:
+        conn = get_conn()
+        rows = conn.run("""
+            SELECT code, nom, capital, actif, copy_actif, date_fin
+            FROM members
+            ORDER BY created_at DESC
+            LIMIT 20
+        """)
+        conn.close()
+
+        if not rows:
+            bot_send(chat_id, "Aucun membre trouvé.")
+            return
+
+        # Envoyer par blocs de 5 pour éviter les messages trop longs
+        blocs = [rows[i:i+5] for i in range(0, len(rows), 5)]
+        for i, bloc in enumerate(blocs):
+            buttons = []
+            msg = f"📋 *MEMBRES ({i*5+1}-{i*5+len(bloc)}/{len(rows)})*\n\n"
+            for row in bloc:
+                code, nom, capital, actif, copy_actif, date_fin = row
+                statut = "✅" if actif else "❌"
+                copy   = "🟢" if copy_actif else "🔴"
+                df     = date_fin.strftime('%d/%m/%Y') if date_fin else "—"
+                msg += f"{statut} *{nom}*\n"
+                msg += f"   `{code}` | 💰{capital} | {copy} | 📅{df}\n\n"
+                buttons.append([{"text": f"🗑️ Suppr. {nom.split()[0]}", 
+                                  "callback_data": f"del_confirm_{code}"}])
+            
+            markup = {"inline_keyboard": buttons}
+            bot_send(chat_id, msg, markup)
+
+    except Exception as e:
+        bot_send(chat_id, f"❌ Erreur : {e}")
+
+
+def handle_supprimer(chat_id, code, confirmed=False):
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom, capital FROM members WHERE code=:c", c=code)
+        if not rows:
+            bot_send(chat_id, f"❌ Membre `{code}` introuvable.")
+            conn.close()
+            return
+        nom, capital = rows[0]
+
+        if not confirmed:
+            # Demander confirmation
+            msg = (
+                f"⚠️ *Supprimer ce membre ?*\n\n"
+                f"👤 *{nom}*\n"
+                f"💰 Capital : {capital}\n"
+                f"🔑 Code : `{code}`\n\n"
+                f"Cette action est *irréversible*."
+            )
+            markup = {"inline_keyboard": [[
+                {"text": "🗑️ OUI, supprimer", "callback_data": f"del_confirm_{code}"},
+                {"text": "❌ Annuler", "callback_data": f"del_cancel_{code}"}
+            ]]}
+            bot_send(chat_id, msg, markup)
+        else:
+            # Supprimer
+            conn.run("DELETE FROM members WHERE code=:c", c=code)
+            conn.close()
+            bot_send(chat_id, f"✅ *{nom}* (`{code}`) supprimé avec succès.")
+
+    except Exception as e:
+        bot_send(chat_id, f"❌ Erreur : {e}")
+
+
+def register_webhook():
+    """Enregistre le webhook Telegram au démarrage"""
+    try:
+        webhook_url = "https://bectanse-auto.up.railway.app/bot-webhook"
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
+            json={"url": webhook_url},
+            timeout=10
+        )
+    except: pass
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def _startup():
@@ -550,6 +744,8 @@ def _startup():
     try:
         init_db()
         app.logger.info("DB ready")
+        register_webhook()
+        app.logger.info("Webhook enregistré")
     except Exception as e:
         app.logger.error(f"startup: {e}")
 
