@@ -855,7 +855,7 @@ input[name="objectif_periode"] { display: none; }
             </div
             </div>
           </div>
-          <div class="field-row cols-3">
+          <div class="field-row cols-3" id="lots-section">
             <div class="field">
               <label>Lots</label>
               <input type="number" name="lots" id="lots" value="{{ params.lots }}" min="0.01" max="100" step="0.01">
@@ -1319,6 +1319,12 @@ function updateModePanel(mode) {
     if (el) el.style.display = 'block';
   };
 
+  // Afficher/cacher la section Lots/Lots max/Slippage
+  const lotsSection = document.getElementById('lots-section');
+  if (lotsSection) {
+    lotsSection.style.display = (mode === 'Lot par symbole') ? 'none' : 'block';
+  }
+
   if (mode === 'Risque en %') {
     show('panel-risque-pct');
   } else if (mode === "Copier les lots de l'envoyeur") {
@@ -1329,7 +1335,6 @@ function updateModePanel(mode) {
     show('panel-risque-equity');
   } else if (mode === 'Lot par symbole') {
     show('lot-symbole-panel');
-    // Générer le tableau des symboles
     if (typeof renderSymbols === 'function') renderSymbols();
   }
 
@@ -1450,6 +1455,7 @@ async function saveParams() {
     objectif_perte_pct:       parseFloat(val('objectif_perte_pct')),
     objectif_periode:         val('objectif_periode'),
     filtre_news:              bool('filtre_news'),
+    lot_symboles: (val('mode_risque') === 'Lot par symbole') ? JSON.parse(JSON.stringify(symLots)) : {},
     risque_pct:               parseFloat(val('risque_pct') || 1),
     multiplicateur:           parseFloat(val('multiplicateur') || 1),
     risque_balance_pct:       parseFloat(val('risque_balance_pct') || 1),
