@@ -899,7 +899,8 @@ with app.app_context():
 # ── SCHEDULER ──────────────────────────────────────────────────────────────────
 def start_scheduler():
     try:
-                scheduler = BackgroundScheduler(timezone="Europe/Paris")
+        from apscheduler.schedulers.background import BackgroundScheduler
+        scheduler = BackgroundScheduler(timezone="Europe/Paris")
         scheduler.add_job(verifier_expirations, 'cron', hour=9, minute=0)
         scheduler.add_job(envoyer_relances,     'cron', hour=10, minute=0)
         scheduler.start()
