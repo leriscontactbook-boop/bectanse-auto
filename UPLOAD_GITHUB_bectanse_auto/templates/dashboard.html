@@ -1213,20 +1213,38 @@ function hideCopyConfirm() {
 }
 async function toggleCopy() {
   const btn = document.getElementById('copyToggleBtn');
+  const confirmBox = document.getElementById('copyConfirm');
   btn.style.opacity = '0.5';
+  btn.disabled = true;
   try {
-    const res = await fetch('/toggle-copy', { method: 'POST' });
+    const res = await fetch('/toggle-copy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin'
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (data.ok) {
+      confirmBox.classList.remove('show');
       showToast(
-        data.copy_actif ? '✅ Copy trading activé !' : '⏸️ Copy trading désactivé.',
+        data.copy_actif
+          ? '✅ Copy trading activé ! Notification envoyée.'
+          : '⏸️ Copy trading désactivé. Notification envoyée.',
         data.copy_actif ? 'success' : 'error'
       );
-      setTimeout(() => location.reload(), 1500);
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      showToast('Erreur : ' + (data.error || 'Réessaie.'), 'error');
+      btn.style.opacity = '1';
+      btn.disabled = false;
     }
   } catch(e) {
-    showToast('Erreur de connexion.', 'error');
+    showToast('Erreur de connexion : ' + e.message, 'error');
     btn.style.opacity = '1';
+    btn.disabled = false;
   }
 }
 
