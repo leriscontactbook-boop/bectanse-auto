@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bectanse AUTO — Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --purple:       #5B21B6;
+  --purple-dark:  #3B0764;
+  --purple-mid:   #4C1D95;
+  --purple-light: #EDE9FE;
+  --gold:         #F59E0B;
+  --gold-light:   #FEF3C7;
+  --dark:         #0A0A0F;
+  --dark-2:       #111827;
+  --white:        #FFFFFF;
+  --grey:         #6B7280;
+  --grey-light:   #F3F4F6;
+  --green:        #059669;
+  --red:          #DC2626;
+  --border:       rgba(91,33,182,0.25);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Barlow', sans-serif;
+  background: var(--dark);
+  color: var(--white);
+  overflow: hidden;
+}
+
+/* ── BACKGROUND ── */
+.bg {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(91,33,182,0.45) 0%, transparent 70%),
+              radial-gradient(ellipse 50% 40% at 80% 80%, rgba(59,7,100,0.3) 0%, transparent 60%),
+              var(--dark);
+  z-index: 0;
+}
+
+/* Grille subtile */
+.bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(91,33,182,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(91,33,182,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── LAYOUT ── */
+.login-wrap {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(17, 24, 39, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 40px 44px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(91,33,182,0.1) inset;
+}
+
+/* ── BRAND ── */
+.brand {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.brand-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  text-shadow: 0 0 40px rgba(245,158,11,0.4);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.brand-sub {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin-bottom: 32px;
+}
+
+/* ── HEADING ── */
+.login-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.login-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* ── FORM ── */
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 8px;
+}
+
+.field input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(91,33,182,0.3);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--white);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  text-transform: uppercase;
+}
+
+.field input::placeholder {
+  color: rgba(255,255,255,0.18);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+}
+
+.field input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(91,33,182,0.2);
+}
+
+/* ── ERROR ── */
+.error-box {
+  background: rgba(220,38,38,0.1);
+  border: 1px solid rgba(220,38,38,0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #FCA5A5;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── BUTTON ── */
+.btn-login {
+  width: 100%;
+  background: var(--purple);
+  color: var(--white);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 10px;
+  padding: 15px 20px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+  box-shadow: 0 4px 20px rgba(91,33,182,0.4);
+  margin-top: 8px;
+}
+
+.btn-login:hover {
+  background: var(--purple-mid);
+  box-shadow: 0 6px 28px rgba(91,33,182,0.55);
+  transform: translateY(-1px);
+}
+
+.btn-login:active { transform: translateY(0); }
+
+.btn-login::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+@keyframes shimmer { 0%{left:-100%} 60%,100%{left:160%} }
+
+/* ── FOOTER ── */
+.login-footer {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.2);
+  line-height: 1.6;
+}
+
+.login-footer a {
+  color: rgba(91,33,182,0.7);
+  text-decoration: none;
+}
+
+/* ── PULSE DOTS ── */
+.pulse-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  display: inline-block;
+  margin-right: 6px;
+  animation: pulse 2s ease-in-out infinite;
+  vertical-align: middle;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.status-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  margin-top: 20px;
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.08em;
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="login-wrap">
+  <div class="login-card">
+
+    <div class="brand">
+      <div class="brand-logo">B€CTAN$€ AUTO</div>
+      <div class="brand-sub">Espace Membre — Copy Trading</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="login-title">Connexion</div>
+    <div class="login-desc">Accède à ton espace pour gérer tes paramètres de copy trading.</div>
+
+    {% if error %}
+    <div class="error-box">
+      <span>⚠️</span> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST">
+      <div class="field">
+        <label>Code d'accès membre</label>
+        <input
+          type="text"
+          name="code"
+          placeholder="BCT-XXXXXXXX"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          autofocus
+          required
+        >
+      </div>
+      <button type="submit" class="btn-login">Accéder à mon espace →</button>
+    </form>
+
+    <div class="status-line">
+      <span class="pulse-dot"></span>
+      Système actif · Sociate Trade connecté
+    </div>
+
+    <div class="login-footer">
+      Code perdu ? Contacte le support Bectanse<br>
+      <a href="#">@bectanseacademie</a>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
