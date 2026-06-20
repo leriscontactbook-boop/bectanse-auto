@@ -262,6 +262,7 @@ def inscription():
     capital   = data.get("capital", "").strip()
     email     = data.get("email", "").strip()
     telephone = data.get("telephone", "").strip()
+    telegram  = data.get("telegram", "").strip()
     plateforme= data.get("plateforme", "MT4")
     serveur   = data.get("serveur", "PUPrime-Live")
     mt_login  = data.get("mt_login", "").strip()
@@ -285,6 +286,7 @@ def inscription():
         return jsonify({"ok": False, "error": f"Erreur base de données : {str(e)}"})
 
     # Notification Telegram complète à l'équipe
+    tg_line = f"  Telegram : {telegram}\n" if telegram else "  Telegram : non renseigné\n"
     notif = (
         f"🆕 *NOUVELLE INSCRIPTION BECTANSE AUTO*\n\n"
         f"👤 *{nom_complet}*\n"
@@ -292,16 +294,37 @@ def inscription():
         f"🔑 Code d\'accès : `{code}`\n\n"
         f"📞 *CONTACT MEMBRE*\n"
         f"  Email : `{email}`\n"
-        f"  Téléphone : `{telephone}`\n\n"
-        f"📊 *CONNEXION METATRADER*\n"
+        f"  Téléphone : `{telephone}`\n"
+        + tg_line +
+        f"\n📊 *CONNEXION METATRADER*\n"
         f"  Plateforme : *{plateforme}*\n"
         f"  Serveur : *{serveur}*\n"
         f"  Login : `{mt_login}`\n"
         f"  Mot de passe investisseur : `{mt_pass}`\n\n"
         f"⚡ *ACTION REQUISE* — Connecter ce membre sur Sociate Trade\n"
-        f"Une fois connecté, le membre peut accéder à son espace avec le code ci-dessus."
+        f"Une fois connecté, le membre peut accéder à son espace avec son code."
     )
     send_telegram(notif)
+
+    # Envoyer le code directement au membre sur Telegram si username fourni
+    if telegram:
+        try:
+            tg_handle = telegram.lstrip("@")
+            msg_membre = (
+                f"👋 Bienvenue *{prenom}* dans Bectanse AUTO !\n\n"
+                f"Voici ton code d\'accès personnel :\n\n"
+                f"🔑 `{code}`\n\n"
+                f"Garde ce code précieusement — il te permet de te connecter à ton espace membre.\n\n"
+                f"👉 bectanse-auto.up.railway.app"
+            )
+            # Envoyer via le bot en cherchant le chat_id par username
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                json={"chat_id": f"@{tg_handle}", "text": msg_membre, "parse_mode": "Markdown"},
+                timeout=5
+            )
+        except Exception as e:
+            app.logger.warning(f"Envoi Telegram membre échoué: {e}")
 
     return jsonify({"ok": True, "code": code})
 
