@@ -810,7 +810,8 @@ input[name="objectif_periode"] { display: none; }
       <div class="sidebar-tagline">Espace Membre</div>
     </div>
 
-        <div class="member-card">
+    <!-- MEMBER CARD FUSIONNÉE -->
+    <div class="member-card">
       <div class="member-top">
         <div class="member-name">{{ member.nom }}</div>
         <div class="member-capital">💰 {{ member.capital }}</div>
@@ -836,9 +837,6 @@ input[name="objectif_periode"] { display: none; }
       </div>
       {% endif %}
     </div>
-      <div class="member-capital">💰 {{ member.capital }}</div>
-      <div class="member-code">{{ code }}</div>
-    </div>
 
     <nav class="nav">
       <div class="nav-section">Navigation</div>
@@ -862,17 +860,13 @@ input[name="objectif_periode"] { display: none; }
       </div>
     </nav>
 
-    <div class="status-badge">
-      <div class="pulse"></div>
-      Système actif
-    </div>
+    <div class="sidebar-bottom">
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        Système actif
+      </div>
 
-    
-
-    <!-- ABONNEMENT -->
-
-    <!-- COPY TRADING TOGGLE -->
-    <div class="copy-toggle-wrap">
+      <div class="copy-toggle-wrap">
       <button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
               id="copyToggleBtn" onclick="showCopyConfirm()">
         <div class="copy-dot {% if copy_actif %}actif{% else %}inactif{% endif %}"></div>
@@ -894,9 +888,10 @@ input[name="objectif_periode"] { display: none; }
       </div>
     </div>
 
-    <a class="logout-btn" href="/logout">
-      <span>🚪</span> Déconnexion
-    </a>
+      <a class="logout-btn" href="/logout">
+        <span>🚪</span> Déconnexion
+      </a>
+    </div>
   </aside>
 
   <!-- ── MAIN ── -->
