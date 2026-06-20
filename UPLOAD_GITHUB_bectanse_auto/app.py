@@ -2,111 +2,137 @@ import os, json, secrets, string, requests, time
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import pg8000.native
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bectanse2026secretkeyprod")
 
-BOT_TOKEN    = os.environ.get("BOT_TOKEN",    "8673691177:AAGWihA4Ch_T73nuJCLUq49Yr_3OiFdOoHs")
-ADMIN_ID     = os.environ.get("ADMIN_ID",     "6164373751")
-ADMIN_KEY    = os.environ.get("ADMIN_KEY",    "bectanse_admin_2026")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8673691177:AAGWihA4Ch_T73nuJCLUq49Yr_3OiFdOoHs")
+ADMIN_ID  = os.environ.get("ADMIN_ID",  "6164373751")
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
+def parse_db_url(url):
+    """Parse postgres://user:pass@host:port/db"""
+    url = url.replace("postgres://", "").replace("postgresql://", "")
+    user_pass, rest = url.split("@")
+    user, password = user_pass.split(":", 1)
+    host_port, database = rest.split("/", 1)
+    if ":" in host_port:
+        host, port = host_port.split(":")
+    else:
+        host, port = host_port, "5432"
+    return {"user": user, "password": password, "host": host,
+            "port": int(port), "database": database}
+
 def get_conn():
-    url = DATABASE_URL
-    # Railway préfixe avec postgres:// — psycopg2 veut postgresql://
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
-    return psycopg2.connect(url, cursor_factory=RealDictCursor)
+    p = parse_db_url(DATABASE_URL)
+    return pg8000.native.Connection(
+        user=p["user"], password=p["password"],
+        host=p["host"], port=p["port"], database=p["database"],
+        ssl_context=True
+    )
+
+def row_to_dict(conn, query, params=None):
+    if params:
+        rows = conn.run(query, *params)
+    else:
+        rows = conn.run(query)
+    if not rows:
+        return None
+    cols = [c["name"] for c in conn.columns]
+    return [dict(zip(cols, row)) for row in rows]
 
 def init_db():
     for attempt in range(5):
         try:
-            with get_conn() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        CREATE TABLE IF NOT EXISTS members (
-                            code        TEXT PRIMARY KEY,
-                            nom         TEXT NOT NULL,
-                            capital     TEXT NOT NULL,
-                            actif       BOOLEAN DEFAULT TRUE,
-                            created_at  TIMESTAMP DEFAULT NOW(),
-                            last_login  TIMESTAMP,
-                            params      JSONB DEFAULT '{}'::jsonb,
-                            historique  JSONB DEFAULT '[]'::jsonb
-                        );
-                    """)
-                conn.commit()
-            app.logger.info("DB initialisée avec succès")
+            conn = get_conn()
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS members (
+                    code        TEXT PRIMARY KEY,
+                    nom         TEXT NOT NULL,
+                    capital     TEXT NOT NULL,
+                    actif       BOOLEAN DEFAULT TRUE,
+                    created_at  TIMESTAMP DEFAULT NOW(),
+                    last_login  TIMESTAMP,
+                    params      TEXT DEFAULT \'{}\',
+                    historique  TEXT DEFAULT \'[]\'
+                )
+            """)
+            conn.close()
+            app.logger.info("DB init OK")
             return True
         except Exception as e:
-            app.logger.warning(f"DB init tentative {attempt+1}/5 : {e}")
+            app.logger.warning(f"DB init attempt {attempt+1}: {e}")
             time.sleep(3)
-    app.logger.error("DB init échouée après 5 tentatives")
     return False
 
 def default_params():
     return {
         "mode_risque": "Lots fixes",
         "lots": 0.01, "lots_max": 5, "slippage": 100,
-        "forcer_lot_minimum": False,
-        "inverser_trades": False,
-        "copier_ordres_en_attente": True,
-        "convertir_pending_invalide": False,
-        "copier_sl": True,
-        "drawdown_actif": False, "drawdown_pct": 5.0,
+        "forcer_lot_minimum": False, "inverser_trades": False,
+        "copier_ordres_en_attente": True, "convertir_pending_invalide": False,
+        "copier_sl": True, "drawdown_actif": False, "drawdown_pct": 5.0,
         "drawdown_gain_actif": False, "drawdown_gain_pct": 5.0,
-        "objectif_actif": False,
-        "objectif_gain_pct": 5.0, "objectif_perte_pct": 3.0,
-        "objectif_periode": "Mensuel",
+        "objectif_actif": False, "objectif_gain_pct": 5.0,
+        "objectif_perte_pct": 3.0, "objectif_periode": "Mensuel",
         "filtre_news": False,
     }
 
 def get_member(code):
     try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT * FROM members WHERE UPPER(code)=UPPER(%s)", (code,))
-                return cur.fetchone()
+        conn = get_conn()
+        rows = conn.run("SELECT * FROM members WHERE UPPER(code)=UPPER(:c)", c=code)
+        if not rows:
+            conn.close()
+            return None
+        cols = [c["name"] for c in conn.columns]
+        m = dict(zip(cols, rows[0]))
+        conn.close()
+        if isinstance(m.get("params"), str):
+            m["params"] = json.loads(m["params"])
+        if isinstance(m.get("historique"), str):
+            m["historique"] = json.loads(m["historique"])
+        return m
     except Exception as e:
-        app.logger.error(f"get_member error: {e}")
+        app.logger.error(f"get_member: {e}")
         return None
 
 def update_login(code):
     try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("UPDATE members SET last_login=NOW() WHERE code=%s", (code,))
-            conn.commit()
-    except:
-        pass
+        conn = get_conn()
+        conn.run("UPDATE members SET last_login=NOW() WHERE code=:c", c=code)
+        conn.close()
+    except: pass
 
-def save_params(code, params, hist_entry):
+def save_params_db(code, params, hist_entry):
     try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    UPDATE members
-                    SET params=%s,
-                        historique = historique || %s::jsonb,
-                        last_login = NOW()
-                    WHERE code=%s
-                """, (json.dumps(params), json.dumps([hist_entry]), code))
-            conn.commit()
+        conn = get_conn()
+        rows = conn.run("SELECT historique FROM members WHERE code=:c", c=code)
+        if rows:
+            hist = json.loads(rows[0][0] if isinstance(rows[0][0], str) else json.dumps(rows[0][0]))
+        else:
+            hist = []
+        hist.append(hist_entry)
+        conn.run(
+            "UPDATE members SET params=:p, historique=:h, last_login=NOW() WHERE code=:c",
+            p=json.dumps(params), h=json.dumps(hist[-50:]), c=code
+        )
+        conn.close()
         return True
     except Exception as e:
-        app.logger.error(f"save_params error: {e}")
+        app.logger.error(f"save_params: {e}")
         return False
 
 def bool_icon(v): return "✅" if v else "❌"
 
 def build_notif(member, params, code):
     p = params
-    dd_p = f"`{p['drawdown_pct']}%`"      if p['drawdown_actif']      else "Désactivé"
-    dd_g = f"`{p['drawdown_gain_pct']}%`" if p['drawdown_gain_actif'] else "Désactivé"
-    obj  = (f"+{p['objectif_gain_pct']}% / -{p['objectif_perte_pct']}% ({p['objectif_periode']})"
-            if p['objectif_actif'] else "Désactivé")
+    dd_p = f"`{p['drawdown_pct']}%`" if p["drawdown_actif"] else "Désactivé"
+    dd_g = f"`{p['drawdown_gain_pct']}%`" if p["drawdown_gain_actif"] else "Désactivé"
+    obj = (f"+{p['objectif_gain_pct']}% / -{p['objectif_perte_pct']}% ({p['objectif_periode']})"
+           if p["objectif_actif"] else "Désactivé")
     return (
         f"🔔 *DEMANDE MODIFICATION PARAMÈTRES*\n\n"
         f"👤 *{member['nom']}*  |  Code : `{code}`\n"
@@ -131,16 +157,14 @@ def build_notif(member, params, code):
     )
 
 def send_telegram(text):
-    if not BOT_TOKEN:
-        return
+    if not BOT_TOKEN: return
     try:
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json={"chat_id": ADMIN_ID, "text": text, "parse_mode": "Markdown"},
             timeout=5
         )
-    except Exception as e:
-        app.logger.error(f"Telegram error: {e}")
+    except: pass
 
 def login_required(f):
     @wraps(f)
@@ -160,11 +184,11 @@ def login():
         return redirect(url_for("dashboard"))
     error = None
     if request.method == "POST":
-        code   = request.form.get("code", "").strip().upper()
+        code = request.form.get("code", "").strip().upper()
         member = get_member(code)
         if not member:
             error = "Code invalide. Vérifie ton code et réessaie."
-        elif not member["actif"]:
+        elif not member.get("actif", True):
             error = "Accès désactivé. Contacte le support Bectanse."
         else:
             session["member_code"] = member["code"]
@@ -175,51 +199,47 @@ def login():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    code   = session["member_code"]
+    code = session["member_code"]
     member = get_member(code)
     if not member:
         session.clear()
         return redirect(url_for("login"))
-    params = member["params"] if member["params"] else default_params()
-    hist   = list(reversed((member["historique"] or [])[-10:]))
+    params = member.get("params") or default_params()
+    hist = list(reversed((member.get("historique") or [])[-10:]))
     return render_template("dashboard.html", member=member, params=params, historique=hist)
 
 @app.route("/save", methods=["POST"])
 @login_required
 def save():
-    code   = session["member_code"]
+    code = session["member_code"]
     member = get_member(code)
     if not member:
-        return jsonify({"ok": False, "error": "Membre introuvable"})
+        return jsonify({"ok": False})
     data = request.get_json()
     p = {
-        "mode_risque":              data.get("mode_risque", "Lots fixes"),
-        "lots":                     float(data.get("lots", 0.01)),
-        "lots_max":                 float(data.get("lots_max", 5)),
-        "slippage":                 int(data.get("slippage", 100)),
-        "forcer_lot_minimum":       bool(data.get("forcer_lot_minimum")),
-        "inverser_trades":          bool(data.get("inverser_trades")),
+        "mode_risque": data.get("mode_risque", "Lots fixes"),
+        "lots": float(data.get("lots", 0.01)),
+        "lots_max": float(data.get("lots_max", 5)),
+        "slippage": int(data.get("slippage", 100)),
+        "forcer_lot_minimum": bool(data.get("forcer_lot_minimum")),
+        "inverser_trades": bool(data.get("inverser_trades")),
         "copier_ordres_en_attente": bool(data.get("copier_ordres_en_attente")),
         "convertir_pending_invalide": bool(data.get("convertir_pending_invalide")),
-        "copier_sl":                bool(data.get("copier_sl")),
-        "drawdown_actif":           bool(data.get("drawdown_actif")),
-        "drawdown_pct":             float(data.get("drawdown_pct", 5)),
-        "drawdown_gain_actif":      bool(data.get("drawdown_gain_actif")),
-        "drawdown_gain_pct":        float(data.get("drawdown_gain_pct", 5)),
-        "objectif_actif":           bool(data.get("objectif_actif")),
-        "objectif_gain_pct":        float(data.get("objectif_gain_pct", 5)),
-        "objectif_perte_pct":       float(data.get("objectif_perte_pct", 3)),
-        "objectif_periode":         data.get("objectif_periode", "Mensuel"),
-        "filtre_news":              bool(data.get("filtre_news")),
+        "copier_sl": bool(data.get("copier_sl")),
+        "drawdown_actif": bool(data.get("drawdown_actif")),
+        "drawdown_pct": float(data.get("drawdown_pct", 5)),
+        "drawdown_gain_actif": bool(data.get("drawdown_gain_actif")),
+        "drawdown_gain_pct": float(data.get("drawdown_gain_pct", 5)),
+        "objectif_actif": bool(data.get("objectif_actif")),
+        "objectif_gain_pct": float(data.get("objectif_gain_pct", 5)),
+        "objectif_perte_pct": float(data.get("objectif_perte_pct", 3)),
+        "objectif_periode": data.get("objectif_periode", "Mensuel"),
+        "filtre_news": bool(data.get("filtre_news")),
     }
-    hist_entry = {
-        "date":   datetime.now().strftime("%d/%m/%Y %H:%M"),
-        "statut": "en_attente",
-        "params": p,
-    }
-    ok = save_params(code, p, hist_entry)
+    hist_entry = {"date": datetime.now().strftime("%d/%m/%Y %H:%M"), "statut": "en_attente", "params": p}
+    ok = save_params_db(code, p, hist_entry)
     if ok:
-        send_telegram(build_notif(dict(member), p, code))
+        send_telegram(build_notif(member, p, code))
     return jsonify({"ok": ok})
 
 @app.route("/logout")
@@ -231,32 +251,25 @@ def logout():
 def admin_add():
     if request.headers.get("X-Admin-Key", "") != ADMIN_KEY:
         return jsonify({"ok": False}), 403
-    data    = request.get_json()
-    nom     = data.get("nom", "")
+    data = request.get_json()
+    nom = data.get("nom", "")
     capital = data.get("capital", "")
-    chars   = string.ascii_uppercase + string.digits
-    code    = "BCT-" + "".join(secrets.choice(chars) for _ in range(8))
+    code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
     try:
-        with get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO members (code,nom,capital,params,historique) VALUES (%s,%s,%s,%s,%s)",
-                    (code, nom, capital, json.dumps(default_params()), json.dumps([]))
-                )
-            conn.commit()
-        notif = (f"✅ *Nouveau membre créé*\n\n"
-                 f"👤 *{nom}*  |  Capital : *{capital}*\n"
-                 f"🔑 Code d'accès : `{code}`\n\n"
-                 f"Envoie ce code au membre.")
-        send_telegram(notif)
+        conn = get_conn()
+        conn.run(
+            "INSERT INTO members (code,nom,capital,params,historique) VALUES (:c,:n,:cap,:p,:h)",
+            c=code, n=nom, cap=capital,
+            p=json.dumps(default_params()), h=json.dumps([])
+        )
+        conn.close()
+        send_telegram(f"✅ *Nouveau membre créé*\n\n👤 *{nom}* | 💰 *{capital}*\n🔑 Code : `{code}`")
         return jsonify({"ok": True, "code": code})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# Init DB au démarrage — non bloquant
 with app.app_context():
     init_db()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
