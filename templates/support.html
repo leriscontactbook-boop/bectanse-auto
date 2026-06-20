@@ -72,9 +72,49 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .info-banner strong{color:rgba(255,255,255,0.8)}
 
 @media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{display:none}.content{padding:24px 16px}}
+
+/* ── BOUTON RETOUR MOBILE ── */
+.back-mobile {
+  display: none;
+}
+@media(max-width:768px){
+  .back-mobile {
+    display: flex; align-items: center; gap: 8px;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    background: rgba(10,10,15,0.97);
+    border-bottom: 1px solid rgba(91,33,182,0.2);
+    padding: 14px 16px; height: 52px;
+    backdrop-filter: blur(20px);
+    color: rgba(255,255,255,0.7); font-family: 'Barlow Condensed',sans-serif;
+    font-size: 15px; font-weight: 600; text-decoration: none;
+    cursor: pointer;
+  }
+  .back-mobile .arrow { font-size: 18px; color: #F59E0B; }
+  .back-mobile .page-name { color: rgba(255,255,255,0.6); font-size: 13px; }
+  body { padding-top: 0; }
+  .page, .content-page { padding-top: 68px !important; }
+}
+@media(min-width:769px){ .back-mobile { display: none !important; } }
+
+
+@media(max-width:768px){
+  body { background: #0A0A0F; }
+  .container, .content { padding: 16px 14px 90px !important; }
+  .offre-card { margin-bottom: 12px; }
+  .wa-float { bottom: 80px; }
+}
+
 </style>
 </head>
 <body>
+<a href="/dashboard" class="back-mobile">
+  <span class="arrow">←</span>
+  <div>
+    <div style="font-size:15px;font-weight:700;color:#fff;">Support</div>
+    <div class="page-name">Bectanse AUTO</div>
+  </div>
+</a>
+
 <div class="app">
 
   <!-- SIDEBAR -->
@@ -102,7 +142,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   </aside>
 
   <!-- CONTENT -->
-  <div class="content">
+  <div class="content" style="padding-top:68px;">
     <div class="page-header">
       <div class="page-title">💬 Support & Assistance</div>
       <div class="page-desc">Notre équipe répond généralement dans les 2 heures. Tu recevras une réponse directement sur Telegram.</div>
