@@ -1306,25 +1306,33 @@ const modeHelps = {
 };
 
 function updateModePanel(mode) {
-  // Cacher tous les panneaux contextuels
-  ['panel-risque-pct','panel-multiplicateur','panel-risque-balance','panel-risque-equity','lot-symbole-panel']
-    .forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.style.display='none'; el.classList && el.classList.remove('visible'); }
-    });
-  // Afficher le panneau correspondant
+  // Cacher tous les panneaux contextuels avec style.display direct
+  ['panel-risque-pct','panel-multiplicateur','panel-risque-balance',
+   'panel-risque-equity','lot-symbole-panel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  // Afficher le bon panneau
+  const show = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'block';
+  };
+
   if (mode === 'Risque en %') {
-    document.getElementById('panel-risque-pct').style.display = 'block';
+    show('panel-risque-pct');
   } else if (mode === "Copier les lots de l'envoyeur") {
-    document.getElementById('panel-multiplicateur').style.display = 'block';
+    show('panel-multiplicateur');
   } else if (mode === 'Risque par solde (Balance)') {
-    document.getElementById('panel-risque-balance').style.display = 'block';
+    show('panel-risque-balance');
   } else if (mode === 'Risque par capitaux (Equity)') {
-    document.getElementById('panel-risque-equity').style.display = 'block';
+    show('panel-risque-equity');
   } else if (mode === 'Lot par symbole') {
-    const p = document.getElementById('lot-symbole-panel');
-    if (p) { p.classList.add('visible'); renderSymbols(); }
+    show('lot-symbole-panel');
+    // Générer le tableau des symboles
+    if (typeof renderSymbols === 'function') renderSymbols();
   }
+
   // Mettre à jour le texte d'aide
   const help = document.getElementById('mode-help');
   if (help && modeHelps[mode]) help.textContent = modeHelps[mode];
