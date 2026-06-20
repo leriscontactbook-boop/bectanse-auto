@@ -1706,16 +1706,35 @@ updateModePanel(document.getElementById('mode_risque').value);
 
 // ── COPY TRADING TOGGLE ──
 function showCopyConfirm() {
-  document.getElementById('copyConfirm').classList.toggle('show');
+  // Mobile : ouvrir le modal global
+  if (window.innerWidth <= 768) {
+    document.getElementById('copyModalOverlay').classList.add('open');
+  } else {
+    // Desktop : ancien comportement dans la sidebar
+    var el = document.getElementById('copyConfirm');
+    if (el) {
+      el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    }
+  }
 }
 function hideCopyConfirm() {
   document.getElementById('copyConfirm').classList.remove('show');
 }
-async function toggleCopy() {
-  const btn = document.getElementById('copyToggleBtn');
-  const confirmBox = document.getElementById('copyConfirm');
-  btn.style.opacity = '0.5';
-  btn.disabled = true;
+async async function toggleCopy() {
+  // Fermer le modal mobile
+  var overlay = document.getElementById('copyModalOverlay');
+  if (overlay) overlay.classList.remove('open');
+  
+  // Desktop
+  var confirmBox = document.getElementById('copyConfirm');
+  if (confirmBox) confirmBox.style.display = 'none';
+  
+  var btn = document.getElementById('copyToggleBtn');
+  if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
+  
+  // Bouton mobile content
+  var mBtn = document.querySelector('.copy-content-btn');
+  if (mBtn) mBtn.style.opacity = '0.5';
   try {
     const res = await fetch('/toggle-copy', {
       method: 'POST',
