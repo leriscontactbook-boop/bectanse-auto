@@ -858,32 +858,32 @@ input[name="objectif_periode"] { display: none; }
     </div>
 
     <!-- MEMBER CARD FUSIONNÉE -->
-    <div class="member-card" style="margin:12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:16px;position:relative;overflow:hidden;">
+    <div style="margin:10px 12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:14px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#5B21B6,#F59E0B,#5B21B6);"></div>
-      <div style="padding:16px 16px 14px;">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;">{{ member.nom }}</div>
-        <div style="font-size:13px;color:#F59E0B;font-weight:600;">💰 {{ member.capital }}</div>
+      <div style="padding:12px 14px 10px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff;margin-bottom:2px;">{{ member.nom }}</div>
+        <div style="font-size:12px;color:#F59E0B;font-weight:600;">💰 {{ member.capital }}</div>
       </div>
       {% if date_fin %}
-      <div style="padding:0 16px 14px;border-top:1px solid rgba(255,255,255,0.06);margin-top:0;padding-top:12px;">
+      <div style="padding:8px 14px 10px;border-top:1px solid rgba(255,255,255,0.06);">
         {% if date_souscription %}
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-          <span style="font-size:11px;color:rgba(255,255,255,0.4);">Début</span>
-          <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);font-family:'Barlow Condensed',sans-serif;">{{ date_souscription.strftime('%d/%m/%Y') }}</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Début</span>
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);">{{ date_souscription.strftime('%d/%m/%Y') }}</span>
         </div>
         {% endif %}
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-          <span style="font-size:11px;color:rgba(255,255,255,0.4);">Expiration</span>
-          <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);font-family:'Barlow Condensed',sans-serif;">{{ date_fin.strftime('%d/%m/%Y') }}</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Expiration</span>
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);">{{ date_fin.strftime('%d/%m/%Y') }}</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:11px;color:rgba(255,255,255,0.4);">Restant</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.4);">Restant</span>
           {% if statut_abo == 'expiré' %}
-          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(220,38,38,0.15);color:#FCA5A5;border:1px solid rgba(220,38,38,0.3);">Expiré</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(220,38,38,0.15);color:#FCA5A5;border:1px solid rgba(220,38,38,0.3);">Expiré</span>
           {% elif statut_abo == 'expire_bientot' %}
-          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(245,158,11,0.15);color:#FCD34D;border:1px solid rgba(245,158,11,0.3);">{{ jours_restants }}j restants</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(245,158,11,0.15);color:#FCD34D;border:1px solid rgba(245,158,11,0.3);">{{ jours_restants }}j restants</span>
           {% else %}
-          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3);">{{ jours_restants }}j restants</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3);">{{ jours_restants }}j restants</span>
           {% endif %}
         </div>
       </div>
