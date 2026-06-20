@@ -248,12 +248,14 @@ def inscription():
     prenom    = data.get("prenom", "").strip()
     nom_fam   = data.get("nom", "").strip()
     capital   = data.get("capital", "").strip()
+    email     = data.get("email", "").strip()
+    telephone = data.get("telephone", "").strip()
     plateforme= data.get("plateforme", "MT4")
     serveur   = data.get("serveur", "PUPrime-Live")
     mt_login  = data.get("mt_login", "").strip()
     mt_pass   = data.get("mt_password", "").strip()
 
-    if not all([prenom, nom_fam, capital, mt_login, mt_pass]):
+    if not all([prenom, nom_fam, capital, email, telephone, mt_login, mt_pass]):
         return jsonify({"ok": False, "error": "Tous les champs sont obligatoires."})
 
     nom_complet = f"{prenom} {nom_fam}"
@@ -276,6 +278,9 @@ def inscription():
         f"👤 *{nom_complet}*\n"
         f"💰 Capital : *{capital}*\n"
         f"🔑 Code d\'accès : `{code}`\n\n"
+        f"📞 *CONTACT MEMBRE*\n"
+        f"  Email : `{email}`\n"
+        f"  Téléphone : `{telephone}`\n\n"
         f"📊 *CONNEXION METATRADER*\n"
         f"  Plateforme : *{plateforme}*\n"
         f"  Serveur : *{serveur}*\n"
