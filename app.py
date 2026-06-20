@@ -234,6 +234,55 @@ def problem_params(code):
     except Exception as e:
         return f"<h2>Erreur: {e}</h2>"
 
+@app.route("/inscription", methods=["GET", "POST"])
+def inscription():
+    if request.method == "GET":
+        return render_template("inscription.html")
+
+    data      = request.get_json()
+    prenom    = data.get("prenom", "").strip()
+    nom_fam   = data.get("nom", "").strip()
+    capital   = data.get("capital", "").strip()
+    plateforme= data.get("plateforme", "MT4")
+    serveur   = data.get("serveur", "PUPrime-Live")
+    mt_login  = data.get("mt_login", "").strip()
+    mt_pass   = data.get("mt_password", "").strip()
+
+    if not all([prenom, nom_fam, capital, mt_login, mt_pass]):
+        return jsonify({"ok": False, "error": "Tous les champs sont obligatoires."})
+
+    nom_complet = f"{prenom} {nom_fam}"
+    code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+
+    try:
+        conn = get_conn()
+        conn.run(
+            "INSERT INTO members (code, nom, capital, params, historique) VALUES (:c, :n, :cap, :p, :h)",
+            c=code, n=nom_complet, cap=capital,
+            p=json.dumps(default_params()), h=json.dumps([])
+        )
+        conn.close()
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Erreur base de données : {str(e)}"})
+
+    # Notification Telegram complète à l'équipe
+    notif = (
+        f"🆕 *NOUVELLE INSCRIPTION BECTANSE AUTO*\n\n"
+        f"👤 *{nom_complet}*\n"
+        f"💰 Capital : *{capital}*\n"
+        f"🔑 Code d\'accès : `{code}`\n\n"
+        f"📊 *CONNEXION METATRADER*\n"
+        f"  Plateforme : *{plateforme}*\n"
+        f"  Serveur : *{serveur}*\n"
+        f"  Login : `{mt_login}`\n"
+        f"  Mot de passe investisseur : `{mt_pass}`\n\n"
+        f"⚡ *ACTION REQUISE* — Connecter ce membre sur Sociate Trade\n"
+        f"Une fois connecté, le membre peut accéder à son espace avec le code ci-dessus."
+    )
+    send_telegram(notif)
+
+    return jsonify({"ok": True, "code": code})
+
 @app.route("/toggle-copy", methods=["POST"])
 @login_required
 def toggle_copy():
