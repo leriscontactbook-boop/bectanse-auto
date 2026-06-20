@@ -134,6 +134,15 @@ html, body { min-height: 100vh; font-family: "Barlow", sans-serif; background: v
   .card { padding: 32px 20px 28px; }
   .row.cols2 { grid-template-columns: 1fr; }
 }
+
+.sugg-item {
+  padding: 10px 14px; cursor: pointer; font-size: 13px;
+  color: rgba(255,255,255,0.8); border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.12s;
+}
+.sugg-item:hover { background: rgba(91,33,182,0.2); color: #fff; }
+.sugg-item:last-child { border-bottom: none; }
+
 </style>
 </head>
 <body>
@@ -185,16 +194,53 @@ html, body { min-height: 100vh; font-family: "Barlow", sans-serif; background: v
           </select>
         </div>
         <div class="field">
-          <label>Serveur</label>
-          <select id="serveur">
-            <option value="PUPrime-Live">PUPrime-Live</option>
+          <label>Broker</label>
+          <select id="broker-select" onchange="onBrokerSelect(this.value)">
+            <optgroup label="⭐ Recommandé">
+              <option value="PUPrime">PU Prime</option>
+            </optgroup>
+            <optgroup label="Autres brokers populaires">
+              <option value="ICMarkets">IC Markets</option>
+              <option value="Vantage">Vantage</option>
+              <option value="Exness">Exness</option>
+              <option value="XM">XM</option>
+              <option value="FBS">FBS</option>
+              <option value="HotForex">HotForex (HFM)</option>
+              <option value="Pepperstone">Pepperstone</option>
+              <option value="AvaTrade">AvaTrade</option>
+              <option value="OctaFX">OctaFX</option>
+              <option value="FxPro">FxPro</option>
+              <option value="Tickmill">Tickmill</option>
+              <option value="FXCESS">FXCESS</option>
+              <option value="autre">Autre broker — saisie manuelle</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <!-- Serveur PUPrime -->
+      <div class="row cols1" id="panel-puprime">
+        <div class="field">
+          <label>Serveur PU Prime</label>
+          <select id="serveur-puprime">
+            <option value="PUPrime-Live">PUPrime-Live (le plus courant)</option>
             <option value="PUPrime-Live 2">PUPrime-Live 2</option>
             <option value="PUPrime-Live 3">PUPrime-Live 3</option>
             <option value="PUPrime-Live 4">PUPrime-Live 4</option>
             <option value="PUPrime-Live 5">PUPrime-Live 5</option>
-            <option value="PUPrime-Demo">PUPrime-Demo</option>
-            <option value="Autre">Autre broker</option>
+            <option value="PUPrime-Demo">PUPrime-Demo (compte démo)</option>
           </select>
+          <div class="field-help">Tu trouves ton serveur exact dans l'email de confirmation de ton broker</div>
+        </div>
+      </div>
+
+      <!-- Serveur autre broker — recherche + saisie libre -->
+      <div class="row cols1" id="panel-autre-broker" style="display:none;">
+        <div class="field">
+          <label>Nom du serveur MT4/MT5</label>
+          <input type="text" id="serveur-custom" placeholder="Ex: ICMarkets-Live, Exness-Real, XM.COM-Real..." autocomplete="off" oninput="searchServeur(this.value)">
+          <div class="field-help">Tape le nom de ton broker pour voir des suggestions, ou saisis le serveur exact</div>
+          <div id="serveur-suggestions" style="display:none; background:#1F2937; border:1px solid rgba(91,33,182,0.3); border-radius:8px; margin-top:4px; overflow:hidden; max-height:180px; overflow-y:auto;"></div>
         </div>
       </div>
       <div class="row cols2">
@@ -244,6 +290,77 @@ html, body { min-height: 100vh; font-family: "Barlow", sans-serif; background: v
 </div>
 
 <script>
+
+// ── BROKER LOGIC ──
+const SERVEUR_SUGGESTIONS = {
+  "ICMarkets":  ["ICMarkets-Live", "ICMarkets-Live2", "ICMarkets-Demo"],
+  "Vantage":    ["Vantage-Live", "Vantage-Demo", "VantageFX-Live"],
+  "Exness":     ["Exness-Real", "Exness-Real2", "Exness-Trial"],
+  "XM":         ["XM.COM-Real", "XM.COM-Real2", "XM.COM-Demo"],
+  "FBS":        ["FBS-Real", "FBS-Demo"],
+  "HotForex":   ["HFMarkets-Live", "HFMarkets-Live2", "HFMarkets-Demo"],
+  "Pepperstone":["Pepperstone-Edge-Live", "Pepperstone-Prime-Live", "Pepperstone-Demo"],
+  "AvaTrade":   ["AvaTrade-Live", "AvaTrade-Demo"],
+  "OctaFX":     ["OctaFX-Real", "OctaFX-Demo"],
+  "FxPro":      ["FxPro.com-Real", "FxPro.com-Demo"],
+  "Tickmill":   ["Tickmill-Live", "Tickmill-Demo"],
+  "FXCESS":     ["FXCESS-Live", "FXCESS-Demo1"],
+};
+
+const ALL_SERVERS = Object.values(SERVEUR_SUGGESTIONS).flat();
+
+function onBrokerSelect(val) {
+  const panelPU    = document.getElementById("panel-puprime");
+  const panelAutre = document.getElementById("panel-autre-broker");
+  const customInput = document.getElementById("serveur-custom");
+
+  if (val === "PUPrime") {
+    panelPU.style.display = "block";
+    panelAutre.style.display = "none";
+  } else {
+    panelPU.style.display = "none";
+    panelAutre.style.display = "block";
+    // Pré-remplir avec suggestions connues
+    if (SERVEUR_SUGGESTIONS[val]) {
+      customInput.value = SERVEUR_SUGGESTIONS[val][0];
+      showSuggestions(SERVEUR_SUGGESTIONS[val]);
+    } else {
+      customInput.value = "";
+      hideSuggestions();
+    }
+  }
+}
+
+function searchServeur(query) {
+  if (!query || query.length < 2) { hideSuggestions(); return; }
+  const q = query.toLowerCase();
+  const matches = ALL_SERVERS.filter(s => s.toLowerCase().includes(q)).slice(0, 8);
+  if (matches.length > 0) showSuggestions(matches);
+  else hideSuggestions();
+}
+
+function showSuggestions(items) {
+  const box = document.getElementById("serveur-suggestions");
+  box.innerHTML = items.map(s =>
+    `<div class="sugg-item" onclick="selectSuggestion('${s}')">${s}</div>`
+  ).join("");
+  box.style.display = "block";
+}
+
+function hideSuggestions() {
+  document.getElementById("serveur-suggestions").style.display = "none";
+}
+
+function selectSuggestion(val) {
+  document.getElementById("serveur-custom").value = val;
+  hideSuggestions();
+}
+
+// Cacher suggestions si clic ailleurs
+document.addEventListener("click", function(e) {
+  if (!e.target.closest("#panel-autre-broker")) hideSuggestions();
+});
+
 async function submitForm() {
   const btn = document.getElementById("btn-submit");
   const errorBox = document.getElementById("error-box");
