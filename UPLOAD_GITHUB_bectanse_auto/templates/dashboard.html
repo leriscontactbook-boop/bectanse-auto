@@ -1809,9 +1809,11 @@ function showToast(msg, type='success') {
 
 // ── Save
 async function saveParams() {
+  // Trouver le bon bouton (desktop ou mobile)
   const btn = document.getElementById('saveBtn');
-  btn.classList.add('loading');
-  btn.textContent = 'Envoi en cours...';
+  const mBtn = document.querySelector('.mobile-envoyer-btn');
+  if (btn) { btn.classList.add('loading'); btn.textContent = 'Envoi en cours...'; }
+  if (mBtn) { mBtn.disabled = true; mBtn.textContent = 'Envoi en cours...'; }
 
   const bool = id => document.getElementById(id).checked;
   const val  = id => document.getElementById(id).value;
@@ -1852,11 +1854,15 @@ async function saveParams() {
     const data = await res.json();
 
     if (data.ok) {
-      showToast('Demande envoyée ! L\'équipe va appliquer tes paramètres.', 'success');
+      showToast('Demande envoyée ! Notre équipe va appliquer tes paramètres sous 2h.', 'success');
     } else {
       showToast('Erreur : ' + (data.error || 'Réessaie.'), 'error');
     }
+    if (btn) { btn.classList.remove('loading'); btn.textContent = 'Envoyer la demande →'; }
+    if (mBtn) { mBtn.disabled = false; mBtn.textContent = 'ENVOYER LA DEMANDE →'; }
   } catch (e) {
+    if (btn) { btn.classList.remove('loading'); btn.textContent = 'Envoyer la demande →'; }
+    if (mBtn) { mBtn.disabled = false; mBtn.textContent = 'ENVOYER LA DEMANDE →'; }
     showToast('Erreur de connexion. Réessaie.', 'error');
   }
 
