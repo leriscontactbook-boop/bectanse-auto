@@ -1319,10 +1319,10 @@ function updateModePanel(mode) {
     if (el) el.style.display = 'block';
   };
 
-  // Afficher/cacher la section Lots/Lots max/Slippage
+  // Lots/Lots max/Slippage — UNIQUEMENT pour Lots fixes
   const lotsSection = document.getElementById('lots-section');
   if (lotsSection) {
-    lotsSection.style.display = (mode === 'Lot par symbole') ? 'none' : 'block';
+    lotsSection.style.display = (mode === 'Lots fixes') ? 'block' : 'none';
   }
 
   if (mode === 'Risque en %') {
