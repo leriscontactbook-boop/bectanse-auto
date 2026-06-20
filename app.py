@@ -3,6 +3,7 @@ from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import pg8000.native
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bectanse2026secretkeyprod")
@@ -470,7 +471,195 @@ def set_dates(code):
     </script>
     </body></html>"""
 
-@app.route("/health")
+# ─── SCHEDULER — VÉRIFICATION EXPIRATIONS ────────────────────────────────────
+
+def verifier_expirations():
+    """Tourne tous les jours à 9h — vérifie les abonnements qui expirent"""
+    try:
+        conn = get_conn()
+        # Membres qui expirent dans exactement 7 jours
+        rows_7j = conn.run("""
+            SELECT code, nom, capital, date_fin
+            FROM members
+            WHERE actif = TRUE
+            AND date_fin::date = (CURRENT_DATE + INTERVAL '7 days')::date
+        """)
+        # Membres qui expirent dans exactement 3 jours
+        rows_3j = conn.run("""
+            SELECT code, nom, capital, date_fin
+            FROM members
+            WHERE actif = TRUE
+            AND date_fin::date = (CURRENT_DATE + INTERVAL '3 days')::date
+        """)
+        # Membres expirés aujourd'hui
+        rows_0j = conn.run("""
+            SELECT code, nom, capital, date_fin
+            FROM members
+            WHERE actif = TRUE
+            AND date_fin::date = CURRENT_DATE
+        """)
+        conn.close()
+
+        # ── Notif équipe J-7 ──
+        for row in rows_7j:
+            code, nom, capital, date_fin = row
+            df = date_fin.strftime('%d/%m/%Y') if date_fin else '—'
+            set_dates_url = f"https://bectanse-auto.up.railway.app/set-dates/{code}?t={ADMIN_KEY}"
+            msg = (
+                f"⚠️ *ABONNEMENT EXPIRE DANS 7 JOURS*\n\n"
+                f"👤 *{nom}*\n"
+                f"💰 Capital : *{capital}*\n"
+                f"📅 Expiration : *{df}*\n\n"
+                f"💬 Pense à le relancer pour renouveler."
+            )
+            markup = {"inline_keyboard": [[
+                {"text": "🔄 Renouveler l'abonnement", "url": set_dates_url}
+            ]]}
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    json={"chat_id": ADMIN_ID, "text": msg, "parse_mode": "Markdown",
+                          "reply_markup": markup},
+                    timeout=5
+                )
+            except: pass
+
+        # ── Notif équipe J-3 ──
+        for row in rows_3j:
+            code, nom, capital, date_fin = row
+            df = date_fin.strftime('%d/%m/%Y') if date_fin else '—'
+            set_dates_url = f"https://bectanse-auto.up.railway.app/set-dates/{code}?t={ADMIN_KEY}"
+            msg = (
+                f"🔴 *ABONNEMENT EXPIRE DANS 3 JOURS*\n\n"
+                f"👤 *{nom}*\n"
+                f"💰 Capital : *{capital}*\n"
+                f"📅 Expiration : *{df}*\n\n"
+                f"⚡ *URGENT* — Contacter maintenant pour renouveler."
+            )
+            markup = {"inline_keyboard": [[
+                {"text": "🔄 Renouveler l'abonnement", "url": set_dates_url}
+            ]]}
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    json={"chat_id": ADMIN_ID, "text": msg, "parse_mode": "Markdown",
+                          "reply_markup": markup},
+                    timeout=5
+                )
+            except: pass
+
+        # ── Notif équipe J=0 (expiré aujourd'hui) ──
+        for row in rows_0j:
+            code, nom, capital, date_fin = row
+            df = date_fin.strftime('%d/%m/%Y') if date_fin else '—'
+            set_dates_url = f"https://bectanse-auto.up.railway.app/set-dates/{code}?t={ADMIN_KEY}"
+            msg = (
+                f"🚨 *ABONNEMENT EXPIRÉ AUJOURD'HUI*\n\n"
+                f"👤 *{nom}*\n"
+                f"💰 Capital : *{capital}*\n"
+                f"📅 Expiré le : *{df}*\n\n"
+                f"⛔ Penser à désactiver le copy sur Sociate Trade si non renouvelé."
+            )
+            markup = {"inline_keyboard": [[
+                {"text": "🔄 Renouveler", "url": set_dates_url},
+                {"text": "⛔ Désactiver", "url": f"https://bectanse-auto.up.railway.app/desactiver/{code}?t={ADMIN_KEY}"}
+            ]]}
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    json={"chat_id": ADMIN_ID, "text": msg, "parse_mode": "Markdown",
+                          "reply_markup": markup},
+                    timeout=5
+                )
+            except: pass
+
+    except Exception as e:
+        app.logger.error(f"verifier_expirations error: {e}")
+
+
+def envoyer_relances():
+    """Envoie des messages de relance automatiques aux membres via Telegram"""
+    try:
+        conn = get_conn()
+        rows = conn.run("""
+            SELECT code, nom, telegram, date_fin
+            FROM members
+            WHERE actif = TRUE
+            AND date_fin::date IN (
+                CURRENT_DATE + INTERVAL '7 days',
+                CURRENT_DATE + INTERVAL '3 days',
+                CURRENT_DATE + INTERVAL '1 day'
+            )
+        """)
+        conn.close()
+
+        for row in rows:
+            code, nom, telegram_handle, date_fin = row
+            if not telegram_handle:
+                continue
+            df = date_fin.strftime('%d/%m/%Y') if date_fin else '—'
+            delta_days = (date_fin.date() - __import__('datetime').date.today()).days
+
+            if delta_days == 7:
+                msg = (
+                    f"👋 Bonjour *{nom.split()[0]}* !\n\n"
+                    f"Ton abonnement *Bectanse AUTO* expire dans *7 jours* ({df}).\n\n"
+                    f"Pour continuer à bénéficier du copy trading sans interruption, "
+                    f"contacte-nous dès maintenant pour renouveler. 🚀\n\n"
+                    f"👉 @LERISGANGSUPPORT"
+                )
+            elif delta_days == 3:
+                msg = (
+                    f"⚠️ *{nom.split()[0]}*, ton abonnement expire dans *3 jours* ({df}) !\n\n"
+                    f"Pour ne pas perdre l'accès à ton espace et au copy trading, "
+                    f"renouvelle maintenant.\n\n"
+                    f"👉 @LERISGANGSUPPORT"
+                )
+            elif delta_days == 1:
+                msg = (
+                    f"🚨 *{nom.split()[0]}*, ton abonnement expire *demain* ({df}) !\n\n"
+                    f"Dernière chance pour renouveler sans interruption de service.\n\n"
+                    f"Contacte-nous immédiatement 👇\n"
+                    f"👉 @LERISGANGSUPPORT"
+                )
+            else:
+                continue
+
+            try:
+                handle = telegram_handle.lstrip("@")
+                requests.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    json={"chat_id": f"@{handle}", "text": msg, "parse_mode": "Markdown"},
+                    timeout=5
+                )
+            except: pass
+
+    except Exception as e:
+        app.logger.error(f"envoyer_relances error: {e}")
+
+
+# Route pour désactiver un membre depuis Telegram
+@app.route("/desactiver/<code>")
+def desactiver_membre(code):
+    token_param = request.args.get("t", "")
+    if token_param != ADMIN_KEY:
+        return "<h2 style='color:red;padding:40px;font-family:sans-serif'>⛔ Non autorisé</h2>", 403
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom FROM members WHERE code=:c", c=code)
+        nom = rows[0][0] if rows else "Membre"
+        conn.run("UPDATE members SET actif=FALSE, copy_actif=FALSE WHERE code=:c", c=code)
+        conn.close()
+        send_telegram(f"⛔ *{nom}* désactivé — accès coupé.")
+        return f"""<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center;'>
+            <h1 style='color:#DC2626'>⛔ Membre désactivé</h1>
+            <p><strong>{nom}</strong> n'a plus accès à l'espace membre.</p>
+            </body></html>"""
+    except Exception as e:
+        return f"<h2>Erreur: {e}</h2>"
+
+
+@app.route("/health")@app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
