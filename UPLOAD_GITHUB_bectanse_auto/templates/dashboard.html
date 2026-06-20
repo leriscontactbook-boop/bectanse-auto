@@ -856,12 +856,49 @@ input[name="objectif_periode"] { display: none; }
   /* Sidebar cachée complètement */
   .sidebar { display: none !important; }
 
+  /* Main — supprimer le margin de la sidebar */
+  .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
   /* Contenu plein écran avec espace pour les barres */
   .content {
     padding: 16px 14px 90px !important;
     margin-left: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
   }
+
+  /* Panels conditionnels — forcer visibilité */
+  .dd-panel.visible,
+  .dd-panel[style*="display: block"],
+  [id^="panel-"][style*="display: block"],
+  .lot-symbole-panel.visible {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Inputs dans les panels */
+  .dd-panel input,
+  .dd-panel select,
+  [id^="panel-"] input,
+  [id^="panel-"] select {
+    width: 100% !important;
+    font-size: 16px !important;
+  }
+
+  /* field-row sur mobile */
+  .field-row { grid-template-columns: 1fr !important; }
+  .field-row.cols-3,
+  .field-row.cols-2 { grid-template-columns: 1fr !important; }
+
+  /* Section body */
+  .section-body { padding: 14px 14px !important; }
+  .param-section { padding: 0 !important; }
 
   /* Bouton envoyer */
   .header-top { flex-direction: column; gap: 10px; }
