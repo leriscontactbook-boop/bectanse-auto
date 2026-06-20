@@ -56,6 +56,7 @@ def init_db():
                     created_at  TIMESTAMP DEFAULT NOW(),
                     last_login  TIMESTAMP,
                     params      TEXT DEFAULT \'{}\',
+                    copy_actif  BOOLEAN DEFAULT TRUE,
                     historique  TEXT DEFAULT \'[]\'
                 )
             """)
@@ -94,6 +95,8 @@ def get_member(code):
             m["params"] = json.loads(m["params"])
         if isinstance(m.get("historique"), str):
             m["historique"] = json.loads(m["historique"])
+        if m.get("copy_actif") is None:
+            m["copy_actif"] = True
         return m
     except Exception as e:
         app.logger.error(f"get_member: {e}")
@@ -220,6 +223,32 @@ def problem_params(code):
             </body></html>"""
     except Exception as e:
         return f"<h2>Erreur: {e}</h2>"
+
+@app.route("/toggle-copy", methods=["POST"])
+@login_required
+def toggle_copy():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return jsonify({"ok": False})
+    try:
+        current = member.get("copy_actif", True)
+        new_state = not current
+        conn = get_conn()
+        conn.run("UPDATE members SET copy_actif=:s WHERE code=:c", s=new_state, c=code)
+        conn.close()
+        # Notif Telegram
+        icon = "✅" if new_state else "⏸️"
+        status = "ACTIVÉ" if new_state else "DÉSACTIVÉ"
+        send_telegram(
+            f"{icon} *COPY TRADING {status}*\n\n"
+            f"👤 *{member['nom']}*  |  Code : `{code}`\n"
+            f"🕐 {datetime.now().strftime('%d/%m/%Y à %H:%M')}\n\n"
+            f"{'Le copy trading est maintenant actif.' if new_state else '⚠️ Le membre a désactivé le copy trading — vérifier sur Sociate Trade.'}"
+        )
+        return jsonify({"ok": True, "copy_actif": new_state})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/health")
 def health():
