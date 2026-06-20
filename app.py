@@ -411,6 +411,10 @@ def save_paiement():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
+@app.route("/sw.js")
+def service_worker():
+    return app.send_static_file("sw.js"), 200, {"Content-Type": "application/javascript"}
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
