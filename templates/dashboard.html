@@ -523,6 +523,66 @@ input[name="objectif_periode"] { display: none; }
   .field-row.cols-2 { grid-template-columns: 1fr; }
   .topbar { padding: 14px 16px; }
 }
+
+/* ── LOT PAR SYMBOLE ── */
+.lot-symbole-panel { display:none; margin-top:16px; }
+.lot-symbole-panel.visible { display:block; }
+.lot-symbole-header {
+  display:grid; grid-template-columns:1fr 1fr 1fr 1fr auto;
+  gap:8px; padding:8px 12px;
+  background:rgba(91,33,182,0.15);
+  border-radius:10px 10px 0 0;
+  border:1px solid rgba(91,33,182,0.25);
+  border-bottom:none;
+}
+.lot-symbole-header span {
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:10px; font-weight:700;
+  letter-spacing:0.14em; text-transform:uppercase;
+  color:rgba(255,255,255,0.4);
+}
+.lot-symbole-apply {
+  background:var(--purple); color:#fff;
+  border:none; border-radius:6px;
+  padding:5px 14px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12px; font-weight:700;
+  cursor:pointer; letter-spacing:0.08em;
+}
+.lot-symbole-apply:hover { background:var(--purple-mid); }
+.lot-symbole-search {
+  width:100%; background:rgba(255,255,255,0.04);
+  border:1px solid rgba(91,33,182,0.2);
+  border-radius:8px; padding:9px 12px;
+  color:#fff; font-size:13px; outline:none;
+  margin-bottom:10px;
+}
+.lot-symbole-search::placeholder { color:rgba(255,255,255,0.2); }
+.lot-symbole-table {
+  border:1px solid rgba(91,33,182,0.2);
+  border-radius:0 0 10px 10px;
+  overflow:hidden; max-height:380px; overflow-y:auto;
+}
+.lot-symbole-row {
+  display:grid; grid-template-columns:1fr 2fr auto;
+  gap:12px; align-items:center;
+  padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  transition:background 0.12s;
+}
+.lot-symbole-row:last-child { border-bottom:none; }
+.lot-symbole-row:hover { background:rgba(91,33,182,0.06); }
+.sym-name { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; color:#fff; }
+.sym-desc { font-size:11px; color:rgba(255,255,255,0.35); }
+.sym-lot {
+  width:80px; background:rgba(255,255,255,0.04);
+  border:1px solid rgba(91,33,182,0.2); border-radius:6px;
+  padding:6px 8px; color:#fff; font-size:13px;
+  text-align:center; outline:none;
+  -moz-appearance:textfield;
+}
+.sym-lot:focus { border-color:var(--purple); box-shadow:0 0 0 2px rgba(91,33,182,0.15); }
+
 </style>
 </head>
 <body>
@@ -633,6 +693,38 @@ input[name="objectif_periode"] { display: none; }
               <div class="field-help">Standard : 100</div>
             </div>
           </div>
+
+          <!-- LOT PAR SYMBOLE PANEL -->
+          <div class="lot-symbole-panel" id="lot-symbole-panel">
+            <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:200px;">
+                <input type="text" class="lot-symbole-search" id="sym-search" placeholder="🔍 Rechercher un symbole..." oninput="filterSymbols(this.value)">
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">FOREX LOTS</label>
+                  <input type="number" id="bulk-forex" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">MATIÈRES PREMIÈRES</label>
+                  <input type="number" id="bulk-commo" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">INDICES</label>
+                  <input type="number" id="bulk-index" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <div class="field" style="margin:0;min-width:100px;">
+                  <label style="font-size:9px;">CRYPTO LOTS</label>
+                  <input type="number" id="bulk-crypto" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
+                </div>
+                <button class="lot-symbole-apply" onclick="applyBulk()">Appliquer</button>
+              </div>
+            </div>
+            <div class="lot-symbole-table" id="sym-table">
+              <!-- Généré par JS -->
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -902,19 +994,123 @@ input[name="objectif_periode"] { display: none; }
 </div>
 
 <script>
+
+// ── SYMBOLES DATA ──
+const SYMBOLS = [
+  // Forex majeurs
+  {sym:'EURUSD', desc:'Euro vs US Dollar', cat:'forex'},
+  {sym:'GBPUSD', desc:'British Pound vs US Dollar', cat:'forex'},
+  {sym:'USDJPY', desc:'US Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'USDCHF', desc:'US Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'AUDUSD', desc:'Australian Dollar vs US Dollar', cat:'forex'},
+  {sym:'USDCAD', desc:'US Dollar vs Canadian Dollar', cat:'forex'},
+  {sym:'NZDUSD', desc:'New Zealand Dollar vs US Dollar', cat:'forex'},
+  {sym:'EURGBP', desc:'Euro vs British Pound', cat:'forex'},
+  {sym:'EURJPY', desc:'Euro vs Japanese Yen', cat:'forex'},
+  {sym:'GBPJPY', desc:'British Pound vs Japanese Yen', cat:'forex'},
+  {sym:'AUDCAD', desc:'Australian Dollar vs Canadian Dollar', cat:'forex'},
+  {sym:'AUDCHF', desc:'Australian Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'AUDJPY', desc:'Australian Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'AUDNZD', desc:'Australian Dollar vs New Zealand Dollar', cat:'forex'},
+  {sym:'CADCHF', desc:'Canadian Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'CADJPY', desc:'Canadian Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'CHFJPY', desc:'Swiss Franc vs Japanese Yen', cat:'forex'},
+  {sym:'EURCAD', desc:'Euro vs Canadian Dollar', cat:'forex'},
+  {sym:'EURCHF', desc:'Euro vs Swiss Franc', cat:'forex'},
+  {sym:'EURAUD', desc:'Euro vs Australian Dollar', cat:'forex'},
+  {sym:'EURNZD', desc:'Euro vs New Zealand Dollar', cat:'forex'},
+  {sym:'GBPAUD', desc:'British Pound vs Australian Dollar', cat:'forex'},
+  {sym:'GBPCAD', desc:'British Pound vs Canadian Dollar', cat:'forex'},
+  {sym:'GBPCHF', desc:'British Pound vs Swiss Franc', cat:'forex'},
+  {sym:'GBPNZD', desc:'British Pound vs New Zealand Dollar', cat:'forex'},
+  {sym:'NZDCAD', desc:'New Zealand Dollar vs Canadian Dollar', cat:'forex'},
+  {sym:'NZDCHF', desc:'New Zealand Dollar vs Swiss Franc', cat:'forex'},
+  {sym:'NZDJPY', desc:'New Zealand Dollar vs Japanese Yen', cat:'forex'},
+  {sym:'USDSGD', desc:'US Dollar vs Singapore Dollar', cat:'forex'},
+  // Matières premières
+  {sym:'XAUUSD', desc:'Or vs US Dollar', cat:'commo'},
+  {sym:'XAGUSD', desc:'Argent vs US Dollar', cat:'commo'},
+  {sym:'XPTUSD', desc:'Platine vs US Dollar', cat:'commo'},
+  {sym:'USOIL',  desc:'Pétrole Brut WTI', cat:'commo'},
+  {sym:'UKOIL',  desc:'Pétrole Brut Brent', cat:'commo'},
+  {sym:'NATGAS', desc:'Gaz Naturel', cat:'commo'},
+  // Indices
+  {sym:'US30',   desc:'Dow Jones Industrial Average', cat:'index'},
+  {sym:'SPX500', desc:'S&P 500', cat:'index'},
+  {sym:'NAS100', desc:'Nasdaq 100', cat:'index'},
+  {sym:'GER40',  desc:'DAX 40', cat:'index'},
+  {sym:'UK100',  desc:'FTSE 100', cat:'index'},
+  {sym:'FRA40',  desc:'CAC 40', cat:'index'},
+  {sym:'JPN225', desc:'Nikkei 225', cat:'index'},
+  {sym:'AUS200', desc:'ASX 200', cat:'index'},
+  // Crypto
+  {sym:'BTCUSD', desc:'Bitcoin vs US Dollar', cat:'crypto'},
+  {sym:'ETHUSD', desc:'Ethereum vs US Dollar', cat:'crypto'},
+  {sym:'LTCUSD', desc:'Litecoin vs US Dollar', cat:'crypto'},
+  {sym:'XRPUSD', desc:'Ripple vs US Dollar', cat:'crypto'},
+  {sym:'ADAUSD', desc:'Cardano vs US Dollar', cat:'crypto'},
+  {sym:'SOLUSD', desc:'Solana vs US Dollar', cat:'crypto'},
+  {sym:'BTCEUR', desc:'Bitcoin vs Euro', cat:'crypto'},
+  {sym:'ETCUSD', desc:'Ethereum Classic vs US Dollar', cat:'crypto'},
+];
+
+let symLots = {};
+SYMBOLS.forEach(s => { symLots[s.sym] = 0.01; });
+
+function renderSymbols(filter='') {
+  const table = document.getElementById('sym-table');
+  if (!table) return;
+  const filtered = SYMBOLS.filter(s =>
+    s.sym.toLowerCase().includes(filter.toLowerCase()) ||
+    s.desc.toLowerCase().includes(filter.toLowerCase())
+  );
+  table.innerHTML = filtered.map(s => `
+    <div class="lot-symbole-row">
+      <div><div class="sym-name">${s.sym}</div></div>
+      <div class="sym-desc">${s.desc}</div>
+      <input type="number" class="sym-lot" data-sym="${s.sym}"
+        value="${symLots[s.sym] || 0.01}" min="0.01" step="0.01"
+        onchange="symLots['${s.sym}']=parseFloat(this.value)||0.01">
+    </div>
+  `).join('');
+}
+
+function filterSymbols(val) { renderSymbols(val); }
+
+function applyBulk() {
+  const forex  = parseFloat(document.getElementById('bulk-forex').value)  || 0.01;
+  const commo  = parseFloat(document.getElementById('bulk-commo').value)  || 0.01;
+  const index  = parseFloat(document.getElementById('bulk-index').value)  || 0.01;
+  const crypto = parseFloat(document.getElementById('bulk-crypto').value) || 0.01;
+  SYMBOLS.forEach(s => {
+    if (s.cat==='forex')  symLots[s.sym] = forex;
+    if (s.cat==='commo')  symLots[s.sym] = commo;
+    if (s.cat==='index')  symLots[s.sym] = index;
+    if (s.cat==='crypto') symLots[s.sym] = crypto;
+  });
+  renderSymbols(document.getElementById('sym-search')?.value || '');
+}
+
 // ── Mode risque → afficher panel lot par symbole
 document.getElementById('mode_risque').addEventListener('change', function() {
-  const panel = document.getElementById('panel-lot-symbole');
+  const panel = document.getElementById('lot-symbole-panel');
   const help = document.getElementById('mode-help');
   const helps = {
-    'Lots fixes': "Lots fixes : taille fixe quelle que soit la position de l'émetteur",
-    'Lot par symbole': "Définissez un lot spécifique pour chaque symbole ci-dessous",
+    'Lots fixes': "Taille de lot fixe quelle que soit la position de l'émetteur",
+    'Lot par symbole': "Définissez un lot différent pour chaque symbole",
     "Copier les lots de l'envoyeur": "Copie exactement la taille de position de l'émetteur",
     'Risque par solde (Balance)': "Calcule le lot en % du solde de votre compte",
     'Risque par capitaux (Equity)': "Calcule le lot en % des capitaux propres",
     'Risque en %': "Risque exprimé en pourcentage du capital par trade"
   };
-  if (panel) panel.style.display = this.value === 'Lot par symbole' ? 'block' : 'none';
+  if (panel) {
+    if (this.value === 'Lot par symbole') {
+      panel.classList.add('visible');
+      renderSymbols();
+    } else {
+      panel.classList.remove('visible');
+    }
+  }
   if (help && helps[this.value]) help.textContent = helps[this.value];
 });
 
@@ -978,6 +1174,7 @@ async function saveParams() {
     objectif_perte_pct:       parseFloat(val('objectif_perte_pct')),
     objectif_periode:         val('objectif_periode'),
     filtre_news:              bool('filtre_news'),
+    lot_symboles:             (val('mode_risque') === 'Lot par symbole') ? symLots : {},
   };
 
   try {
