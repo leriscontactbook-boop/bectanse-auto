@@ -873,6 +873,39 @@ input[name="objectif_periode"] { display: none; }
   .wa-float { bottom: 76px !important; right: 14px; width: 48px; height: 48px; }
 }
 
+
+/* ── BOUTON ENVOYER MOBILE STICKY ── */
+.m-send-bar { display: none; }
+@media(max-width:768px){
+  .m-send-bar {
+    display: block;
+    position: fixed;
+    bottom: 70px;
+    left: 0; right: 0;
+    z-index: 250;
+    padding: 8px 14px;
+    background: linear-gradient(to top, rgba(10,10,15,1) 70%, transparent);
+  }
+  .m-send-btn {
+    display: block;
+    width: 100%;
+    background: #5B21B6;
+    color: #fff;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(91,33,182,0.5);
+  }
+  /* Plus de padding en bas du content pour le bouton */
+  .content { padding-bottom: 140px !important; }
+}
+
 </style>
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#5B21B6">
@@ -1970,6 +2003,14 @@ async function saveParams() {
     <span>Historique</span>
   </a>
 </nav>
+
+
+<!-- BOUTON ENVOYER MOBILE -->
+<div class="m-send-bar">
+  <button class="m-send-btn" onclick="saveParams()">
+    ENVOYER LA DEMANDE →
+  </button>
+</div>
 
 </body>
 </html>
