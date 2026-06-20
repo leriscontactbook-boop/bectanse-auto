@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bectanse AUTO — Inscription</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --purple: #5B21B6; --purple-dark: #3B0764; --gold: #F59E0B;
+  --dark: #0A0A0F; --dark-2: #111827; --white: #FFFFFF;
+  --grey: #6B7280; --green: #059669; --red: #DC2626;
+  --border: rgba(91,33,182,0.25);
+}
+html, body { min-height: 100vh; font-family: "Barlow", sans-serif; background: var(--dark); color: var(--white); }
+
+.bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(91,33,182,0.4) 0%, transparent 70%),
+              radial-gradient(ellipse 50% 40% at 80% 80%, rgba(59,7,100,0.25) 0%, transparent 60%), var(--dark);
+}
+.bg::after {
+  content: ""; position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(91,33,182,0.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(91,33,182,0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.wrap { position: relative; z-index: 1; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
+
+.card {
+  width: 100%; max-width: 520px;
+  background: rgba(17,24,39,0.88);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 44px 40px 40px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+}
+
+.brand { text-align: center; margin-bottom: 28px; }
+.brand-logo { font-family: "Bebas Neue", sans-serif; font-size: 32px; letter-spacing: 0.08em; color: var(--gold); text-shadow: 0 0 32px rgba(245,158,11,0.4); line-height: 1; }
+.brand-sub { font-family: "Barlow Condensed", sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; color: rgba(255,255,255,0.3); text-transform: uppercase; margin-top: 3px; }
+
+.divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin-bottom: 28px; }
+
+.form-title { font-family: "Barlow Condensed", sans-serif; font-size: 20px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+.form-desc { font-size: 13px; color: rgba(255,255,255,0.35); margin-bottom: 24px; line-height: 1.5; }
+
+.section-label {
+  font-family: "Barlow Condensed", sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold);
+  margin: 20px 0 12px; display: flex; align-items: center; gap: 8px;
+}
+.section-label::after { content: ""; flex: 1; height: 1px; background: rgba(245,158,11,0.2); }
+
+.row { display: grid; gap: 12px; margin-bottom: 12px; }
+.row.cols2 { grid-template-columns: 1fr 1fr; }
+.row.cols1 { grid-template-columns: 1fr; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-family: "Barlow Condensed", sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+.field input, .field select {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(91,33,182,0.25);
+  border-radius: 8px; padding: 11px 14px; font-family: "Barlow", sans-serif;
+  font-size: 14px; font-weight: 500; color: var(--white); outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s; width: 100%;
+}
+.field input:focus, .field select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(91,33,182,0.15); }
+.field select option { background: #1F2937; }
+.field-help { font-size: 10px; color: rgba(255,255,255,0.2); line-height: 1.4; }
+
+.notice {
+  background: rgba(91,33,182,0.08); border: 1px solid rgba(91,33,182,0.2);
+  border-radius: 10px; padding: 12px 14px; font-size: 12px;
+  color: rgba(255,255,255,0.5); line-height: 1.6; margin: 16px 0;
+}
+.notice strong { color: rgba(255,255,255,0.8); }
+
+.btn-submit {
+  width: 100%; background: var(--purple); color: #fff;
+  font-family: "Barlow Condensed", sans-serif; font-size: 16px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; border: none;
+  border-radius: 10px; padding: 15px 20px; cursor: pointer;
+  position: relative; overflow: hidden; transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(91,33,182,0.4); margin-top: 20px;
+}
+.btn-submit:hover { background: #4C1D95; transform: translateY(-1px); }
+.btn-submit:disabled { opacity: 0.6; pointer-events: none; }
+.btn-submit::before {
+  content: ""; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+@keyframes shimmer { 0%{left:-100%} 60%,100%{left:160%} }
+
+/* Écran succès */
+.success-screen { display: none; text-align: center; }
+.success-icon { font-size: 52px; margin-bottom: 16px; }
+.success-title { font-family: "Bebas Neue", sans-serif; font-size: 28px; color: var(--green); letter-spacing: 0.05em; margin-bottom: 8px; }
+.success-desc { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 28px; line-height: 1.6; }
+.code-display {
+  background: rgba(5,150,105,0.1); border: 2px dashed rgba(5,150,105,0.4);
+  border-radius: 14px; padding: 20px; margin-bottom: 20px;
+}
+.code-label { font-family: "Barlow Condensed", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: rgba(5,150,105,0.8); text-transform: uppercase; margin-bottom: 8px; }
+.code-value { font-family: "Bebas Neue", sans-serif; font-size: 40px; color: #fff; letter-spacing: 0.1em; }
+.code-copy-btn {
+  background: rgba(5,150,105,0.15); border: 1px solid rgba(5,150,105,0.3);
+  color: #6EE7B7; font-family: "Barlow Condensed", sans-serif; font-size: 13px;
+  font-weight: 700; border-radius: 8px; padding: 8px 20px; cursor: pointer;
+  margin-top: 12px; width: 100%; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: all 0.15s;
+}
+.code-copy-btn:hover { background: rgba(5,150,105,0.25); }
+.login-link {
+  display: block; width: 100%; background: var(--purple); color: #fff;
+  font-family: "Barlow Condensed", sans-serif; font-size: 15px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; border: none;
+  border-radius: 10px; padding: 14px; cursor: pointer; text-decoration: none;
+  text-align: center; margin-top: 12px; box-shadow: 0 4px 16px rgba(91,33,182,0.4);
+  transition: all 0.2s;
+}
+.login-link:hover { background: #4C1D95; }
+
+.error-box {
+  background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.3);
+  border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #FCA5A5;
+  margin-bottom: 16px; display: none;
+}
+
+@media (max-width: 500px) {
+  .card { padding: 32px 20px 28px; }
+  .row.cols2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+  <div class="card">
+
+    <div class="brand">
+      <div class="brand-logo">B€CTAN$€ AUTO</div>
+      <div class="brand-sub">Inscription — Espace Membre</div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- FORMULAIRE -->
+    <div id="form-screen">
+      <div class="form-title">Créer mon espace membre</div>
+      <div class="form-desc">Remplis tes informations. Tu recevras immédiatement ton code d'accès personnel.</div>
+
+      <div class="error-box" id="error-box"></div>
+
+      <!-- Infos personnelles -->
+      <div class="section-label">👤 Informations personnelles</div>
+      <div class="row cols2">
+        <div class="field">
+          <label>Prénom</label>
+          <input type="text" id="prenom" placeholder="Jean" required>
+        </div>
+        <div class="field">
+          <label>Nom</label>
+          <input type="text" id="nom_famille" placeholder="Dupont" required>
+        </div>
+      </div>
+      <div class="row cols1">
+        <div class="field">
+          <label>Capital de départ</label>
+          <input type="text" id="capital" placeholder="Ex: 500€" required>
+          <div class="field-help">Montant que tu vas déposer sur ton compte de trading</div>
+        </div>
+      </div>
+
+      <!-- Infos MT4/MT5 -->
+      <div class="section-label">📊 Connexion MetaTrader</div>
+      <div class="row cols2">
+        <div class="field">
+          <label>Plateforme</label>
+          <select id="plateforme">
+            <option value="MT4">MetaTrader 4 (MT4)</option>
+            <option value="MT5">MetaTrader 5 (MT5)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Serveur</label>
+          <select id="serveur">
+            <option value="PUPrime-Live">PUPrime-Live</option>
+            <option value="PUPrime-Live 2">PUPrime-Live 2</option>
+            <option value="PUPrime-Live 3">PUPrime-Live 3</option>
+            <option value="PUPrime-Live 4">PUPrime-Live 4</option>
+            <option value="PUPrime-Live 5">PUPrime-Live 5</option>
+            <option value="PUPrime-Demo">PUPrime-Demo</option>
+            <option value="Autre">Autre broker</option>
+          </select>
+        </div>
+      </div>
+      <div class="row cols2">
+        <div class="field">
+          <label>Identifiant MT4/MT5</label>
+          <input type="text" id="mt_login" placeholder="Ex: 1234567" required>
+          <div class="field-help">Ton numéro de compte (reçu par email du broker)</div>
+        </div>
+        <div class="field">
+          <label>Mot de passe investisseur</label>
+          <input type="password" id="mt_password" placeholder="••••••••" required>
+          <div class="field-help">Lecture seule — ne permet pas de retirer des fonds</div>
+        </div>
+      </div>
+
+      <div class="notice">
+        🔒 <strong>Sécurité garantie.</strong> Le mot de passe investisseur est en lecture seule.
+        Notre équipe peut voir tes positions mais <strong>ne peut ni retirer ni déposer de fonds</strong> sur ton compte.
+        Tes fonds restent sous ton seul contrôle.
+      </div>
+
+      <button class="btn-submit" id="btn-submit" onclick="submitForm()">
+        Créer mon espace et obtenir mon code →
+      </button>
+    </div>
+
+    <!-- SUCCÈS -->
+    <div class="success-screen" id="success-screen">
+      <div class="success-icon">🎉</div>
+      <div class="success-title">Bienvenue dans Bectanse AUTO !</div>
+      <div class="success-desc">
+        Ton inscription a été enregistrée. Notre équipe va connecter ton compte sous peu.<br>
+        Voici ton <strong>code d'accès personnel</strong> — garde-le précieusement.
+      </div>
+      <div class="code-display">
+        <div class="code-label">Ton code d'accès</div>
+        <div class="code-value" id="success-code">BCT-XXXXXXXX</div>
+        <button class="code-copy-btn" onclick="copyCode()">📋 Copier le code</button>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.3);margin-bottom:16px;">
+        ⚠️ Note ce code — tu en auras besoin à chaque connexion
+      </div>
+      <a href="/" class="login-link">Accéder à mon espace →</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+async function submitForm() {
+  const btn = document.getElementById("btn-submit");
+  const errorBox = document.getElementById("error-box");
+  errorBox.style.display = "none";
+
+  const prenom    = document.getElementById("prenom").value.trim();
+  const nom_fam   = document.getElementById("nom_famille").value.trim();
+  const capital   = document.getElementById("capital").value.trim();
+  const plateforme= document.getElementById("plateforme").value;
+  const serveur   = document.getElementById("serveur").value;
+  const mt_login  = document.getElementById("mt_login").value.trim();
+  const mt_pass   = document.getElementById("mt_password").value.trim();
+
+  if (!prenom || !nom_fam || !capital || !mt_login || !mt_pass) {
+    errorBox.textContent = "Tous les champs sont obligatoires.";
+    errorBox.style.display = "block";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Création en cours...";
+
+  try {
+    const res = await fetch("/inscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prenom, nom: nom_fam, capital, plateforme, serveur, mt_login, mt_password: mt_pass })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById("success-code").textContent = data.code;
+      document.getElementById("form-screen").style.display = "none";
+      document.getElementById("success-screen").style.display = "block";
+    } else {
+      errorBox.textContent = data.error || "Une erreur est survenue. Réessaie.";
+      errorBox.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Créer mon espace et obtenir mon code →";
+    }
+  } catch(e) {
+    errorBox.textContent = "Erreur de connexion. Réessaie.";
+    errorBox.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Créer mon espace et obtenir mon code →";
+  }
+}
+
+function copyCode() {
+  const code = document.getElementById("success-code").textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    document.querySelector(".code-copy-btn").textContent = "✅ Code copié !";
+    setTimeout(() => { document.querySelector(".code-copy-btn").textContent = "📋 Copier le code"; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
