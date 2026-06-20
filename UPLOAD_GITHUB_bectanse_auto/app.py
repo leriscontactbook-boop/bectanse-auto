@@ -762,6 +762,13 @@ def marquer_alerte_lue():
     except:
         return jsonify({"ok": False})
 
+@app.route("/offres")
+@login_required
+def offres():
+    code = session["member_code"]
+    member = get_member(code)
+    return render_template("offres.html", member=member)
+
 @app.route("/health")@app.route("/marquer-alerte-lue", methods=["POST"])
 @login_required
 def marquer_alerte_lue():
@@ -773,6 +780,13 @@ def marquer_alerte_lue():
         return jsonify({"ok": True})
     except:
         return jsonify({"ok": False})
+
+@app.route("/offres")
+@login_required
+def offres():
+    code = session["member_code"]
+    member = get_member(code)
+    return render_template("offres.html", member=member)
 
 @app.route("/health")
 def health():
