@@ -876,36 +876,7 @@ input[name="objectif_periode"] { display: none; }
 
 
 /* ── BOUTON ENVOYER MOBILE STICKY ── */
-.m-send-bar { display: none; }
-@media(max-width:768px){
-  .m-send-bar {
-    display: block;
-    position: fixed;
-    bottom: 70px;
-    left: 0; right: 0;
-    z-index: 250;
-    padding: 8px 14px;
-    background: linear-gradient(to top, rgba(10,10,15,1) 70%, transparent);
-  }
-  .m-send-btn {
-    display: block;
-    width: 100%;
-    background: #5B21B6;
-    color: #fff;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    border: none;
-    border-radius: 12px;
-    padding: 15px;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(91,33,182,0.5);
-  }
-  /* Plus de padding en bas du content pour le bouton */
-  .content { padding-bottom: 140px !important; }
-}
+
 
 
 /* ── COPY MODAL GLOBAL MOBILE ── */
@@ -965,6 +936,27 @@ input[name="objectif_periode"] { display: none; }
 .copy-content-dot { width: 8px; height: 8px; border-radius: 50%; }
 .copy-content-btn.copy-on  .copy-content-dot { background: #6EE7B7; }
 .copy-content-btn.copy-off .copy-content-dot { background: #FCA5A5; }
+
+
+.mobile-envoyer-wrap { display: none; }
+@media(max-width:768px){
+  .mobile-envoyer-wrap {
+    display: block;
+    margin-bottom: 16px;
+  }
+  .mobile-envoyer-btn {
+    width: 100%;
+    background: #5B21B6;
+    color: #fff;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    border: none; border-radius: 12px; padding: 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(91,33,182,0.4);
+  }
+  .content { padding-bottom: 90px !important; }
+}
 
 </style>
   <link rel="manifest" href="/static/manifest.json">
@@ -1493,6 +1485,14 @@ input[name="objectif_periode"] { display: none; }
             {% if copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
           </button>
         </div>
+      </div>
+
+
+      <!-- BOUTON ENVOYER MOBILE DANS LE CONTENT -->
+      <div class="mobile-envoyer-wrap">
+        <button class="mobile-envoyer-btn" onclick="saveParams()">
+          ENVOYER LA DEMANDE →
+        </button>
       </div>
 
 <!-- ── HISTORIQUE ── -->
@@ -2090,13 +2090,6 @@ async function saveParams() {
   </a>
 </nav>
 
-
-<!-- BOUTON ENVOYER MOBILE -->
-<div class="m-send-bar">
-  <button class="m-send-btn" onclick="saveParams()">
-    ENVOYER LA DEMANDE →
-  </button>
-</div>
 
 
 <!-- COPY MODAL GLOBAL -->
