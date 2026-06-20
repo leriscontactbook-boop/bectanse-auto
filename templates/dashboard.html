@@ -562,7 +562,7 @@ input[name="objectif_periode"] { display: none; }
 
     <div class="status-badge">
       <div class="pulse"></div>
-      Sociate Trade — Actif
+      Système actif
     </div>
 
     <a class="logout-btn" href="/logout">
@@ -604,7 +604,16 @@ input[name="objectif_periode"] { display: none; }
                 <option value="{{ m }}" {% if params.mode_risque == m %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
               </select>
-              <div class="field-help">Lots fixes : taille fixe quelle que soit la position de l'émetteur</div>
+              <div class="field-help" id="mode-help">Lots fixes : taille fixe quelle que soit la position de l'émetteur</div>
+            </div>
+          </div>
+
+          <div id="panel-lot-symbole" style="display:none; margin-top:14px;">
+            <div class="field">
+              <label>Symboles (séparés par des virgules)</label>
+              <input type="text" name="lot_symbole_liste" id="lot_symbole_liste" placeholder="Ex: XAUUSD, EURUSD, GBPUSD" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.25);border-radius:8px;padding:10px 12px;font-size:14px;color:#fff;width:100%;outline:none;">
+              <div class="field-help">Indique les symboles sur lesquels appliquer ce lot</div>
+            </div
             </div>
           </div>
           <div class="field-row cols-3">
@@ -893,6 +902,22 @@ input[name="objectif_periode"] { display: none; }
 </div>
 
 <script>
+// ── Mode risque → afficher panel lot par symbole
+document.getElementById('mode_risque').addEventListener('change', function() {
+  const panel = document.getElementById('panel-lot-symbole');
+  const help = document.getElementById('mode-help');
+  const helps = {
+    'Lots fixes': "Lots fixes : taille fixe quelle que soit la position de l'émetteur",
+    'Lot par symbole': "Définissez un lot spécifique pour chaque symbole ci-dessous",
+    "Copier les lots de l'envoyeur": "Copie exactement la taille de position de l'émetteur",
+    'Risque par solde (Balance)': "Calcule le lot en % du solde de votre compte",
+    'Risque par capitaux (Equity)': "Calcule le lot en % des capitaux propres",
+    'Risque en %': "Risque exprimé en pourcentage du capital par trade"
+  };
+  if (panel) panel.style.display = this.value === 'Lot par symbole' ? 'block' : 'none';
+  if (help && helps[this.value]) help.textContent = helps[this.value];
+});
+
 // ── Toggle panels
 function togglePanel(id, show) {
   const el = document.getElementById(id);
