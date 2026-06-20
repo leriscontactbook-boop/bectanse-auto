@@ -848,41 +848,29 @@ input[name="objectif_periode"] { display: none; }
 
 /* ── MOBILE ── */
 @media(max-width:768px){
-  .app { grid-template-columns: 1fr; }
-  .sidebar {
-    position: fixed; bottom: 0; left: 0; right: 0; top: auto;
-    height: 64px; width: 100%;
-    background: rgba(10,10,15,0.98);
-    border-right: none; border-top: 1px solid rgba(91,33,182,0.25);
-    overflow: hidden; z-index: 200;
-    flex-direction: row; align-items: stretch;
+
+  /* Layout global */
+  .app { display: block; }
+
+  /* Sidebar cachée complètement */
+  .sidebar { display: none !important; }
+
+  /* Contenu plein écran avec espace pour les barres */
+  .content {
+    padding: 16px 14px 90px !important;
+    margin-left: 0 !important;
+    width: 100% !important;
   }
-  .sidebar-brand, .member-card, .nav-section,
-  .sidebar-bottom { display: none !important; }
-  .nav {
-    display: flex; flex-direction: row;
-    width: 100%; overflow-x: auto; padding: 0;
-    scrollbar-width: none;
-  }
-  .nav::-webkit-scrollbar { display: none; }
-  .nav-item {
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 2px; flex: 1; min-width: 58px;
-    padding: 6px 4px 8px;
-    border-left: none !important;
-    border-top: 2px solid transparent;
-    font-size: 9px; font-weight: 600;
-    color: rgba(255,255,255,0.45);
-    text-decoration: none;
-  }
-  .nav-item .icon { font-size: 19px; }
-  .nav-item.active { color: #fff; border-top-color: #5B21B6; }
-  .content { padding: 16px 14px 80px !important; margin-left: 0 !important; }
+
+  /* Bouton envoyer */
   .header-top { flex-direction: column; gap: 10px; }
   .btn-envoyer { width: 100%; font-size: 13px; padding: 12px; }
-  .wa-float { bottom: 74px !important; right: 14px; width: 48px; height: 48px; }
+
+  /* Tableaux */
   .field-row.cols-3 { grid-template-columns: 1fr 1fr; }
+
+  /* WhatsApp plus haut */
+  .wa-float { bottom: 76px !important; right: 14px; width: 48px; height: 48px; }
 }
 
 </style>
@@ -1813,5 +1801,175 @@ async function saveParams() {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
   </script>
+
+<!-- ═══════════════════════════════════ -->
+<!-- MOBILE UI — topbar + bottom nav    -->
+<!-- ═══════════════════════════════════ -->
+<style>
+/* TOP BAR mobile */
+.m-topbar {
+  display: none;
+}
+/* BOTTOM NAV mobile */
+.m-nav {
+  display: none;
+}
+
+@media(max-width:768px){
+
+  /* ── TOP BAR ── */
+  .m-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: rgba(10,10,15,0.97);
+    border-bottom: 1px solid rgba(91,33,182,0.2);
+    padding: 0 16px;
+    z-index: 300;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .m-topbar-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .m-topbar-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+  }
+  .m-topbar-abo {
+    font-size: 10px;
+    font-weight: 600;
+    color: #6EE7B7;
+  }
+  .m-topbar-abo.warn { color: #FCD34D; }
+  .m-topbar-abo.exp  { color: #FCA5A5; }
+  .m-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: none;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .m-copy-btn.on  { background: rgba(5,150,105,0.2);  color: #6EE7B7; border: 1px solid rgba(5,150,105,0.4); }
+  .m-copy-btn.off { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
+  .m-copy-btn .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .m-copy-btn.on .dot  { background: #6EE7B7; }
+  .m-copy-btn.off .dot { background: #FCA5A5; }
+
+  /* Compenser le topbar */
+  .content { padding-top: 72px !important; }
+
+  /* ── BOTTOM NAV ── */
+  .m-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 70px;
+    background: rgba(10,10,15,0.98);
+    border-top: 1px solid rgba(91,33,182,0.2);
+    z-index: 300;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    align-items: stretch;
+    overflow: hidden;
+  }
+  .m-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 4px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.38);
+    border-top: 2px solid transparent;
+    transition: all 0.15s;
+    padding: 8px 2px 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .m-nav-item .mi { font-size: 22px; line-height: 1; }
+  .m-nav-item.active {
+    color: #fff;
+    border-top-color: #5B21B6;
+    background: rgba(91,33,182,0.08);
+  }
+  .m-nav-item:hover { color: rgba(255,255,255,0.7); }
+  .m-nav-item.gold  { color: #F59E0B; }
+  .m-nav-item.gold.active { color: #F59E0B; border-top-color: #F59E0B; }
+
+  /* WhatsApp au-dessus de la nav */
+  .wa-float { bottom: 80px !important; }
+}
+</style>
+
+<!-- TOP BAR -->
+<div class="m-topbar">
+  <div class="m-topbar-left">
+    <div class="m-topbar-name">{{ member.nom.split()[0] }}</div>
+    {% if date_fin %}
+      {% if statut_abo == 'expiré' %}
+        <div class="m-topbar-abo exp">Abonnement expiré</div>
+      {% elif statut_abo == 'expire_bientot' %}
+        <div class="m-topbar-abo warn">{{ jours_restants }}j restants ⚠️</div>
+      {% else %}
+        <div class="m-topbar-abo">{{ jours_restants }}j restants ✓</div>
+      {% endif %}
+    {% endif %}
+  </div>
+  <button class="m-copy-btn {% if copy_actif %}on{% else %}off{% endif %}"
+          onclick="showCopyConfirm()">
+    <span class="dot"></span>
+    {% if copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
+  </button>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="m-nav" role="navigation">
+  <a class="m-nav-item active" href="/dashboard">
+    <span class="mi">⚙️</span>
+    <span>Paramètres</span>
+  </a>
+  <a class="m-nav-item gold" href="/offres">
+    <span class="mi">🚀</span>
+    <span>Upgrader</span>
+  </a>
+  <a class="m-nav-item" href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20besoin%20d%27assistance." target="_blank">
+    <span class="mi">💬</span>
+    <span>Support</span>
+  </a>
+  <a class="m-nav-item gold" href="/parrainage">
+    <span class="mi">🎁</span>
+    <span>Parrainage</span>
+  </a>
+  <a class="m-nav-item" href="/faq">
+    <span class="mi">❓</span>
+    <span>FAQ</span>
+  </a>
+  <a class="m-nav-item" href="#historique">
+    <span class="mi">📜</span>
+    <span>Historique</span>
+  </a>
+</nav>
+
 </body>
 </html>
