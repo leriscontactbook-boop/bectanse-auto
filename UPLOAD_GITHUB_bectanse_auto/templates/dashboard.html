@@ -753,6 +753,40 @@ input[name="objectif_periode"] { display: none; }
                 <option value="{{ m }}" {% if params.mode_risque == m %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
               </select>
+              
+          <!-- PANNEAUX CONTEXTUELS SELON MODE -->
+          <div id="panel-risque-pct" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Risque en %</label>
+              <input type="number" name="risque_pct" id="risque_pct" value="{{ params.get('risque_pct', 1) }}" min="0.01" max="100" step="0.01">
+              <div class="field-help">Risquez un pourcentage fixe de votre solde sur chaque trade</div>
+            </div>
+          </div>
+
+          <div id="panel-multiplicateur" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Multiplicateur</label>
+              <input type="number" name="multiplicateur" id="multiplicateur" value="{{ params.get('multiplicateur', 1) }}" min="0.01" step="0.01">
+              <div class="field-help">Copie exactement la même taille de lot que l'émetteur, multipliée par ce facteur</div>
+            </div>
+          </div>
+
+          <div id="panel-risque-balance" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Risque par Balance (%)</label>
+              <input type="number" name="risque_balance_pct" id="risque_balance_pct" value="{{ params.get('risque_balance_pct', 1) }}" min="0.01" max="100" step="0.01">
+              <div class="field-help">Calcule le lot en % du solde de votre compte à chaque trade</div>
+            </div>
+          </div>
+
+          <div id="panel-risque-equity" style="display:none;margin-top:14px;">
+            <div class="field">
+              <label>Risque par Equity (%)</label>
+              <input type="number" name="risque_equity_pct" id="risque_equity_pct" value="{{ params.get('risque_equity_pct', 1) }}" min="0.01" max="100" step="0.01">
+              <div class="field-help">Calcule le lot en % des capitaux propres à chaque trade</div>
+            </div>
+          </div>
+
               <div class="field-help" id="mode-help">Lots fixes : taille fixe quelle que soit la position de l'émetteur</div>
             </div>
           </div>
@@ -1180,28 +1214,47 @@ function applyBulk() {
   renderSymbols(document.getElementById('sym-search')?.value || '');
 }
 
-// ── Mode risque → afficher panel lot par symbole
-document.getElementById('mode_risque').addEventListener('change', function() {
-  const panel = document.getElementById('lot-symbole-panel');
-  const help = document.getElementById('mode-help');
-  const helps = {
-    'Lots fixes': "Taille de lot fixe quelle que soit la position de l'émetteur",
-    'Lot par symbole': "Définissez un lot différent pour chaque symbole",
-    "Copier les lots de l'envoyeur": "Copie exactement la taille de position de l'émetteur",
-    'Risque par solde (Balance)': "Calcule le lot en % du solde de votre compte",
-    'Risque par capitaux (Equity)': "Calcule le lot en % des capitaux propres",
-    'Risque en %': "Risque exprimé en pourcentage du capital par trade"
-  };
-  if (panel) {
-    if (this.value === 'Lot par symbole') {
-      panel.classList.add('visible');
-      renderSymbols();
-    } else {
-      panel.classList.remove('visible');
-    }
+// ── Mode risque → panneaux contextuels
+const modeHelps = {
+  'Lots fixes': "Taille de lot fixe quelle que soit la position de l'émetteur",
+  'Lot par symbole': "Définissez un lot différent pour chaque symbole",
+  "Copier les lots de l'envoyeur": "Copie exactement la même taille de lot, multipliée par un facteur",
+  'Risque par solde (Balance)': "Calcule le lot en % du solde de votre compte",
+  'Risque par capitaux (Equity)': "Calcule le lot en % des capitaux propres",
+  'Risque en %': "Risquez un pourcentage fixe de votre solde sur chaque trade"
+};
+
+function updateModePanel(mode) {
+  // Cacher tous les panneaux contextuels
+  ['panel-risque-pct','panel-multiplicateur','panel-risque-balance','panel-risque-equity','lot-symbole-panel']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.display='none'; el.classList && el.classList.remove('visible'); }
+    });
+  // Afficher le panneau correspondant
+  if (mode === 'Risque en %') {
+    document.getElementById('panel-risque-pct').style.display = 'block';
+  } else if (mode === "Copier les lots de l'envoyeur") {
+    document.getElementById('panel-multiplicateur').style.display = 'block';
+  } else if (mode === 'Risque par solde (Balance)') {
+    document.getElementById('panel-risque-balance').style.display = 'block';
+  } else if (mode === 'Risque par capitaux (Equity)') {
+    document.getElementById('panel-risque-equity').style.display = 'block';
+  } else if (mode === 'Lot par symbole') {
+    const p = document.getElementById('lot-symbole-panel');
+    if (p) { p.classList.add('visible'); renderSymbols(); }
   }
-  if (help && helps[this.value]) help.textContent = helps[this.value];
+  // Mettre à jour le texte d'aide
+  const help = document.getElementById('mode-help');
+  if (help && modeHelps[mode]) help.textContent = modeHelps[mode];
+}
+
+document.getElementById('mode_risque').addEventListener('change', function() {
+  updateModePanel(this.value);
 });
+
+// Init au chargement
+updateModePanel(document.getElementById('mode_risque').value);
 
 
 // ── COPY TRADING TOGGLE ──
@@ -1308,6 +1361,10 @@ async function saveParams() {
     objectif_perte_pct:       parseFloat(val('objectif_perte_pct')),
     objectif_periode:         val('objectif_periode'),
     filtre_news:              bool('filtre_news'),
+    risque_pct:               parseFloat(val('risque_pct') || 1),
+    multiplicateur:           parseFloat(val('multiplicateur') || 1),
+    risque_balance_pct:       parseFloat(val('risque_balance_pct') || 1),
+    risque_equity_pct:        parseFloat(val('risque_equity_pct') || 1),
     lot_symboles:             (val('mode_risque') === 'Lot par symbole') ? symLots : {},
   };
 
