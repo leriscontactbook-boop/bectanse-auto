@@ -234,6 +234,73 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
 @media(max-width:400px) {
   .offres-grid { grid-template-columns:1fr; }
 }
+
+/* ── KLARNA ── */
+.klarna-tag {
+  display: inline-flex; align-items: center;
+  background: rgba(255,179,198,0.1);
+  border: 1px solid rgba(255,179,198,0.25);
+  border-radius: 6px; padding: 4px 10px;
+  font-size: 11px; color: #FFB3C6;
+  margin-bottom: 16px; font-weight: 600;
+}
+
+/* ── BLOC KLARNA PSYCHO ── */
+.klarna-block {
+  background: linear-gradient(135deg, rgba(255,179,198,0.06), rgba(255,100,150,0.04));
+  border: 1px solid rgba(255,179,198,0.2);
+  border-radius: 20px; padding: 36px 40px;
+  margin-bottom: 40px; position: relative; overflow: hidden;
+}
+.klarna-block::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, #FFB3C6, #ff6eb4, transparent);
+}
+.klarna-logo-row {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+}
+.klarna-logo-row img { height: 28px; }
+.klarna-logo-row h3 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px; font-weight: 700; color: #fff; letter-spacing: 0.04em;
+}
+.klarna-logic {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 16px; margin: 24px 0;
+}
+.klarna-box {
+  background: rgba(0,0,0,0.25); border-radius: 14px; padding: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.klarna-box.bad { border-color: rgba(220,38,38,0.2); }
+.klarna-box.good { border-color: rgba(255,179,198,0.3); }
+.klarna-box-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; margin-bottom: 12px;
+}
+.klarna-box.bad .klarna-box-title { color: rgba(220,38,38,0.8); }
+.klarna-box.good .klarna-box-title { color: #FFB3C6; }
+.klarna-box p {
+  font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.7; margin: 0;
+}
+.klarna-box strong { color: #fff; }
+.klarna-box.good strong { color: #FFB3C6; }
+.klarna-conclusion {
+  background: rgba(255,179,198,0.08); border-radius: 12px;
+  padding: 16px 20px; text-align: center;
+  border: 1px solid rgba(255,179,198,0.2); margin-top: 8px;
+}
+.klarna-conclusion p {
+  font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.7; margin: 0;
+}
+.klarna-conclusion strong { color: #FFB3C6; }
+
+@media(max-width:600px){
+  .klarna-logic { grid-template-columns: 1fr; }
+  .klarna-block { padding: 24px 20px; }
+}
+
 </style>
 </head>
 <body>
@@ -255,11 +322,11 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
   <!-- STATS -->
   <div class="stats-bar fade-up delay-1">
     <div class="stat-item">
-      <div class="stat-num">+114%</div>
+      <div class="stat-num">+87,5%</div>
       <div class="stat-label">Performance mois</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">15 969</div>
+      <div class="stat-num">5 270</div>
       <div class="stat-label">Membres actifs</div>
     </div>
     <div class="stat-item">
@@ -287,7 +354,11 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
     <a href="https://buy.stripe.com/28EeVcdoA8Ed9gr5HAgA802" target="_blank" class="offre-card fade-up delay-1">
       <div class="offre-duration">1 Mois</div>
       <div class="offre-price"><span>€</span>500</div>
-      <div class="offre-per-day"><strong>16,67€</strong>/jour</div>
+      <div class="offre-per-day"><strong>16,67€</strong>/jour <span style="color:rgba(255,255,255,0.25);font-size:10px;">ou</span> <strong style="color:#FFB3C6;">4 × 4,17€</strong><span style="font-size:10px;color:#FFB3C6;"> avec Klarna</span></div>
+          <div class="klarna-tag">
+            <img src="https://x.klarnacdn.net/payment-method/assets/badges/generic/klarna.svg" alt="Klarna" style="height:14px;vertical-align:middle;margin-right:5px;">
+            <span>Paye en 4× — 4 × 125€/mois</span>
+          </div>
       <div class="offre-economy economy-none">—</div>
       <ul class="offre-features">
         <li>Accès complet copy trading</li>
@@ -303,7 +374,11 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
       <div class="badge-wrap"><span class="badge gold">⭐ Populaire</span></div>
       <div class="offre-duration">3 Mois</div>
       <div class="offre-price"><span>€</span>1000</div>
-      <div class="offre-per-day"><strong>11,11€</strong>/jour</div>
+      <div class="offre-per-day"><strong>11,11€</strong>/jour <span style="color:rgba(255,255,255,0.25);font-size:10px;">ou</span> <strong style="color:#FFB3C6;">4 × 2,78€</strong><span style="font-size:10px;color:#FFB3C6;"> avec Klarna</span></div>
+          <div class="klarna-tag">
+            <img src="https://x.klarnacdn.net/payment-method/assets/badges/generic/klarna.svg" alt="Klarna" style="height:14px;vertical-align:middle;margin-right:5px;">
+            <span>Paye en 4× — 4 × 250€/mois</span>
+          </div>
       <div class="offre-economy economy-gold">Tu économises 500€ — 33% moins cher</div>
       <ul class="offre-features">
         <li>Accès complet copy trading</li>
@@ -319,7 +394,11 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
       <div class="badge-wrap"><span class="badge purple">Recommandé</span></div>
       <div class="offre-duration">6 Mois</div>
       <div class="offre-price"><span>€</span>2500</div>
-      <div class="offre-per-day"><strong>13,89€</strong>/jour</div>
+      <div class="offre-per-day"><strong>13,89€</strong>/jour <span style="color:rgba(255,255,255,0.25);font-size:10px;">ou</span> <strong style="color:#FFB3C6;">4 × 3,47€</strong><span style="font-size:10px;color:#FFB3C6;"> avec Klarna</span></div>
+          <div class="klarna-tag">
+            <img src="https://x.klarnacdn.net/payment-method/assets/badges/generic/klarna.svg" alt="Klarna" style="height:14px;vertical-align:middle;margin-right:5px;">
+            <span>Paye en 4× — 4 × 625€/mois</span>
+          </div>
       <div class="offre-economy economy-gold">Tu économises 500€ vs mois par mois</div>
       <ul class="offre-features">
         <li>Accès complet copy trading</li>
@@ -335,7 +414,11 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
       <div class="badge-wrap"><span class="badge green">🏆 Meilleur ROI</span></div>
       <div class="offre-duration">1 An</div>
       <div class="offre-price"><span>€</span>4000</div>
-      <div class="offre-per-day"><strong>10,96€</strong>/jour</div>
+      <div class="offre-per-day"><strong>10,96€</strong>/jour <span style="color:rgba(255,255,255,0.25);font-size:10px;">ou</span> <strong style="color:#FFB3C6;">4 × 2,74€</strong><span style="font-size:10px;color:#FFB3C6;"> avec Klarna</span></div>
+          <div class="klarna-tag">
+            <img src="https://x.klarnacdn.net/payment-method/assets/badges/generic/klarna.svg" alt="Klarna" style="height:14px;vertical-align:middle;margin-right:5px;">
+            <span>Paye en 4× — 4 × 1000€/mois</span>
+          </div>
       <div class="offre-economy economy-green">Tu économises 2000€ — 34% moins cher</div>
       <ul class="offre-features">
         <li>Accès complet copy trading</li>
@@ -386,7 +469,7 @@ function animateCounter(el, target, suffix='') {
 }
 window.addEventListener('load', () => {
   setTimeout(() => {
-    animateCounter(document.querySelectorAll('.stat-num')[1], 15969);
+    animateCounter(document.querySelectorAll('.stat-num')[1], 5270);
   }, 400);
 });
 
