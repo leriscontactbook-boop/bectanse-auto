@@ -60,6 +60,9 @@ def init_db():
                     copy_actif        BOOLEAN DEFAULT TRUE,
                     date_souscription  TIMESTAMP DEFAULT NOW(),
                     date_fin           TIMESTAMP DEFAULT (NOW() + INTERVAL '30 days'),
+                    email              TEXT DEFAULT '',
+                    telephone          TEXT DEFAULT '',
+                    telegram           TEXT DEFAULT '',
                     historique  TEXT DEFAULT \'[]\'
                 )
             """)
@@ -68,6 +71,10 @@ def init_db():
                 conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS copy_actif BOOLEAN DEFAULT TRUE")
                 conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS date_souscription TIMESTAMP DEFAULT NOW()")
                 conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS date_fin TIMESTAMP DEFAULT (NOW() + INTERVAL '30 days')")
+                conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''")
+                conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS telephone TEXT DEFAULT ''")
+                conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS telegram TEXT DEFAULT ''")
+                conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS alerte_lue BOOLEAN DEFAULT FALSE")
             except:
                 pass
             conn.close()
@@ -595,8 +602,8 @@ def envoyer_relances():
 
         for row in rows:
             code, nom, telegram_handle, date_fin = row
-            if not telegram_handle:
-                continue
+            df = date_fin.strftime('%d/%m/%Y') if date_fin else '—'
+            delta_days = (date_fin.date() - __import__('datetime').date.today()).days
             df = date_fin.strftime('%d/%m/%Y') if date_fin else '—'
             delta_days = (date_fin.date() - __import__('datetime').date.today()).days
 
@@ -625,17 +632,101 @@ def envoyer_relances():
             else:
                 continue
 
+            # Telegram si username dispo
+            if telegram_handle:
+                try:
+                    handle = telegram_handle.lstrip("@")
+                    requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                        json={"chat_id": f"@{handle}", "text": msg, "parse_mode": "Markdown"},
+                        timeout=5
+                    )
+                except: pass
+
+            # Email si pas de Telegram — récupérer depuis DB
+            if not telegram_handle:
+                try:
+                    conn2 = get_conn()
+                    email_rows = conn2.run("SELECT email FROM members WHERE code=:c", c=code)
+                    conn2.close()
+                    if email_rows and email_rows[0][0]:
+                        envoyer_email_relance(email_rows[0][0], nom, delta_days, df)
+                except: pass
+
+            # Marquer alerte à afficher dans l'espace membre
             try:
-                handle = telegram_handle.lstrip("@")
-                requests.post(
-                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                    json={"chat_id": f"@{handle}", "text": msg, "parse_mode": "Markdown"},
-                    timeout=5
-                )
+                conn3 = get_conn()
+                conn3.run("UPDATE members SET alerte_lue=FALSE WHERE code=:c", c=code)
+                conn3.close()
             except: pass
 
     except Exception as e:
         app.logger.error(f"envoyer_relances error: {e}")
+
+
+def envoyer_email_relance(email, nom, jours, date_fin_str):
+    """Envoie un email de relance via SMTP Gmail gratuit"""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    GMAIL_USER = os.environ.get("GMAIL_USER", "")
+    GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
+    if not GMAIL_USER or not GMAIL_PASS:
+        return
+
+    prenom = nom.split()[0]
+    if jours == 7:
+        sujet = f"⚠️ Ton abonnement Bectanse AUTO expire dans 7 jours"
+        corps = f"""Bonjour {prenom},
+
+Ton abonnement Bectanse AUTO expire dans 7 jours, le {date_fin_str}.
+
+Pour continuer à bénéficier du copy trading sans interruption, contacte-nous dès maintenant pour renouveler.
+
+👉 Contacte notre support : @LERISGANGSUPPORT
+
+L'équipe Bectanse
+bectanse-auto.up.railway.app"""
+    elif jours == 3:
+        sujet = f"🔴 URGENT — Ton abonnement Bectanse AUTO expire dans 3 jours"
+        corps = f"""Bonjour {prenom},
+
+URGENT : Ton abonnement Bectanse AUTO expire dans 3 jours, le {date_fin_str}.
+
+Pour ne pas perdre l'accès à ton espace membre et au copy trading, renouvelle maintenant.
+
+👉 Contacte notre support : @LERISGANGSUPPORT
+
+L'équipe Bectanse
+bectanse-auto.up.railway.app"""
+    elif jours == 1:
+        sujet = f"🚨 Dernière chance — Ton abonnement expire DEMAIN"
+        corps = f"""Bonjour {prenom},
+
+Ton abonnement Bectanse AUTO expire DEMAIN ({date_fin_str}).
+
+C'est ta dernière chance pour renouveler sans interruption de service.
+
+👉 Contacte immédiatement notre support : @LERISGANGSUPPORT
+
+L'équipe Bectanse
+bectanse-auto.up.railway.app"""
+    else:
+        return
+
+    try:
+        msg = MIMEMultipart()
+        msg['From']    = f"Bectanse AUTO <{GMAIL_USER}>"
+        msg['To']      = email
+        msg['Subject'] = sujet
+        msg.attach(MIMEText(corps, 'plain', 'utf-8'))
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_USER, GMAIL_PASS)
+            server.sendmail(GMAIL_USER, email, msg.as_string())
+    except Exception as e:
+        app.logger.error(f"Email relance error: {e}")
 
 
 # Route pour désactiver un membre depuis Telegram
@@ -659,7 +750,31 @@ def desactiver_membre(code):
         return f"<h2>Erreur: {e}</h2>"
 
 
-@app.route("/health")@app.route("/health")
+@app.route("/marquer-alerte-lue", methods=["POST"])
+@login_required
+def marquer_alerte_lue():
+    code = session["member_code"]
+    try:
+        conn = get_conn()
+        conn.run("UPDATE members SET alerte_lue=TRUE WHERE code=:c", c=code)
+        conn.close()
+        return jsonify({"ok": True})
+    except:
+        return jsonify({"ok": False})
+
+@app.route("/health")@app.route("/marquer-alerte-lue", methods=["POST"])
+@login_required
+def marquer_alerte_lue():
+    code = session["member_code"]
+    try:
+        conn = get_conn()
+        conn.run("UPDATE members SET alerte_lue=TRUE WHERE code=:c", c=code)
+        conn.close()
+        return jsonify({"ok": True})
+    except:
+        return jsonify({"ok": False})
+
+@app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
