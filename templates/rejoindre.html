@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bectanse AUTO — Rejoins l'élite</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--dark-2:#111827;--white:#fff;--border:rgba(91,33,182,0.2)}
+html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark);color:var(--white);overflow-x:hidden}
+.bg{position:fixed;inset:0;z-index:0;overflow:hidden}
+.bg::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 100% 60% at 50% -10%,rgba(91,33,182,0.5) 0%,transparent 65%),radial-gradient(ellipse 60% 50% at 90% 90%,rgba(245,158,11,0.15) 0%,transparent 60%),var(--dark)}
+.bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(91,33,182,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(91,33,182,0.06) 1px,transparent 1px);background-size:44px 44px}
+.page{position:relative;z-index:1;min-height:100vh;padding:48px 16px 80px}
+.container{max-width:860px;margin:0 auto}
+
+/* HERO */
+.hero{text-align:center;margin-bottom:48px}
+.parrain-badge{display:inline-flex;align-items:center;gap:10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:30px;padding:10px 20px;margin-bottom:24px;font-size:14px;color:rgba(255,255,255,0.7)}
+.parrain-name{color:var(--gold);font-weight:700}
+.hero-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,8vw,72px);line-height:0.95;margin-bottom:20px}
+.hero-title .t1{display:block;color:var(--white)}
+.hero-title .t2{display:block;color:var(--gold);text-shadow:0 0 60px rgba(245,158,11,0.5);animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{text-shadow:0 0 40px rgba(245,158,11,0.4)}50%{text-shadow:0 0 80px rgba(245,158,11,0.8)}}
+.hero-sub{font-size:16px;color:rgba(255,255,255,0.5);max-width:580px;margin:0 auto 40px;line-height:1.7}
+.hero-sub strong{color:var(--white)}
+
+/* STATS */
+.stats-bar{display:flex;justify-content:center;gap:32px;flex-wrap:wrap;margin-bottom:56px;padding:20px 32px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:16px}
+.stat{text-align:center}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--gold);text-shadow:0 0 20px rgba(245,158,11,0.4)}
+.stat-lbl{font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px}
+
+/* OFFRES */
+.offres-title{text-align:center;margin-bottom:28px}
+.offres-title h2{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--white);letter-spacing:0.04em}
+.offres-title p{font-size:14px;color:rgba(255,255,255,0.4);margin-top:6px}
+.offres-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:48px}
+.offre-card{background:rgba(17,24,39,0.8);border:1px solid var(--border);border-radius:18px;padding:24px 20px 28px;position:relative;overflow:hidden;transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);text-decoration:none;display:block;cursor:pointer}
+.offre-card:hover{transform:translateY(-6px);border-color:rgba(91,33,182,0.5);box-shadow:0 20px 60px rgba(0,0,0,0.4)}
+.offre-card.popular{border-color:var(--gold);box-shadow:0 0 0 1px rgba(245,158,11,0.2)}
+.offre-card.best{border-color:#059669;box-shadow:0 0 0 1px rgba(5,150,105,0.2)}
+.offre-badge{position:absolute;top:12px;right:12px;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:3px 10px;border-radius:20px}
+.badge-gold{background:rgba(245,158,11,0.2);color:var(--gold);border:1px solid rgba(245,158,11,0.4)}
+.badge-green{background:rgba(5,150,105,0.2);color:#6EE7B7;border:1px solid rgba(5,150,105,0.4)}
+.badge-purple{background:rgba(91,33,182,0.2);color:#C4B5FD;border:1px solid rgba(91,33,182,0.4)}
+.offre-dur{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:10px}
+.offre-price{font-family:'Bebas Neue',sans-serif;font-size:44px;color:var(--white);line-height:1;margin-bottom:4px}
+.offre-price span{font-size:24px;color:rgba(255,255,255,0.5)}
+.offre-day{font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:6px}
+.offre-day strong{color:var(--gold)}
+.klarna-line{font-size:10px;color:#FFB3C6;margin-bottom:16px;display:flex;align-items:center;gap:4px}
+.offre-eco{font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;margin-bottom:16px;display:inline-block}
+.eco-gold{background:rgba(245,158,11,0.1);color:var(--gold);border:1px solid rgba(245,158,11,0.25)}
+.eco-green{background:rgba(5,150,105,0.1);color:#6EE7B7;border:1px solid rgba(5,150,105,0.25)}
+.offre-cta{display:block;width:100%;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:12px;border-radius:10px;border:none;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.cta-default{background:rgba(91,33,182,0.2);color:rgba(255,255,255,0.7);border:1px solid rgba(91,33,182,0.3)}
+.cta-default:hover{background:var(--purple);color:#fff}
+.cta-gold{background:var(--gold);color:#0a0a0f;box-shadow:0 4px 20px rgba(245,158,11,0.3)}
+.cta-gold:hover{background:#D97706}
+.cta-green{background:#059669;color:#fff;box-shadow:0 4px 20px rgba(5,150,105,0.3)}
+.cta-green:hover{background:#047857}
+
+/* FORMULAIRE */
+.form-section{background:linear-gradient(135deg,rgba(91,33,182,0.1),rgba(59,7,100,0.08));border:1px solid var(--border);border-radius:24px;padding:36px;margin-bottom:48px;position:relative;overflow:hidden}
+.form-section::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--purple),var(--gold),transparent)}
+.form-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.04em;color:var(--white);margin-bottom:6px}
+.form-desc{font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:24px;line-height:1.6}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-field label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
+.form-field input,.form-field select{background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--white);outline:none;transition:border-color 0.2s,box-shadow 0.2s;font-family:'Barlow',sans-serif}
+.form-field input:focus,.form-field select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,33,182,0.12)}
+.form-field select option{background:#1F2937}
+.offre-select-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px;display:block}
+.offre-pills{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.offre-pill{padding:12px 8px;border-radius:10px;border:1px solid rgba(91,33,182,0.2);background:rgba(255,255,255,0.03);cursor:pointer;text-align:center;transition:all 0.15s}
+.offre-pill:hover,.offre-pill.selected{border-color:var(--purple);background:rgba(91,33,182,0.15)}
+.offre-pill .pill-dur{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--white)}
+.offre-pill .pill-price{font-size:11px;color:var(--gold);font-weight:600;margin-top:2px}
+.btn-submit{width:100%;background:linear-gradient(135deg,var(--purple),#4C1D95);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(91,33,182,0.4);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(91,33,182,0.5)}
+.btn-submit:disabled{opacity:0.5;pointer-events:none}
+.error-box{background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:10px;padding:12px 16px;font-size:13px;color:#FCA5A5;margin-bottom:16px;display:none}
+.success-box{display:none;text-align:center;padding:32px}
+.success-icon{font-size:56px;margin-bottom:16px}
+.success-title{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#059669;margin-bottom:8px}
+.success-desc{font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7}
+
+/* GARANTIE */
+.garantie{text-align:center;padding:24px;background:rgba(5,150,105,0.05);border:1px solid rgba(5,150,105,0.15);border-radius:16px;margin-bottom:40px}
+.garantie p{font-size:13px;color:rgba(255,255,255,0.4);line-height:1.6}
+.garantie strong{color:#6EE7B7}
+
+/* ANIMATIONS */
+.fade-up{opacity:0;transform:translateY(30px);transition:opacity 0.6s ease,transform 0.6s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+.delay-1{transition-delay:0.1s}.delay-2{transition-delay:0.2s}.delay-3{transition-delay:0.3s}.delay-4{transition-delay:0.4s}
+
+@media(max-width:600px){.form-row{grid-template-columns:1fr}.offres-grid{grid-template-columns:1fr 1fr}.offre-pills{grid-template-columns:1fr 1fr}.stats-bar{gap:20px;padding:16px}}
+</style>
+</head>
+<body>
+<div class="bg"><div class="bg-grid"></div></div>
+
+<div class="page">
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero fade-up">
+    <div class="parrain-badge">
+      🎁 Tu as été recommandé par <span class="parrain-name">{{ parrain_nom }}</span>
+    </div>
+    <h1 class="hero-title">
+      <span class="t1">Tu fais confiance</span>
+      <span class="t2">à quelqu'un qui réussit.</span>
+    </h1>
+    <p class="hero-sub">
+      <strong>{{ parrain_nom }}</strong> utilise Bectanse AUTO et gagne en copy trading automatiquement.<br>
+      Il t'a choisi pour rejoindre l'élite. <strong>Le système trade à ta place. 24h/24. 0 action requise.</strong>
+    </p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar fade-up delay-1">
+    <div class="stat"><div class="stat-num">5 270</div><div class="stat-lbl">Membres actifs</div></div>
+    <div class="stat"><div class="stat-num">+87,5%</div><div class="stat-lbl">Performance</div></div>
+    <div class="stat"><div class="stat-num">24h/24</div><div class="stat-lbl">Système actif</div></div>
+    <div class="stat"><div class="stat-num">0</div><div class="stat-lbl">Action requise</div></div>
+  </div>
+
+  <!-- OFFRES -->
+  <div class="offres-title fade-up">
+    <h2>Choisis ton accès</h2>
+    <p>Plus longtemps tu t'engages, plus tu économises — et plus les résultats s'accumulent</p>
+  </div>
+
+  <div class="offres-grid fade-up delay-1">
+    <a href="https://buy.stripe.com/28EeVcdoA8Ed9gr5HAgA802" target="_blank" class="offre-card" onclick="selectOffre('1 mois — 500€',this)">
+      <div class="offre-dur">1 Mois</div>
+      <div class="offre-price"><span>€</span>500</div>
+      <div class="offre-day"><strong>16,67€</strong>/jour</div>
+      <div class="klarna-line">💳 ou 4×125€ avec Klarna</div>
+      <div class="offre-cta cta-default">Choisir →</div>
+    </a>
+    <a href="https://buy.stripe.com/eVq4gyesE3jTboz5HAgA80a" target="_blank" class="offre-card popular" onclick="selectOffre('3 mois — 1000€',this)">
+      <div class="offre-badge badge-gold">⭐ Populaire</div>
+      <div class="offre-dur">3 Mois</div>
+      <div class="offre-price"><span>€</span>1000</div>
+      <div class="offre-day"><strong>11,11€</strong>/jour</div>
+      <div class="klarna-line">💳 ou 4×250€ avec Klarna</div>
+      <div class="offre-eco eco-gold">-33% · Tu économises 500€</div>
+      <div class="offre-cta cta-gold">Choisir →</div>
+    </a>
+    <a href="https://buy.stripe.com/00w28q84g5s1csDgmegA804" target="_blank" class="offre-card" onclick="selectOffre('6 mois — 2500€',this)">
+      <div class="offre-badge badge-purple">Recommandé</div>
+      <div class="offre-dur">6 Mois</div>
+      <div class="offre-price"><span>€</span>2500</div>
+      <div class="offre-day"><strong>13,89€</strong>/jour</div>
+      <div class="klarna-line">💳 ou 4×625€ avec Klarna</div>
+      <div class="offre-cta cta-default">Choisir →</div>
+    </a>
+    <a href="https://buy.stripe.com/bJecN498kbQp64f7PIgA803" target="_blank" class="offre-card best" onclick="selectOffre('1 an — 4000€',this)">
+      <div class="offre-badge badge-green">🏆 Meilleur ROI</div>
+      <div class="offre-dur">1 An</div>
+      <div class="offre-price"><span>€</span>4000</div>
+      <div class="offre-day"><strong>10,96€</strong>/jour</div>
+      <div class="klarna-line">💳 ou 4×1000€ avec Klarna</div>
+      <div class="offre-eco eco-green">-34% · Tu économises 2000€</div>
+      <div class="offre-cta cta-green">Choisir →</div>
+    </a>
+  </div>
+
+  <!-- FORMULAIRE -->
+  <div class="form-section fade-up">
+    <div id="form-content">
+      <div class="form-title">📋 Enregistre tes informations</div>
+      <div class="form-desc">Après avoir payé sur Stripe, remplis ce formulaire. Notre équipe activera ton accès sous 24h et t'enverra ton code de connexion.</div>
+
+      <div class="error-box" id="error-box"></div>
+
+      <div class="form-row">
+        <div class="form-field">
+          <label>Prénom</label>
+          <input type="text" id="prenom" placeholder="Jean" required>
+        </div>
+        <div class="form-field">
+          <label>Nom</label>
+          <input type="text" id="nom" placeholder="Dupont" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Email</label>
+          <input type="email" id="email" placeholder="jean@gmail.com" required>
+        </div>
+        <div class="form-field">
+          <label>Téléphone</label>
+          <input type="tel" id="telephone" placeholder="+33 6 00 00 00 00" required>
+        </div>
+      </div>
+
+      <span class="offre-select-label">Offre choisie</span>
+      <div class="offre-pills">
+        <div class="offre-pill" onclick="setPill('1 mois — 500€',this)"><div class="pill-dur">1 Mois</div><div class="pill-price">500€</div></div>
+        <div class="offre-pill selected" onclick="setPill('3 mois — 1000€',this)"><div class="pill-dur">3 Mois</div><div class="pill-price">1000€</div></div>
+        <div class="offre-pill" onclick="setPill('6 mois — 2500€',this)"><div class="pill-dur">6 Mois</div><div class="pill-price">2500€</div></div>
+        <div class="offre-pill" onclick="setPill('1 an — 4000€',this)"><div class="pill-dur">1 An</div><div class="pill-price">4000€</div></div>
+      </div>
+      <input type="hidden" id="offre-selected" value="3 mois — 1000€">
+
+      <button class="btn-submit" id="btn-submit" onclick="submitForm()">
+        <span>✅</span> J'ai payé — Activer mon accès
+      </button>
+    </div>
+
+    <div class="success-box" id="success-box">
+      <div class="success-icon">🎉</div>
+      <div class="success-title">Demande envoyée !</div>
+      <div class="success-desc">Notre équipe a reçu ta demande et vérifie ton paiement.<br>Tu recevras ton code d'accès dans les <strong>24 heures</strong> par email et SMS.<br><br>Bienvenue dans Bectanse AUTO 🚀</div>
+    </div>
+  </div>
+
+  <!-- GARANTIE -->
+  <div class="garantie fade-up">
+    <p>🔒 <strong>Paiement 100% sécurisé via Stripe</strong> — Standard mondial utilisé par Amazon, Apple, Google.<br>
+    Tes données bancaires ne transitent jamais par nos serveurs.</p>
+  </div>
+
+</div>
+</div>
+
+<script>
+let offreSelected = '3 mois — 1000€';
+
+function setPill(val, el) {
+  offreSelected = val;
+  document.getElementById('offre-selected').value = val;
+  document.querySelectorAll('.offre-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function selectOffre(val, card) {
+  offreSelected = val;
+  document.getElementById('offre-selected').value = val;
+  document.querySelectorAll('.offre-pill').forEach(p => p.classList.remove('selected'));
+  document.querySelectorAll('.offre-card').forEach(c => c.style.opacity = c === card ? '1' : '0.6');
+}
+
+async function submitForm() {
+  const btn = document.getElementById('btn-submit');
+  const errorBox = document.getElementById('error-box');
+  errorBox.style.display = 'none';
+
+  const prenom    = document.getElementById('prenom').value.trim();
+  const nom       = document.getElementById('nom').value.trim();
+  const email     = document.getElementById('email').value.trim();
+  const telephone = document.getElementById('telephone').value.trim();
+  const offre     = document.getElementById('offre-selected').value;
+
+  if (!prenom || !nom || !email || !telephone) {
+    errorBox.textContent = 'Tous les champs sont obligatoires.';
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span> Envoi en cours...';
+
+  try {
+    const res = await fetch('/rejoindre/{{ parrain_code }}/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({prenom, nom, email, telephone, offre, parrain_code: '{{ parrain_code }}'})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('form-content').style.display = 'none';
+      document.getElementById('success-box').style.display = 'block';
+    } else {
+      errorBox.textContent = data.error || 'Erreur. Réessaie.';
+      errorBox.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<span>✅</span> J\'ai payé — Activer mon accès';
+    }
+  } catch(e) {
+    errorBox.textContent = 'Erreur de connexion.';
+    errorBox.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<span>✅</span> J\'ai payé — Activer mon accès';
+  }
+}
+
+// Scroll animations
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, {threshold: 0.1});
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
