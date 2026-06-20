@@ -846,6 +846,12 @@ input[name="objectif_periode"] { display: none; }
   .hist-table th, .hist-table td { padding: 8px 6px; }
 }
 </style>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#5B21B6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
 <body>
 <div class="app">
@@ -1761,5 +1767,11 @@ async function saveParams() {
 }
 </style>
 
+
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  </script>
 </body>
 </html>
