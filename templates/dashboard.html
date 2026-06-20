@@ -822,14 +822,29 @@ input[name="objectif_periode"] { display: none; }
         <div class="member-capital">💰 {{ member.capital }}</div>
       </div>
       {% if date_fin %}
-      <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div style="padding:14px 16px 16px;border-top:1px solid rgba(255,255,255,0.06);">
         {% if date_souscription %}
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-size:11px;color:rgba(255,255,255,0.35);">Début</span>
-          <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;color:rgba(255,255,255,0.75);">{{ date_souscription.strftime('%d/%m/%Y') }}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.35);flex-shrink:0;">Début</span>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;color:rgba(255,255,255,0.8);">{{ date_souscription.strftime('%d/%m/%Y') }}</span>
         </div>
         {% endif %}
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.35);flex-shrink:0;">Expiration</span>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;color:rgba(255,255,255,0.8);">{{ date_fin.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.35);flex-shrink:0;">Restant</span>
+          {% if statut_abo == 'expiré' %}
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(220,38,38,0.15);color:#FCA5A5;border:1px solid rgba(220,38,38,0.3);">Expiré</span>
+          {% elif statut_abo == 'expire_bientot' %}
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(245,158,11,0.15);color:#FCD34D;border:1px solid rgba(245,158,11,0.3);">{{ jours_restants }}j restants</span>
+          {% else %}
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3);">{{ jours_restants }}j restants</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <span style="font-size:11px;color:rgba(255,255,255,0.35);">Expiration</span>
           <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;color:rgba(255,255,255,0.75);">{{ date_fin.strftime('%d/%m/%Y') }}</span>
         </div>
@@ -854,7 +869,12 @@ input[name="objectif_periode"] { display: none; }
       <a class="nav-item" href="/offres" style="color:#F59E0B;">
         <span class="icon">🚀</span> Renouveler / Upgrader
       </a>
-      <a class="nav-item" href="https://wa.me/436785328698?text=Bonjour,%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j'ai%20besoin%20d'assistance." target="_blank"><span class="icon">💬</span> Discuter avec un agent</a>
+      <a class="nav-item" href="https://wa.me/436785328698?text=Bonjour,%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j'ai%20besoin%20d'assistance." target="_blank">
+        <span class="icon">💬</span> Discuter avec un agent
+      </a>
+      <a class="nav-item" href="/faq">
+        <span class="icon">❓</span> FAQ &amp; Guide
+      </a>
       <a class="nav-item" href="#historique">
         <span class="icon">📜</span> Historique
       </a>
