@@ -644,11 +644,18 @@ def admin_add():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-with app.app_context():
-    try:
-        init_db()
-    except Exception as e:
-        app.logger.error(f"DB init: {e}")
+# Lancer init_db en arrière-plan pour ne pas bloquer gunicorn
+import threading
+
+def _startup():
+    with app.app_context():
+        try:
+            init_db()
+            app.logger.info("DB initialisée")
+        except Exception as e:
+            app.logger.error(f"DB init error: {e}")
+
+threading.Thread(target=_startup, daemon=True).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
