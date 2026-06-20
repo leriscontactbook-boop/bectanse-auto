@@ -56,13 +56,17 @@ def init_db():
                     created_at  TIMESTAMP DEFAULT NOW(),
                     last_login  TIMESTAMP,
                     params      TEXT DEFAULT \'{}\',
-                    copy_actif  BOOLEAN DEFAULT TRUE,
+                    copy_actif        BOOLEAN DEFAULT TRUE,
+                    date_souscription  TIMESTAMP DEFAULT NOW(),
+                    date_fin           TIMESTAMP DEFAULT (NOW() + INTERVAL '30 days'),
                     historique  TEXT DEFAULT \'[]\'
                 )
             """)
             # Ajouter copy_actif si elle n'existe pas encore
             try:
                 conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS copy_actif BOOLEAN DEFAULT TRUE")
+                conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS date_souscription TIMESTAMP DEFAULT NOW()")
+                conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS date_fin TIMESTAMP DEFAULT (NOW() + INTERVAL '30 days')")
             except:
                 pass
             conn.close()
@@ -103,6 +107,7 @@ def get_member(code):
         if m.get("copy_actif") is None:
             m["copy_actif"] = True
         return m
+
     except Exception as e:
         app.logger.error(f"get_member: {e}")
         return None
