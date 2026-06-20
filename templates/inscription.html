@@ -196,51 +196,44 @@ html, body { min-height: 100vh; font-family: "Barlow", sans-serif; background: v
         <div class="field">
           <label>Broker</label>
           <select id="broker-select" onchange="onBrokerSelect(this.value)">
-            <optgroup label="⭐ Recommandé">
+            <optgroup label="⭐ Recommandé par Bectanse">
               <option value="PUPrime">PU Prime</option>
             </optgroup>
-            <optgroup label="Autres brokers populaires">
+            <optgroup label="Brokers populaires">
               <option value="ICMarkets">IC Markets</option>
-              <option value="Vantage">Vantage</option>
               <option value="Exness">Exness</option>
               <option value="XM">XM</option>
-              <option value="FBS">FBS</option>
-              <option value="HotForex">HotForex (HFM)</option>
+              <option value="Vantage">Vantage</option>
               <option value="Pepperstone">Pepperstone</option>
+              <option value="HotForex">HotForex (HFM)</option>
+              <option value="FBS">FBS</option>
               <option value="AvaTrade">AvaTrade</option>
               <option value="OctaFX">OctaFX</option>
               <option value="FxPro">FxPro</option>
               <option value="Tickmill">Tickmill</option>
+              <option value="Alpari">Alpari</option>
+              <option value="FXCM">FXCM</option>
+              <option value="Roboforex">RoboForex</option>
               <option value="FXCESS">FXCESS</option>
-              <option value="autre">Autre broker — saisie manuelle</option>
+              <option value="FXTM">FXTM (ForexTime)</option>
+              <option value="NordFX">NordFX</option>
+              <option value="FXOpen">FXOpen</option>
+              <option value="Admirals">Admirals (Admiral Markets)</option>
+              <option value="autre">Autre — saisie manuelle</option>
             </optgroup>
           </select>
         </div>
       </div>
 
-      <!-- Serveur PUPrime -->
-      <div class="row cols1" id="panel-puprime">
+      <!-- Sélecteur de serveur dynamique -->
+      <div class="row cols1" id="panel-serveur">
         <div class="field">
-          <label>Serveur PU Prime</label>
-          <select id="serveur-puprime">
-            <option value="PUPrime-Live">PUPrime-Live (le plus courant)</option>
-            <option value="PUPrime-Live 2">PUPrime-Live 2</option>
-            <option value="PUPrime-Live 3">PUPrime-Live 3</option>
-            <option value="PUPrime-Live 4">PUPrime-Live 4</option>
-            <option value="PUPrime-Live 5">PUPrime-Live 5</option>
-            <option value="PUPrime-Demo">PUPrime-Demo (compte démo)</option>
-          </select>
-          <div class="field-help">Tu trouves ton serveur exact dans l'email de confirmation de ton broker</div>
-        </div>
-      </div>
-
-      <!-- Serveur autre broker — recherche + saisie libre -->
-      <div class="row cols1" id="panel-autre-broker" style="display:none;">
-        <div class="field">
-          <label>Nom du serveur MT4/MT5</label>
-          <input type="text" id="serveur-custom" placeholder="Ex: ICMarkets-Live, Exness-Real, XM.COM-Real..." autocomplete="off" oninput="searchServeur(this.value)">
-          <div class="field-help">Tape le nom de ton broker pour voir des suggestions, ou saisis le serveur exact</div>
-          <div id="serveur-suggestions" style="display:none; background:#1F2937; border:1px solid rgba(91,33,182,0.3); border-radius:8px; margin-top:4px; overflow:hidden; max-height:180px; overflow-y:auto;"></div>
+          <label>Serveur <span style="color:rgba(255,255,255,0.3);font-weight:400;text-transform:none;font-size:10px;">— sélectionne ou tape pour rechercher</span></label>
+          <div style="position:relative;">
+            <input type="text" id="serveur-input" placeholder="Sélectionne ton broker ci-dessus..." autocomplete="off" oninput="filterServeurs(this.value)" onfocus="showServeurList()">
+            <div id="serveur-list" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;background:#1F2937;border:1px solid rgba(91,33,182,0.35);border-radius:0 0 10px 10px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+          </div>
+          <div class="field-help" id="serveur-help">Le serveur exact se trouve dans l'email de confirmation de ton broker</div>
         </div>
       </div>
       <div class="row cols2">
@@ -291,74 +284,83 @@ html, body { min-height: 100vh; font-family: "Barlow", sans-serif; background: v
 
 <script>
 
-// ── BROKER LOGIC ──
-const SERVEUR_SUGGESTIONS = {
-  "ICMarkets":  ["ICMarkets-Live", "ICMarkets-Live2", "ICMarkets-Demo"],
-  "Vantage":    ["Vantage-Live", "Vantage-Demo", "VantageFX-Live"],
-  "Exness":     ["Exness-Real", "Exness-Real2", "Exness-Trial"],
-  "XM":         ["XM.COM-Real", "XM.COM-Real2", "XM.COM-Demo"],
-  "FBS":        ["FBS-Real", "FBS-Demo"],
-  "HotForex":   ["HFMarkets-Live", "HFMarkets-Live2", "HFMarkets-Demo"],
-  "Pepperstone":["Pepperstone-Edge-Live", "Pepperstone-Prime-Live", "Pepperstone-Demo"],
-  "AvaTrade":   ["AvaTrade-Live", "AvaTrade-Demo"],
-  "OctaFX":     ["OctaFX-Real", "OctaFX-Demo"],
-  "FxPro":      ["FxPro.com-Real", "FxPro.com-Demo"],
-  "Tickmill":   ["Tickmill-Live", "Tickmill-Demo"],
-  "FXCESS":     ["FXCESS-Live", "FXCESS-Demo1"],
+// ── LISTE COMPLÈTE DES SERVEURS PAR BROKER ──
+const BROKER_SERVERS = {
+  "PUPrime":     ["PUPrime-Live","PUPrime-Live 2","PUPrime-Live 3","PUPrime-Live 4","PUPrime-Live 5","PUPrime-Demo"],
+  "ICMarkets":   ["ICMarkets-Live","ICMarkets-Live2","ICMarkets-Live3","ICMarkets-Demo","ICMarkets-Demo02","ICMarketsSC-Live","ICMarketsSC-Live2","ICMarketsSC-Live3","ICMarketsSC-Demo"],
+  "Exness":      ["Exness-Real","Exness-Real2","Exness-Real3","Exness-Real4","Exness-Real5","Exness-Real6","Exness-Trial","ExnessTech-Real","ExnessTech-Real2","ExnessTech-Real3","ExnessTech-Trial"],
+  "XM":          ["XM.COM-Real","XM.COM-Real2","XM.COM-Real3","XM.COM-Real4","XM.COM-Real5","XM.COM-Demo","XMGlobal-Real","XMGlobal-Real2","XMGlobal-Demo"],
+  "Vantage":     ["Vantage-Live","Vantage-Live 2","Vantage-Demo","VantageFX-Live","VantageFX-Live 2","VantageFX-Demo"],
+  "Pepperstone": ["Pepperstone-Edge-Live","Pepperstone-Edge-Live2","Pepperstone-Prime-Live","Pepperstone-Prime-Live2","Pepperstone-Demo","PepperstoneFX-Live","PepperstoneFX-Demo"],
+  "HotForex":    ["HFMarkets-Live","HFMarkets-Live 2","HFMarkets-Live 3","HFMarkets-Demo","HFMarketsKE-Live","HFMarketsKE-Demo"],
+  "FBS":         ["FBS-Real","FBS-Real 2","FBS-Real 3","FBS-Demo"],
+  "AvaTrade":    ["AvaTrade-Live","AvaTrade-Live2","AvaTrade-Demo","AvaFX-Live"],
+  "OctaFX":      ["OctaFX-Real","OctaFX-Real2","OctaFX-Demo"],
+  "FxPro":       ["FxPro.com-Real","FxPro.com-Real2","FxPro.com-Real3","FxPro.com-Demo"],
+  "Tickmill":    ["Tickmill-Live","Tickmill-Live2","Tickmill-Demo"],
+  "Alpari":      ["Alpari-ECN-1","Alpari-ECN-2","Alpari-Standard-1","Alpari-Demo","AlpariUK-ECN-Live","AlpariUK-Demo"],
+  "FXCM":        ["FXCM-USDReal01","FXCM-USDReal02","FXCM-USDReal03","FXCM-USDReal04","FXCM-Demo01"],
+  "Roboforex":   ["RoboForex-ECN","RoboForex-Pro","RoboForex-ProCent","RoboForex-Demo"],
+  "FXCESS":      ["FXCESS-Live","FXCESS-Live2","FXCESS-Demo1","FXCESS-Demo2"],
+  "FXTM":        ["ForexTimeFXTM-Demo","ForexTimeFXTM-Real","ForexTimeFXTM-Real2","ForexTimeFXTM-Real3"],
+  "NordFX":      ["NordFX-Main","NordFX-ECN","NordFX-Pro","NordFX-Demo"],
+  "FXOpen":      ["FXOpen-ECN-Live","FXOpen-STP-Live","FXOpen-Demo"],
+  "Admirals":    ["AdmiralMarkets-Live","AdmiralMarkets-Live2","AdmiralMarkets-Live3","AdmiralMarkets-Demo"],
+  "autre":       []
 };
 
-const ALL_SERVERS = Object.values(SERVEUR_SUGGESTIONS).flat();
+let currentServers = [];
 
 function onBrokerSelect(val) {
-  const panelPU    = document.getElementById("panel-puprime");
-  const panelAutre = document.getElementById("panel-autre-broker");
-  const customInput = document.getElementById("serveur-custom");
+  const input = document.getElementById("serveur-input");
+  const help  = document.getElementById("serveur-help");
+  currentServers = BROKER_SERVERS[val] || [];
 
-  if (val === "PUPrime") {
-    panelPU.style.display = "block";
-    panelAutre.style.display = "none";
-  } else {
-    panelPU.style.display = "none";
-    panelAutre.style.display = "block";
-    // Pré-remplir avec suggestions connues
-    if (SERVEUR_SUGGESTIONS[val]) {
-      customInput.value = SERVEUR_SUGGESTIONS[val][0];
-      showSuggestions(SERVEUR_SUGGESTIONS[val]);
-    } else {
-      customInput.value = "";
-      hideSuggestions();
-    }
+  if (val === "autre") {
+    input.value = "";
+    input.placeholder = "Tape le nom exact de ton serveur...";
+    input.readOnly = false;
+    help.textContent = "Saisis le nom exact du serveur indiqué dans l\'email de ton broker";
+    hideServeurList();
+  } else if (currentServers.length > 0) {
+    input.value = currentServers[0];
+    input.placeholder = "Rechercher un serveur...";
+    input.readOnly = false;
+    showServeurItems(currentServers);
   }
 }
 
-function searchServeur(query) {
-  if (!query || query.length < 2) { hideSuggestions(); return; }
+function filterServeurs(query) {
+  if (!query) { showServeurItems(currentServers); return; }
   const q = query.toLowerCase();
-  const matches = ALL_SERVERS.filter(s => s.toLowerCase().includes(q)).slice(0, 8);
-  if (matches.length > 0) showSuggestions(matches);
-  else hideSuggestions();
+  const filtered = currentServers.filter(s => s.toLowerCase().includes(q));
+  if (filtered.length > 0) showServeurItems(filtered);
+  else hideServeurList();
 }
 
-function showSuggestions(items) {
-  const box = document.getElementById("serveur-suggestions");
-  box.innerHTML = items.map(s =>
-    `<div class="sugg-item" onclick="selectSuggestion('${s}')">${s}</div>`
+function showServeurList() {
+  if (currentServers.length > 0) showServeurItems(currentServers);
+}
+
+function showServeurItems(items) {
+  const list = document.getElementById("serveur-list");
+  list.innerHTML = items.map(s =>
+    `<div class="sugg-item" onclick="selectServeur('${s}')">${s}</div>`
   ).join("");
-  box.style.display = "block";
+  list.style.display = "block";
 }
 
-function hideSuggestions() {
-  document.getElementById("serveur-suggestions").style.display = "none";
+function hideServeurList() {
+  document.getElementById("serveur-list").style.display = "none";
 }
 
-function selectSuggestion(val) {
-  document.getElementById("serveur-custom").value = val;
-  hideSuggestions();
+function selectServeur(val) {
+  document.getElementById("serveur-input").value = val;
+  hideServeurList();
 }
 
-// Cacher suggestions si clic ailleurs
 document.addEventListener("click", function(e) {
-  if (!e.target.closest("#panel-autre-broker")) hideSuggestions();
+  if (!e.target.closest("#panel-serveur")) hideServeurList();
 });
 
 async function submitForm() {
