@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bectanse AUTO — Support</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--dark-2:#111827;--dark-3:#1F2937;--white:#fff;--border:rgba(91,33,182,0.2)}
+html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark);color:var(--white)}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:rgba(11,11,20,0.95);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-brand{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.sidebar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.08em;color:var(--gold);text-shadow:0 0 20px rgba(245,158,11,0.3)}
+.sidebar-tagline{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:2px}
+.member-card{margin:12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:16px;overflow:hidden;position:relative}
+.member-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),var(--gold),var(--purple))}
+.member-top{padding:16px 16px 12px}
+.member-name{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:4px}
+.member-capital{font-size:13px;color:var(--gold);font-weight:600}
+.nav{padding:8px 0;flex:1}
+.nav-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);padding:16px 20px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);text-decoration:none;transition:all 0.15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--white);background:rgba(91,33,182,0.1);border-left-color:var(--purple)}
+.nav-item.active{color:var(--white);background:rgba(91,33,182,0.15);border-left-color:var(--purple)}
+.icon{font-size:15px;flex-shrink:0}
+.sidebar-bottom{padding:16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:auto}
+.logout-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,0.3);text-decoration:none;font-size:13px;transition:all 0.15s}
+.logout-btn:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05)}
+
+/* CONTENT */
+.content{padding:40px;max-width:760px}
+.page-header{margin-bottom:32px}
+.page-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:700;letter-spacing:0.04em;margin-bottom:6px}
+.page-desc{font-size:14px;color:rgba(255,255,255,0.4);line-height:1.6}
+
+/* FORMULAIRE */
+.support-card{background:rgba(17,24,39,0.8);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:24px;position:relative;overflow:hidden}
+.support-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--purple),transparent)}
+.section-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:20px}
+.field{margin-bottom:16px}
+.field label{display:block;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px}
+.field select,.field input,.field textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:10px;padding:12px 16px;font-family:'Barlow',sans-serif;font-size:14px;color:var(--white);outline:none;transition:border-color 0.2s,box-shadow 0.2s;resize:none}
+.field select:focus,.field input:focus,.field textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,33,182,0.12)}
+.field select option{background:#1F2937}
+.field textarea{min-height:140px;line-height:1.6}
+.char-count{font-size:11px;color:rgba(255,255,255,0.2);text-align:right;margin-top:4px}
+.btn-send{width:100%;background:var(--purple);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:12px;padding:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(91,33,182,0.35);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-send:hover{background:#4C1D95;transform:translateY(-1px);box-shadow:0 6px 28px rgba(91,33,182,0.5)}
+.btn-send:disabled{opacity:0.5;pointer-events:none}
+
+/* HISTORIQUE */
+.msg-item{padding:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;margin-bottom:10px}
+.msg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.msg-sujet{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--white)}
+.msg-date{font-size:11px;color:rgba(255,255,255,0.25)}
+.msg-body{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.6}
+.msg-statut{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;margin-top:8px}
+.statut-attente{background:rgba(245,158,11,0.15);color:#FCD34D;border:1px solid rgba(245,158,11,0.3)}
+.statut-repondu{background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3)}
+
+/* SUCCESS */
+.success-msg{display:none;background:rgba(5,150,105,0.1);border:1px solid rgba(5,150,105,0.3);border-radius:12px;padding:16px 20px;margin-top:16px;text-align:center;color:#6EE7B7;font-size:14px}
+
+/* INFOS */
+.info-banner{background:rgba(91,33,182,0.08);border:1px solid rgba(91,33,182,0.2);border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:flex-start;gap:14px}
+.info-banner .icon{font-size:20px;flex-shrink:0;margin-top:2px}
+.info-banner p{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.6}
+.info-banner strong{color:rgba(255,255,255,0.8)}
+
+@media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{display:none}.content{padding:24px 16px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">B€CTAN$€ AUTO</div>
+      <div class="sidebar-tagline">Espace Membre</div>
+    </div>
+    <div class="member-card">
+      <div class="member-top">
+        <div class="member-name">{{ member.nom }}</div>
+        <div class="member-capital">💰 {{ member.capital }}</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Navigation</div>
+      <a class="nav-item" href="/dashboard"><span class="icon">⚙️</span> Mes paramètres</a>
+      <a class="nav-item" href="/offres" style="color:#F59E0B;"><span class="icon">🚀</span> Renouveler / Upgrader</a>
+      <a class="nav-item active" href="/support"><span class="icon">💬</span> Support</a>
+      <a class="nav-item" href="/dashboard#historique"><span class="icon">📜</span> Historique</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="logout-btn" href="/logout"><span>🚪</span> Déconnexion</a>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="page-header">
+      <div class="page-title">💬 Support & Assistance</div>
+      <div class="page-desc">Notre équipe répond généralement dans les 2 heures. Tu recevras une réponse directement sur Telegram.</div>
+    </div>
+
+    <div class="info-banner">
+      <div class="icon">💡</div>
+      <p>Pour une réponse plus rapide, contacte-nous aussi sur Telegram : <strong>@LERISGANGSUPPORT</strong>.<br>
+      Les demandes urgentes (problème technique, trade en cours) seront traitées en priorité.</p>
+    </div>
+
+    <!-- FORMULAIRE -->
+    <div class="support-card">
+      <div class="section-title">✉️ Envoyer un message</div>
+
+      <div class="field">
+        <label>Sujet de ta demande</label>
+        <select id="sujet">
+          <option value="">— Sélectionne un sujet —</option>
+          <optgroup label="Technique">
+            <option>Problème avec mon copy trading</option>
+            <option>Mon compte ne se connecte pas</option>
+            <option>Mes paramètres ne sont pas appliqués</option>
+            <option>Problème avec mon espace membre</option>
+          </optgroup>
+          <optgroup label="Abonnement">
+            <option>Renouveler mon abonnement</option>
+            <option>Changer d'offre (upgrade)</option>
+            <option>Question sur la facturation</option>
+            <option>Paiement en plusieurs fois (Klarna)</option>
+          </optgroup>
+          <optgroup label="Trading">
+            <option>Question sur mes paramètres de risque</option>
+            <option>Je veux activer/désactiver le copy trading</option>
+            <option>Question sur mes résultats</option>
+          </optgroup>
+          <optgroup label="Autre">
+            <option>Autre demande</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Ton message</label>
+        <textarea id="message" placeholder="Décris ta situation en détail. Plus tu es précis, plus notre réponse sera rapide et utile." maxlength="1000" oninput="updateCount(this)"></textarea>
+        <div class="char-count"><span id="char-count">0</span> / 1000</div>
+      </div>
+
+      <button class="btn-send" id="btn-send" onclick="envoyerMessage()">
+        <span>📨</span> Envoyer au support
+      </button>
+
+      <div class="success-msg" id="success-msg">
+        ✅ Message envoyé ! Notre équipe te répondra sur Telegram dans les 2 heures.
+      </div>
+    </div>
+
+    <!-- HISTORIQUE MESSAGES -->
+    {% if messages %}
+    <div class="support-card">
+      <div class="section-title">📋 Mes demandes récentes</div>
+      {% for msg in messages %}
+      <div class="msg-item">
+        <div class="msg-header">
+          <div class="msg-sujet">{{ msg.sujet }}</div>
+          <div class="msg-date">{{ msg.date }}</div>
+        </div>
+        <div class="msg-body">{{ msg.message[:200] }}{% if msg.message|length > 200 %}...{% endif %}</div>
+        <div class="msg-statut {% if msg.statut == 'repondu' %}statut-repondu{% else %}statut-attente{% endif %}">
+          {% if msg.statut == 'repondu' %}✅ Répondu{% else %}⏳ En attente de réponse{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function updateCount(el) {
+  document.getElementById('char-count').textContent = el.value.length;
+}
+
+async function envoyerMessage() {
+  const sujet   = document.getElementById('sujet').value;
+  const message = document.getElementById('message').value.trim();
+  const btn     = document.getElementById('btn-send');
+  const success = document.getElementById('success-msg');
+
+  if (!sujet) { alert('Sélectionne un sujet.'); return; }
+  if (message.length < 10) { alert('Écris un message d\'au moins 10 caractères.'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span> Envoi en cours...';
+
+  try {
+    const res = await fetch('/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ sujet, message })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      success.style.display = 'block';
+      document.getElementById('sujet').value = '';
+      document.getElementById('message').value = '';
+      document.getElementById('char-count').textContent = '0';
+      btn.innerHTML = '<span>✅</span> Message envoyé !';
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📨</span> Envoyer au support';
+        success.style.display = 'none';
+      }, 4000);
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<span>📨</span> Envoyer au support';
+      alert('Erreur. Réessaie.');
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<span>📨</span> Envoyer au support';
+    alert('Erreur de connexion.');
+  }
+}
+</script>
+</body>
+</html>
