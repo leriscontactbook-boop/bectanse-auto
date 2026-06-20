@@ -1,4 +1,4 @@
-import os, json, secrets, string, requests
+import os, json, secrets, string, requests, time
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
@@ -14,24 +14,37 @@ ADMIN_KEY    = os.environ.get("ADMIN_KEY",    "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    url = DATABASE_URL
+    # Railway parfois préfixe avec postgres:// — psycopg2 veut postgresql://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return psycopg2.connect(url, cursor_factory=RealDictCursor)
 
 def init_db():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS members (
-                    code        TEXT PRIMARY KEY,
-                    nom         TEXT NOT NULL,
-                    capital     TEXT NOT NULL,
-                    actif       BOOLEAN DEFAULT TRUE,
-                    created_at  TIMESTAMP DEFAULT NOW(),
-                    last_login  TIMESTAMP,
-                    params      JSONB DEFAULT '{}'::jsonb,
-                    historique  JSONB DEFAULT '[]'::jsonb
-                );
-            """)
-        conn.commit()
+    for attempt in range(5):
+        try:
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS members (
+                            code        TEXT PRIMARY KEY,
+                            nom         TEXT NOT NULL,
+                            capital     TEXT NOT NULL,
+                            actif       BOOLEAN DEFAULT TRUE,
+                            created_at  TIMESTAMP DEFAULT NOW(),
+                            last_login  TIMESTAMP,
+                            params      JSONB DEFAULT '{}'::jsonb,
+                            historique  JSONB DEFAULT '[]'::jsonb
+                        );
+                    """)
+                conn.commit()
+            app.logger.info("DB initialisée avec succès")
+            return True
+        except Exception as e:
+            app.logger.warning(f"DB init tentative {attempt+1}/5 : {e}")
+            time.sleep(3)
+    app.logger.error("DB init échouée après 5 tentatives")
+    return False
 
 def default_params():
     return {
@@ -56,7 +69,8 @@ def get_member(code):
             with conn.cursor() as cur:
                 cur.execute("SELECT * FROM members WHERE UPPER(code)=UPPER(%s)", (code,))
                 return cur.fetchone()
-    except:
+    except Exception as e:
+        app.logger.error(f"get_member error: {e}")
         return None
 
 def update_login(code):
@@ -135,6 +149,10 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -235,15 +253,9 @@ def admin_add():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-@app.route("/health")
-def health():
-    return jsonify({"status": "ok"})
-
+# Init DB au démarrage — non bloquant
 with app.app_context():
-    try:
-        init_db()
-    except Exception as e:
-        app.logger.error(f"DB init: {e}")
+    init_db()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
