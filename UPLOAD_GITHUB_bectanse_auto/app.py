@@ -162,6 +162,55 @@ def login_required(f):
 
 # ── ROUTES ───────────────────────────────────────────────────────────────────
 
+@app.route("/support", methods=["GET", "POST"])
+@login_required
+def support():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return redirect(url_for("login"))
+    
+    if request.method == "POST":
+        data = request.get_json()
+        sujet   = data.get("sujet", "").strip()
+        message = data.get("message", "").strip()
+        if not sujet or not message:
+            return jsonify({"ok": False, "error": "Champs manquants"})
+        
+        # Notif Telegram à l'équipe
+        notif = (
+            f"💬 *NOUVEAU MESSAGE SUPPORT*\n\n"
+            f"👤 *{member['nom']}* | Code : `{code}`\n"
+            f"💰 Capital : *{member['capital']}*\n"
+            f"🕐 {datetime.now().strftime('%d/%m/%Y à %H:%M')}\n\n"
+            f"📋 *Sujet :* {sujet}\n\n"
+            f"💬 *Message :*\n{message}"
+        )
+        send_telegram(notif)
+        
+        # Sauvegarder en DB
+        try:
+            conn = get_conn()
+            rows = conn.run("SELECT historique FROM members WHERE code=:c", c=code)
+            hist = json.loads(rows[0][0]) if rows and rows[0][0] else []
+            hist.append({
+                "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "type": "support",
+                "statut": "en_attente",
+                "sujet": sujet,
+                "message": message
+            })
+            conn.run("UPDATE members SET historique=:h WHERE code=:c", h=json.dumps(hist[-50:]), c=code)
+            conn.close()
+        except: pass
+        
+        return jsonify({"ok": True})
+    
+    # GET — afficher la page support
+    hist = member.get("historique") or []
+    messages_support = [h for h in reversed(hist) if h.get("type") == "support"][-10:]
+    return render_template("support.html", member=member, messages=messages_support)
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
