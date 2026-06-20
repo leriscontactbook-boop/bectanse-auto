@@ -302,6 +302,12 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
 }
 
 </style>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#5B21B6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
 <body>
 <div class="bg-wrap"><div class="bg-grid"></div></div>
@@ -485,5 +491,11 @@ document.querySelectorAll('.offre-card').forEach(card => {
   });
 });
 </script>
+
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  </script>
 </body>
 </html>
