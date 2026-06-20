@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bectanse AUTO — FAQ</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--dark-2:#111827;--dark-3:#1F2937;--white:#fff;--border:rgba(91,33,182,0.2)}
+html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark);color:var(--white)}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:rgba(11,11,20,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-brand{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.sidebar-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.08em;color:var(--gold);text-shadow:0 0 20px rgba(245,158,11,0.3)}
+.sidebar-tagline{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:2px}
+.member-card{margin:12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:16px;overflow:hidden;position:relative}
+.member-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),var(--gold),var(--purple))}
+.member-top{padding:16px 16px 14px}
+.member-name{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:4px}
+.member-capital{font-size:13px;color:var(--gold);font-weight:600}
+.nav{padding:8px 0;flex:1}
+.nav-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);padding:16px 20px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);text-decoration:none;transition:all 0.15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--white);background:rgba(91,33,182,0.1);border-left-color:var(--purple)}
+.nav-item.active{color:var(--white);background:rgba(91,33,182,0.15);border-left-color:var(--purple)}
+.icon{font-size:15px;flex-shrink:0}
+.sidebar-bottom{padding:16px;border-top:1px solid rgba(255,255,255,0.05);margin-top:auto}
+.logout-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,0.3);text-decoration:none;font-size:13px;transition:all 0.15s}
+.logout-btn:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05)}
+
+/* CONTENT */
+.content{padding:40px;max-width:800px}
+.page-header{margin-bottom:32px}
+.page-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;letter-spacing:0.04em;margin-bottom:8px}
+.page-desc{font-size:14px;color:rgba(255,255,255,0.4);line-height:1.6}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:28px}
+.search-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:14px 18px 14px 46px;font-size:14px;color:var(--white);outline:none;transition:border-color 0.2s,box-shadow 0.2s;font-family:'Barlow',sans-serif}
+.search-input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,33,182,0.12)}
+.search-input::placeholder{color:rgba(255,255,255,0.2)}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:16px;opacity:0.4}
+
+/* FILTRES */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px}
+.filter-btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:7px 16px;border-radius:20px;border:1px solid rgba(91,33,182,0.25);background:transparent;color:rgba(255,255,255,0.4);cursor:pointer;transition:all 0.15s}
+.filter-btn:hover{border-color:var(--purple);color:var(--white)}
+.filter-btn.active{background:var(--purple);border-color:var(--purple);color:#fff}
+
+/* FAQ SECTIONS */
+.faq-section{margin-bottom:32px}
+.faq-section-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.faq-section-title::after{content:'';flex:1;height:1px;background:rgba(245,158,11,0.2)}
+
+/* ACCORDEON */
+.faq-item{background:rgba(17,24,39,0.7);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:border-color 0.2s}
+.faq-item:hover{border-color:rgba(91,33,182,0.4)}
+.faq-item.open{border-color:rgba(91,33,182,0.5)}
+.faq-question{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;cursor:pointer;gap:16px}
+.faq-q-text{font-size:14px;font-weight:600;color:rgba(255,255,255,0.85);line-height:1.4;flex:1}
+.faq-item.open .faq-q-text{color:#fff}
+.faq-toggle{width:28px;height:28px;border-radius:50%;background:rgba(91,33,182,0.15);border:1px solid rgba(91,33,182,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.25s;font-size:16px;color:rgba(255,255,255,0.4)}
+.faq-item.open .faq-toggle{background:var(--purple);border-color:var(--purple);color:#fff;transform:rotate(45deg)}
+.faq-answer{max-height:0;overflow:hidden;transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1)}
+.faq-answer.open{max-height:500px}
+.faq-answer-inner{padding:0 20px 20px;font-size:14px;color:rgba(255,255,255,0.55);line-height:1.8;border-top:1px solid rgba(255,255,255,0.05);margin:0 20px;padding-top:16px}
+.faq-answer-inner strong{color:rgba(255,255,255,0.85)}
+.faq-answer-inner .highlight{color:var(--gold);font-weight:600}
+.faq-answer-inner ul{margin:10px 0 10px 16px}
+.faq-answer-inner ul li{margin-bottom:6px}
+
+/* CTA BAS */
+.faq-cta{background:linear-gradient(135deg,rgba(37,211,102,0.08),rgba(37,211,102,0.04));border:1px solid rgba(37,211,102,0.2);border-radius:20px;padding:28px 32px;text-align:center;margin-top:40px}
+.faq-cta h3{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:#fff;margin-bottom:8px}
+.faq-cta p{font-size:14px;color:rgba(255,255,255,0.45);margin-bottom:20px}
+.wa-btn{display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:14px 28px;border-radius:12px;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 20px rgba(37,211,102,0.3)}
+.wa-btn:hover{background:#1ea952;transform:translateY(-2px);box-shadow:0 6px 28px rgba(37,211,102,0.4)}
+
+/* NO RESULT */
+.no-result{text-align:center;padding:48px 20px;color:rgba(255,255,255,0.25);font-size:14px;display:none}
+.no-result .emoji{font-size:40px;margin-bottom:12px}
+
+/* WHATSAPP FLOAT */
+.wa-float{position:fixed;bottom:28px;right:28px;z-index:1000;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);transition:all 0.2s;text-decoration:none;animation:wa-pulse 2.5s ease-in-out infinite}
+.wa-float:hover{transform:scale(1.1);box-shadow:0 6px 28px rgba(37,211,102,0.6)}
+@keyframes wa-pulse{0%,100%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 0 rgba(37,211,102,0.3)}50%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 12px rgba(37,211,102,0)}}
+
+.hidden{display:none !important}
+@media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{display:none}.content{padding:24px 16px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">B€CTAN$€ AUTO</div>
+      <div class="sidebar-tagline">Espace Membre</div>
+    </div>
+    <div class="member-card">
+      <div class="member-top">
+        <div class="member-name">{{ member.nom }}</div>
+        <div class="member-capital">💰 {{ member.capital }}</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Navigation</div>
+      <a class="nav-item" href="/dashboard"><span class="icon">⚙️</span> Mes paramètres</a>
+      <a class="nav-item" href="/offres" style="color:#F59E0B;"><span class="icon">🚀</span> Renouveler / Upgrader</a>
+      <a class="nav-item" href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20besoin%20d%27assistance." target="_blank"><span class="icon">💬</span> Discuter avec un agent</a>
+      <a class="nav-item" href="/dashboard#historique"><span class="icon">📜</span> Historique</a>
+      <a class="nav-item active" href="/faq"><span class="icon">❓</span> FAQ & Guide</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="logout-btn" href="/logout"><span>🚪</span> Déconnexion</a>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="page-header">
+      <div class="page-title">❓ FAQ & Guide débutant</div>
+      <div class="page-desc">Toutes les réponses aux questions les plus fréquentes. Trouve la tienne en quelques secondes.</div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="faq-search" placeholder="Recherche une question..." oninput="searchFAQ(this.value)">
+    </div>
+
+    <!-- FILTRES -->
+    <div class="filters">
+      <button class="filter-btn active" onclick="filterCat('all', this)">Tout</button>
+      <button class="filter-btn" onclick="filterCat('fonctionnement', this)">Comment ça marche</button>
+      <button class="filter-btn" onclick="filterCat('compte', this)">Mon compte</button>
+      <button class="filter-btn" onclick="filterCat('resultats', this)">Résultats</button>
+      <button class="filter-btn" onclick="filterCat('abonnement', this)">Abonnement</button>
+      <button class="filter-btn" onclick="filterCat('technique', this)">Technique</button>
+    </div>
+
+    <div id="no-result" class="no-result">
+      <div class="emoji">🔍</div>
+      <div>Aucune question trouvée.<br>Contacte-nous directement sur WhatsApp.</div>
+    </div>
+
+    <!-- ── SECTION 1 ── -->
+    <div class="faq-section" data-cat="fonctionnement">
+      <div class="faq-section-title">🚀 Comment ça marche ?</div>
+
+      <div class="faq-item" data-cat="fonctionnement">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">C'est quoi Bectanse AUTO exactement ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Bectanse AUTO est un service de <strong>copy trading automatique sur l'or (XAUUSD)</strong>. Notre équipe gère un compte maître professionnel — et tous tes trades sont copiés automatiquement sur ton compte MetaTrader en temps réel.<br><br>
+            <span class="highlight">Tu n'as rien à faire.</span> Le système tourne 24h/24, 5j/7, pendant que tu dors, travailles ou profites de ta vie.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="fonctionnement">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Comment mes trades sont-ils copiés sur mon compte ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Via la technologie <strong>Sociate Trade</strong> — une plateforme professionnelle de copy trading. Dès qu'un trade est ouvert sur notre compte maître, il est répliqué instantanément sur ton compte MetaTrader avec les paramètres que tu as définis (lot, drawdown, etc.).<br><br>
+            La connexion se fait via ton <strong>mot de passe investisseur</strong> — en lecture seule. Personne ne peut toucher à tes fonds.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="fonctionnement">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Est-ce que je dois faire quelque chose au quotidien ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            <span class="highlight">Non, absolument rien.</span> C'est la force du copy trading automatique. Une fois ton compte connecté et tes paramètres définis, le système tourne seul.<br><br>
+            La seule chose à faire : vérifier de temps en temps que ton terminal MetaTrader est bien ouvert et connecté à internet. C'est tout.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="fonctionnement">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Que se passe-t-il quand le marché est fermé ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Le marché de l'or (XAUUSD) est fermé le <strong>week-end (samedi et dimanche)</strong>. Aucun trade n'est ouvert pendant cette période.<br><br>
+            Du <strong>lundi au vendredi</strong>, le système tourne en continu 24h/24. Les meilleures opportunités sont généralement pendant les sessions de Londres et New York (8h-17h heure française).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION 2 ── -->
+    <div class="faq-section" data-cat="compte">
+      <div class="faq-section-title">⚙️ Mon compte & mes paramètres</div>
+
+      <div class="faq-item" data-cat="compte">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Comment modifier mes paramètres de risque ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Depuis ton espace membre → <strong>Mes paramètres</strong>. Tu peux modifier :
+            <ul>
+              <li>Le mode de risque (Lots fixes, Risque en %, etc.)</li>
+              <li>La taille de tes lots</li>
+              <li>La protection drawdown</li>
+              <li>Le filtre calendrier économique</li>
+            </ul>
+            Une fois validé, tu cliques sur <strong>"Envoyer la demande"</strong> → notre équipe reçoit une notification et applique les changements sur Sociate Trade sous 2h.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="compte">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">C'est quoi la différence entre les modes de risque ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            <ul>
+              <li><strong>Lots fixes</strong> — Le même lot à chaque trade. Simple et prévisible. Recommandé pour les débutants.</li>
+              <li><strong>Risque en %</strong> — Risque un % fixe de ton solde par trade. S'adapte à l'évolution de ton capital.</li>
+              <li><strong>Copier les lots de l'envoyeur</strong> — Copie exactement la taille utilisée par notre compte maître.</li>
+              <li><strong>Lot par symbole</strong> — Définis un lot différent par paire/symbole.</li>
+              <li><strong>Risque par Balance/Equity</strong> — Calcule automatiquement le lot selon ton solde ou capitaux propres.</li>
+            </ul>
+            <span class="highlight">Notre recommandation pour débuter : Lots fixes à 0.01 par tranche de 200€ de capital.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="compte">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">C'est quoi le mot de passe investisseur ? Est-ce dangereux ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Le mot de passe investisseur est un second mot de passe MetaTrader en <strong>lecture seule</strong>. Il permet uniquement de voir les positions et l'historique — <span class="highlight">impossible de retirer, déposer ou passer des ordres avec ce mot de passe.</span><br><br>
+            C'est exactement pour ça qu'on l'utilise. Tes fonds restent sous ton seul contrôle. Même notre équipe ne peut pas toucher à ton argent.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="compte">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Comment activer ou désactiver le copy trading ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Dans la sidebar gauche → bouton <strong>"Copy Trading Actif / Inactif"</strong>. Un clic, une confirmation, et notre équipe reçoit une notification immédiate pour activer ou désactiver sur Sociate Trade.<br><br>
+            Utile si tu veux faire du trading manuel pendant un moment sans que le copy trading interfère.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION 3 ── -->
+    <div class="faq-section" data-cat="resultats">
+      <div class="faq-section-title">📈 Résultats & performance</div>
+
+      <div class="faq-item" data-cat="resultats">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Pourquoi je ne vois pas encore de résultats ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Plusieurs raisons possibles :
+            <ul>
+              <li><strong>Délai de connexion</strong> — Notre équipe connecte ton compte sous 24h après ton inscription</li>
+              <li><strong>Aucune opportunité</strong> — Le marché n'offrait pas de setup valide. On ne trade pas pour trader.</li>
+              <li><strong>Problème de connexion MT4</strong> — Ton terminal MetaTrader doit être ouvert et connecté</li>
+            </ul>
+            Si tu n'as toujours rien après 48h → contacte le support.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="resultats">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Comment lire mon historique de trades ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Sur MetaTrader → onglet <strong>"Historique du compte"</strong> en bas. Tu vois tous les trades fermés avec :<br><br>
+            <ul>
+              <li><strong>Profit</strong> — le gain ou la perte en devise</li>
+              <li><strong>Lots</strong> — la taille de la position copiée</li>
+              <li><strong>Open/Close</strong> — prix d'entrée et de sortie</li>
+              <li><strong>Durée</strong> — combien de temps le trade est resté ouvert</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="resultats">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Les performances passées garantissent-elles les résultats futurs ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            <span class="highlight">Non — et toute plateforme qui te dit le contraire ment.</span><br><br>
+            Le trading comporte des risques. Les résultats passés reflètent nos performances historiques mais ne garantissent pas les performances futures. C'est pour ça qu'on recommande de ne jamais investir plus que ce que tu peux te permettre de perdre, et d'utiliser une gestion du risque adaptée à ton capital.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION 4 ── -->
+    <div class="faq-section" data-cat="abonnement">
+      <div class="faq-section-title">💳 Abonnement & paiement</div>
+
+      <div class="faq-item" data-cat="abonnement">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Comment renouveler mon abonnement ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Dans la sidebar → <strong>🚀 Renouveler / Upgrader</strong>. Tu accèdes à la page des offres et tu choisis ta durée.<br><br>
+            <span class="highlight">Conseil : renouvelle avant l'expiration pour éviter toute interruption du copy trading.</span> Tu recevras des rappels automatiques 7 jours, 3 jours et 1 jour avant l'expiration.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="abonnement">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Puis-je payer en plusieurs fois avec Klarna ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            <strong>Oui — toutes les offres sont disponibles en 4× sans frais via Klarna.</strong><br><br>
+            L'avantage ? Au lieu de bloquer tout ton capital dans l'accès, tu paies en 4 mensualités légères et tu gardes plus d'argent sur ton compte de trading.<br><br>
+            <span class="highlight">Plus de capital = plus de lots copiés = plus de profits.</span> C'est la logique Klarna.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="abonnement">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Que se passe-t-il si mon abonnement expire ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Si tu ne renouvelles pas avant l'expiration :
+            <ul>
+              <li>Le copy trading est désactivé sur Sociate Trade</li>
+              <li>Ton espace membre reste accessible mais les trades ne sont plus copiés</li>
+              <li>Aucun trade en cours n'est fermé automatiquement — les positions ouvertes restent ouvertes</li>
+            </ul>
+            Tu peux reprendre à tout moment en renouvelant depuis la page offres.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION 5 ── -->
+    <div class="faq-section" data-cat="technique">
+      <div class="faq-section-title">🔧 Problèmes techniques</div>
+
+      <div class="faq-item" data-cat="technique">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Je ne reçois plus de trades copiés — que faire ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Vérifie dans l'ordre :
+            <ul>
+              <li><strong>1.</strong> Ton MetaTrader est-il ouvert et connecté ? (coin bas droit — doit afficher "Connecté")</li>
+              <li><strong>2.</strong> Le copy trading est-il actif dans ta sidebar ? (bouton vert)</li>
+              <li><strong>3.</strong> Ton abonnement est-il toujours valide ?</li>
+              <li><strong>4.</strong> Y a-t-il eu des trades sur notre compte maître ? (il peut n'y avoir aucune opportunité)</li>
+            </ul>
+            Si tout est OK et que ça ne fonctionne toujours pas → contacte le support.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="technique">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">Mon espace membre ne fonctionne pas / page blanche</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Essaie dans l'ordre :
+            <ul>
+              <li>Vider le cache de ton navigateur (Ctrl+Shift+R ou Cmd+Shift+R)</li>
+              <li>Essayer un autre navigateur (Chrome, Safari, Firefox)</li>
+              <li>Essayer depuis un autre appareil ou en navigation privée</li>
+              <li>Si le problème persiste → contacte le support avec une capture d'écran</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item" data-cat="technique">
+        <div class="faq-question" onclick="toggle(this)">
+          <div class="faq-q-text">J'ai perdu mon code d'accès — comment le récupérer ?</div>
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-answer">
+          <div class="faq-answer-inner">
+            Contacte notre support WhatsApp en indiquant :
+            <ul>
+              <li>Ton prénom et nom</li>
+              <li>L'email utilisé lors de ton inscription</li>
+              <li>Ton numéro de compte MetaTrader</li>
+            </ul>
+            Notre équipe retrouvera ton code et te le renverra dans les 2 heures.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA WHATSAPP -->
+    <div class="faq-cta">
+      <h3>💬 Tu n'as pas trouvé ta réponse ?</h3>
+      <p>Notre équipe est disponible et répond généralement en moins de 2 heures.</p>
+      <a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20une%20question." target="_blank" class="wa-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+        Contacter le support WhatsApp
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- WA FLOAT -->
+<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20besoin%20d%27assistance." target="_blank" class="wa-float">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+</a>
+
+<script>
+// ── ACCORDÉON
+function toggle(questionEl) {
+  const item   = questionEl.parentElement;
+  const answer = item.querySelector('.faq-answer');
+  const isOpen = item.classList.contains('open');
+  // Fermer tous
+  document.querySelectorAll('.faq-item.open').forEach(i => {
+    i.classList.remove('open');
+    i.querySelector('.faq-answer').classList.remove('open');
+  });
+  if (!isOpen) {
+    item.classList.add('open');
+    answer.classList.add('open');
+  }
+}
+
+// ── FILTRE CATÉGORIE
+function filterCat(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('faq-search').value = '';
+  const items    = document.querySelectorAll('.faq-item');
+  const sections = document.querySelectorAll('.faq-section');
+  items.forEach(i => i.classList.remove('hidden'));
+  sections.forEach(s => s.classList.remove('hidden'));
+  if (cat !== 'all') {
+    items.forEach(i => { if (i.dataset.cat !== cat) i.classList.add('hidden'); });
+    sections.forEach(s => { if (s.dataset.cat !== cat) s.classList.add('hidden'); });
+  }
+  checkNoResult();
+}
+
+// ── RECHERCHE
+function searchFAQ(val) {
+  const q = val.toLowerCase().trim();
+  document.querySelectorAll('.filter-btn').forEach((b,i) => { if(i===0) b.classList.add('active'); else b.classList.remove('active'); });
+  document.querySelectorAll('.faq-section').forEach(s => s.classList.remove('hidden'));
+  const items = document.querySelectorAll('.faq-item');
+  items.forEach(item => {
+    const text = item.querySelector('.faq-q-text').textContent.toLowerCase()
+               + item.querySelector('.faq-answer-inner').textContent.toLowerCase();
+    item.classList.toggle('hidden', q && !text.includes(q));
+  });
+  checkNoResult();
+}
+
+function checkNoResult() {
+  const visible = [...document.querySelectorAll('.faq-item')].filter(i => !i.classList.contains('hidden'));
+  document.getElementById('no-result').style.display = visible.length === 0 ? 'block' : 'none';
+}
+</script>
+</body>
+</html>
