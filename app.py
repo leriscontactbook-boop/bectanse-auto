@@ -148,7 +148,12 @@ def build_notif(member, params, code):
         f"🕐 {datetime.now().strftime('%d/%m/%Y à %H:%M')}\n\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"⚙️ *MODE* : {p['mode_risque']}\n"
-        f"📊 Lots : `{p['lots']}` | Max : `{p['lots_max']}` | Slip : `{p['slippage']}`\n\n"
+        f"📊 Lots : `{p['lots']}` | Max : `{p['lots_max']}` | Slip : `{p['slippage']}`\n"
+        + (f"  └ Risque : `{p.get('risque_pct','—')}%`\n" if p.get('mode_risque')=='Risque en %' else "")
+        + (f"  └ Multiplicateur : `{p.get('multiplicateur','—')}x`\n" if p.get('mode_risque')=="Copier les lots de l'envoyeur" else "")
+        + (f"  └ Risque balance : `{p.get('risque_balance_pct','—')}%`\n" if p.get('mode_risque')=='Risque par solde (Balance)' else "")
+        + (f"  └ Risque equity : `{p.get('risque_equity_pct','—')}%`\n" if p.get('mode_risque')=='Risque par capitaux (Equity)' else "")
+        + "\n"
         f"🔧 *OPTIONS*\n"
         f"  {bool_icon(p['forcer_lot_minimum'])} Forcer lot min\n"
         f"  {bool_icon(p['inverser_trades'])} Inverser trades\n"
