@@ -216,7 +216,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   <div class="my-code-section fade-up">
     <div class="code-title">🔑 Mon code parrainage personnel</div>
     <div class="code-display">
-      <div class="code-value" id="my-parrain-code">PARRAIN-{{ member.code.replace('BCT-','') }}</div>
+      <div class="code-value" id="my-parrain-code">{{ request.host_url }}rejoindre/{{ member.code }}</div>
       <button class="code-copy-btn" onclick="copyParrainCode()">📋 Copier mon code</button>
     </div>
     <div class="stats-row">
@@ -391,6 +391,124 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
     </button>
   </div>
 
+
+  <!-- VERSEMENTS -->
+  <div class="my-code-section fade-up" style="margin-bottom:24px;">
+    <div class="code-title">💸 Comment tu reçois ton argent ?</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.6);line-height:1.8;margin-bottom:20px;">
+      Ici, les promesses se transforment en <strong style="color:#fff;">vrai argent</strong>.<br>
+      Pas de points. Pas de bons d'achat. <strong style="color:var(--gold);">Du cash — sur ton compte — dans les 10 jours.</strong>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:8px;">①</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;"><strong style="color:#fff;">Filleul activé</strong><br>Son paiement est confirmé par notre équipe</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:8px;">②</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;"><strong style="color:var(--gold);">J+10</strong><br>Ta commission est débloquée. Tu reçois une notification Telegram.</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:8px;">③</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;"><strong style="color:#fff;">Tu choisis</strong><br>Virement SEPA ou Crypto — reçu sous 24-48h</div>
+      </div>
+    </div>
+    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:16px 20px;font-size:13px;color:rgba(255,255,255,0.6);line-height:1.8;text-align:center;">
+      💡 <strong style="color:var(--gold);">Réalise ce que ça représente :</strong><br>
+      5 filleuls → 250€ + 250€ bonus = <strong style="color:#fff;">500€</strong> &nbsp;|&nbsp;
+      10 filleuls → 750€ + 1000€ = <strong style="color:#fff;">1 750€</strong> &nbsp;|&nbsp;
+      20 filleuls → 2000€ + 2000€ + Dubaï = <strong style="color:var(--gold);">ELITE 🏆</strong>
+    </div>
+  </div>
+
+  <!-- INFOS PAIEMENT -->
+  <div class="my-code-section fade-up">
+    <div class="code-title">🏦 Mes informations de paiement</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:20px;">Renseigne tes infos une seule fois — on te paie directement sans jamais te demander.</div>
+
+    <div style="display:flex;gap:10px;margin-bottom:20px;">
+      <button onclick="showTab('virement',this)" id="tab-virement" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--purple);background:rgba(91,33,182,0.2);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.06em;">🏦 Virement SEPA</button>
+      <button onclick="showTab('crypto',this)" id="tab-crypto" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.06em;">₿ Crypto</button>
+    </div>
+
+    <div id="panel-virement">
+      <div style="display:grid;gap:12px;margin-bottom:16px;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);">Nom du titulaire</label>
+          <input type="text" id="pay-titulaire" placeholder="Jean Dupont" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:10px;padding:12px 14px;font-size:14px;color:#fff;outline:none;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);">IBAN</label>
+          <input type="text" id="pay-iban" placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:10px;padding:12px 14px;font-size:14px;color:#fff;outline:none;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);">BIC / SWIFT</label>
+          <input type="text" id="pay-bic" placeholder="BNPAFRPPXXX" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:10px;padding:12px 14px;font-size:14px;color:#fff;outline:none;">
+        </div>
+      </div>
+      <button onclick="savePaiement('virement')" style="width:100%;background:var(--purple);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:10px;padding:14px;cursor:pointer;">💾 Enregistrer mon IBAN</button>
+    </div>
+
+    <div id="panel-crypto" style="display:none;">
+      <div style="display:grid;gap:12px;margin-bottom:16px;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);">Réseau</label>
+          <select id="pay-reseau" style="background:#1F2937;border:1px solid rgba(91,33,182,0.2);border-radius:10px;padding:12px 14px;font-size:14px;color:#fff;outline:none;">
+            <option value="TRC20">USDT — TRC20 (Tron)</option>
+            <option value="ERC20">USDT — ERC20 (Ethereum)</option>
+            <option value="BEP20">USDT — BEP20 (BSC)</option>
+            <option value="BTC">Bitcoin (BTC)</option>
+            <option value="ETH">Ethereum (ETH)</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);">Adresse du wallet</label>
+          <input type="text" id="pay-adresse" placeholder="0x... ou T..." style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:10px;padding:12px 14px;font-size:14px;color:#fff;outline:none;font-family:monospace;">
+        </div>
+      </div>
+      <button onclick="savePaiement('crypto')" style="width:100%;background:var(--purple);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:10px;padding:14px;cursor:pointer;">💾 Enregistrer mon wallet</button>
+    </div>
+
+    <div id="pay-success" style="display:none;text-align:center;padding:16px;color:#6EE7B7;font-size:14px;font-weight:600;margin-top:12px;">✅ Informations de paiement enregistrées !</div>
+  </div>
+
+  <script>
+  function showTab(tab, btn) {
+    document.getElementById('panel-virement').style.display = tab === 'virement' ? 'block' : 'none';
+    document.getElementById('panel-crypto').style.display = tab === 'crypto' ? 'block' : 'none';
+    document.querySelectorAll('#tab-virement,#tab-crypto').forEach(b => {
+      b.style.background = 'rgba(255,255,255,0.03)';
+      b.style.borderColor = 'rgba(255,255,255,0.1)';
+      b.style.color = 'rgba(255,255,255,0.5)';
+    });
+    btn.style.background = 'rgba(91,33,182,0.2)';
+    btn.style.borderColor = 'var(--purple)';
+    btn.style.color = '#fff';
+  }
+
+  async function savePaiement(type) {
+    const data = {type};
+    if (type === 'virement') {
+      data.titulaire = document.getElementById('pay-titulaire').value.trim();
+      data.iban = document.getElementById('pay-iban').value.trim();
+      data.bic  = document.getElementById('pay-bic').value.trim();
+    } else {
+      data.reseau   = document.getElementById('pay-reseau').value;
+      data.adresse  = document.getElementById('pay-adresse').value.trim();
+    }
+    try {
+      const res = await fetch('/save-paiement', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        credentials: 'same-origin', body: JSON.stringify(data)
+      });
+      const r = await res.json();
+      if (r.ok) {
+        document.getElementById('pay-success').style.display = 'block';
+        setTimeout(() => document.getElementById('pay-success').style.display = 'none', 3000);
+      }
+    } catch(e) { alert('Erreur de connexion'); }
+  }
+  </script>
 </div>
 </div>
 
@@ -442,8 +560,8 @@ document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
 // ── COPY CODE
 function copyParrainCode() {
-  const code = document.getElementById('my-parrain-code').textContent.trim();
-  const msg = `🚀 Rejoins Bectanse AUTO — le copy trading automatique sur l'or.\n\nUtilise mon code parrainage à l'inscription :\n👉 ${code}\n\nbectanse-auto.up.railway.app/inscription`;
+  const lien = document.getElementById('my-parrain-code').textContent.trim();
+  const msg = `🚀 ${lien}\n\nJe t'invite à rejoindre Bectanse AUTO — le copy trading automatique sur l'or. Le système trade à ta place 24h/24, tu n'as rien à faire.`;
   navigator.clipboard.writeText(msg).then(() => {
     const btn = document.querySelector('.cta-btn, .code-copy-btn');
     const allBtns = document.querySelectorAll('.code-copy-btn, .cta-btn');
