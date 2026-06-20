@@ -648,6 +648,62 @@ input[name="objectif_periode"] { display: none; }
   background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6);
 }
 
+
+/* ── TOOLTIPS INFO ── */
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(91,33,182,0.25);
+  border: 1px solid rgba(91,33,182,0.4);
+  color: rgba(255,255,255,0.6);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 8px;
+  position: relative;
+  transition: background 0.15s;
+  font-style: normal;
+}
+.info-btn:hover { background: rgba(91,33,182,0.5); color: #fff; }
+
+.tooltip-box {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  background: #1F2937;
+  border: 1px solid rgba(91,33,182,0.4);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: 'Barlow', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.5;
+  z-index: 999;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  pointer-events: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.tooltip-box::after {
+  content: '';
+  position: absolute;
+  top: 100%; left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(91,33,182,0.4);
+}
+.info-btn:hover .tooltip-box,
+.info-btn:focus .tooltip-box { display: block; }
+
 </style>
 </head>
 <body>
@@ -865,7 +921,12 @@ input[name="objectif_periode"] { display: none; }
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Forcer le lot minimum si applicable</div>
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Forcer le lot minimum si applicable
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Si le lot calculé par le système est inférieur au lot minimum autorisé par ton broker, cette option force l'utilisation du lot minimum. Utile pour les petits capitaux.</span>
+                </span>
+              </div>
                 <div class="toggle-desc">Utilise le lot minimum du broker si le lot calculé est inférieur</div>
               </div>
               <div class="toggle-switch">
@@ -876,7 +937,12 @@ input[name="objectif_periode"] { display: none; }
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Inverser les trades</div>
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Inverser les trades
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Au lieu de copier le trade dans le même sens que l'émetteur, le système fait l'inverse. Ex : si l'émetteur achète, toi tu vends. Réservé aux traders expérimentés.</span>
+                </span>
+              </div>
                 <div class="toggle-desc">Ouvre la position opposée à celle de l'émetteur</div>
               </div>
               <div class="toggle-switch">
@@ -887,7 +953,12 @@ input[name="objectif_periode"] { display: none; }
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Copier les ordres en attente</div>
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Copier les ordres en attente
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Copie aussi les ordres en attente (Limit, Stop) et pas seulement les ordres exécutés immédiatement. Recommandé : activé pour ne manquer aucun signal.</span>
+                </span>
+              </div>
                 <div class="toggle-desc">Copie aussi les pending orders (stop, limit) pas seulement les trades au marché</div>
               </div>
               <div class="toggle-switch">
@@ -898,7 +969,12 @@ input[name="objectif_periode"] { display: none; }
 
             <label class="toggle-row" id="row_convertir" style="{% if not params.copier_ordres_en_attente %}opacity:0.4;pointer-events:none{% endif %}">
               <div class="toggle-info">
-                <div class="toggle-label">Convertir en ordre au marché si le pending est invalide</div>
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Convertir en ordre au marché si le pending est invalide
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Si un ordre en attente ne peut pas être placé (prix trop éloigné), le système le convertit automatiquement en ordre au marché. Évite les signaux manqués.</span>
+                </span>
+              </div>
                 <div class="toggle-desc">Si un pending order ne peut pas être placé, le convertit en ordre au marché</div>
               </div>
               <div class="toggle-switch">
@@ -909,7 +985,12 @@ input[name="objectif_periode"] { display: none; }
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Copier le Stop Loss (SL)</div>
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Copier le Stop Loss (SL)
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Reproduit exactement le Stop Loss de l'émetteur sur ton compte. Fortement recommandé pour protéger ton capital en cas de mauvais trade.</span>
+                </span>
+              </div>
                 <div class="toggle-desc">Reproduit exactement le stop loss de l'émetteur sur ton compte</div>
               </div>
               <div class="toggle-switch">
