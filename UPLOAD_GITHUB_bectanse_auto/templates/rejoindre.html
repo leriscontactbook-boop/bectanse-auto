@@ -100,6 +100,12 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 
 @media(max-width:600px){.form-row{grid-template-columns:1fr}.offres-grid{grid-template-columns:1fr 1fr}.offre-pills{grid-template-columns:1fr 1fr}.stats-bar{gap:20px;padding:16px}}
 </style>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#5B21B6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
 <body>
 <div class="bg"><div class="bg-grid"></div></div>
@@ -298,5 +304,11 @@ const observer = new IntersectionObserver(entries => {
 }, {threshold: 0.1});
 document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 </script>
+
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+  </script>
 </body>
 </html>
