@@ -705,38 +705,6 @@ input[name="objectif_periode"] { display: none; }
 .info-btn:focus .tooltip-box { display: block; }
 
 
-/* ── ABONNEMENT ── */
-.abo-card {
-  margin: 0 12px 12px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(91,33,182,0.25);
-}
-.abo-header {
-  padding: 10px 14px 8px;
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 0.18em; text-transform: uppercase;
-  color: rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.02);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.abo-body { padding: 12px 14px; background: rgba(0,0,0,0.2); }
-.abo-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.abo-row:last-child { margin-bottom: 0; }
-.abo-label { font-size: 11px; color: rgba(255,255,255,0.35); }
-.abo-value { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.8); font-family: 'Barlow Condensed', sans-serif; }
-.jours-badge {
-  display: inline-block;
-  padding: 3px 10px; border-radius: 20px;
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 12px; font-weight: 700;
-}
-.jours-badge.actif { background: rgba(5,150,105,0.15); color: #6EE7B7; border: 1px solid rgba(5,150,105,0.3); }
-.jours-badge.bientot { background: rgba(245,158,11,0.15); color: #FCD34D; border: 1px solid rgba(245,158,11,0.3); }
-.jours-badge.expire { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
-
-
 /* ── ALERTE RENOUVELLEMENT ── */
 .alerte-banner {
   background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(234,88,12,0.1));
@@ -780,6 +748,56 @@ input[name="objectif_periode"] { display: none; }
 }
 .alerte-close:hover { color: rgba(255,255,255,0.7); }
 
+
+/* ── MEMBER CARD FUSIONNÉE ── */
+.member-card {
+  margin: 12px;
+  background: linear-gradient(135deg, rgba(91,33,182,0.15), rgba(59,7,100,0.1));
+  border: 1px solid rgba(91,33,182,0.3);
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+}
+.member-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--purple), var(--gold), var(--purple));
+}
+.member-top {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.member-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px; font-weight: 700;
+  color: var(--white); letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+.member-capital {
+  font-size: 13px; color: var(--gold); font-weight: 600;
+}
+.member-abo {
+  padding: 12px 16px;
+}
+.abo-row {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 6px;
+}
+.abo-row:last-child { margin-bottom: 0; }
+.abo-label { font-size: 11px; color: rgba(255,255,255,0.35); }
+.abo-value {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75);
+}
+.jours-badge {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px; display: inline-block;
+}
+.jours-badge.actif { background: rgba(5,150,105,0.15); color: #6EE7B7; border: 1px solid rgba(5,150,105,0.3); }
+.jours-badge.bientot { background: rgba(245,158,11,0.15); color: #FCD34D; border: 1px solid rgba(245,158,11,0.3); }
+.jours-badge.expire { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
+
 </style>
 </head>
 <body>
@@ -792,8 +810,32 @@ input[name="objectif_periode"] { display: none; }
       <div class="sidebar-tagline">Espace Membre</div>
     </div>
 
-    <div class="member-card">
-      <div class="member-name">{{ member.nom }}</div>
+        <div class="member-card">
+      <div class="member-top">
+        <div class="member-name">{{ member.nom }}</div>
+        <div class="member-capital">💰 {{ member.capital }}</div>
+      </div>
+      {% if date_fin %}
+      <div class="member-abo">
+        {% if date_souscription %}
+        <div class="abo-row">
+          <span class="abo-label">Début</span>
+          <span class="abo-value">{{ date_souscription.strftime('%d/%m/%Y') }}</span>
+        </div>
+        {% endif %}
+        <div class="abo-row">
+          <span class="abo-label">Expiration</span>
+          <span class="abo-value">{{ date_fin.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <div class="abo-row">
+          <span class="abo-label">Restant</span>
+          <span class="jours-badge {% if statut_abo == 'expiré' %}expire{% elif statut_abo == 'expire_bientot' %}bientot{% else %}actif{% endif %}">
+            {% if statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }}j restants{% endif %}
+          </span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
       <div class="member-capital">💰 {{ member.capital }}</div>
       <div class="member-code">{{ code }}</div>
     </div>
@@ -828,33 +870,6 @@ input[name="objectif_periode"] { display: none; }
     
 
     <!-- ABONNEMENT -->
-    {% if date_fin %}
-    <div class="abo-card">
-      <div class="abo-header">📅 Abonnement</div>
-      <div class="abo-body">
-        {% if date_souscription %}
-        <div class="abo-row">
-          <span class="abo-label">Début</span>
-          <span class="abo-value">{{ date_souscription.strftime('%d/%m/%Y') if date_souscription else '—' }}</span>
-        </div>
-        {% endif %}
-        <div class="abo-row">
-          <span class="abo-label">Expiration</span>
-          <span class="abo-value">{{ date_fin.strftime('%d/%m/%Y') if date_fin else '—' }}</span>
-        </div>
-        <div class="abo-row">
-          <span class="abo-label">Restant</span>
-          <span class="jours-badge {% if statut_abo == 'expiré' %}expire{% elif statut_abo == 'expire_bientot' %}bientot{% else %}actif{% endif %}">
-            {% if statut_abo == 'expiré' %}
-              Expiré
-            {% else %}
-              {{ jours_restants }}j restants
-            {% endif %}
-          </span>
-        </div>
-      </div>
-    </div>
-    {% endif %}
 
     <!-- COPY TRADING TOGGLE -->
     <div class="copy-toggle-wrap">
