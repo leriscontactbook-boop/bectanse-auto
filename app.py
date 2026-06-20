@@ -54,6 +54,12 @@ def init_db():
                     parrain_code      TEXT DEFAULT '',
                     filleuls_count    INTEGER DEFAULT 0,
                     gains_parrainage  INTEGER DEFAULT 0,
+                    paiement_iban     TEXT DEFAULT '',
+                    paiement_bic      TEXT DEFAULT '',
+                    paiement_titulaire TEXT DEFAULT '',
+                    paiement_crypto_reseau TEXT DEFAULT '',
+                    paiement_crypto_adresse TEXT DEFAULT '',
+                    paiement_type     TEXT DEFAULT '',
                     historique        TEXT DEFAULT '[]'
                 )
             """)
@@ -243,6 +249,167 @@ def parrainage():
     except:
         parrain_stats = {"total": 0, "gains": 0, "niveau": "Standard"}
     return render_template("parrainage.html", member=member, parrain_stats=parrain_stats)
+
+@app.route("/rejoindre/<parrain_code>")
+def rejoindre(parrain_code):
+    """Landing page parrainage — accessible sans connexion"""
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom FROM members WHERE code=:c AND actif=TRUE", c=parrain_code.upper())
+        conn.close()
+        if not rows:
+            return redirect(url_for("login"))
+        parrain_nom = rows[0][0].split()[0]  # Prénom seulement
+    except:
+        parrain_nom = "un membre"
+    return render_template("rejoindre.html",
+        parrain_code=parrain_code.upper(),
+        parrain_nom=parrain_nom)
+
+
+@app.route("/rejoindre/<parrain_code>/submit", methods=["POST"])
+def rejoindre_submit(parrain_code):
+    """Reçoit le formulaire prospect et notifie l'équipe sur Telegram"""
+    data      = request.get_json()
+    prenom    = data.get("prenom","").strip()
+    nom       = data.get("nom","").strip()
+    email     = data.get("email","").strip()
+    telephone = data.get("telephone","").strip()
+    offre     = data.get("offre","").strip()
+
+    if not all([prenom, nom, email, telephone]):
+        return jsonify({"ok": False, "error": "Champs manquants"})
+
+    nom_complet = f"{prenom} {nom}"
+
+    # Récupérer le parrain
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom FROM members WHERE code=:c AND actif=TRUE", c=parrain_code.upper())
+        conn.close()
+        parrain_nom = rows[0][0] if rows else "Inconnu"
+    except:
+        parrain_nom = "Inconnu"
+
+    # Stocker le prospect temporairement dans l'historique
+    prospect_key = f"PROSPECT_{parrain_code}_{prenom}_{nom}".replace(" ","_")
+
+    # Notif Telegram avec boutons Activer / Pas payé
+    activer_url = f"https://bectanse-auto.up.railway.app/activer-prospect?nom={nom_complet.replace(' ','%20')}&email={email}&tel={telephone}&offre={offre.replace(' ','%20')}&parrain={parrain_code}&key={ADMIN_KEY}"
+    notif = (
+        f"💰 *NOUVEAU PROSPECT — À VÉRIFIER SUR STRIPE*\n\n"
+        f"👤 *{nom_complet}*\n"
+        f"📧 `{email}`\n"
+        f"📱 `{telephone}`\n"
+        f"💰 Offre : *{offre}*\n"
+        f"🎁 Parrainé par : *{parrain_nom}* (`{parrain_code}`)\n\n"
+        f"👉 Vérifie le paiement sur Stripe puis clique ✅"
+    )
+    markup = {"inline_keyboard": [[
+        {"text": "✅ Paiement confirmé — Activer", "url": activer_url},
+        {"text": "❌ Pas payé", "callback_data": f"prospect_nopay_{prospect_key}"}
+    ]]}
+    try:
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": ADMIN_ID, "text": notif, "parse_mode": "Markdown",
+                  "reply_markup": markup}, timeout=5)
+    except: pass
+
+    return jsonify({"ok": True})
+
+
+@app.route("/activer-prospect")
+def activer_prospect():
+    """Admin clique depuis Telegram pour activer un prospect après vérification Stripe"""
+    if request.args.get("key","") != ADMIN_KEY:
+        return "<h2 style='padding:40px;color:red'>⛔ Non autorisé</h2>", 403
+
+    nom_complet = request.args.get("nom","")
+    email       = request.args.get("email","")
+    telephone   = request.args.get("tel","")
+    offre       = request.args.get("offre","")
+    parrain_code= request.args.get("parrain","").upper()
+
+    # Créer le membre
+    code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+    try:
+        conn = get_conn()
+        conn.run(
+            "INSERT INTO members (code,nom,capital,email,telephone,parrain_code,params,historique) VALUES (:c,:n,:cap,:e,:t,:pr,:p,:h)",
+            c=code, n=nom_complet, cap=offre, e=email, t=telephone,
+            pr=parrain_code, p=json.dumps(default_params()), h=json.dumps([])
+        )
+
+        # Créditer le parrain
+        if parrain_code:
+            p_rows = conn.run("SELECT nom, filleuls_count, gains_parrainage FROM members WHERE code=:c AND actif=TRUE", c=parrain_code)
+            if p_rows:
+                p_nom   = p_rows[0][0]
+                p_fill  = (p_rows[0][1] or 0) + 1
+                p_gains = (p_rows[0][2] or 0) + 50
+                conn.run("UPDATE members SET filleuls_count=:f, gains_parrainage=:g WHERE code=:c",
+                         f=p_fill, g=p_gains, c=parrain_code)
+
+                # Notif au parrain
+                palier_msg = ""
+                if p_fill == 5:  palier_msg = "\n\n🥉 *PALIER BRONZE ATTEINT ! +250€ bonus versé sous 10 jours !*"
+                if p_fill == 10: palier_msg = "\n\n🥈 *STATUT AMBASSADOR ! +1000€ bonus versé sous 10 jours !*"
+                if p_fill == 20: palier_msg = "\n\n🥇 *STATUT ELITE ATTEINT ! +2000€ + Voyage Dubai ! On te contacte très vite !*"
+
+                send_telegram(
+                    f"🎉 *Nouveau filleul activé !*\n\n"
+                    f"👤 {p_nom} — *{nom_complet}* a rejoint Bectanse AUTO !\n"
+                    f"💰 +50€ à percevoir\n"
+                    f"📊 Total filleuls : *{p_fill}* | Gains cumulés : *{p_gains}€*"
+                    + palier_msg
+                )
+
+        conn.close()
+
+        # Notif admin confirmation
+        set_dates_url = f"https://bectanse-auto.up.railway.app/set-dates/{code}?t={ADMIN_KEY}"
+        send_telegram(
+            f"✅ *Membre activé !*\n\n"
+            f"👤 *{nom_complet}*\n"
+            f"🔑 Code : `{code}`\n"
+            f"💰 Offre : *{offre}*\n"
+            f"📧 {email} | 📱 {telephone}",
+            reply_markup={"inline_keyboard": [[{"text": "📅 Définir les dates", "url": set_dates_url}]]}
+        )
+
+        return f"""<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center;'>
+            <h1 style='color:#059669;font-size:48px;'>✅</h1>
+            <h2 style='color:#fff;margin-bottom:12px;'>{nom_complet} activé !</h2>
+            <p style='color:#6B7280;'>Code : <strong style='color:#F59E0B;font-size:20px;'>{code}</strong></p>
+            <p style='color:#6B7280;margin-top:8px;'>Envoie ce code au membre.</p>
+            <p style='color:#6B7280;margin-top:8px;'>Parrain crédité de +50€</p>
+            </body></html>"""
+    except Exception as e:
+        return f"<h2 style='padding:40px'>Erreur: {e}</h2>"
+
+
+@app.route("/save-paiement", methods=["POST"])
+@login_required
+def save_paiement():
+    """Sauvegarde les infos de paiement du membre pour recevoir ses commissions"""
+    code = session["member_code"]
+    data = request.get_json()
+    ptype = data.get("type","")
+    try:
+        conn = get_conn()
+        if ptype == "virement":
+            conn.run("""UPDATE members SET paiement_type=:t, paiement_iban=:i,
+                       paiement_bic=:b, paiement_titulaire=:ti WHERE code=:c""",
+                     t="virement", i=data.get("iban",""), b=data.get("bic",""),
+                     ti=data.get("titulaire",""), c=code)
+        elif ptype == "crypto":
+            conn.run("""UPDATE members SET paiement_type=:t, paiement_crypto_reseau=:r,
+                       paiement_crypto_adresse=:a WHERE code=:c""",
+                     t="crypto", r=data.get("reseau",""), a=data.get("adresse",""), c=code)
+        conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/health")
 def health():
