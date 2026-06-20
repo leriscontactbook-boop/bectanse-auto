@@ -139,8 +139,28 @@ def build_notif(member, params, code):
     p = params
     dd_p = f"`{p['drawdown_pct']}%`" if p["drawdown_actif"] else "Désactivé"
     dd_g = f"`{p['drawdown_gain_pct']}%`" if p["drawdown_gain_actif"] else "Désactivé"
-    obj = (f"+{p['objectif_gain_pct']}% / -{p['objectif_perte_pct']}% ({p['objectif_periode']})"
-           if p["objectif_actif"] else "Désactivé")
+    obj  = (f"+{p['objectif_gain_pct']}% / -{p['objectif_perte_pct']}% ({p['objectif_periode']})"
+            if p["objectif_actif"] else "Désactivé")
+
+    # Ligne mode enrichie selon le type
+    mode_detail = ""
+    if p.get("mode_risque") == "Risque en %":
+        mode_detail = f"  └ Risque : `{p.get('risque_pct','—')}%`\n"
+    elif p.get("mode_risque") == "Copier les lots de l\'envoyeur":
+        mode_detail = f"  └ Multiplicateur : `{p.get('multiplicateur','—')}x`\n"
+    elif p.get("mode_risque") == "Risque par solde (Balance)":
+        mode_detail = f"  └ Risque balance : `{p.get('risque_balance_pct','—')}%`\n"
+    elif p.get("mode_risque") == "Risque par capitaux (Equity)":
+        mode_detail = f"  └ Risque equity : `{p.get('risque_equity_pct','—')}%`\n"
+
+    # Symboles modifiés si mode Lot par symbole
+    sym_lines = ""
+    if p.get("mode_risque") == "Lot par symbole" and p.get("lot_symboles"):
+        modifies = [(s, l) for s, l in p["lot_symboles"].items() if float(l) != 0.01]
+        if modifies:
+            sym_lines = "\n📋 *SYMBOLES CONFIGURÉS*\n"
+            sym_lines += "".join([f"  `{s}` : `{l}` lots\n" for s, l in modifies])
+
     return (
         f"🔔 *DEMANDE MODIFICATION PARAMÈTRES*\n\n"
         f"👤 *{member['nom']}*  |  Code : `{code}`\n"
@@ -149,17 +169,9 @@ def build_notif(member, params, code):
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"⚙️ *MODE* : {p['mode_risque']}\n"
         f"📊 Lots : `{p['lots']}` | Max : `{p['lots_max']}` | Slip : `{p['slippage']}`\n"
-        + (f"  └ Risque : `{p.get('risque_pct','—')}%`\n" if p.get('mode_risque')=='Risque en %' else "")
-        + (f"  └ Multiplicateur : `{p.get('multiplicateur','—')}x`\n" if p.get('mode_risque')=="Copier les lots de l'envoyeur" else "")
-        + (f"  └ Risque balance : `{p.get('risque_balance_pct','—')}%`\n" if p.get('mode_risque')=='Risque par solde (Balance)' else "")
-        + (f"  └ Risque equity : `{p.get('risque_equity_pct','—')}%`\n" if p.get('mode_risque')=='Risque par capitaux (Equity)' else "")
-        + "\n"
-        + (("\n📋 *SYMBOLES CONFIGURÉS*\n" +
-            "".join([f"  `{sym}` : `{lot}` lots\n"
-                     for sym, lot in p.get("lot_symboles", {}).items()
-                     if float(lot) != 0.01])  # Afficher seulement les modifiés
-           ) if p.get("mode_risque") == "Lot par symbole" and p.get("lot_symboles") else "")
-        f"🔧 *OPTIONS*\n"
+        + mode_detail
+        + sym_lines
+        + f"\n🔧 *OPTIONS*\n"
         f"  {bool_icon(p['forcer_lot_minimum'])} Forcer lot min\n"
         f"  {bool_icon(p['inverser_trades'])} Inverser trades\n"
         f"  {bool_icon(p['copier_ordres_en_attente'])} Copier ordres en attente\n"
