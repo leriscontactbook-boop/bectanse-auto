@@ -306,25 +306,7 @@ def inscription():
     )
     send_telegram(notif)
 
-    # Envoyer le code directement au membre sur Telegram si username fourni
-    if telegram:
-        try:
-            tg_handle = telegram.lstrip("@")
-            msg_membre = (
-                f"👋 Bienvenue *{prenom}* dans Bectanse AUTO !\n\n"
-                f"Voici ton code d\'accès personnel :\n\n"
-                f"🔑 `{code}`\n\n"
-                f"Garde ce code précieusement — il te permet de te connecter à ton espace membre.\n\n"
-                f"👉 bectanse-auto.up.railway.app"
-            )
-            # Envoyer via le bot en cherchant le chat_id par username
-            requests.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                json={"chat_id": f"@{tg_handle}", "text": msg_membre, "parse_mode": "Markdown"},
-                timeout=5
-            )
-        except Exception as e:
-            app.logger.warning(f"Envoi Telegram membre échoué: {e}")
+    # Code conservé dans la notif admin — envoi manuel si besoin
 
     return jsonify({"ok": True, "code": code})
 
