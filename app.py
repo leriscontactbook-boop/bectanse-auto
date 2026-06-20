@@ -51,6 +51,9 @@ def init_db():
                     telephone         TEXT DEFAULT '',
                     telegram          TEXT DEFAULT '',
                     alerte_lue        BOOLEAN DEFAULT TRUE,
+                    parrain_code      TEXT DEFAULT '',
+                    filleuls_count    INTEGER DEFAULT 0,
+                    gains_parrainage  INTEGER DEFAULT 0,
                     historique        TEXT DEFAULT '[]'
                 )
             """)
@@ -217,6 +220,29 @@ def faq():
     code = session["member_code"]
     member = get_member(code)
     return render_template("faq.html", member=member)
+
+@app.route("/parrainage")
+@login_required
+def parrainage():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return redirect(url_for("login"))
+    # Stats parrainage
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT COUNT(*), COALESCE(SUM(filleuls_count)*50,0) FROM members WHERE parrain_code=:c AND actif=TRUE", c=code)
+        total_filleuls = rows[0][0] if rows else 0
+        gains = rows[0][1] if rows else 0
+        conn.close()
+        niveau = "Standard"
+        if total_filleuls >= 20: niveau = "ELITE 🐐"
+        elif total_filleuls >= 10: niveau = "Ambassador"
+        elif total_filleuls >= 5: niveau = "Bronze"
+        parrain_stats = {"total": total_filleuls, "gains": gains, "niveau": niveau}
+    except:
+        parrain_stats = {"total": 0, "gains": 0, "niveau": "Standard"}
+    return render_template("parrainage.html", member=member, parrain_stats=parrain_stats)
 
 @app.route("/health")
 def health():
@@ -400,11 +426,34 @@ def inscription():
     code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
     try:
         conn = get_conn()
+        parrain_ref = data.get("parrain_code","").strip().upper()
         conn.run(
-            "INSERT INTO members (code,nom,capital,email,telephone,telegram,params,historique) VALUES (:c,:n,:cap,:e,:t,:tg,:p,:h)",
+            "INSERT INTO members (code,nom,capital,email,telephone,telegram,parrain_code,params,historique) VALUES (:c,:n,:cap,:e,:t,:tg,:pr,:p,:h)",
             c=code, n=nom_complet, cap=capital, e=email, t=telephone, tg=telegram,
-            p=json.dumps(default_params()), h=json.dumps([])
+            pr=parrain_ref, p=json.dumps(default_params()), h=json.dumps([])
         )
+        # Créditer le parrain si code valide
+        if parrain_ref:
+            try:
+                parrain_rows = conn.run("SELECT code, nom, filleuls_count, gains_parrainage FROM members WHERE code=:c AND actif=TRUE", c=parrain_ref)
+                if parrain_rows:
+                    p_code = parrain_rows[0][0]
+                    p_nom  = parrain_rows[0][1]
+                    p_fill = (parrain_rows[0][2] or 0) + 1
+                    p_gains= (parrain_rows[0][3] or 0) + 50
+                    conn.run("UPDATE members SET filleuls_count=:f, gains_parrainage=:g WHERE code=:c",
+                             f=p_fill, g=p_gains, c=p_code)
+                    # Notif Telegram au parrain
+                    send_telegram(
+                        f"🎉 *Nouveau filleul !*\n\n"
+                        f"👤 *{p_nom}* — tu viens de parrainer *{nom_complet}* !\n"
+                        f"💰 +50€ ajoutés à tes gains\n"
+                        f"📊 Total filleuls : *{p_fill}* | Gains cumulés : *{p_gains}€*\n\n"
+                        + (f"🥉 *Palier Bronze atteint ! +250€ bonus !*" if p_fill == 5 else
+                           f"🥈 *Statut AMBASSADOR atteint ! +1000€ bonus !*" if p_fill == 10 else
+                           f"🥇 *Statut ELITE atteint ! +2000€ + Voyage Dubai !*" if p_fill == 20 else "")
+                    )
+            except: pass
         conn.close()
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
