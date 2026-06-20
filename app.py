@@ -15,7 +15,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 def get_conn():
     url = DATABASE_URL
-    # Railway parfois préfixe avec postgres:// — psycopg2 veut postgresql://
+    # Railway préfixe avec postgres:// — psycopg veut postgresql://
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
     return psycopg.connect(url, row_factory=dict_row)
