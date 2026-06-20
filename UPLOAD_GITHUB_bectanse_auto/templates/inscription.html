@@ -405,9 +405,12 @@ async function submitForm() {
     });
     const data = await res.json();
     if (data.ok) {
-      document.getElementById("success-code").textContent = data.code;
+      const code = data.code;
+      document.getElementById("success-code").textContent = code;
       document.getElementById("form-screen").style.display = "none";
       document.getElementById("success-screen").style.display = "block";
+      // Mettre à jour le lien "Accéder" avec le code pré-rempli
+      document.querySelector(".login-link").href = "/?code=" + code;
     } else {
       errorBox.textContent = data.error || "Une erreur est survenue. Réessaie.";
       errorBox.style.display = "block";
