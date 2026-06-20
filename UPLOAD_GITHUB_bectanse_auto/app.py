@@ -524,7 +524,7 @@ def save():
         confirm_url = f"https://bectanse-auto.up.railway.app/confirm/{code}"
         problem_url = f"https://bectanse-auto.up.railway.app/problem/{code}"
         markup = {"inline_keyboard":[[
-            {"text":"✅ Appliqué sur Sociate Trade","url":confirm_url},
+            {"text":"✅ Appliqué sur notre système","url":confirm_url},
             {"text":"❌ Problème — Contacter","url":problem_url}
         ]]}
         send_telegram(build_notif(member, p, code), reply_markup=markup)
@@ -553,7 +553,7 @@ def toggle_copy():
             f"👤 *{member['nom']}* | `{code}`\n"
             f"💰 *{member['capital']}*\n"
             f"🕐 {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
-            + ("✅ Copy actif." if new_state else "⚠️ *Action requise* — Désactiver sur Sociate Trade.")
+            + ("✅ Copy actif." if new_state else "⚠️ *Action requise* — Désactiver sur notre système.")
         )
         return jsonify({"ok": True, "copy_actif": new_state})
     except Exception as e:
@@ -636,7 +636,7 @@ def inscription():
         f"📞 *CONTACT*\n  Email : `{email}`\n  Tél : `{telephone}`\n{tg_line}\n"
         f"📊 *MT4/MT5*\n  Plateforme : *{plateforme}*\n  Serveur : *{serveur}*\n"
         f"  Login : `{mt_login}`\n  MDP investisseur : `{mt_pass}`\n\n"
-        f"⚡ *ACTION REQUISE* — Connecter sur Sociate Trade"
+        f"⚡ *ACTION REQUISE* — Connecter sur notre système"
     )
     markup = {"inline_keyboard":[[{"text":"📅 Définir les dates d'abonnement","url":set_dates_url}]]}
     try:
