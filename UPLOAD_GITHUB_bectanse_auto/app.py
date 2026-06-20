@@ -60,6 +60,11 @@ def init_db():
                     historique  TEXT DEFAULT \'[]\'
                 )
             """)
+            # Ajouter copy_actif si elle n'existe pas encore
+            try:
+                conn.run("ALTER TABLE members ADD COLUMN IF NOT EXISTS copy_actif BOOLEAN DEFAULT TRUE")
+            except:
+                pass
             conn.close()
             app.logger.info("DB init OK")
             return True
@@ -230,24 +235,33 @@ def toggle_copy():
     code = session["member_code"]
     member = get_member(code)
     if not member:
-        return jsonify({"ok": False})
+        return jsonify({"ok": False, "error": "membre introuvable"})
     try:
-        current = member.get("copy_actif", True)
-        new_state = not current
+        # Lire etat actuel directement depuis DB
         conn = get_conn()
+        rows = conn.run("SELECT copy_actif FROM members WHERE code=:c", c=code)
+        current = rows[0][0] if rows and rows[0][0] is not None else True
+        new_state = not current
+        # Sauvegarder
         conn.run("UPDATE members SET copy_actif=:s WHERE code=:c", s=new_state, c=code)
         conn.close()
-        # Notif Telegram
-        icon = "✅" if new_state else "⏸️"
+        # Notification Telegram avec nom du membre
+        icon   = "✅" if new_state else "⏸️"
         status = "ACTIVÉ" if new_state else "DÉSACTIVÉ"
-        send_telegram(
+        msg = (
             f"{icon} *COPY TRADING {status}*\n\n"
-            f"👤 *{member['nom']}*  |  Code : `{code}`\n"
+            f"👤 *{member['nom']}*\n"
+            f"🔑 Code : `{code}`\n"
+            f"💰 Capital : *{member['capital']}*\n"
             f"🕐 {datetime.now().strftime('%d/%m/%Y à %H:%M')}\n\n"
-            f"{'Le copy trading est maintenant actif.' if new_state else '⚠️ Le membre a désactivé le copy trading — vérifier sur Sociate Trade.'}"
+            + ("✅ Copy trading actif — aucune action requise."
+               if new_state else
+               "⚠️ *Action requise* — Désactiver le copy sur Sociate Trade pour ce membre.")
         )
-        return jsonify({"ok": True, "copy_actif": new_state})
+        send_telegram(msg)
+        return jsonify({"ok": True, "copy_actif": new_state, "nom": member['nom']})
     except Exception as e:
+        app.logger.error(f"toggle_copy error: {e}")
         return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/health")
