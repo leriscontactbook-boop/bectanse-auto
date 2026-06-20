@@ -268,6 +268,14 @@ html, body { min-height: 100vh; font-family: "Barlow", sans-serif; background: v
         </div>
       </div>
 
+      <div class="row cols1" style="margin-bottom:12px;">
+        <div class="field">
+          <label>Code parrainage <span style="color:rgba(255,255,255,0.3);font-weight:400;text-transform:none;font-size:10px;">— facultatif</span></label>
+          <input type="text" id="parrain_code" placeholder="Ex: PARRAIN-XXXXXXXX" autocomplete="off" style="text-transform:uppercase;">
+          <div class="field-help">Si quelqu'un t'a recommandé Bectanse AUTO, entre son code ici</div>
+        </div>
+      </div>
+
       <div class="notice">
         🔒 <strong>Sécurité garantie.</strong> Le mot de passe investisseur est en lecture seule.
         Notre équipe peut voir tes positions mais <strong>ne peut ni retirer ni déposer de fonds</strong> sur ton compte.
@@ -399,7 +407,8 @@ async function submitForm() {
   const capital    = document.getElementById("capital").value.trim();
   const email      = document.getElementById("email").value.trim();
   const telephone  = document.getElementById("telephone").value.trim();
-  const telegram   = (document.getElementById("telegram") || {value:""}).value.trim();
+  const telegram      = (document.getElementById("telegram") || {value:""}).value.trim();
+  const parrain_code  = (document.getElementById("parrain_code") || {value:""}).value.trim().toUpperCase();
   const plateforme = document.getElementById("plateforme").value;
   const broker     = document.getElementById("broker-select").value;
   const serveur    = document.getElementById("serveur-input").value.trim();
@@ -424,7 +433,7 @@ async function submitForm() {
     const res = await fetch("/inscription", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prenom, nom: nom_fam, capital, email, telephone, telegram, plateforme, serveur, mt_login, mt_password: mt_pass })
+      body: JSON.stringify({ prenom, nom: nom_fam, capital, email, telephone, telegram, parrain_code, plateforme, serveur, mt_login, mt_password: mt_pass })
     });
     const data = await res.json();
     if (data.ok) {
