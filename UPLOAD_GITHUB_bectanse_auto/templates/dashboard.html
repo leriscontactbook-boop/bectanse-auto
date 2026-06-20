@@ -583,6 +583,71 @@ input[name="objectif_periode"] { display: none; }
 }
 .sym-lot:focus { border-color:var(--purple); box-shadow:0 0 0 2px rgba(91,33,182,0.15); }
 
+
+/* ── COPY TRADING TOGGLE ── */
+.copy-toggle-wrap {
+  margin: 0 12px 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(91,33,182,0.3);
+}
+.copy-toggle-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+.copy-toggle-btn.actif {
+  background: rgba(5,150,105,0.15);
+  color: #6EE7B7;
+}
+.copy-toggle-btn.inactif {
+  background: rgba(220,38,38,0.12);
+  color: #FCA5A5;
+}
+.copy-toggle-btn:hover { filter: brightness(1.15); }
+.copy-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.copy-dot.actif { background: #059669; box-shadow: 0 0 8px rgba(5,150,105,0.6); animation: pulse 2s infinite; }
+.copy-dot.inactif { background: #DC2626; }
+.copy-status-label { flex: 1; text-align: left; margin-left: 10px; }
+.copy-arrow { font-size: 16px; opacity: 0.6; }
+.copy-confirm {
+  display: none;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.3);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+}
+.copy-confirm.show { display: block; }
+.copy-confirm-btns { display: flex; gap: 8px; margin-top: 8px; }
+.copy-confirm-yes {
+  flex: 1; padding: 7px; border: none; border-radius: 6px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  background: var(--purple); color: #fff;
+}
+.copy-confirm-no {
+  flex: 1; padding: 7px; border: none; border-radius: 6px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6);
+}
+
 </style>
 </head>
 <body>
@@ -623,6 +688,30 @@ input[name="objectif_periode"] { display: none; }
     <div class="status-badge">
       <div class="pulse"></div>
       Système actif
+    </div>
+
+    
+    <!-- COPY TRADING TOGGLE -->
+    <div class="copy-toggle-wrap">
+      <button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
+              id="copyToggleBtn" onclick="showCopyConfirm()">
+        <div class="copy-dot {% if copy_actif %}actif{% else %}inactif{% endif %}"></div>
+        <span class="copy-status-label">
+          {% if copy_actif %}Copy Trading Actif{% else %}Copy Trading Inactif{% endif %}
+        </span>
+        <span class="copy-arrow">⏯</span>
+      </button>
+      <div class="copy-confirm" id="copyConfirm">
+        {% if copy_actif %}
+          ⚠️ Désactiver le copy trading ?<br>Les trades auto s'arrêteront.
+        {% else %}
+          ▶️ Réactiver le copy trading ?
+        {% endif %}
+        <div class="copy-confirm-btns">
+          <button class="copy-confirm-yes" onclick="toggleCopy()">Confirmer</button>
+          <button class="copy-confirm-no" onclick="hideCopyConfirm()">Annuler</button>
+        </div>
+      </div>
     </div>
 
     <a class="logout-btn" href="/logout">
@@ -1113,6 +1202,33 @@ document.getElementById('mode_risque').addEventListener('change', function() {
   }
   if (help && helps[this.value]) help.textContent = helps[this.value];
 });
+
+
+// ── COPY TRADING TOGGLE ──
+function showCopyConfirm() {
+  document.getElementById('copyConfirm').classList.toggle('show');
+}
+function hideCopyConfirm() {
+  document.getElementById('copyConfirm').classList.remove('show');
+}
+async function toggleCopy() {
+  const btn = document.getElementById('copyToggleBtn');
+  btn.style.opacity = '0.5';
+  try {
+    const res = await fetch('/toggle-copy', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(
+        data.copy_actif ? '✅ Copy trading activé !' : '⏸️ Copy trading désactivé.',
+        data.copy_actif ? 'success' : 'error'
+      );
+      setTimeout(() => location.reload(), 1500);
+    }
+  } catch(e) {
+    showToast('Erreur de connexion.', 'error');
+    btn.style.opacity = '1';
+  }
+}
 
 // ── Toggle panels
 function togglePanel(id, show) {
