@@ -755,8 +755,9 @@ input[name="objectif_periode"] { display: none; }
   background: linear-gradient(135deg, rgba(91,33,182,0.15), rgba(59,7,100,0.1));
   border: 1px solid rgba(91,33,182,0.3);
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
+  min-height: auto;
 }
 .member-card::before {
   content: '';
@@ -803,6 +804,45 @@ input[name="objectif_periode"] { display: none; }
 .jours-badge.bientot { background: rgba(245,158,11,0.15); color: #FCD34D; border: 1px solid rgba(245,158,11,0.3); }
 .jours-badge.expire { background: rgba(220,38,38,0.15); color: #FCA5A5; border: 1px solid rgba(220,38,38,0.3); }
 
+/* ── RESPONSIVE MOBILE ── */
+@media(max-width:900px){
+  .app { grid-template-columns: 200px 1fr; }
+}
+@media(max-width:768px){
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    display: block;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: auto; width: 100%;
+    border-right: none;
+    border-top: 1px solid rgba(91,33,182,0.3);
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 100;
+    padding: 0;
+  }
+  .sidebar-brand, .member-card, .nav-section, .sidebar-bottom { display: none; }
+  .nav { display: flex; flex-direction: row; padding: 0; overflow-x: auto; }
+  .nav-item {
+    flex-shrink: 0; padding: 14px 16px;
+    border-left: none; border-top: 2px solid transparent;
+    font-size: 11px; flex-direction: column; gap: 4px;
+    text-align: center;
+  }
+  .nav-item .icon { font-size: 18px; }
+  .nav-item.active, .nav-item:hover { border-top-color: var(--purple); border-left: none; }
+  .content {
+    padding: 20px 16px;
+    padding-bottom: 80px;
+  }
+  .header-top { flex-direction: column; gap: 12px; }
+  .page-title { font-size: 22px; }
+  .field-row.cols-3 { grid-template-columns: 1fr; }
+  .btn-envoyer { width: 100%; font-size: 14px; padding: 12px 20px; }
+  .hist-table { font-size: 11px; }
+  .hist-table th, .hist-table td { padding: 8px 6px; }
+}
 </style>
 </head>
 <body>
@@ -816,11 +856,37 @@ input[name="objectif_periode"] { display: none; }
     </div>
 
     <!-- MEMBER CARD FUSIONNÉE -->
-    <div class="member-card">
-      <div class="member-top">
-        <div class="member-name">{{ member.nom }}</div>
-        <div class="member-capital">💰 {{ member.capital }}</div>
+    <div class="member-card" style="margin:12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:16px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#5B21B6,#F59E0B,#5B21B6);"></div>
+      <div style="padding:16px 16px 14px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;">{{ member.nom }}</div>
+        <div style="font-size:13px;color:#F59E0B;font-weight:600;">💰 {{ member.capital }}</div>
       </div>
+      {% if date_fin %}
+      <div style="padding:0 16px 14px;border-top:1px solid rgba(255,255,255,0.06);margin-top:0;padding-top:12px;">
+        {% if date_souscription %}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.4);">Début</span>
+          <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);font-family:'Barlow Condensed',sans-serif;">{{ date_souscription.strftime('%d/%m/%Y') }}</span>
+        </div>
+        {% endif %}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.4);">Expiration</span>
+          <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);font-family:'Barlow Condensed',sans-serif;">{{ date_fin.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.4);">Restant</span>
+          {% if statut_abo == 'expiré' %}
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(220,38,38,0.15);color:#FCA5A5;border:1px solid rgba(220,38,38,0.3);">Expiré</span>
+          {% elif statut_abo == 'expire_bientot' %}
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(245,158,11,0.15);color:#FCD34D;border:1px solid rgba(245,158,11,0.3);">{{ jours_restants }}j restants</span>
+          {% else %}
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3);">{{ jours_restants }}j restants</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
       {% if date_fin %}
       <div style="padding:14px 16px 16px;border-top:1px solid rgba(255,255,255,0.06);">
         {% if date_souscription %}
@@ -1676,6 +1742,45 @@ async function saveParams() {
 @keyframes wa-pulse {
   0%,100% { box-shadow: 0 4px 20px rgba(37,211,102,0.4), 0 0 0 0 rgba(37,211,102,0.3); }
   50% { box-shadow: 0 4px 20px rgba(37,211,102,0.4), 0 0 0 12px rgba(37,211,102,0); }
+}
+/* ── RESPONSIVE MOBILE ── */
+@media(max-width:900px){
+  .app { grid-template-columns: 200px 1fr; }
+}
+@media(max-width:768px){
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    display: block;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: auto; width: 100%;
+    border-right: none;
+    border-top: 1px solid rgba(91,33,182,0.3);
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 100;
+    padding: 0;
+  }
+  .sidebar-brand, .member-card, .nav-section, .sidebar-bottom { display: none; }
+  .nav { display: flex; flex-direction: row; padding: 0; overflow-x: auto; }
+  .nav-item {
+    flex-shrink: 0; padding: 14px 16px;
+    border-left: none; border-top: 2px solid transparent;
+    font-size: 11px; flex-direction: column; gap: 4px;
+    text-align: center;
+  }
+  .nav-item .icon { font-size: 18px; }
+  .nav-item.active, .nav-item:hover { border-top-color: var(--purple); border-left: none; }
+  .content {
+    padding: 20px 16px;
+    padding-bottom: 80px;
+  }
+  .header-top { flex-direction: column; gap: 12px; }
+  .page-title { font-size: 22px; }
+  .field-row.cols-3 { grid-template-columns: 1fr; }
+  .btn-envoyer { width: 100%; font-size: 14px; padding: 12px 20px; }
+  .hist-table { font-size: 11px; }
+  .hist-table th, .hist-table td { padding: 8px 6px; }
 }
 </style>
 
