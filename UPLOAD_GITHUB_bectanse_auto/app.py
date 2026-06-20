@@ -211,6 +211,13 @@ def support():
     messages_support = [h for h in reversed(hist) if h.get("type") == "support"][-10:]
     return render_template("support.html", member=member, messages=messages_support)
 
+@app.route("/faq")
+@login_required
+def faq():
+    code = session["member_code"]
+    member = get_member(code)
+    return render_template("faq.html", member=member)
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
