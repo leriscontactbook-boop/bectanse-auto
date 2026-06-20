@@ -394,16 +394,25 @@ async function submitForm() {
   const errorBox = document.getElementById("error-box");
   errorBox.style.display = "none";
 
-  const prenom    = document.getElementById("prenom").value.trim();
-  const nom_fam   = document.getElementById("nom_famille").value.trim();
-  const capital   = document.getElementById("capital").value.trim();
-  const plateforme= document.getElementById("plateforme").value;
-  const serveur   = document.getElementById("serveur").value;
-  const mt_login  = document.getElementById("mt_login").value.trim();
-  const mt_pass   = document.getElementById("mt_password").value.trim();
+  const prenom     = document.getElementById("prenom").value.trim();
+  const nom_fam    = document.getElementById("nom_famille").value.trim();
+  const capital    = document.getElementById("capital").value.trim();
+  const email      = document.getElementById("email").value.trim();
+  const telephone  = document.getElementById("telephone").value.trim();
+  const telegram   = (document.getElementById("telegram") || {value:""}).value.trim();
+  const plateforme = document.getElementById("plateforme").value;
+  const broker     = document.getElementById("broker-select").value;
+  const serveur    = document.getElementById("serveur-input").value.trim();
+  const mt_login   = document.getElementById("mt_login").value.trim();
+  const mt_pass    = document.getElementById("mt_password").value.trim();
 
   if (!prenom || !nom_fam || !capital || !email || !telephone || !mt_login || !mt_pass) {
     errorBox.textContent = "Tous les champs sont obligatoires.";
+    errorBox.style.display = "block";
+    return;
+  }
+  if (!serveur) {
+    errorBox.textContent = "Sélectionne le serveur de ton broker.";
     errorBox.style.display = "block";
     return;
   }
@@ -415,7 +424,6 @@ async function submitForm() {
     const res = await fetch("/inscription", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      const telegram = document.getElementById("telegram").value.trim();
       body: JSON.stringify({ prenom, nom: nom_fam, capital, email, telephone, telegram, plateforme, serveur, mt_login, mt_password: mt_pass })
     });
     const data = await res.json();
