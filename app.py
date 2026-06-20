@@ -406,8 +406,8 @@ def save():
     ok = save_params_db(code, p, hist_entry)
     if ok:
         # Boutons inline Telegram pour confirmer ou signaler un problème
-        confirm_url = f"https://bectanse-auto-eyq-production.up.railway.app/confirm/{code}"
-        problem_url = f"https://bectanse-auto-eyq-production.up.railway.app/problem/{code}"
+        confirm_url = f"https://bectanse-auto.up.railway.app/confirm/{code}"
+        problem_url = f"https://bectanse-auto.up.railway.app/problem/{code}"
         markup = {
             "inline_keyboard": [[
                 {"text": "✅ Appliqué sur Sociate Trade", "url": confirm_url},
