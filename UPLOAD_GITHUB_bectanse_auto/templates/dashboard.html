@@ -906,6 +906,51 @@ input[name="objectif_periode"] { display: none; }
   .content { padding-bottom: 140px !important; }
 }
 
+
+/* ── COPY MODAL GLOBAL MOBILE ── */
+.copy-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 500;
+  align-items: flex-end;
+  justify-content: center;
+}
+.copy-modal-overlay.open { display: flex; }
+.copy-modal-box {
+  background: #111827;
+  border: 1px solid rgba(91,33,182,0.3);
+  border-radius: 20px 20px 0 0;
+  padding: 28px 24px 40px;
+  width: 100%;
+  text-align: center;
+}
+.copy-modal-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px; font-weight: 700;
+  color: #fff; margin-bottom: 8px;
+}
+.copy-modal-desc {
+  font-size: 13px; color: rgba(255,255,255,0.5);
+  line-height: 1.6; margin-bottom: 24px;
+}
+.copy-modal-btns {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.copy-modal-yes {
+  background: #5B21B6; color: #fff;
+  border: none; border-radius: 10px; padding: 14px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.copy-modal-no {
+  background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+
 </style>
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#5B21B6">
@@ -2010,6 +2055,23 @@ async function saveParams() {
   <button class="m-send-btn" onclick="saveParams()">
     ENVOYER LA DEMANDE →
   </button>
+</div>
+
+
+<!-- COPY MODAL GLOBAL -->
+<div class="copy-modal-overlay" id="copyModalOverlay" onclick="closeCopyModal(event)">
+  <div class="copy-modal-box">
+    <div class="copy-modal-title" id="copyModalTitle">
+      {% if copy_actif %}⚠️ Désactiver le copy trading ?{% else %}▶️ Activer le copy trading ?{% endif %}
+    </div>
+    <div class="copy-modal-desc" id="copyModalDesc">
+      {% if copy_actif %}Les trades automatiques s'arrêteront sur ton compte.{% else %}Les trades automatiques reprendront sur ton compte.{% endif %}
+    </div>
+    <div class="copy-modal-btns">
+      <button class="copy-modal-yes" onclick="toggleCopy()">Confirmer</button>
+      <button class="copy-modal-no" onclick="document.getElementById('copyModalOverlay').classList.remove('open')">Annuler</button>
+    </div>
+  </div>
 </div>
 
 </body>
