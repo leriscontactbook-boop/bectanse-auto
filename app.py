@@ -2,8 +2,8 @@ import os, json, secrets, string, requests, time
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bectanse2026secretkeyprod")
@@ -18,7 +18,7 @@ def get_conn():
     # Railway parfois préfixe avec postgres:// — psycopg2 veut postgresql://
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
-    return psycopg2.connect(url, cursor_factory=RealDictCursor)
+    return psycopg.connect(url, row_factory=dict_row)
 
 def init_db():
     for attempt in range(5):
