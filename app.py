@@ -496,7 +496,7 @@ def health():
 @app.route("/", methods=["GET","POST"])
 def login():
     if "member_code" in session:
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("accueil"))
     error = None
     if request.method == "POST":
         code = request.form.get("code","").strip().upper()
@@ -512,7 +512,7 @@ def login():
                 conn.run("UPDATE members SET last_login=NOW() WHERE code=:c", c=code)
                 conn.close()
             except: pass
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("accueil"))
     return render_template("login.html", error=error)
 
 @app.route("/dashboard")
