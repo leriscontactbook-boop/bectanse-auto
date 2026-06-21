@@ -443,6 +443,15 @@ def save_paiement():
 def service_worker():
     return app.send_static_file("sw.js"), 200, {"Content-Type": "application/javascript"}
 
+@app.route("/formation")
+@login_required
+def formation():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return redirect(url_for("login"))
+    return render_template("formation.html", member=member)
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
