@@ -111,7 +111,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 @keyframes wa-pulse{0%,100%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 0 rgba(37,211,102,0.3)}50%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 10px rgba(37,211,102,0)}}
 
 /* MOBILE */
-.m-topbar,.m-nav{display:none}
+.m-topbar,
 @media(max-width:768px){
   .app{grid-template-columns:1fr}
   .sidebar{display:none}
@@ -121,8 +121,8 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   .fc-features{grid-template-columns:1fr}
   .m-topbar{display:flex;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,10,15,0.97);border-bottom:1px solid rgba(91,33,182,0.2);z-index:200;align-items:center;padding:0 16px;gap:10px;backdrop-filter:blur(20px)}
   .m-topbar-name{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:#fff}
-  .m-nav{display:flex;position:fixed;bottom:0;left:0;right:0;height:68px;background:rgba(10,10,15,0.98);border-top:1px solid rgba(91,33,182,0.2);z-index:200;align-items:stretch;backdrop-filter:blur(20px)}
-  .m-nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:3px;text-decoration:none;color:rgba(255,255,255,0.38);border-top:2px solid transparent;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:8px 2px 10px}
+  
+  
   .m-nav-item .mi{font-size:20px;line-height:1}
   .m-nav-item.active{color:#fff;border-top-color:#5B21B6}
   .wa-float{bottom:78px}
@@ -157,6 +157,11 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   .content { padding-top: 68px !important; }
 }
 
+
+@media(max-width:768px){
+  body { padding-bottom: 78px; }
+  .wa-float { bottom: 78px !important; }
+}
 </style>
 </head>
 <body>
@@ -375,14 +380,6 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   </div>
 </div>
 
-<!-- MOBILE NAV -->
-<nav class="m-nav">
-  <a class="m-nav-item" href="/dashboard"><span class="mi">⚙️</span><span>Paramètres</span></a>
-  <a class="m-nav-item" href="/offres"><span class="mi">🚀</span><span>Upgrader</span></a>
-  <a class="m-nav-item active" href="/formation"><span class="mi">🎓</span><span>Formation</span></a>
-  <a class="m-nav-item" href="/parrainage"><span class="mi">🎁</span><span>Parrainage</span></a>
-  <a class="m-nav-item" href="/faq"><span class="mi">❓</span><span>FAQ</span></a>
-</nav>
 
 <!-- VIDEO MODAL -->
 <div class="modal-overlay" id="videoModal" onclick="closeVideoModal(event)">
@@ -466,5 +463,65 @@ function closePDFModal(e) { if (e.target.id === 'pdfModal') closePDF(); }
 
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
 </script>
+
+<!-- MOBILE NAV UNIVERSELLE -->
+<style>
+.m-univ-nav {
+  display: none;
+}
+@media(max-width:768px){
+  .m-univ-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 68px;
+    background: rgba(10,10,15,0.98);
+    border-top: 1px solid rgba(91,33,182,0.2);
+    z-index: 500;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .m-univ-nav::-webkit-scrollbar { display: none; }
+  .m-univ-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 68px;
+    gap: 3px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.38);
+    border-top: 2px solid transparent;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 8px 4px 10px;
+    white-space: nowrap;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .m-univ-nav-item .mni { font-size: 20px; line-height: 1; }
+  .m-univ-nav-item.active { color: #fff; border-top-color: #5B21B6; }
+  .m-univ-nav-item.gold { color: #F59E0B; }
+}
+</style>
+
+<nav class="m-univ-nav">
+  <a class="m-univ-nav-item  " href="/accueil"><span class="mni">🏠</span><span>Accueil</span></a>
+  <a class="m-univ-nav-item  " href="/dashboard"><span class="mni">⚙️</span><span>Params</span></a>
+  <a class="m-univ-nav-item  gold" href="/offres"><span class="mni">🚀</span><span>Upgrader</span></a>
+  <a class="m-univ-nav-item active " href="/formation"><span class="mni">🎓</span><span>Formation</span></a>
+  <a class="m-univ-nav-item  gold" href="/parrainage"><span class="mni">🎁</span><span>Parrainage</span></a>
+  <a class="m-univ-nav-item  " href="/faq"><span class="mni">❓</span><span>FAQ</span></a>
+  <a class="m-univ-nav-item  " target="_blank" href="https://wa.me/436785328698?text=Bonjour"><span class="mni">💬</span><span>Support</span></a>
+</nav>
+
 </body>
 </html>
