@@ -452,6 +452,43 @@ def formation():
         return redirect(url_for("login"))
     return render_template("formation.html", member=member)
 
+@app.route("/accueil")
+@login_required
+def accueil():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return redirect(url_for("login"))
+    params = member.get("params") or default_params()
+    copy_actif = member.get("copy_actif", True)
+    date_souscription = member.get("date_souscription")
+    date_fin = member.get("date_fin")
+    jours_restants = None
+    statut_abo = "actif"
+    if date_fin:
+        from datetime import datetime
+        now = datetime.now()
+        if hasattr(date_fin, 'year'):
+            delta = date_fin - now
+            jours_restants = max(0, delta.days)
+            if jours_restants == 0: statut_abo = "expiré"
+            elif jours_restants <= 7: statut_abo = "expire_bientot"
+    notif_type    = member.get("notif_type", "") or ""
+    notif_message = member.get("notif_message", "") or ""
+    notif_lue     = member.get("notif_lue", True)
+    afficher_notif = bool(notif_type and notif_message and not notif_lue)
+    return render_template("accueil.html",
+        member=member, params=params,
+        copy_actif=copy_actif,
+        date_souscription=date_souscription,
+        date_fin=date_fin,
+        jours_restants=jours_restants,
+        statut_abo=statut_abo,
+        notif_type=notif_type,
+        notif_message=notif_message,
+        afficher_notif=afficher_notif
+    )
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
