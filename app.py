@@ -868,6 +868,19 @@ def bot_webhook():
                 contenu = text[13:].strip()
                 handle_notif_globale(chat_id, contenu, "maintenance")
 
+            elif text.startswith("/prolonger "):
+                # /prolonger BCT-XXXXXXXX 30
+                parts = text[11:].strip().split(" ", 1)
+                if len(parts) == 2:
+                    code_p = parts[0].strip().upper()
+                    try:
+                        jours = int(parts[1].strip())
+                        handle_prolonger(chat_id, code_p, jours)
+                    except ValueError:
+                        bot_send(chat_id, "❌ Format : /prolonger BCT-XXXXXXXX 30")
+                else:
+                    bot_send(chat_id, "❌ Format : /prolonger BCT-XXXXXXXX 30")
+
             elif text.startswith("/msg "):
                 # /msg BCT-XXXXXXXX texte du message
                 parts = text[5:].strip().split(" ", 1)
@@ -917,6 +930,40 @@ def bot_send(chat_id, text, reply_markup=None):
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json=payload, timeout=5)
     except: pass
+
+
+def handle_prolonger(chat_id, code, jours):
+    """Prolonge l'abonnement d'un membre de X jours"""
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom, date_fin FROM members WHERE code=:c AND actif=TRUE", c=code)
+        if not rows:
+            conn.close()
+            bot_send(chat_id, f"❌ Membre `{code}` introuvable ou inactif.")
+            return
+        nom = rows[0][0]
+        date_fin_actuelle = rows[0][1]
+
+        # Si pas de date_fin, partir d'aujourd'hui
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        if date_fin_actuelle and date_fin_actuelle > now:
+            nouvelle_date = date_fin_actuelle + timedelta(days=jours)
+        else:
+            nouvelle_date = now + timedelta(days=jours)
+
+        conn.run("UPDATE members SET date_fin=:df WHERE code=:c", df=nouvelle_date, c=code)
+        conn.close()
+
+        bot_send(chat_id,
+            f"✅ *Accès prolongé !*\n\n"
+            f"👤 *{nom}*\n"
+            f"🔑 `{code}`\n"
+            f"⏱️ +{jours} jours ajoutés\n"
+            f"📅 Nouvelle expiration : *{nouvelle_date.strftime('%d/%m/%Y')}*"
+        )
+    except Exception as e:
+        bot_send(chat_id, f"❌ Erreur : {e}")
 
 
 def handle_notif_globale(chat_id, contenu, notif_type):
@@ -974,7 +1021,8 @@ def handle_aide(chat_id):
         "📊 *Gestion membres*\n"
         "/membres — Liste tous les membres\n"
         "/stats — Statistiques générales\n"
-        "/supprimer BCT-XXXXXXXX — Supprimer un membre\n\n"
+        "/supprimer BCT-XXXXXXXX — Supprimer un membre\n"
+        "/prolonger BCT-XXXXXXXX 30 — Prolonger l'accès de X jours\n\n"
         "📣 *Notifications globales (tous les membres)*\n"
         "/alerte TEXTE — Bannière rouge urgente 🔴\n"
         "/message TEXTE — Annonce violette 💜\n"
