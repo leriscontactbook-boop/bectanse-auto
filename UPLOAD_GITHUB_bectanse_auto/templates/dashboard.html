@@ -2111,20 +2111,24 @@ async function saveParams() {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     align-items: stretch;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
+  .m-nav::-webkit-scrollbar { display: none; }
   .m-nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;
+    flex: 0 0 68px;
     gap: 4px;
     text-decoration: none;
     color: rgba(255,255,255,0.38);
     border-top: 2px solid transparent;
     transition: all 0.15s;
-    padding: 8px 2px 12px;
+    padding: 8px 4px 12px;
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 9px;
     font-weight: 700;
@@ -2132,6 +2136,7 @@ async function saveParams() {
     text-transform: uppercase;
     line-height: 1;
     cursor: pointer;
+    white-space: nowrap;
   }
   .m-nav-item .mi { font-size: 22px; line-height: 1; }
   .m-nav-item.active {
@@ -2172,7 +2177,7 @@ async function saveParams() {
 <nav class="m-nav" role="navigation">
   <a class="m-nav-item active" href="/dashboard">
     <span class="mi">⚙️</span>
-    <span>Paramètres</span>
+    <span>Params</span>
   </a>
   <a class="m-nav-item gold" href="/offres">
     <span class="mi">🚀</span>
@@ -2181,6 +2186,10 @@ async function saveParams() {
   <a class="m-nav-item" href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20besoin%20d%27assistance." target="_blank">
     <span class="mi">💬</span>
     <span>Support</span>
+  </a>
+  <a class="m-nav-item" href="/formation" style="color:#C4B5FD;">
+    <span class="mi">🎓</span>
+    <span>Formation</span>
   </a>
   <a class="m-nav-item gold" href="/parrainage">
     <span class="mi">🎁</span>
