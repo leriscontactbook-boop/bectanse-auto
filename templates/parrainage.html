@@ -112,7 +112,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .my-code-section::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--purple),var(--gold),transparent)}
 .code-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:16px}
 .code-display{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.code-value{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:0.1em;color:var(--white);background:rgba(255,255,255,0.05);border:1px dashed rgba(91,33,182,0.4);border-radius:12px;padding:12px 24px;flex:1;min-width:200px;text-align:center}
+.code-value{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:0.03em;color:var(--white);background:rgba(255,255,255,0.05);border:1px dashed rgba(91,33,182,0.4);border-radius:12px;padding:14px 16px;text-align:center;flex:1;word-break:break-all;line-height:1.5}
 .code-copy-btn{background:var(--purple);color:#fff;border:none;border-radius:12px;padding:14px 24px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;white-space:nowrap}
 .code-copy-btn:hover{background:#4C1D95;transform:translateY(-2px)}
 
@@ -169,7 +169,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   .palier-right{text-align:left}
   .stats-row{grid-template-columns:1fr 1fr}
   .code-display{flex-direction:column}
-  .code-value{font-size:26px}
+  .code-value{font-size:12px;padding:10px 12px}
 }
 
 /* ── BOUTON RETOUR MOBILE ── */
@@ -267,7 +267,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   <div class="my-code-section fade-up">
     <div class="code-title">🔑 Mon code parrainage personnel</div>
     <div class="code-display">
-      <div class="code-value" id="my-parrain-code">{{ request.host_url }}rejoindre/{{ member.code }}</div>
+      <div class="code-value" id="my-parrain-code">https://bectanse-auto.up.railway.app/rejoindre/{{ member.code }}</div>
       <button class="code-copy-btn" onclick="copyParrainCode()">📋 Copier mon code</button>
     </div>
     <div class="stats-row">
