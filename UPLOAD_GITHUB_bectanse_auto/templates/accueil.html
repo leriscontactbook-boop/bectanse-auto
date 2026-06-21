@@ -105,6 +105,30 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .copy-badge.off .copy-dot{background:#FCA5A5}
 
 /* NOTIFICATION */
+/* APERÇU CANAL VIP */
+.canal-preview-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);align-items:flex-start}
+.canal-preview-item:last-child{border-bottom:none}
+.cpi-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.cpi-dot.signal{background:var(--gold)}
+.cpi-dot.resultat{background:#059669}
+.cpi-dot.alerte{background:#DC2626}
+.cpi-dot.annonce{background:#7C3AED}
+.cpi-dot.message{background:rgba(255,255,255,0.25)}
+.cpi-body{flex:1;min-width:0}
+.cpi-text{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpi-meta{display:flex;align-items:center;gap:6px;margin-top:2px}
+.cpi-type{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.25)}
+.cpi-time{font-size:10px;color:rgba(255,255,255,0.18)}
+.canal-preview-footer{margin-top:12px}
+.canal-voir-tout{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(91,33,182,0.7);text-decoration:none;transition:color 0.15s}
+.canal-voir-tout:hover{color:var(--purple)}
+
+/* NOTIF INLINE dans card compte */
+.notif-inline{margin-top:12px;padding:10px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px}
+.notif-inline-badge{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.notif-inline-msg{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.5}
+.notif-inline-dismiss{margin-top:8px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.25);cursor:pointer;background:none;border:none;padding:0;transition:color 0.15s}
+.notif-inline-dismiss:hover{color:rgba(255,255,255,0.5)}
 .notif-card{background:linear-gradient(135deg,rgba(91,33,182,0.12),rgba(59,7,100,0.08));border:1px solid rgba(91,33,182,0.3)}
 .notif-type-badge{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;padding:2px 10px;border-radius:20px;margin-bottom:10px}
 .notif-msg{font-size:14px;color:rgba(255,255,255,0.85);line-height:1.6;font-weight:500}
@@ -301,6 +325,13 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
           </span>
         </div>
         {% endif %}
+        {% if afficher_notif or notif_message %}
+        <div class="notif-inline" id="notif-inline">
+          <div class="notif-inline-badge">📨 Message personnel</div>
+          <div class="notif-inline-msg">{{ notif_message }}</div>
+          <button class="notif-inline-dismiss" onclick="dismissNotif()">✕ Marquer comme lu</button>
+        </div>
+        {% endif %}
         <div style="margin-top:14px;">
           <a href="/dashboard" class="params-btn" style="font-size:11px;padding:8px 14px;width:100%;text-align:center;display:block;">
             Configurer mes paramètres →
@@ -312,23 +343,21 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
     <!-- ROW 2 : Notification + Actu éco -->
     <div class="dashboard-grid fade-up delay-2">
 
-      <!-- DERNIÈRE NOTIFICATION -->
-      <div class="card notif-card" id="notif-card">
-        <div class="card-label">Dernière notification</div>
-        {% if afficher_notif or notif_message %}
-          {% set notif_colors = {'alerte': 'rgba(220,38,38,0.15)', 'message': 'rgba(91,33,182,0.15)', 'resultat': 'rgba(5,150,105,0.15)', 'maintenance': 'rgba(245,158,11,0.15)', 'individuelle': 'rgba(245,158,11,0.12)'} %}
-          {% set notif_text_colors = {'alerte': '#FCA5A5', 'message': '#C4B5FD', 'resultat': '#6EE7B7', 'maintenance': '#FCD34D', 'individuelle': '#F59E0B'} %}
-          {% set notif_labels = {'alerte': 'Alerte Trading', 'message': 'Message Équipe', 'resultat': 'Performance', 'maintenance': 'Maintenance', 'individuelle': 'Message Personnel'} %}
-          <div id="notif-content">
-            <div class="notif-type-badge" style="background:{{ notif_colors.get(notif_type,'rgba(91,33,182,0.15)') }};color:{{ notif_text_colors.get(notif_type,'#C4B5FD') }};border:1px solid {{ notif_text_colors.get(notif_type,'#C4B5FD') }}33;">
-              {{ notif_labels.get(notif_type, 'Notification') }}
-            </div>
-            <div class="notif-msg">{{ notif_message }}</div>
-            <button class="notif-dismiss-btn" onclick="dismissNotif()">✕ &nbsp;Marquer comme lu</button>
+      <!-- APERÇU CANAL VIP -->
+      <div class="card" style="background:linear-gradient(135deg,rgba(91,33,182,0.1),rgba(59,7,100,0.06));border:1px solid rgba(91,33,182,0.25);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="card-label" style="margin-bottom:0">📡 Canal VIP</div>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <div class="live-dot"></div>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6EE7B7">Live</span>
           </div>
-        {% else %}
-          <div class="no-notif" id="notif-empty">Aucune notification récente.<br>Les messages de l'équipe apparaîtront ici.</div>
-        {% endif %}
+        </div>
+        <div id="canal-preview-list">
+          <div style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;padding:12px 0">Chargement...</div>
+        </div>
+        <div class="canal-preview-footer">
+          <a href="/canal" class="canal-voir-tout">Voir tout le canal →</a>
+        </div>
       </div>
 
       <!-- ACTU ÉCONOMIQUE -->
@@ -526,6 +555,37 @@ function updateDate() {
   heroGreeting.innerHTML = `${greeting}, <span>${name}</span>`;
 }
 
+// ── APERÇU CANAL VIP
+async function loadCanalPreview() {
+  const list = document.getElementById('canal-preview-list');
+  if (!list) return;
+  try {
+    const r = await fetch('/api/canal/messages');
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const msgs = (data.messages || []).slice(0, 3);
+    if (msgs.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;padding:12px 0">Aucun message récent</div>';
+      return;
+    }
+    const TYPE_LABELS = {signal:'Signal',resultat:'Résultat',alerte:'Alerte',annonce:'Annonce',message:'Message'};
+    list.innerHTML = msgs.map(m => {
+      const text = (m.text_content || '🎙️ Audio').substring(0, 80) + (m.text_content && m.text_content.length > 80 ? '…' : '');
+      const heure = new Date(m.sent_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
+      const label = TYPE_LABELS[m.msg_type] || 'Message';
+      return `<div class="canal-preview-item">
+        <div class="cpi-dot ${m.msg_type}"></div>
+        <div class="cpi-body">
+          <div class="cpi-text">${text}</div>
+          <div class="cpi-meta"><span class="cpi-type">${label}</span><span class="cpi-time">${heure}</span></div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch {
+    list.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;padding:12px 0">—</div>';
+  }
+}
+
 // ── ACTU ÉCO — proxy Railway
 async function loadEcoActu() {
   const ecoList = document.getElementById('eco-list');
@@ -566,10 +626,8 @@ async function dismissNotif() {
   try {
     const r = await fetch('/notif/lue', {method:'POST', credentials:'same-origin'});
     if (r.ok) {
-      const content = document.getElementById('notif-content');
-      if (content) {
-        content.innerHTML = '<div class="no-notif">Aucune notification récente.<br>Les messages de l\'équipe apparaîtront ici.</div>';
-      }
+      const inline = document.getElementById('notif-inline');
+      if (inline) inline.style.display = 'none';
     }
   } catch(e) {
     console.error('Erreur dismiss notif:', e);
@@ -586,7 +644,9 @@ document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
 updateDate();
 updateMarket();
 loadEcoActu();
+loadCanalPreview();
 setInterval(updateMarket, 30000);
+setInterval(loadCanalPreview, 30000);
 setInterval(updateDate, 60000);
 
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
