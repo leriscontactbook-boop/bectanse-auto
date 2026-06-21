@@ -1363,7 +1363,7 @@ def canal_webhook():
 
         # Vérifier que c'est bien notre groupe VIP
         chat_id = msg.get("chat", {}).get("id")
-        if chat_id != CANAL_GROUP_ID:
+        if int(chat_id) != int(CANAL_GROUP_ID):
             return jsonify({"ok": True})
 
         tg_msg_id = msg.get("message_id")
@@ -1389,9 +1389,10 @@ def canal_webhook():
         if edited:
             # Mettre à jour le message existant
             conn.run(
-                """UPDATE canal_messages SET text_content=:txt, msg_type=:typ, edited=TRUE
+                """UPDATE canal_messages SET text_content=:txt, msg_type=:typ, edited=TRUE,
+                   photo_url=COALESCE(:photo, photo_url)
                    WHERE tg_msg_id=:mid""",
-                txt=text_content, typ=msg_type, mid=tg_msg_id
+                txt=text_content, typ=msg_type, photo=photo_url, mid=tg_msg_id
             )
         else:
             # Insérer nouveau message (ignorer si doublon)
