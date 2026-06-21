@@ -995,6 +995,54 @@ input[name="objectif_periode"] { display: none; }
   .content { padding-bottom: 90px !important; }
 }
 
+
+/* ── NOTIFICATIONS BOT ── */
+.notif-banner {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 14px; padding: 16px 20px; border-radius: 14px;
+  margin-bottom: 16px; position: relative; overflow: hidden;
+  animation: notif-slide-in 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes notif-slide-in {
+  from { opacity:0; transform:translateY(-12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.notif-banner::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+}
+/* Types */
+.notif-alerte      { background:rgba(220,38,38,0.1);   border:1px solid rgba(220,38,38,0.3); }
+.notif-alerte::before   { background:linear-gradient(90deg,#DC2626,#F87171); }
+.notif-message     { background:rgba(91,33,182,0.12);  border:1px solid rgba(91,33,182,0.35); }
+.notif-message::before  { background:linear-gradient(90deg,#5B21B6,#8B5CF6); }
+.notif-resultat    { background:rgba(5,150,105,0.1);   border:1px solid rgba(5,150,105,0.3); }
+.notif-resultat::before { background:linear-gradient(90deg,#059669,#6EE7B7); }
+.notif-maintenance { background:rgba(245,158,11,0.1);  border:1px solid rgba(245,158,11,0.3); }
+.notif-maintenance::before { background:linear-gradient(90deg,#F59E0B,#FCD34D); }
+.notif-individuelle { background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(245,158,11,0.08)); border:1px solid rgba(245,158,11,0.3); }
+.notif-individuelle::before { background:linear-gradient(90deg,#5B21B6,#F59E0B); }
+
+.notif-icon { font-size:22px; flex-shrink:0; margin-top:1px; }
+.notif-body { flex:1; }
+.notif-label {
+  font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:700;
+  letter-spacing:0.18em; text-transform:uppercase; margin-bottom:4px;
+}
+.notif-alerte .notif-label      { color:#F87171; }
+.notif-message .notif-label     { color:#C4B5FD; }
+.notif-resultat .notif-label    { color:#6EE7B7; }
+.notif-maintenance .notif-label { color:#FCD34D; }
+.notif-individuelle .notif-label { color:#F59E0B; }
+.notif-text {
+  font-size:14px; color:rgba(255,255,255,0.85); line-height:1.6; font-weight:500;
+}
+.notif-close {
+  background:none; border:none; color:rgba(255,255,255,0.3);
+  font-size:18px; cursor:pointer; padding:0 4px; flex-shrink:0;
+  transition:color 0.15s; line-height:1;
+}
+.notif-close:hover { color:rgba(255,255,255,0.7); }
+
 </style>
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#5B21B6">
@@ -1122,6 +1170,20 @@ input[name="objectif_periode"] { display: none; }
     </div>
 
     <div class="content">
+
+
+      {% if afficher_notif %}
+      {% set notif_icons = {'alerte': '🚨', 'message': '📢', 'resultat': '📈', 'maintenance': '🔧', 'individuelle': '💬'} %}
+      {% set notif_labels = {'alerte': 'Alerte Trading', 'message': 'Message Équipe', 'resultat': 'Performance', 'maintenance': 'Maintenance', 'individuelle': 'Message Personnel'} %}
+      <div class="notif-banner notif-{{ notif_type }}" id="notif-banner">
+        <div class="notif-icon">{{ notif_icons.get(notif_type, '📢') }}</div>
+        <div class="notif-body">
+          <div class="notif-label">{{ notif_labels.get(notif_type, 'Notification') }}</div>
+          <div class="notif-text">{{ notif_message }}</div>
+        </div>
+        <button class="notif-close" onclick="fermerNotif()" title="Fermer">×</button>
+      </div>
+      {% endif %}
 
       {% if afficher_alerte %}
       <div class="alerte-banner" id="alerte-banner">
