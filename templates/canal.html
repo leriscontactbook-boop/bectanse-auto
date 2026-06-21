@@ -212,6 +212,22 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   max-width:120px;border-radius:8px;margin-top:8px;opacity:0.7;display:none
 }
 
+/* AUDIO PLAYER */
+.bubble-audio{margin-top:10px}
+.bubble-audio audio{width:100%;max-width:320px;height:36px;border-radius:20px;outline:none;filter:invert(0.05)}
+.bubble-audio audio::-webkit-media-controls-panel{background:rgba(91,33,182,0.2)}
+
+/* BOUTON SUPPRIMER ADMIN */
+.bubble-del-btn{
+  display:none;position:absolute;top:8px;right:10px;
+  width:24px;height:24px;border-radius:6px;border:none;
+  background:rgba(220,38,38,0.15);color:#FCA5A5;
+  font-size:12px;cursor:pointer;transition:all 0.15s;
+  align-items:center;justify-content:center;
+}
+.bubble:hover .bubble-del-btn{display:flex}
+.bubble-del-btn:hover{background:rgba(220,38,38,0.35);color:#fff}
+
 /* EMPTY */
 .empty-feed{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:rgba(255,255,255,0.15)}
 .empty-icon{font-size:48px}
@@ -414,6 +430,8 @@ function buildFeed(msgs){
     const tagHtml = tagLabel ? `<div class="bubble-type-tag ${tagCls}">${tagLabel}</div>` : '';
     const editHtml = m.edited ? '<span class="bubble-edited"> · modifié</span>' : '';
     const imgHtml = m.photo_url ? `<div class="bubble-img"><img src="${m.photo_url}" alt="image" loading="lazy" onerror="this.parentElement.remove()"></div>` : '';
+    const audioHtml = m.audio_url ? `<div class="bubble-audio"><audio controls preload="none"><source src="${m.audio_url}" type="audio/ogg"><source src="${m.audio_url}" type="audio/mpeg">Ton navigateur ne supporte pas l'audio.</audio></div>` : '';
+    const delBtn = IS_ADMIN ? `<button class="bubble-del-btn" onclick="supprimerMsg(${m.id},this)" title="Supprimer">✕</button>` : '';
     const textHtml = m.text_content ? `<div class="bubble-text">${linkify(escHtml(m.text_content))}</div>` : '';
 
     html += `<div class="bubble-wrap with-avatar" data-type="${m.msg_type}" data-id="${m.id}">
@@ -424,7 +442,7 @@ function buildFeed(msgs){
           <span class="bubble-time">${formatTime(m.sent_at)}${editHtml}</span>
         </div>
         <div class="bubble type-${m.msg_type}">
-          ${tagHtml}${textHtml}${imgHtml}
+          ${delBtn}${tagHtml}${textHtml}${imgHtml}${audioHtml}
         </div>
       </div>
     </div>`;
@@ -470,6 +488,26 @@ async function loadFeed(){
     buildFeed(allMsgs);
   }catch(e){
     document.getElementById('chat-feed').innerHTML='<div class="empty-feed"><div class="empty-icon">⚠️</div><div class="empty-txt">Erreur de connexion</div></div>';
+  }
+}
+
+// SUPPRIMER MESSAGE (admin)
+async function supprimerMsg(msgId, btn){
+  if(!confirm('Supprimer ce message du canal et de Telegram ?')) return;
+  btn.disabled = true;
+  try{
+    const r = await fetch(`/api/canal/supprimer/${msgId}`,{method:'POST',credentials:'same-origin'});
+    if(r.ok){
+      // Retirer de allMsgs localement
+      allMsgs = allMsgs.filter(m=>m.id!==msgId);
+      buildFeed(allMsgs);
+    } else {
+      alert('Erreur lors de la suppression');
+      btn.disabled=false;
+    }
+  }catch(e){
+    alert('Erreur réseau');
+    btn.disabled=false;
   }
 }
 
