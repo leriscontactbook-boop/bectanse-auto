@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bectanse AUTO — Formation</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#5B21B6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--dark-2:#111827;--dark-3:#1F2937;--white:#fff;--border:rgba(91,33,182,0.2)}
+html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark);color:var(--white)}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{background:rgba(11,11,20,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-brand{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.sidebar-logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.08em;color:var(--gold)}
+.sidebar-tagline{font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:2px}
+.member-card{margin:10px 12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:14px;position:relative;overflow:hidden;}
+.member-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),var(--gold),var(--purple))}
+.member-top{padding:12px 14px 10px}
+.member-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff}
+.nav{padding:8px 0;flex:1}
+.nav-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);padding:14px 20px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);text-decoration:none;transition:all 0.15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--white);background:rgba(91,33,182,0.1);border-left-color:var(--purple)}
+.nav-item.active{color:var(--white);background:rgba(91,33,182,0.15);border-left-color:var(--purple)}
+.icon{font-size:15px;flex-shrink:0}
+.sidebar-bottom{padding:12px;border-top:1px solid rgba(255,255,255,0.05);margin-top:auto}
+.logout-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,0.3);text-decoration:none;font-size:13px;transition:all 0.15s}
+.logout-btn:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05)}
+
+/* CONTENT */
+.content{padding:36px 40px 60px;max-width:1000px}
+
+/* HEADER */
+.page-header{margin-bottom:36px}
+.page-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:20px;padding:5px 14px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:0.04em;color:var(--white);margin-bottom:6px}
+.page-desc{font-size:14px;color:rgba(255,255,255,0.4);line-height:1.6}
+
+/* SECTION TITLES */
+.section-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.section-label::after{content:'';flex:1;height:1px;background:rgba(245,158,11,0.2)}
+
+/* VIDEOS */
+.videos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:40px}
+.video-card{background:var(--dark-2);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all 0.2s;cursor:pointer}
+.video-card:hover{border-color:rgba(91,33,182,0.5);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.4)}
+.video-thumb{position:relative;padding-top:56.25%;background:#000;overflow:hidden}
+.video-thumb iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+.video-thumb .play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);transition:opacity 0.2s}
+.video-card:hover .play-overlay{opacity:0}
+.play-btn{width:56px;height:56px;background:rgba(245,158,11,0.9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px}
+.video-info{padding:16px}
+.video-num{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.video-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--white);line-height:1.3}
+.video-duration{font-size:11px;color:rgba(255,255,255,0.3);margin-top:6px}
+
+/* PDFS */
+.pdfs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:40px}
+.pdf-card{display:flex;align-items:center;gap:14px;background:var(--dark-2);border:1px solid var(--border);border-radius:14px;padding:16px;text-decoration:none;transition:all 0.2s;position:relative;overflow:hidden}
+.pdf-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--purple),var(--gold))}
+.pdf-card:hover{border-color:rgba(91,33,182,0.5);transform:translateY(-2px);background:rgba(17,24,39,0.9)}
+.pdf-icon{width:44px;height:44px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.pdf-info{flex:1;min-width:0}
+.pdf-num{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:2px}
+.pdf-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--white);line-height:1.3}
+.pdf-size{font-size:10px;color:rgba(255,255,255,0.25);margin-top:3px}
+.pdf-download{color:rgba(91,33,182,0.6);font-size:18px;flex-shrink:0;transition:color 0.15s}
+.pdf-card:hover .pdf-download{color:var(--gold)}
+
+/* VIDEO MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--dark-2);border:1px solid var(--border);border-radius:20px;width:100%;max-width:800px;overflow:hidden}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--white)}
+.modal-close{background:none;border:none;color:rgba(255,255,255,0.4);font-size:24px;cursor:pointer;line-height:1;transition:color 0.15s}
+.modal-close:hover{color:var(--white)}
+.modal-video{position:relative;padding-top:56.25%}
+.modal-video iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+
+/* PROGRESS */
+.progress-bar{background:rgba(255,255,255,0.05);border-radius:10px;height:6px;margin-bottom:32px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));border-radius:10px;transition:width 0.5s ease}
+.progress-label{font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:6px}
+
+/* MOBILE */
+@media(max-width:768px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .content{padding:16px 14px 90px}
+  .videos-grid{grid-template-columns:1fr}
+  .pdfs-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">B€CTAN$€ AUTO</div>
+      <div class="sidebar-tagline">Espace Membre</div>
+    </div>
+    <div class="member-card">
+      <div class="member-top">
+        <div class="member-name">{{ member.nom }}</div>
+        <div style="font-size:12px;color:var(--gold);font-weight:600;margin-top:3px;">💰 {{ member.capital }}</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Navigation</div>
+      <a class="nav-item" href="/dashboard"><span class="icon">⚙️</span> Mes paramètres</a>
+      <a class="nav-item" href="/offres" style="color:#F59E0B;"><span class="icon">🚀</span> Renouveler / Upgrader</a>
+      <a class="nav-item" href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank"><span class="icon">💬</span> Discuter avec un agent</a>
+      <a class="nav-item active" href="/formation"><span class="icon">🎓</span> Formation</a>
+      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span class="icon">🎁</span> Parrainage VIP</a>
+      <a class="nav-item" href="/faq"><span class="icon">❓</span> FAQ & Guide</a>
+      <a class="nav-item" href="/dashboard#historique"><span class="icon">📜</span> Historique</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="logout-btn" href="/logout"><span>🚪</span> Déconnexion</a>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="page-header">
+      <div class="page-badge">🎓 Accès Exclusif Membres</div>
+      <div class="page-title">Formation Bectanse</div>
+      <div class="page-desc">Maîtrise le trading et optimise tes résultats avec nos ressources exclusives.<br>Vidéos, guides PDF et stratégies développées par l'équipe Bectanse.</div>
+    </div>
+
+    <!-- PROGRESSION -->
+    <div class="progress-label" id="progress-label">Progression : 0 / 10 ressources consultées</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+
+    <!-- VIDÉOS -->
+    <div class="section-label">🎬 Vidéos de formation</div>
+    <div class="videos-grid">
+
+      <div class="video-card" onclick="openVideo('xTDauJuGM-0','Comment lancer un trade','5:24')">
+        <div class="video-thumb">
+          <img src="https://img.youtube.com/vi/xTDauJuGM-0/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
+          <div class="play-overlay"><div class="play-btn">▶</div></div>
+        </div>
+        <div class="video-info">
+          <div class="video-num">Vidéo 01</div>
+          <div class="video-title">Comment lancer un trade</div>
+          <div class="video-duration">⏱️ 5:24</div>
+        </div>
+      </div>
+
+      <div class="video-card" onclick="openVideo('Cc7pRmfmP84','Comment sécuriser ses trades','1:35')">
+        <div class="video-thumb">
+          <img src="https://img.youtube.com/vi/Cc7pRmfmP84/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
+          <div class="play-overlay"><div class="play-btn">▶</div></div>
+        </div>
+        <div class="video-info">
+          <div class="video-num">Vidéo 02</div>
+          <div class="video-title">Comment sécuriser ses trades</div>
+          <div class="video-duration">⏱️ 1:35</div>
+        </div>
+      </div>
+
+      <div class="video-card" onclick="openVideo('P6Ikb41wwdc','Comment prendre ses profits','3:14')">
+        <div class="video-thumb">
+          <img src="https://img.youtube.com/vi/P6Ikb41wwdc/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
+          <div class="play-overlay"><div class="play-btn">▶</div></div>
+        </div>
+        <div class="video-info">
+          <div class="video-num">Vidéo 03</div>
+          <div class="video-title">Comment prendre ses profits</div>
+          <div class="video-duration">⏱️ 3:14</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PDFs -->
+    <div class="section-label">📚 Guides PDF exclusifs</div>
+    <div class="pdfs-grid">
+
+      <a class="pdf-card" href="https://drive.google.com/uc?export=download&id=1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6" target="_blank" onclick="trackPDF(1)">
+        <div class="pdf-icon">📄</div>
+        <div class="pdf-info">
+          <div class="pdf-num">PDF 01</div>
+          <div class="pdf-title">Introduction au Trading</div>
+          <div class="pdf-size">17.5 KB</div>
+        </div>
+        <div class="pdf-download">⬇</div>
+      </a>
+
+      <a class="pdf-card" href="https://drive.google.com/uc?export=download&id=1H2XiDg_G8D7e1vSFwgqH6jstJn5pxr-G" target="_blank" onclick="trackPDF(2)">
+        <div class="pdf-icon">📊</div>
+        <div class="pdf-info">
+          <div class="pdf-num">PDF 02</div>
+          <div class="pdf-title">Analyse Technique</div>
+          <div class="pdf-size">14.4 KB</div>
+        </div>
+        <div class="pdf-download">⬇</div>
+      </a>
+
+      <a class="pdf-card" href="https://drive.google.com/uc?export=download&id=1I1UYl2-OO6las6u2gN2FzceHkwybK_iH" target="_blank" onclick="trackPDF(3)">
+        <div class="pdf-icon">🌍</div>
+        <div class="pdf-info">
+          <div class="pdf-num">PDF 03</div>
+          <div class="pdf-title">Analyse Fondamentale</div>
+          <div class="pdf-size">12.4 KB</div>
+        </div>
+        <div class="pdf-download">⬇</div>
+      </a>
+
+      <a class="pdf-card" href="https://drive.google.com/uc?export=download&id=1Low5Nj-km7gQwS3b_eOpj64FZs1TrC9P" target="_blank" onclick="trackPDF(4)">
+        <div class="pdf-icon">🛡️</div>
+        <div class="pdf-info">
+          <div class="pdf-num">PDF 04</div>
+          <div class="pdf-title">Gestion du Risque</div>
+          <div class="pdf-size">11.3 KB</div>
+        </div>
+        <div class="pdf-download">⬇</div>
+      </a>
+
+      <a class="pdf-card" href="https://drive.google.com/uc?export=download&id=1ThwdFM4CJH7Ko52W1XLIWAf7dtlC2CyI" target="_blank" onclick="trackPDF(5)">
+        <div class="pdf-icon">🧠</div>
+        <div class="pdf-info">
+          <div class="pdf-num">PDF 05</div>
+          <div class="pdf-title">Psychologie du Trader</div>
+          <div class="pdf-size">11.1 KB</div>
+        </div>
+        <div class="pdf-download">⬇</div>
+      </a>
+
+      <a class="pdf-card" href="https://drive.google.com/uc?export=download&id=1lFlAlqvoKWq1iIKZpNlWeyQ7XLFn_OYM" target="_blank" onclick="trackPDF(6)">
+        <div class="pdf-icon">⚡</div>
+        <div class="pdf-info">
+          <div class="pdf-num">PDF 06</div>
+          <div class="pdf-title">Stratégies Avancées</div>
+          <div class="pdf-size">12.8 KB</div>
+        </div>
+        <div class="pdf-download">⬇</div>
+      </a>
+
+      <a class="pdf-card" href="https://drive.google.com/uc?export=download&id=1KZGoKND6xIDK1iB8oiDy8BNp26hRKbxD" target="_blank" onclick="trackPDF(7)">
+        <div class="pdf-icon">🎯</div>
+        <div class="pdf-info">
+          <div class="pdf-num">PDF 07</div>
+          <div class="pdf-title">Préparation Pratique</div>
+          <div class="pdf-size">10.4 KB</div>
+        </div>
+        <div class="pdf-download">⬇</div>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<!-- VIDEO MODAL -->
+<div class="modal-overlay" id="videoModal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Vidéo</div>
+      <button class="modal-close" onclick="closeVideoModal()">×</button>
+    </div>
+    <div class="modal-video">
+      <iframe id="modalIframe" src="" allowfullscreen allow="autoplay"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- WA FLOAT -->
+<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" style="position:fixed;bottom:28px;right:28px;z-index:999;width:54px;height:54px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);text-decoration:none;">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+</a>
+
+<script>
+// Progression
+const viewed = JSON.parse(localStorage.getItem('formation_viewed') || '[]');
+function updateProgress() {
+  const total = 10;
+  const pct = Math.round((viewed.length / total) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `Progression : ${viewed.length} / ${total} ressources consultées`;
+}
+updateProgress();
+
+// Vidéo modal
+function openVideo(id, title, duration) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalIframe').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+  document.getElementById('videoModal').classList.add('open');
+  if (!viewed.includes('v_' + id)) {
+    viewed.push('v_' + id);
+    localStorage.setItem('formation_viewed', JSON.stringify(viewed));
+    updateProgress();
+  }
+}
+function closeVideoModal() {
+  document.getElementById('modalIframe').src = '';
+  document.getElementById('videoModal').classList.remove('open');
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('videoModal')) closeVideoModal();
+}
+
+// PDF tracking
+function trackPDF(num) {
+  const key = 'pdf_' + num;
+  if (!viewed.includes(key)) {
+    viewed.push(key);
+    localStorage.setItem('formation_viewed', JSON.stringify(viewed));
+    updateProgress();
+  }
+}
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
