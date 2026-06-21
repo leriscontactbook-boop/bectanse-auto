@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bectanse AUTO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--dark-2:#111827;--dark-3:#1F2937;--white:#fff;--border:rgba(91,33,182,0.2)}
+html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark);color:var(--white);overflow-x:hidden}
+
+/* BG */
+.bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 50% at 50% -5%,rgba(91,33,182,0.35) 0%,transparent 60%),
+             radial-gradient(ellipse 50% 40% at 90% 100%,rgba(245,158,11,0.1) 0%,transparent 55%)}
+
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh;position:relative;z-index:1}
+
+/* SIDEBAR */
+.sidebar{background:rgba(11,11,20,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-brand{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.sidebar-logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.08em;color:var(--gold)}
+.sidebar-tagline{font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:2px}
+.member-card{margin:10px 12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:14px;position:relative;overflow:hidden}
+.member-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),var(--gold),var(--purple))}
+.member-top{padding:12px 14px 10px}
+.member-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff}
+.nav{padding:8px 0;flex:1}
+.nav-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);padding:14px 20px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);text-decoration:none;transition:all 0.15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--white);background:rgba(91,33,182,0.1);border-left-color:var(--purple)}
+.nav-item.active{color:var(--white);background:rgba(91,33,182,0.15);border-left-color:var(--purple)}
+.sidebar-bottom{padding:12px;border-top:1px solid rgba(255,255,255,0.05);margin-top:auto}
+.logout-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,0.3);text-decoration:none;font-size:13px;transition:all 0.15s}
+.logout-btn:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05)}
+
+/* CONTENT */
+.content{padding:36px 40px 60px;max-width:900px}
+
+/* HERO SALUTATION */
+.hero{margin-bottom:28px}
+.hero-date{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:6px}
+.hero-greeting{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:0.03em;color:var(--white);line-height:0.95;margin-bottom:4px}
+.hero-greeting span{color:var(--gold)}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.35)}
+
+/* GRID */
+.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.dashboard-grid.three{grid-template-columns:1fr 1fr 1fr}
+.full-width{grid-column:1/-1}
+
+/* CARDS */
+.card{background:rgba(17,24,39,0.8);border:1px solid var(--border);border-radius:18px;padding:20px;position:relative;overflow:hidden;transition:border-color 0.2s}
+.card:hover{border-color:rgba(91,33,182,0.4)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.card.purple::before{background:linear-gradient(90deg,var(--purple),rgba(91,33,182,0.3))}
+.card.gold::before{background:linear-gradient(90deg,var(--gold),rgba(245,158,11,0.3))}
+.card.green::before{background:linear-gradient(90deg,#059669,rgba(5,150,105,0.3))}
+.card.red::before{background:linear-gradient(90deg,#DC2626,rgba(220,38,38,0.3))}
+.card.teal::before{background:linear-gradient(90deg,#0891B2,rgba(8,145,178,0.3))}
+
+.card-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px}
+
+/* MARCHÉ */
+.market-status{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.market-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.market-dot.open{background:#059669;box-shadow:0 0 8px rgba(5,150,105,0.6);animation:pulse-dot 2s ease-in-out infinite}
+.market-dot.closed{background:#DC2626;box-shadow:0 0 8px rgba(220,38,38,0.4)}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 6px rgba(5,150,105,0.6)}50%{box-shadow:0 0 16px rgba(5,150,105,0.9)}}
+.market-text{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:0.04em}
+.market-text.open{color:#6EE7B7}
+.market-text.closed{color:#FCA5A5}
+.market-detail{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+.market-countdown{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--white);margin-top:4px;letter-spacing:0.06em}
+
+/* SESSION PILLS */
+.sessions{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.session-pill{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.08em;padding:4px 10px;border-radius:20px;border:1px solid}
+.session-pill.active{background:rgba(5,150,105,0.15);color:#6EE7B7;border-color:rgba(5,150,105,0.3)}
+.session-pill.inactive{background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.08)}
+.session-pill.overlap{background:rgba(245,158,11,0.12);color:#FCD34D;border-color:rgba(245,158,11,0.3)}
+
+/* STATUT COMPTE */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{font-size:12px;color:rgba(255,255,255,0.4)}
+.stat-value{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--white)}
+.stat-value.green{color:#6EE7B7}
+.stat-value.gold{color:var(--gold)}
+.stat-value.red{color:#FCA5A5}
+.copy-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700}
+.copy-badge.on{background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3)}
+.copy-badge.off{background:rgba(220,38,38,0.12);color:#FCA5A5;border:1px solid rgba(220,38,38,0.25)}
+.copy-dot{width:6px;height:6px;border-radius:50%}
+.copy-badge.on .copy-dot{background:#6EE7B7}
+.copy-badge.off .copy-dot{background:#FCA5A5}
+
+/* NOTIFICATION */
+.notif-card{background:linear-gradient(135deg,rgba(91,33,182,0.12),rgba(59,7,100,0.08));border:1px solid rgba(91,33,182,0.3)}
+.notif-type-badge{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;padding:2px 10px;border-radius:20px;margin-bottom:10px}
+.notif-msg{font-size:14px;color:rgba(255,255,255,0.85);line-height:1.6;font-weight:500}
+.notif-time{font-size:11px;color:rgba(255,255,255,0.25);margin-top:8px}
+.no-notif{font-size:13px;color:rgba(255,255,255,0.25);font-style:italic}
+
+/* ACTU ECO */
+.eco-list{display:flex;flex-direction:column;gap:8px}
+.eco-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.eco-item:last-child{border-bottom:none}
+.eco-impact{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.eco-impact.high{background:#DC2626}
+.eco-impact.medium{background:#F59E0B}
+.eco-time{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:rgba(255,255,255,0.5);width:40px;flex-shrink:0}
+.eco-currency{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--gold);width:28px;flex-shrink:0}
+.eco-title{font-size:12px;color:rgba(255,255,255,0.7);flex:1;line-height:1.3}
+.eco-loading{font-size:12px;color:rgba(255,255,255,0.25);text-align:center;padding:12px 0}
+
+/* CANAL */
+.canal-card{background:linear-gradient(135deg,rgba(0,136,204,0.1),rgba(0,100,160,0.06));border:1px solid rgba(0,136,204,0.25)}
+.canal-inner{display:flex;align-items:center;gap:14px}
+.canal-icon{width:44px;height:44px;background:rgba(0,136,204,0.15);border:1px solid rgba(0,136,204,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.canal-info{flex:1}
+.canal-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--white)}
+.canal-desc{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px}
+.canal-btn{background:#0088CC;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-block;transition:all 0.2s;flex-shrink:0}
+.canal-btn:hover{background:#0077B5;transform:translateY(-1px)}
+
+/* ACCÈS RAPIDE */
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.quick-item{background:rgba(17,24,39,0.7);border:1px solid var(--border);border-radius:14px;padding:16px 12px;text-align:center;text-decoration:none;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:8px}
+.quick-item:hover{border-color:rgba(91,33,182,0.5);background:rgba(91,33,182,0.08);transform:translateY(-3px)}
+.quick-icon{font-size:24px;line-height:1}
+.quick-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.5)}
+.quick-item:hover .quick-label{color:var(--white)}
+
+/* PARAMÉTRER CTA */
+.params-cta{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.params-cta-text .title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--white);margin-bottom:4px}
+.params-cta-text .desc{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+.params-btn{background:var(--purple);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-block;transition:all 0.2s;white-space:nowrap;flex-shrink:0}
+.params-btn:hover{background:#4C1D95;transform:translateY(-1px)}
+
+/* FADE IN */
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+.delay-1{transition-delay:0.05s}.delay-2{transition-delay:0.1s}.delay-3{transition-delay:0.15s}.delay-4{transition-delay:0.2s}.delay-5{transition-delay:0.25s}
+
+/* MOBILE */
+.m-topbar,.m-nav{display:none}
+.wa-float{position:fixed;bottom:28px;right:28px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);text-decoration:none;animation:wa-pulse 2.5s ease-in-out infinite}
+@keyframes wa-pulse{0%,100%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 0 rgba(37,211,102,0.3)}50%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 10px rgba(37,211,102,0)}}
+
+@media(max-width:768px){
+  .app{display:block}
+  .sidebar{display:none}
+  .content{padding:72px 14px 88px;max-width:100%}
+  .dashboard-grid{grid-template-columns:1fr}
+  .dashboard-grid.three{grid-template-columns:1fr}
+  .quick-grid{grid-template-columns:repeat(4,1fr);gap:8px}
+  .quick-item{padding:12px 8px}
+  .quick-icon{font-size:20px}
+  .quick-label{font-size:10px}
+  .params-cta{flex-direction:column;align-items:flex-start;gap:12px}
+  .hero-greeting{font-size:32px}
+  .m-topbar{display:flex;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,10,15,0.97);border-bottom:1px solid rgba(91,33,182,0.2);z-index:200;align-items:center;justify-content:space-between;padding:0 16px;backdrop-filter:blur(20px)}
+  .m-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:0.06em}
+  .m-member{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:rgba(255,255,255,0.6)}
+  .m-nav{display:flex;position:fixed;bottom:0;left:0;right:0;height:68px;background:rgba(10,10,15,0.98);border-top:1px solid rgba(91,33,182,0.2);z-index:200;align-items:stretch;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;backdrop-filter:blur(20px)}
+  .m-nav::-webkit-scrollbar{display:none}
+  .m-nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 70px;gap:3px;text-decoration:none;color:rgba(255,255,255,0.38);border-top:2px solid transparent;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:8px 4px 10px;white-space:nowrap;transition:all 0.15s}
+  .m-nav-item .mi{font-size:20px;line-height:1}
+  .m-nav-item.active{color:#fff;border-top-color:var(--purple)}
+  .m-nav-item.gold{color:var(--gold)}
+  .wa-float{bottom:78px;width:48px;height:48px}
+}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<!-- MOBILE TOP BAR -->
+<div class="m-topbar">
+  <div class="m-logo">B€CTAN$€</div>
+  <div class="m-member">{{ member.nom.split()[0] }}</div>
+</div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">B€CTAN$€ AUTO</div>
+      <div class="sidebar-tagline">Espace Membre</div>
+    </div>
+    <div class="member-card">
+      <div class="member-top">
+        <div class="member-name">{{ member.nom }}</div>
+        <div style="font-size:12px;color:var(--gold);font-weight:600;margin-top:3px;">💰 {{ member.capital }}</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Navigation</div>
+      <a class="nav-item active" href="/accueil"><span style="font-size:15px">🏠</span> Accueil</a>
+      <a class="nav-item" href="/dashboard"><span style="font-size:15px">⚙️</span> Mes paramètres</a>
+      <a class="nav-item" href="/offres" style="color:#F59E0B;"><span style="font-size:15px">🚀</span> Renouveler / Upgrader</a>
+      <a class="nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span style="font-size:15px">💬</span> Discuter avec un agent</a>
+      <a class="nav-item" href="/formation" style="color:#C4B5FD;"><span style="font-size:15px">🎓</span> Formation</a>
+      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span style="font-size:15px">🎁</span> Parrainage VIP</a>
+      <a class="nav-item" href="/faq"><span style="font-size:15px">❓</span> FAQ & Guide</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="logout-btn" href="/logout"><span>🚪</span> Déconnexion</a>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- HERO -->
+    <div class="hero fade-up">
+      <div class="hero-date" id="hero-date">Chargement...</div>
+      <div class="hero-greeting">Bonjour, <span>{{ member.nom.split()[0] }}</span></div>
+      <div class="hero-sub" id="hero-sub">Bienvenue sur ton espace membre Bectanse AUTO</div>
+    </div>
+
+    <!-- ROW 1 : Marché + Statut compte -->
+    <div class="dashboard-grid fade-up delay-1">
+
+      <!-- MARCHÉ -->
+      <div class="card green" id="market-card">
+        <div class="card-label">Marché XAU/USD</div>
+        <div class="market-status">
+          <div class="market-dot" id="market-dot"></div>
+          <div class="market-text" id="market-text">Chargement...</div>
+        </div>
+        <div class="market-detail" id="market-detail"></div>
+        <div class="market-countdown" id="market-countdown"></div>
+        <div class="sessions" id="sessions-pills"></div>
+      </div>
+
+      <!-- STATUT COMPTE -->
+      <div class="card purple">
+        <div class="card-label">Mon compte</div>
+        <div class="stat-row">
+          <span class="stat-label">Copy Trading</span>
+          <span>
+            <span class="copy-badge {% if copy_actif %}on{% else %}off{% endif %}">
+              <span class="copy-dot"></span>
+              {% if copy_actif %}Actif{% else %}Inactif{% endif %}
+            </span>
+          </span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Capital</span>
+          <span class="stat-value gold">{{ member.capital }}</span>
+        </div>
+        {% if date_fin %}
+        <div class="stat-row">
+          <span class="stat-label">Expiration</span>
+          <span class="stat-value">{{ date_fin.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Jours restants</span>
+          <span class="stat-value {% if statut_abo == 'expiré' %}red{% elif statut_abo == 'expire_bientot' %}gold{% else %}green{% endif %}">
+            {% if statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }}j{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        <div style="margin-top:14px;">
+          <a href="/dashboard" class="params-btn" style="font-size:11px;padding:8px 14px;width:100%;text-align:center;display:block;">
+            Configurer mes paramètres →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2 : Notification + Actu éco -->
+    <div class="dashboard-grid fade-up delay-2">
+
+      <!-- DERNIÈRE NOTIFICATION -->
+      <div class="card notif-card">
+        <div class="card-label">Dernière notification</div>
+        {% if afficher_notif or notif_message %}
+          {% set notif_colors = {'alerte': 'rgba(220,38,38,0.15)', 'message': 'rgba(91,33,182,0.15)', 'resultat': 'rgba(5,150,105,0.15)', 'maintenance': 'rgba(245,158,11,0.15)', 'individuelle': 'rgba(245,158,11,0.12)'} %}
+          {% set notif_text_colors = {'alerte': '#FCA5A5', 'message': '#C4B5FD', 'resultat': '#6EE7B7', 'maintenance': '#FCD34D', 'individuelle': '#F59E0B'} %}
+          {% set notif_labels = {'alerte': 'Alerte Trading', 'message': 'Message Équipe', 'resultat': 'Performance', 'maintenance': 'Maintenance', 'individuelle': 'Message Personnel'} %}
+          <div class="notif-type-badge" style="background:{{ notif_colors.get(notif_type,'rgba(91,33,182,0.15)') }};color:{{ notif_text_colors.get(notif_type,'#C4B5FD') }};border:1px solid {{ notif_text_colors.get(notif_type,'#C4B5FD') }}33;">
+            {{ notif_labels.get(notif_type, 'Notification') }}
+          </div>
+          <div class="notif-msg">{{ notif_message }}</div>
+        {% else %}
+          <div class="no-notif">Aucune notification récente.<br>Les messages de l'équipe apparaîtront ici.</div>
+        {% endif %}
+      </div>
+
+      <!-- ACTU ÉCONOMIQUE -->
+      <div class="card teal">
+        <div class="card-label">Actualité économique du jour</div>
+        <div class="eco-list" id="eco-list">
+          <div class="eco-loading">Chargement des annonces...</div>
+        </div>
+        <div style="margin-top:12px;">
+          <a href="/faq" style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(8,145,178,0.7);text-decoration:none;">Voir la FAQ & Guide →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3 : Canal Telegram + Paramétrer -->
+    <div class="dashboard-grid fade-up delay-3">
+
+      <!-- CANAL TELEGRAM -->
+      <div class="card" style="background:linear-gradient(135deg,rgba(0,136,204,0.08),rgba(0,100,160,0.04));border-color:rgba(0,136,204,0.2);">
+        <div class="card-label">Canal officiel</div>
+        <div class="canal-inner">
+          <div class="canal-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#0088CC"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+          </div>
+          <div class="canal-info">
+            <div class="canal-name">@BECTANSE_ACADEMIE</div>
+            <div class="canal-desc">Signaux, résultats, actualités</div>
+          </div>
+          <a href="https://t.me/BECTANSE_ACADEMIE" target="_blank" class="canal-btn">Rejoindre</a>
+        </div>
+      </div>
+
+      <!-- PARAMÉTRER -->
+      <div class="card gold">
+        <div class="card-label">Configuration</div>
+        <div class="params-cta">
+          <div class="params-cta-text">
+            <div class="title">Paramétrer Bectanse AUTO</div>
+            <div class="desc">Ajuste tes lots, ton drawdown et tes options de copy trading selon ton profil.</div>
+          </div>
+          <a href="/dashboard" class="params-btn">Configurer →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCÈS RAPIDE -->
+    <div class="fade-up delay-4" style="margin-top:4px;">
+      <div class="card-label" style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px;">Accès rapide</div>
+      <div class="quick-grid">
+        <a href="/dashboard" class="quick-item">
+          <div class="quick-icon">⚙️</div>
+          <div class="quick-label">Paramètres</div>
+        </a>
+        <a href="/formation" class="quick-item">
+          <div class="quick-icon">🎓</div>
+          <div class="quick-label">Formation</div>
+        </a>
+        <a href="/parrainage" class="quick-item">
+          <div class="quick-icon">🎁</div>
+          <div class="quick-label">Parrainage</div>
+        </a>
+        <a href="/offres" class="quick-item">
+          <div class="quick-icon">🚀</div>
+          <div class="quick-label">Upgrader</div>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="m-nav">
+  <a class="m-nav-item active" href="/accueil"><span class="mi">🏠</span><span>Accueil</span></a>
+  <a class="m-nav-item" href="/dashboard"><span class="mi">⚙️</span><span>Params</span></a>
+  <a class="m-nav-item" href="/offres"><span class="mi gold">🚀</span><span>Upgrader</span></a>
+  <a class="m-nav-item" href="/formation"><span class="mi">🎓</span><span>Formation</span></a>
+  <a class="m-nav-item" href="/parrainage"><span class="mi">🎁</span><span>Parrainage</span></a>
+  <a class="m-nav-item" href="/faq"><span class="mi">❓</span><span>FAQ</span></a>
+  <a class="m-nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span class="mi">💬</span><span>Support</span></a>
+</nav>
+
+<!-- WA FLOAT -->
+<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+</a>
+
+<script>
+// ── JOURS / MOIS FR
+const JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const MOIS  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+// ── DATE ET HEURE PARIS
+function getNowParis() {
+  return new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
+}
+
+function formatDate(d) {
+  return `${JOURS[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// ── MARCHÉ XAU/USD (heure Paris)
+// Ouvert lundi 01h00 → vendredi 23h00, pause 23h00-00h00 chaque jour
+function getMarketStatus() {
+  const now = getNowParis();
+  const day  = now.getDay(); // 0=dim 1=lun ... 5=ven 6=sam
+  const h    = now.getHours();
+  const m    = now.getMinutes();
+  const timeMin = h * 60 + m;
+
+  // Fermé week-end (sam 23h → lun 01h)
+  if (day === 6) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
+  if (day === 0) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
+  
+  // Lundi avant 01h00
+  if (day === 1 && timeMin < 60) return {open: false, reason: 'Ouverture imminente', nextOpen: 'Lundi à 01h00'};
+  
+  // Vendredi après 23h00
+  if (day === 5 && timeMin >= 23*60) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
+  
+  // Pause nuit 23h00-00h00 (lun-jeu)
+  if (timeMin >= 23*60) return {open: false, reason: 'Pause technique', nextOpen: 'Demain à 00h00'};
+  
+  // Ouvert
+  return {open: true};
+}
+
+function getActiveSessions() {
+  const now = getNowParis();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const t = h * 60 + m;
+  const sessions = [
+    {name:'Tokyo',    start: 1*60,  end: 9*60},
+    {name:'Londres',  start: 9*60,  end:18*60},
+    {name:'New York', start:14*60,  end:23*60},
+  ];
+  return sessions.map(s => ({
+    ...s,
+    active: t >= s.start && t < s.end,
+    overlap: s.name === 'Londres' && t >= 14*60 && t < 18*60
+  }));
+}
+
+function getNextClose() {
+  const now = getNowParis();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const t = h * 60 + m;
+  const day = now.getDay();
+  
+  if (day === 5) {
+    // Vendredi — fermeture à 23h00
+    const closeMin = 23*60;
+    const diff = closeMin - t;
+    if (diff > 0) {
+      const hh = Math.floor(diff/60);
+      const mm = diff % 60;
+      return `Fermeture dans ${hh}h${mm < 10 ? '0'+mm : mm}`;
+    }
+  }
+  // Autres jours — fermeture à 23h00 (pause)
+  const closeMin = 23*60;
+  const diff = closeMin - t;
+  if (diff > 0 && diff < 8*60) {
+    const hh = Math.floor(diff/60);
+    const mm = diff % 60;
+    return `Fermeture dans ${hh}h${mm < 10 ? '0'+mm : mm}`;
+  }
+  return null;
+}
+
+function getTimeUntil(targetH, targetM) {
+  const now = getNowParis();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const targetMin = targetH*60 + targetM;
+  let diff = targetMin - nowMin;
+  if (diff < 0) diff += 24*60;
+  const h = Math.floor(diff/60);
+  const m = diff % 60;
+  return `${h}h ${m < 10 ? '0'+m : m}min`;
+}
+
+// ── UPDATE MARCHÉ
+function updateMarket() {
+  const status = getMarketStatus();
+  const dot    = document.getElementById('market-dot');
+  const text   = document.getElementById('market-text');
+  const detail = document.getElementById('market-detail');
+  const countdown = document.getElementById('market-countdown');
+  const card   = document.getElementById('market-card');
+  const pills  = document.getElementById('sessions-pills');
+
+  if (status.open) {
+    dot.className   = 'market-dot open';
+    text.className  = 'market-text open';
+    text.textContent = 'MARCHÉ OUVERT';
+    card.className  = 'card green';
+
+    const closeMsg = getNextClose();
+    detail.textContent = closeMsg ? closeMsg : 'Session en cours';
+    countdown.textContent = '';
+
+    // Sessions actives
+    const sessions = getActiveSessions();
+    pills.innerHTML = sessions.map(s => {
+      const cls = !s.active ? 'inactive' : (s.overlap ? 'overlap' : 'active');
+      const suffix = s.overlap ? ' ⚡' : '';
+      return `<div class="session-pill ${cls}">${s.name}${suffix}</div>`;
+    }).join('');
+
+  } else {
+    dot.className   = 'market-dot closed';
+    text.className  = 'market-text closed';
+    text.textContent = 'MARCHÉ FERMÉ';
+    card.className  = 'card red';
+    detail.textContent = status.reason;
+    
+    const [th, tm] = status.nextOpen.includes('01h') ? [1,0] : [0,0];
+    const until = getTimeUntil(th, tm);
+    countdown.textContent = `Réouverture dans ${until}`;
+    pills.innerHTML = `<div class="session-pill inactive">Tokyo</div><div class="session-pill inactive">Londres</div><div class="session-pill inactive">New York</div>`;
+  }
+}
+
+// ── UPDATE DATE
+function updateDate() {
+  const now = getNowParis();
+  document.getElementById('hero-date').textContent = formatDate(now);
+  
+  const h = now.getHours();
+  let greeting = 'Bonjour';
+  if (h >= 18) greeting = 'Bonsoir';
+  if (h < 5) greeting = 'Bonne nuit';
+  
+  // Mettre à jour greeting
+  const heroGreeting = document.querySelector('.hero-greeting');
+  const name = heroGreeting.querySelector('span').textContent;
+  heroGreeting.innerHTML = `${greeting}, <span>${name}</span>`;
+}
+
+// ── ACTU ÉCO — depuis notre API Railway
+async function loadEcoActu() {
+  const ecoList = document.getElementById('eco-list');
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const r = await fetch(`https://nfs.faireconomy.media/ff_calendar_thisweek.json`);
+    if (!r.ok) throw new Error('API indisponible');
+    const data = await r.json();
+    
+    const events = data.filter(e => {
+      const d = e.date ? e.date.substring(0,10) : '';
+      return d === today && ['High','Medium'].includes(e.impact);
+    }).slice(0, 5);
+
+    if (events.length === 0) {
+      ecoList.innerHTML = '<div class="eco-loading">Aucune annonce majeure aujourd\'hui ✓</div>';
+      return;
+    }
+
+    ecoList.innerHTML = events.map(e => {
+      let heure = '--:--';
+      try {
+        const dt = new Date(e.date);
+        heure = dt.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Paris'});
+      } catch {}
+      const impactClass = e.impact === 'High' ? 'high' : 'medium';
+      return `<div class="eco-item">
+        <div class="eco-impact ${impactClass}"></div>
+        <div class="eco-time">${heure}</div>
+        <div class="eco-currency">${e.currency || ''}</div>
+        <div class="eco-title">${e.title || ''}</div>
+      </div>`;
+    }).join('');
+  } catch {
+    ecoList.innerHTML = '<div class="eco-loading">Données non disponibles</div>';
+  }
+}
+
+// ── SCROLL ANIMATIONS
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, {threshold: 0.05});
+document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
+
+// ── INIT
+updateDate();
+updateMarket();
+loadEcoActu();
+setInterval(updateMarket, 30000);
+setInterval(updateDate, 60000);
+
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
