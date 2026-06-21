@@ -86,6 +86,9 @@ def init_db():
                 ("paiement_titulaire", "TEXT", "''"),
                 ("paiement_crypto_reseau", "TEXT", "''"),
                 ("paiement_crypto_adresse", "TEXT", "''"),
+                ("notif_type", "TEXT", "''"),
+                ("notif_message", "TEXT", "''"),
+                ("notif_lue", "BOOLEAN", "TRUE"),
                 ("alerte_lue", "BOOLEAN", "TRUE"),
                 ("telegram", "TEXT", "''"),
                 ("email", "TEXT", "''"),
@@ -488,6 +491,12 @@ def dashboard():
             elif jours_restants <= 7: statut_abo = "expire_bientot"
     alerte_lue = member.get("alerte_lue", True)
     afficher_alerte = (not alerte_lue) and jours_restants is not None and jours_restants <= 7
+    # Notification bot
+    notif_type    = member.get("notif_type", "") or ""
+    notif_message = member.get("notif_message", "") or ""
+    notif_lue     = member.get("notif_lue", True)
+    afficher_notif = bool(notif_type and notif_message and not notif_lue)
+
     return render_template("dashboard.html",
         member=member, params=params, historique=hist,
         copy_actif=copy_actif,
@@ -495,7 +504,10 @@ def dashboard():
         date_fin=date_fin,
         jours_restants=jours_restants,
         statut_abo=statut_abo,
-        afficher_alerte=afficher_alerte
+        afficher_alerte=afficher_alerte,
+        notif_type=notif_type,
+        notif_message=notif_message,
+        afficher_notif=afficher_notif
     )
 
 @app.route("/offres")
@@ -589,6 +601,18 @@ def marquer_alerte_lue():
     try:
         conn = get_conn()
         conn.run("UPDATE members SET alerte_lue=TRUE WHERE code=:c", c=code)
+        conn.close()
+        return jsonify({"ok": True})
+    except:
+        return jsonify({"ok": False})
+
+@app.route("/marquer-notif-lue", methods=["POST"])
+@login_required
+def marquer_notif_lue():
+    code = session["member_code"]
+    try:
+        conn = get_conn()
+        conn.run("UPDATE members SET notif_lue=TRUE, notif_message='', notif_type='' WHERE code=:c", c=code)
         conn.close()
         return jsonify({"ok": True})
     except:
@@ -828,6 +852,32 @@ def bot_webhook():
             elif text == "/start" or text == "/aide":
                 handle_aide(chat_id)
 
+            elif text.startswith("/alerte "):
+                contenu = text[8:].strip()
+                handle_notif_globale(chat_id, contenu, "alerte")
+
+            elif text.startswith("/message "):
+                contenu = text[9:].strip()
+                handle_notif_globale(chat_id, contenu, "message")
+
+            elif text.startswith("/resultat "):
+                contenu = text[10:].strip()
+                handle_notif_globale(chat_id, contenu, "resultat")
+
+            elif text.startswith("/maintenance "):
+                contenu = text[13:].strip()
+                handle_notif_globale(chat_id, contenu, "maintenance")
+
+            elif text.startswith("/msg "):
+                # /msg BCT-XXXXXXXX texte du message
+                parts = text[5:].strip().split(" ", 1)
+                if len(parts) == 2:
+                    code_dest = parts[0].strip().upper()
+                    contenu = parts[1].strip()
+                    handle_notif_individuelle(chat_id, code_dest, contenu)
+                else:
+                    bot_send(chat_id, "❌ Format : /msg BCT-XXXXXXXX Ton message ici")
+
         elif callback:
             # Bouton inline cliqué
             chat_id   = str(callback.get("from", {}).get("id", ""))
@@ -869,14 +919,70 @@ def bot_send(chat_id, text, reply_markup=None):
     except: pass
 
 
+def handle_notif_globale(chat_id, contenu, notif_type):
+    """Envoie une notification à TOUS les membres actifs"""
+    if not contenu:
+        bot_send(chat_id, "❌ Message vide.")
+        return
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")
+        total = rows[0][0] if rows else 0
+        conn.run("""UPDATE members 
+                    SET notif_type=:t, notif_message=:m, notif_lue=FALSE 
+                    WHERE actif=TRUE""", t=notif_type, m=contenu)
+        conn.close()
+        icons = {"alerte": "🔴", "message": "💜", "resultat": "🟢", "maintenance": "🔧"}
+        icon = icons.get(notif_type, "📢")
+        bot_send(chat_id, 
+            f"{icon} *Notification envoyée à {total} membres !*\n\n"
+            f"Type : `{notif_type}`\n"
+            f"Message : {contenu}")
+    except Exception as e:
+        bot_send(chat_id, f"❌ Erreur : {e}")
+
+
+def handle_notif_individuelle(chat_id, code_dest, contenu):
+    """Envoie une notification privée à UN membre spécifique"""
+    if not contenu:
+        bot_send(chat_id, "❌ Message vide.")
+        return
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT nom FROM members WHERE code=:c AND actif=TRUE", c=code_dest)
+        if not rows:
+            conn.close()
+            bot_send(chat_id, f"❌ Membre `{code_dest}` introuvable ou inactif.")
+            return
+        nom = rows[0][0]
+        conn.run("""UPDATE members 
+                    SET notif_type='individuelle', notif_message=:m, notif_lue=FALSE 
+                    WHERE code=:c""", m=contenu, c=code_dest)
+        conn.close()
+        bot_send(chat_id,
+            f"✅ *Message envoyé à {nom} !*\n\n"
+            f"Code : `{code_dest}`\n"
+            f"Message : {contenu}")
+    except Exception as e:
+        bot_send(chat_id, f"❌ Erreur : {e}")
+
+
 def handle_aide(chat_id):
     msg = (
         "🤖 *Bectanse AUTO — Bot Admin*\n\n"
         "📋 *Commandes disponibles :*\n\n"
-        "/membres — Liste tous les membres actifs\n"
+        "📊 *Gestion membres*\n"
+        "/membres — Liste tous les membres\n"
         "/stats — Statistiques générales\n"
         "/supprimer BCT-XXXXXXXX — Supprimer un membre\n\n"
-        "💡 Tu peux aussi cliquer sur les boutons inline."
+        "📣 *Notifications globales (tous les membres)*\n"
+        "/alerte TEXTE — Bannière rouge urgente 🔴\n"
+        "/message TEXTE — Annonce violette 💜\n"
+        "/resultat TEXTE — Performance verte 🟢\n"
+        "/maintenance TEXTE — Bannière maintenance 🔧\n\n"
+        "💬 *Message individuel*\n"
+        "/msg BCT-XXXXXXXX TEXTE — Notif privée à un membre\n\n"
+        "💡 Exemple : /alerte BUY XAUUSD — Entrée 2345 TP 2360"
     )
     markup = {"inline_keyboard": [[
         {"text": "📋 Voir les membres", "callback_data": "liste_membres"}
