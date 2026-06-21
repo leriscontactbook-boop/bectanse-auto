@@ -489,6 +489,22 @@ def accueil():
         afficher_notif=afficher_notif
     )
 
+
+@app.route("/api/eco")
+def api_eco():
+    """Proxy backend vers Forex Factory calendar — évite les erreurs CORS côté client."""
+    try:
+        r = requests.get(
+            "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+            timeout=8,
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        r.raise_for_status()
+        data = r.json()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify([]), 200
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
