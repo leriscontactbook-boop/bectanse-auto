@@ -301,6 +301,38 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         {% endif %}
       </div>
 
+      <!-- GOLD LIVE PRICE -->
+      <div class="card" style="background:linear-gradient(135deg,rgba(245,158,11,0.12) 0%,rgba(30,30,50,0.95) 100%);border:1px solid rgba(245,158,11,0.3);padding:0;overflow:hidden;border-radius:14px;margin-bottom:0;">
+        <div style="padding:14px 16px 8px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(245,158,11,0.7);">XAU/USD — Prix en direct</div>
+        <!-- TradingView Widget BEGIN -->
+        <div class="tradingview-widget-container" style="height:120px;">
+          <div id="tradingview_gold"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+          <script type="text/javascript">
+          new TradingView.widget({
+            "width": "100%",
+            "height": 120,
+            "symbol": "OANDA:XAUUSD",
+            "interval": "15",
+            "timezone": "Europe/Paris",
+            "theme": "dark",
+            "style": "1",
+            "locale": "fr",
+            "toolbar_bg": "#0d0d1a",
+            "enable_publishing": false,
+            "hide_top_toolbar": true,
+            "hide_legend": false,
+            "save_image": false,
+            "container_id": "tradingview_gold",
+            "backgroundColor": "rgba(0,0,0,0)",
+            "gridColor": "rgba(255,255,255,0.04)"
+          });
+          </script>
+        </div>
+        <!-- TradingView Widget END -->
+      </div>
+      <!-- FIN GOLD LIVE PRICE -->
+
       <!-- ACTU ÉCONOMIQUE -->
       <div class="card teal">
         <div class="card-label">Actualité économique du jour</div>
@@ -539,7 +571,7 @@ async function loadEcoActu() {
   const ecoList = document.getElementById('eco-list');
   try {
     const today = new Date().toISOString().split('T')[0];
-    const r = await fetch(`https://nfs.faireconomy.media/ff_calendar_thisweek.json`);
+    const r = await fetch(`/api/eco`);
     if (!r.ok) throw new Error('API indisponible');
     const data = await r.json();
     
