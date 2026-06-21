@@ -1313,6 +1313,200 @@ def send_eco_message():
     except Exception as e:
         app.logger.error(f"send_eco_message: {e}")
 
+
+# ── CANAL VIP ─────────────────────────────────────────────────────────────────
+
+CANAL_BOT_TOKEN = "8895323708:AAFNFHv8BXada_wFDnZhh69rKPLKs2oGAco"
+CANAL_GROUP_ID  = -1003605441967
+CANAL_ADMIN_CODE = "BCT-LERIS"  # code membre admin qui peut publier depuis webapp
+
+def detect_msg_type(text):
+    """Détecte automatiquement le type de message selon les mots-clés."""
+    t = (text or "").lower()
+    if any(w in t for w in ["signal","achat","vente","buy","sell","entrée","entry","xau","gold"]):
+        return "signal"
+    if any(w in t for w in ["résultat","result","tp","sl","profit","gain","perte","clôture","fermé","closed","win","loss"]):
+        return "resultat"
+    if any(w in t for w in ["⚠","alerte","urgent","attention","warning","risque"]):
+        return "alerte"
+    if any(w in t for w in ["annonce","important","news","mise à jour","update","info"]):
+        return "annonce"
+    return "message"
+
+def register_canal_webhook():
+    """Enregistre le webhook du bot canal VIP."""
+    try:
+        webhook_url = "https://bectanse-auto.up.railway.app/canal-webhook"
+        r = requests.post(
+            f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/setWebhook",
+            json={"url": webhook_url, "allowed_updates": ["message", "edited_message"]},
+            timeout=10
+        )
+        app.logger.info(f"Canal webhook: {r.json()}")
+    except Exception as e:
+        app.logger.error(f"register_canal_webhook: {e}")
+
+@app.route("/canal-webhook", methods=["POST"])
+def canal_webhook():
+    """Reçoit les messages du groupe VIP Telegram et les stocke en base."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"ok": True})
+
+        # Message nouveau
+        message = data.get("message")
+        edited  = data.get("edited_message")
+        msg     = message or edited
+        if not msg:
+            return jsonify({"ok": True})
+
+        # Vérifier que c'est bien notre groupe VIP
+        chat_id = msg.get("chat", {}).get("id")
+        if chat_id != CANAL_GROUP_ID:
+            return jsonify({"ok": True})
+
+        tg_msg_id = msg.get("message_id")
+        text_content = msg.get("text") or msg.get("caption") or ""
+        msg_type = detect_msg_type(text_content)
+        photo_url = None
+
+        # Photo : récupérer la plus grande taille
+        photos = msg.get("photo")
+        if photos:
+            file_id = photos[-1]["file_id"]
+            try:
+                r = requests.get(
+                    f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
+                    params={"file_id": file_id}, timeout=8
+                )
+                file_path = r.json()["result"]["file_path"]
+                photo_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{file_path}"
+            except:
+                photo_url = None
+
+        conn = get_conn()
+        if edited:
+            # Mettre à jour le message existant
+            conn.run(
+                """UPDATE canal_messages SET text_content=:txt, msg_type=:typ, edited=TRUE
+                   WHERE tg_msg_id=:mid""",
+                txt=text_content, typ=msg_type, mid=tg_msg_id
+            )
+        else:
+            # Insérer nouveau message (ignorer si doublon)
+            conn.run(
+                """INSERT INTO canal_messages (tg_msg_id, text_content, msg_type, photo_url, edited)
+                   VALUES (:mid, :txt, :typ, :photo, FALSE)
+                   ON CONFLICT (tg_msg_id) DO NOTHING""",
+                mid=tg_msg_id, txt=text_content, typ=msg_type, photo=photo_url
+            )
+        conn.close()
+    except Exception as e:
+        app.logger.error(f"canal_webhook: {e}")
+    return jsonify({"ok": True})
+
+@app.route("/api/canal/messages")
+def api_canal_messages():
+    """Retourne les messages du canal VIP (50 derniers, ou après un ID donné)."""
+    if "member_code" not in session:
+        return jsonify({"error": "non connecté"}), 401
+    try:
+        after = request.args.get("after", 0, type=int)
+        conn = get_conn()
+        if after > 0:
+            rows = conn.run(
+                """SELECT id, tg_msg_id, text_content, msg_type, photo_url, edited,
+                          sent_at::text FROM canal_messages
+                   WHERE id > :after ORDER BY id ASC""",
+                after=after
+            )
+        else:
+            rows = conn.run(
+                """SELECT id, tg_msg_id, text_content, msg_type, photo_url, edited,
+                          sent_at::text FROM canal_messages
+                   ORDER BY id DESC LIMIT 50"""
+            )
+        conn.close()
+        msgs = [{"id":r[0],"tg_msg_id":r[1],"text_content":r[2],"msg_type":r[3],
+                 "photo_url":r[4],"edited":r[5],"sent_at":r[6]} for r in rows]
+        return jsonify({"messages": msgs})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/canal/publier", methods=["POST"])
+def api_canal_publier():
+    """Permet à l'admin de publier un message depuis la webapp → stocké + envoyé sur Telegram."""
+    if "member_code" not in session:
+        return jsonify({"error": "non connecté"}), 401
+    code = session["member_code"]
+    member = get_member(code)
+    if not member or code != CANAL_ADMIN_CODE:
+        return jsonify({"error": "non autorisé"}), 403
+
+    text     = request.form.get("text", "").strip()
+    msg_type = request.form.get("msg_type", "message")
+    image    = request.files.get("image")
+    photo_url = None
+
+    try:
+        if image:
+            # Envoyer la photo sur Telegram
+            r = requests.post(
+                f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/sendPhoto",
+                data={"chat_id": CANAL_GROUP_ID, "caption": text, "parse_mode": "Markdown"},
+                files={"photo": (image.filename, image.stream, image.content_type)},
+                timeout=15
+            )
+            res = r.json()
+            if res.get("ok"):
+                tg_msg_id = res["result"]["message_id"]
+                photos = res["result"].get("photo", [])
+                if photos:
+                    file_id = photos[-1]["file_id"]
+                    r2 = requests.get(
+                        f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
+                        params={"file_id": file_id}, timeout=8
+                    )
+                    file_path = r2.json()["result"]["file_path"]
+                    photo_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{file_path}"
+        else:
+            # Envoyer texte sur Telegram
+            r = requests.post(
+                f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/sendMessage",
+                json={"chat_id": CANAL_GROUP_ID, "text": text, "parse_mode": "Markdown"},
+                timeout=10
+            )
+            res = r.json()
+            if res.get("ok"):
+                tg_msg_id = res["result"]["message_id"]
+            else:
+                return jsonify({"error": "Telegram error"}), 500
+
+        # Stocker en base
+        conn = get_conn()
+        conn.run(
+            """INSERT INTO canal_messages (tg_msg_id, text_content, msg_type, photo_url, edited)
+               VALUES (:mid, :txt, :typ, :photo, FALSE)
+               ON CONFLICT (tg_msg_id) DO NOTHING""",
+            mid=tg_msg_id, txt=text, typ=msg_type, photo=photo_url
+        )
+        conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/canal")
+@login_required
+def canal():
+    """Page Canal VIP."""
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return redirect(url_for("login"))
+    is_admin = (code == CANAL_ADMIN_CODE)
+    return render_template("canal.html", member=member, is_admin=is_admin)
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def _startup():
@@ -1322,6 +1516,8 @@ def _startup():
         app.logger.info("DB ready")
         register_webhook()
         app.logger.info("Webhook enregistré")
+        register_canal_webhook()
+        app.logger.info("Canal webhook enregistré")
         # Scheduler calendrier économique 08:00
         from apscheduler.schedulers.background import BackgroundScheduler
         scheduler = BackgroundScheduler(timezone='Europe/Paris')
