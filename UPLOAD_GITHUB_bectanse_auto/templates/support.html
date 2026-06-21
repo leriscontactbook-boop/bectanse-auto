@@ -104,6 +104,11 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   .wa-float { bottom: 80px; }
 }
 
+
+@media(max-width:768px){
+  body { padding-bottom: 78px; }
+  .wa-float { bottom: 78px !important; }
+}
 </style>
 </head>
 <body>
@@ -268,5 +273,65 @@ async function envoyerMessage() {
   }
 }
 </script>
+
+<!-- MOBILE NAV UNIVERSELLE -->
+<style>
+.m-univ-nav {
+  display: none;
+}
+@media(max-width:768px){
+  .m-univ-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 68px;
+    background: rgba(10,10,15,0.98);
+    border-top: 1px solid rgba(91,33,182,0.2);
+    z-index: 500;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .m-univ-nav::-webkit-scrollbar { display: none; }
+  .m-univ-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 68px;
+    gap: 3px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.38);
+    border-top: 2px solid transparent;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 8px 4px 10px;
+    white-space: nowrap;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .m-univ-nav-item .mni { font-size: 20px; line-height: 1; }
+  .m-univ-nav-item.active { color: #fff; border-top-color: #5B21B6; }
+  .m-univ-nav-item.gold { color: #F59E0B; }
+}
+</style>
+
+<nav class="m-univ-nav">
+  <a class="m-univ-nav-item  " href="/accueil"><span class="mni">🏠</span><span>Accueil</span></a>
+  <a class="m-univ-nav-item  " href="/dashboard"><span class="mni">⚙️</span><span>Params</span></a>
+  <a class="m-univ-nav-item  gold" href="/offres"><span class="mni">🚀</span><span>Upgrader</span></a>
+  <a class="m-univ-nav-item  " href="/formation"><span class="mni">🎓</span><span>Formation</span></a>
+  <a class="m-univ-nav-item  gold" href="/parrainage"><span class="mni">🎁</span><span>Parrainage</span></a>
+  <a class="m-univ-nav-item  " href="/faq"><span class="mni">❓</span><span>FAQ</span></a>
+  <a class="m-univ-nav-item active " target="_blank" href="https://wa.me/436785328698?text=Bonjour"><span class="mni">💬</span><span>Support</span></a>
+</nav>
+
 </body>
 </html>
