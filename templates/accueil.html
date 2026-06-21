@@ -85,6 +85,10 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .session-pill.inactive{background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.08)}
 .session-pill.overlap{background:rgba(245,158,11,0.12);color:#FCD34D;border-color:rgba(245,158,11,0.3)}
 
+/* WIDGET TV dans card marché */
+.market-tv-divider{border:none;border-top:1px solid rgba(255,255,255,0.06);margin:14px 0 10px}
+.market-tv-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(245,158,11,0.6);margin-bottom:8px}
+
 /* STATUT COMPTE */
 .stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
 .stat-row:last-child{border-bottom:none}
@@ -106,6 +110,8 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .notif-msg{font-size:14px;color:rgba(255,255,255,0.85);line-height:1.6;font-weight:500}
 .notif-time{font-size:11px;color:rgba(255,255,255,0.25);margin-top:8px}
 .no-notif{font-size:13px;color:rgba(255,255,255,0.25);font-style:italic}
+.notif-dismiss-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:6px 14px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.15s}
+.notif-dismiss-btn:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7)}
 
 /* ACTU ECO */
 .eco-list{display:flex;flex-direction:column;gap:8px}
@@ -149,8 +155,10 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .fade-up.visible{opacity:1;transform:translateY(0)}
 .delay-1{transition-delay:0.05s}.delay-2{transition-delay:0.1s}.delay-3{transition-delay:0.15s}.delay-4{transition-delay:0.2s}.delay-5{transition-delay:0.25s}
 
-/* MOBILE */
-.m-topbar,
+/* MOBILE TOP BAR — séparé du wa-float */
+.m-topbar{display:none}
+
+/* WA FLOAT — bouton WhatsApp flottant */
 .wa-float{position:fixed;bottom:28px;right:28px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);text-decoration:none;animation:wa-pulse 2.5s ease-in-out infinite}
 @keyframes wa-pulse{0%,100%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 0 rgba(37,211,102,0.3)}50%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 10px rgba(37,211,102,0)}}
 
@@ -166,21 +174,11 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   .quick-label{font-size:10px}
   .params-cta{flex-direction:column;align-items:flex-start;gap:12px}
   .hero-greeting{font-size:32px}
-  .m-topbar{display:flex;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,10,15,0.97);border-bottom:1px solid rgba(91,33,182,0.2);z-index:200;align-items:center;justify-content:space-between;padding:0 16px;backdrop-filter:blur(20px)}
+  .m-topbar{display:flex;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,10,15,0.97);border-bottom:1px solid rgba(91,33,182,0.2);z-index:200;align-items:center;justify-content:space-between;padding:0 16px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
   .m-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:0.06em}
   .m-member{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:rgba(255,255,255,0.6)}
-  
-  .m-nav::-webkit-scrollbar{display:none}
-  
-  .m-nav-item .mi{font-size:20px;line-height:1}
-  .m-nav-item.active{color:#fff;border-top-color:var(--purple)}
-  .m-nav-item.gold{color:var(--gold)}
   .wa-float{bottom:78px;width:48px;height:48px}
-}
-
-@media(max-width:768px){
-  body { padding-bottom: 78px; }
-  .wa-float { bottom: 78px !important; }
+  body{padding-bottom:78px}
 }
 </style>
 </head>
@@ -231,10 +229,10 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       <div class="hero-sub" id="hero-sub">Bienvenue sur ton espace membre Bectanse AUTO</div>
     </div>
 
-    <!-- ROW 1 : Marché + Statut compte -->
+    <!-- ROW 1 : Marché (avec Gold live intégré) + Statut compte -->
     <div class="dashboard-grid fade-up delay-1">
 
-      <!-- MARCHÉ -->
+      <!-- MARCHÉ + GOLD LIVE (bloc unifié) -->
       <div class="card green" id="market-card">
         <div class="card-label">Marché XAU/USD</div>
         <div class="market-status">
@@ -244,6 +242,34 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="market-detail" id="market-detail"></div>
         <div class="market-countdown" id="market-countdown"></div>
         <div class="sessions" id="sessions-pills"></div>
+
+        <!-- SÉPARATEUR + WIDGET GOLD -->
+        <hr class="market-tv-divider">
+        <div class="market-tv-label">XAU/USD — Prix en direct</div>
+        <div class="tradingview-widget-container" style="height:130px;margin:0 -4px;">
+          <div id="tradingview_gold"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+          <script type="text/javascript">
+          new TradingView.widget({
+            "width": "100%",
+            "height": 130,
+            "symbol": "OANDA:XAUUSD",
+            "interval": "15",
+            "timezone": "Europe/Paris",
+            "theme": "dark",
+            "style": "1",
+            "locale": "fr",
+            "toolbar_bg": "#0d0d1a",
+            "enable_publishing": false,
+            "hide_top_toolbar": true,
+            "hide_legend": false,
+            "save_image": false,
+            "container_id": "tradingview_gold",
+            "backgroundColor": "rgba(0,0,0,0)",
+            "gridColor": "rgba(255,255,255,0.04)"
+          });
+          </script>
+        </div>
       </div>
 
       <!-- STATUT COMPTE -->
@@ -286,52 +312,23 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
     <div class="dashboard-grid fade-up delay-2">
 
       <!-- DERNIÈRE NOTIFICATION -->
-      <div class="card notif-card">
+      <div class="card notif-card" id="notif-card">
         <div class="card-label">Dernière notification</div>
         {% if afficher_notif or notif_message %}
           {% set notif_colors = {'alerte': 'rgba(220,38,38,0.15)', 'message': 'rgba(91,33,182,0.15)', 'resultat': 'rgba(5,150,105,0.15)', 'maintenance': 'rgba(245,158,11,0.15)', 'individuelle': 'rgba(245,158,11,0.12)'} %}
           {% set notif_text_colors = {'alerte': '#FCA5A5', 'message': '#C4B5FD', 'resultat': '#6EE7B7', 'maintenance': '#FCD34D', 'individuelle': '#F59E0B'} %}
           {% set notif_labels = {'alerte': 'Alerte Trading', 'message': 'Message Équipe', 'resultat': 'Performance', 'maintenance': 'Maintenance', 'individuelle': 'Message Personnel'} %}
-          <div class="notif-type-badge" style="background:{{ notif_colors.get(notif_type,'rgba(91,33,182,0.15)') }};color:{{ notif_text_colors.get(notif_type,'#C4B5FD') }};border:1px solid {{ notif_text_colors.get(notif_type,'#C4B5FD') }}33;">
-            {{ notif_labels.get(notif_type, 'Notification') }}
+          <div id="notif-content">
+            <div class="notif-type-badge" style="background:{{ notif_colors.get(notif_type,'rgba(91,33,182,0.15)') }};color:{{ notif_text_colors.get(notif_type,'#C4B5FD') }};border:1px solid {{ notif_text_colors.get(notif_type,'#C4B5FD') }}33;">
+              {{ notif_labels.get(notif_type, 'Notification') }}
+            </div>
+            <div class="notif-msg">{{ notif_message }}</div>
+            <button class="notif-dismiss-btn" onclick="dismissNotif()">✕ &nbsp;Marquer comme lu</button>
           </div>
-          <div class="notif-msg">{{ notif_message }}</div>
         {% else %}
-          <div class="no-notif">Aucune notification récente.<br>Les messages de l'équipe apparaîtront ici.</div>
+          <div class="no-notif" id="notif-empty">Aucune notification récente.<br>Les messages de l'équipe apparaîtront ici.</div>
         {% endif %}
       </div>
-
-      <!-- GOLD LIVE PRICE -->
-      <div class="card" style="background:linear-gradient(135deg,rgba(245,158,11,0.12) 0%,rgba(30,30,50,0.95) 100%);border:1px solid rgba(245,158,11,0.3);padding:0;overflow:hidden;border-radius:14px;margin-bottom:0;">
-        <div style="padding:14px 16px 8px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(245,158,11,0.7);">XAU/USD — Prix en direct</div>
-        <!-- TradingView Widget BEGIN -->
-        <div class="tradingview-widget-container" style="height:120px;">
-          <div id="tradingview_gold"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-          <script type="text/javascript">
-          new TradingView.widget({
-            "width": "100%",
-            "height": 120,
-            "symbol": "OANDA:XAUUSD",
-            "interval": "15",
-            "timezone": "Europe/Paris",
-            "theme": "dark",
-            "style": "1",
-            "locale": "fr",
-            "toolbar_bg": "#0d0d1a",
-            "enable_publishing": false,
-            "hide_top_toolbar": true,
-            "hide_legend": false,
-            "save_image": false,
-            "container_id": "tradingview_gold",
-            "backgroundColor": "rgba(0,0,0,0)",
-            "gridColor": "rgba(255,255,255,0.04)"
-          });
-          </script>
-        </div>
-        <!-- TradingView Widget END -->
-      </div>
-      <!-- FIN GOLD LIVE PRICE -->
 
       <!-- ACTU ÉCONOMIQUE -->
       <div class="card teal">
@@ -406,7 +403,6 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   </div>
 </div>
 
-
 <!-- WA FLOAT -->
 <a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
@@ -421,42 +417,28 @@ const MOIS  = ['janvier','février','mars','avril','mai','juin','juillet','août
 function getNowParis() {
   return new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
 }
-
 function formatDate(d) {
   return `${JOURS[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// ── MARCHÉ XAU/USD (heure Paris)
-// Ouvert lundi 01h00 → vendredi 23h00, pause 23h00-00h00 chaque jour
+// ── MARCHÉ XAU/USD
 function getMarketStatus() {
   const now = getNowParis();
-  const day  = now.getDay(); // 0=dim 1=lun ... 5=ven 6=sam
+  const day  = now.getDay();
   const h    = now.getHours();
   const m    = now.getMinutes();
   const timeMin = h * 60 + m;
-
-  // Fermé week-end (sam 23h → lun 01h)
   if (day === 6) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
   if (day === 0) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
-  
-  // Lundi avant 01h00
   if (day === 1 && timeMin < 60) return {open: false, reason: 'Ouverture imminente', nextOpen: 'Lundi à 01h00'};
-  
-  // Vendredi après 23h00
   if (day === 5 && timeMin >= 23*60) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
-  
-  // Pause nuit 23h00-00h00 (lun-jeu)
   if (timeMin >= 23*60) return {open: false, reason: 'Pause technique', nextOpen: 'Demain à 00h00'};
-  
-  // Ouvert
   return {open: true};
 }
 
 function getActiveSessions() {
   const now = getNowParis();
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const t = h * 60 + m;
+  const t = now.getHours() * 60 + now.getMinutes();
   const sessions = [
     {name:'Tokyo',    start: 1*60,  end: 9*60},
     {name:'Londres',  start: 9*60,  end:18*60},
@@ -471,25 +453,11 @@ function getActiveSessions() {
 
 function getNextClose() {
   const now = getNowParis();
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const t = h * 60 + m;
+  const t = now.getHours() * 60 + now.getMinutes();
   const day = now.getDay();
-  
-  if (day === 5) {
-    // Vendredi — fermeture à 23h00
-    const closeMin = 23*60;
-    const diff = closeMin - t;
-    if (diff > 0) {
-      const hh = Math.floor(diff/60);
-      const mm = diff % 60;
-      return `Fermeture dans ${hh}h${mm < 10 ? '0'+mm : mm}`;
-    }
-  }
-  // Autres jours — fermeture à 23h00 (pause)
   const closeMin = 23*60;
   const diff = closeMin - t;
-  if (diff > 0 && diff < 8*60) {
+  if (diff > 0 && (day === 5 || diff < 8*60)) {
     const hh = Math.floor(diff/60);
     const mm = diff % 60;
     return `Fermeture dans ${hh}h${mm < 10 ? '0'+mm : mm}`;
@@ -511,41 +479,35 @@ function getTimeUntil(targetH, targetM) {
 // ── UPDATE MARCHÉ
 function updateMarket() {
   const status = getMarketStatus();
-  const dot    = document.getElementById('market-dot');
-  const text   = document.getElementById('market-text');
-  const detail = document.getElementById('market-detail');
-  const countdown = document.getElementById('market-countdown');
-  const card   = document.getElementById('market-card');
-  const pills  = document.getElementById('sessions-pills');
+  const dot      = document.getElementById('market-dot');
+  const text     = document.getElementById('market-text');
+  const detail   = document.getElementById('market-detail');
+  const countdown= document.getElementById('market-countdown');
+  const card     = document.getElementById('market-card');
+  const pills    = document.getElementById('sessions-pills');
 
   if (status.open) {
-    dot.className   = 'market-dot open';
-    text.className  = 'market-text open';
+    dot.className    = 'market-dot open';
+    text.className   = 'market-text open';
     text.textContent = 'MARCHÉ OUVERT';
-    card.className  = 'card green';
-
+    card.className   = 'card green';
     const closeMsg = getNextClose();
     detail.textContent = closeMsg ? closeMsg : 'Session en cours';
     countdown.textContent = '';
-
-    // Sessions actives
     const sessions = getActiveSessions();
     pills.innerHTML = sessions.map(s => {
       const cls = !s.active ? 'inactive' : (s.overlap ? 'overlap' : 'active');
       const suffix = s.overlap ? ' ⚡' : '';
       return `<div class="session-pill ${cls}">${s.name}${suffix}</div>`;
     }).join('');
-
   } else {
-    dot.className   = 'market-dot closed';
-    text.className  = 'market-text closed';
+    dot.className    = 'market-dot closed';
+    text.className   = 'market-text closed';
     text.textContent = 'MARCHÉ FERMÉ';
-    card.className  = 'card red';
+    card.className   = 'card red';
     detail.textContent = status.reason;
-    
     const [th, tm] = status.nextOpen.includes('01h') ? [1,0] : [0,0];
-    const until = getTimeUntil(th, tm);
-    countdown.textContent = `Réouverture dans ${until}`;
+    countdown.textContent = `Réouverture dans ${getTimeUntil(th, tm)}`;
     pills.innerHTML = `<div class="session-pill inactive">Tokyo</div><div class="session-pill inactive">Londres</div><div class="session-pill inactive">New York</div>`;
   }
 }
@@ -554,37 +516,31 @@ function updateMarket() {
 function updateDate() {
   const now = getNowParis();
   document.getElementById('hero-date').textContent = formatDate(now);
-  
   const h = now.getHours();
   let greeting = 'Bonjour';
   if (h >= 18) greeting = 'Bonsoir';
   if (h < 5) greeting = 'Bonne nuit';
-  
-  // Mettre à jour greeting
   const heroGreeting = document.querySelector('.hero-greeting');
   const name = heroGreeting.querySelector('span').textContent;
   heroGreeting.innerHTML = `${greeting}, <span>${name}</span>`;
 }
 
-// ── ACTU ÉCO — depuis notre API Railway
+// ── ACTU ÉCO — proxy Railway
 async function loadEcoActu() {
   const ecoList = document.getElementById('eco-list');
   try {
     const today = new Date().toISOString().split('T')[0];
-    const r = await fetch(`/api/eco`);
+    const r = await fetch('/api/eco');
     if (!r.ok) throw new Error('API indisponible');
     const data = await r.json();
-    
     const events = data.filter(e => {
       const d = e.date ? e.date.substring(0,10) : '';
       return d === today && ['High','Medium'].includes(e.impact);
     }).slice(0, 5);
-
     if (events.length === 0) {
       ecoList.innerHTML = '<div class="eco-loading">Aucune annonce majeure aujourd\'hui ✓</div>';
       return;
     }
-
     ecoList.innerHTML = events.map(e => {
       let heure = '--:--';
       try {
@@ -601,6 +557,21 @@ async function loadEcoActu() {
     }).join('');
   } catch {
     ecoList.innerHTML = '<div class="eco-loading">Données non disponibles</div>';
+  }
+}
+
+// ── DISMISS NOTIFICATION
+async function dismissNotif() {
+  try {
+    const r = await fetch('/notif/lue', {method:'POST', credentials:'same-origin'});
+    if (r.ok) {
+      const content = document.getElementById('notif-content');
+      if (content) {
+        content.innerHTML = '<div class="no-notif">Aucune notification récente.<br>Les messages de l\'équipe apparaîtront ici.</div>';
+      }
+    }
+  } catch(e) {
+    console.error('Erreur dismiss notif:', e);
   }
 }
 
@@ -622,9 +593,7 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
 
 <!-- MOBILE NAV UNIVERSELLE -->
 <style>
-.m-univ-nav {
-  display: none;
-}
+.m-univ-nav { display: none; }
 @media(max-width:768px){
   .m-univ-nav {
     display: flex;
