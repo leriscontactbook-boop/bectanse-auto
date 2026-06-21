@@ -84,7 +84,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .fc-desc{font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:24px;max-width:600px}
 .fc-features{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:28px}
 .fc-feature{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,0.65)}
-.fc-feature::before{content:'⭐';font-size:14px;flex-shrink:0}
+.fc-feature::before{content:'→';font-size:12px;flex-shrink:0;color:var(--gold)}
 .fc-cta{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--gold),#F97316);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:14px 32px;border-radius:12px;border:none;cursor:pointer;text-decoration:none;transition:all 0.2s;box-shadow:0 6px 24px rgba(245,158,11,0.3)}
 .fc-cta:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(245,158,11,0.5)}
 
@@ -129,9 +129,49 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   .modal-pdf iframe{height:55vh}
 }
 @media(max-width:400px){.videos-grid{grid-template-columns:1fr}}
+
+/* MOBILE TOPBAR */
+.m-topbar { display: none; }
+@media(max-width:768px){
+  .m-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    position: fixed; top: 0; left: 0; right: 0; height: 52px;
+    background: rgba(10,10,15,0.97);
+    border-bottom: 1px solid rgba(91,33,182,0.2);
+    padding: 0 16px; z-index: 200;
+    backdrop-filter: blur(20px);
+  }
+  .m-back {
+    width: 32px; height: 32px; display: flex; align-items: center;
+    justify-content: center; color: rgba(255,255,255,0.6);
+    text-decoration: none; border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+  }
+  .m-back:hover { color: #fff; background: rgba(255,255,255,0.1); }
+  .m-topbar-center { flex: 1; text-align: center; }
+  .m-topbar-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .content { padding-top: 68px !important; }
+}
+
 </style>
 </head>
 <body>
+
+<!-- MOBILE TOP BAR -->
+<div class="m-topbar">
+  <a href="/dashboard" class="m-back">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+  </a>
+  <div class="m-topbar-center">
+    <div class="m-topbar-name">Formation</div>
+  </div>
+  <div style="width:32px"></div>
+</div>
+
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -160,20 +200,20 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   </aside>
 
   <div class="content">
-    <div class="page-badge">🎓 Formation incluse — Membres Bectanse AUTO</div>
+    <div class="page-badge">Formation incluse — Membres Bectanse AUTO</div>
     <div class="page-title">Formation de base</div>
     <div class="page-desc">Les fondamentaux pour comprendre et suivre tes trades.<br>Vidéos et guides PDF exclusifs développés par l'équipe Bectanse.</div>
 
     <div class="progress-label" id="progress-label">Progression : 0 / 13 ressources consultées</div>
     <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
 
-    <div class="section-label">🎬 Vidéos de formation</div>
+    <div class="section-label">VIDÉOS DE FORMATION</div>
     <div class="videos-grid">
 
       <div class="video-card" onclick="openVideo('xTDauJuGM-0','Comment lancer un trade','5:26')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/xTDauJuGM-0/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
-          <div class="play-overlay"><div class="play-btn">▶</div></div>
+          <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
           <div class="video-duration-badge">5:26</div>
         </div>
         <div class="video-info">
@@ -184,7 +224,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       <div class="video-card" onclick="openVideo('Cc7pRmfmP84','Comment sécuriser ses trades','1:35')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/Cc7pRmfmP84/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
-          <div class="play-overlay"><div class="play-btn">▶</div></div>
+          <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
           <div class="video-duration-badge">1:35</div>
         </div>
         <div class="video-info">
@@ -195,7 +235,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       <div class="video-card" onclick="openVideo('P6Ikb41wwdc','Comment prendre ses profits','3:14')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/P6Ikb41wwdc/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
-          <div class="play-overlay"><div class="play-btn">▶</div></div>
+          <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
           <div class="video-duration-badge">3:14</div>
         </div>
         <div class="video-info">
@@ -206,7 +246,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       <div class="video-card" onclick="openVideo('H2_4GyTGqYQ','Comprendre le trading en 2 minutes','2:41')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/H2_4GyTGqYQ/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
-          <div class="play-overlay"><div class="play-btn">▶</div></div>
+          <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
           <div class="video-duration-badge">2:41</div>
         </div>
         <div class="video-info">
@@ -217,7 +257,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       <div class="video-card" onclick="openVideo('kzeV1U3wbbU','Les erreurs du débutant','5:21')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/kzeV1U3wbbU/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
-          <div class="play-overlay"><div class="play-btn">▶</div></div>
+          <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
           <div class="video-duration-badge">5:21</div>
         </div>
         <div class="video-info">
@@ -228,7 +268,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       <div class="video-card" onclick="openVideo('PBKDkBsuXm0','À quoi sert le broker ?','1:14')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/PBKDkBsuXm0/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
-          <div class="play-overlay"><div class="play-btn">▶</div></div>
+          <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
           <div class="video-duration-badge">1:14</div>
         </div>
         <div class="video-info">
@@ -238,11 +278,11 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       </div>
     </div>
 
-    <div class="section-label">📚 Guides PDF exclusifs</div>
+    <div class="section-label">GUIDES PDF EXCLUSIFS</div>
     <div class="pdfs-grid">
 
       <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6/preview','Introduction au Trading','https://drive.google.com/uc?export=download&id=1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6')">
-        <div class="pdf-icon">📄</div>
+        <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 01</div>
           <div class="pdf-title">Introduction au Trading</div>
@@ -251,7 +291,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="pdf-arrow">→</div>
       </div>
       <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1H2XiDg_G8D7e1vSFwgqH6jstJn5pxr-G/preview','Analyse Technique','https://drive.google.com/uc?export=download&id=1H2XiDg_G8D7e1vSFwgqH6jstJn5pxr-G')">
-        <div class="pdf-icon">📊</div>
+        <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 02</div>
           <div class="pdf-title">Analyse Technique</div>
@@ -260,7 +300,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="pdf-arrow">→</div>
       </div>
       <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1I1UYl2-OO6las6u2gN2FzceHkwybK_iH/preview','Analyse Fondamentale','https://drive.google.com/uc?export=download&id=1I1UYl2-OO6las6u2gN2FzceHkwybK_iH')">
-        <div class="pdf-icon">🌍</div>
+        <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 03</div>
           <div class="pdf-title">Analyse Fondamentale</div>
@@ -269,7 +309,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="pdf-arrow">→</div>
       </div>
       <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1Low5Nj-km7gQwS3b_eOpj64FZs1TrC9P/preview','Gestion du Risque','https://drive.google.com/uc?export=download&id=1Low5Nj-km7gQwS3b_eOpj64FZs1TrC9P')">
-        <div class="pdf-icon">🛡️</div>
+        <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 04</div>
           <div class="pdf-title">Gestion du Risque</div>
@@ -278,7 +318,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="pdf-arrow">→</div>
       </div>
       <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1ThwdFM4CJH7Ko52W1XLIWAf7dtlC2CyI/preview','Psychologie du Trader','https://drive.google.com/uc?export=download&id=1ThwdFM4CJH7Ko52W1XLIWAf7dtlC2CyI')">
-        <div class="pdf-icon">🧠</div>
+        <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 05</div>
           <div class="pdf-title">Psychologie du Trader</div>
@@ -287,7 +327,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="pdf-arrow">→</div>
       </div>
       <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1lFlAlqvoKWq1iIKZpNlWeyQ7XLFn_OYM/preview','Stratégies Avancées','https://drive.google.com/uc?export=download&id=1lFlAlqvoKWq1iIKZpNlWeyQ7XLFn_OYM')">
-        <div class="pdf-icon">⚡</div>
+        <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 06</div>
           <div class="pdf-title">Stratégies Avancées</div>
@@ -296,7 +336,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="pdf-arrow">→</div>
       </div>
       <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1KZGoKND6xIDK1iB8oiDy8BNp26hRKbxD/preview','Préparation Pratique','https://drive.google.com/uc?export=download&id=1KZGoKND6xIDK1iB8oiDy8BNp26hRKbxD')">
-        <div class="pdf-icon">🎯</div>
+        <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 07</div>
           <div class="pdf-title">Préparation Pratique</div>
@@ -308,7 +348,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 
     <!-- FORMATION COMPLÈTE -->
     <div class="formation-complete">
-      <div class="fc-badge">🔒 Formation Premium</div>
+      <div class="fc-badge">Formation Premium</div>
       <div class="fc-title">Tu veux aller encore plus loin ?</div>
       <div class="fc-desc">
         Cette formation de base t'a donné les fondamentaux. La <strong style="color:#fff;">Formation Complète Bectanse</strong> va beaucoup plus loin — stratégies réelles, analyse en temps réel, mindset avancé. Tout ce qu'il faut pour devenir <strong style="color:var(--gold);">totalement autonome.</strong>
@@ -322,7 +362,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
         <div class="fc-feature">Support personnalisé</div>
       </div>
       <a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20je%20souhaite%20acc%C3%A9der%20%C3%A0%20la%20formation%20compl%C3%A8te." target="_blank" class="fc-cta">
-        🚀 Accéder à la formation complète
+        Accéder à la formation complète →
       </a>
     </div>
   </div>
