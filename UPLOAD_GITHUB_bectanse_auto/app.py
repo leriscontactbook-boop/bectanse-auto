@@ -505,6 +505,24 @@ def api_eco():
     except Exception as e:
         return jsonify([]), 200
 
+
+@app.route("/notif/lue", methods=["POST"])
+def notif_lue():
+    """Marque la notification du membre connecté comme lue."""
+    if "member_code" not in session:
+        return jsonify({"error": "non connecté"}), 401
+    code = session["member_code"]
+    try:
+        conn = get_conn()
+        conn.run(
+            "UPDATE membres SET notif_lue=TRUE WHERE code=:code",
+            code=code
+        )
+        conn.close()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True}), 200
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
