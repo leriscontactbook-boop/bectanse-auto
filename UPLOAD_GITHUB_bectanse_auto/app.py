@@ -1557,6 +1557,32 @@ def canal_diag():
     import json as _json
     return f"<pre style='background:#111;color:#0f0;padding:20px;font-size:13px'>{_json.dumps(results, indent=2, ensure_ascii=False)}</pre>"
 
+
+@app.route("/admin/canal-init-db")
+def canal_init_db():
+    """Force la création de la table canal_messages."""
+    from flask import request as freq
+    key = freq.args.get("key", "")
+    if key != ADMIN_KEY:
+        return "Interdit", 403
+    try:
+        conn = get_conn()
+        conn.run("""
+            CREATE TABLE IF NOT EXISTS canal_messages (
+                id           SERIAL PRIMARY KEY,
+                tg_msg_id    BIGINT UNIQUE,
+                text_content TEXT DEFAULT '',
+                msg_type     TEXT DEFAULT 'message',
+                photo_url    TEXT DEFAULT '',
+                edited       BOOLEAN DEFAULT FALSE,
+                sent_at      TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        conn.close()
+        return "<pre style='background:#111;color:#0f0;padding:20px'>✅ Table canal_messages créée avec succès.</pre>"
+    except Exception as e:
+        return f"<pre style='background:#111;color:#f00;padding:20px'>❌ Erreur: {e}</pre>"
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def _startup():
