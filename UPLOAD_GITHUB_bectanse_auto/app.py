@@ -1507,6 +1507,56 @@ def canal():
     is_admin = (code == CANAL_ADMIN_CODE)
     return render_template("canal.html", member=member, is_admin=is_admin)
 
+
+@app.route("/admin/canal-diag")
+def canal_diag():
+    """Diagnostic du bot canal + force re-register webhook."""
+    from flask import request as freq
+    key = freq.args.get("key", "")
+    if key != ADMIN_KEY:
+        return "Interdit", 403
+    results = {}
+    try:
+        # 1. Statut webhook actuel
+        r = requests.get(
+            f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getWebhookInfo",
+            timeout=8
+        )
+        results["webhook_info"] = r.json()
+    except Exception as e:
+        results["webhook_info"] = str(e)
+    try:
+        # 2. Re-register webhook
+        webhook_url = "https://bectanse-auto.up.railway.app/canal-webhook"
+        r2 = requests.post(
+            f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/setWebhook",
+            json={"url": webhook_url, "allowed_updates": ["message", "edited_message"]},
+            timeout=8
+        )
+        results["set_webhook"] = r2.json()
+    except Exception as e:
+        results["set_webhook"] = str(e)
+    try:
+        # 3. Compter messages en base
+        conn = get_conn()
+        count = conn.run("SELECT COUNT(*) FROM canal_messages")[0][0]
+        conn.close()
+        results["messages_in_db"] = count
+    except Exception as e:
+        results["messages_in_db"] = str(e)
+    try:
+        # 4. Vérifier que le bot est dans le groupe
+        r3 = requests.get(
+            f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getChatMember",
+            params={"chat_id": CANAL_GROUP_ID, "user_id": CANAL_BOT_TOKEN.split(":")[0]},
+            timeout=8
+        )
+        results["bot_in_group"] = r3.json()
+    except Exception as e:
+        results["bot_in_group"] = str(e)
+    import json as _json
+    return f"<pre style='background:#111;color:#0f0;padding:20px;font-size:13px'>{_json.dumps(results, indent=2, ensure_ascii=False)}</pre>"
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def _startup():
