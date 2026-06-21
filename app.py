@@ -65,6 +65,14 @@ def init_db():
                     historique        TEXT DEFAULT '[]'
                 )
             """)
+            # Migration colonnes canal_messages
+            for ccol, ctyp, cdef in [
+                ("audio_url","TEXT","''"),
+                ("deleted","BOOLEAN","FALSE")
+            ]:
+                try:
+                    conn.run(f"ALTER TABLE canal_messages ADD COLUMN IF NOT EXISTS {ccol} {ctyp} DEFAULT {cdef}")
+                except: pass
             for col, typ, default in [
                 ("copy_actif","BOOLEAN","TRUE"),
                 ("date_souscription","TIMESTAMP","NOW()"),
@@ -1354,24 +1362,33 @@ def canal_webhook():
         if not data:
             return jsonify({"ok": True})
 
-        # Message nouveau
         message = data.get("message")
         edited  = data.get("edited_message")
         msg     = message or edited
         if not msg:
             return jsonify({"ok": True})
 
-        # Vérifier que c'est bien notre groupe VIP
         chat_id = msg.get("chat", {}).get("id")
         if int(chat_id) != int(CANAL_GROUP_ID):
             return jsonify({"ok": True})
 
         tg_msg_id = msg.get("message_id")
+
+        # Ignorer les messages de service Telegram
+        is_service = any(k in msg for k in [
+            "new_chat_members","left_chat_member","new_chat_title",
+            "new_chat_photo","delete_chat_photo","group_chat_created",
+            "pinned_message","migrate_to_chat_id","migrate_from_chat_id"
+        ])
+        if is_service:
+            return jsonify({"ok": True})
+
         text_content = msg.get("text") or msg.get("caption") or ""
         msg_type = detect_msg_type(text_content)
         photo_url = None
+        audio_url = None
 
-        # Photo : récupérer la plus grande taille
+        # Photo
         photos = msg.get("photo")
         if photos:
             file_id = photos[-1]["file_id"]
@@ -1385,27 +1402,45 @@ def canal_webhook():
             except:
                 photo_url = None
 
+        # Audio / Message vocal
+        voice = msg.get("voice")
+        audio = msg.get("audio")
+        media = voice or audio
+        if media:
+            file_id = media["file_id"]
+            try:
+                r = requests.get(
+                    f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
+                    params={"file_id": file_id}, timeout=8
+                )
+                file_path = r.json()["result"]["file_path"]
+                audio_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{file_path}"
+                if not text_content:
+                    text_content = "🎙️ Message vocal" if voice else "🎵 Audio"
+            except:
+                audio_url = None
+
         conn = get_conn()
         if edited:
-            # Mettre à jour le message existant
             conn.run(
                 """UPDATE canal_messages SET text_content=:txt, msg_type=:typ, edited=TRUE,
-                   photo_url=COALESCE(:photo, photo_url)
+                   photo_url=COALESCE(:photo, photo_url),
+                   audio_url=COALESCE(:audio, audio_url)
                    WHERE tg_msg_id=:mid""",
-                txt=text_content, typ=msg_type, photo=photo_url, mid=tg_msg_id
+                txt=text_content, typ=msg_type, photo=photo_url, audio=audio_url, mid=tg_msg_id
             )
         else:
-            # Insérer nouveau message (ignorer si doublon)
             conn.run(
-                """INSERT INTO canal_messages (tg_msg_id, text_content, msg_type, photo_url, edited)
-                   VALUES (:mid, :txt, :typ, :photo, FALSE)
+                """INSERT INTO canal_messages (tg_msg_id, text_content, msg_type, photo_url, audio_url, edited)
+                   VALUES (:mid, :txt, :typ, :photo, :audio, FALSE)
                    ON CONFLICT (tg_msg_id) DO NOTHING""",
-                mid=tg_msg_id, txt=text_content, typ=msg_type, photo=photo_url
+                mid=tg_msg_id, txt=text_content, typ=msg_type, photo=photo_url, audio=audio_url
             )
         conn.close()
     except Exception as e:
         app.logger.error(f"canal_webhook: {e}")
     return jsonify({"ok": True})
+
 
 @app.route("/api/canal/messages")
 def api_canal_messages():
@@ -1417,21 +1452,46 @@ def api_canal_messages():
         conn = get_conn()
         if after > 0:
             rows = conn.run(
-                """SELECT id, tg_msg_id, text_content, msg_type, photo_url, edited,
+                """SELECT id, tg_msg_id, text_content, msg_type, photo_url, audio_url, edited,
                           sent_at::text FROM canal_messages
-                   WHERE id > :after ORDER BY id ASC""",
+                   WHERE id > :after AND (deleted IS NULL OR deleted=FALSE) ORDER BY id ASC""",
                 after=after
             )
         else:
             rows = conn.run(
-                """SELECT id, tg_msg_id, text_content, msg_type, photo_url, edited,
+                """SELECT id, tg_msg_id, text_content, msg_type, photo_url, audio_url, edited,
                           sent_at::text FROM canal_messages
-                   ORDER BY id DESC LIMIT 50"""
+                   WHERE (deleted IS NULL OR deleted=FALSE) ORDER BY id DESC LIMIT 50"""
             )
         conn.close()
         msgs = [{"id":r[0],"tg_msg_id":r[1],"text_content":r[2],"msg_type":r[3],
-                 "photo_url":r[4],"edited":r[5],"sent_at":r[6]} for r in rows]
+                 "photo_url":r[4],"audio_url":r[5],"edited":r[6],"sent_at":r[7]} for r in rows]
         return jsonify({"messages": msgs})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/canal/supprimer/<int:msg_id>", methods=["POST"])
+def api_canal_supprimer(msg_id):
+    """Supprime un message du canal webapp + Telegram."""
+    if "member_code" not in session:
+        return jsonify({"error": "non connecté"}), 401
+    if session["member_code"] != CANAL_ADMIN_CODE:
+        return jsonify({"error": "non autorisé"}), 403
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT tg_msg_id FROM canal_messages WHERE id=:id", id=msg_id)
+        if rows:
+            tg_id = rows[0][0]
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/deleteMessage",
+                    json={"chat_id": CANAL_GROUP_ID, "message_id": tg_id},
+                    timeout=8
+                )
+            except: pass
+        conn.run("UPDATE canal_messages SET deleted=TRUE WHERE id=:id", id=msg_id)
+        conn.close()
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
