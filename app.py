@@ -75,6 +75,29 @@ def init_db():
                 try:
                     conn.run(f"ALTER TABLE members ADD COLUMN IF NOT EXISTS {col} {typ} DEFAULT {default}")
                 except: pass
+            # Migration robuste — ajouter toutes les colonnes une par une
+            cols_to_add = [
+                ("parrain_code", "TEXT", "''"),
+                ("filleuls_count", "INTEGER", "0"),
+                ("gains_parrainage", "INTEGER", "0"),
+                ("paiement_type", "TEXT", "''"),
+                ("paiement_iban", "TEXT", "''"),
+                ("paiement_bic", "TEXT", "''"),
+                ("paiement_titulaire", "TEXT", "''"),
+                ("paiement_crypto_reseau", "TEXT", "''"),
+                ("paiement_crypto_adresse", "TEXT", "''"),
+                ("alerte_lue", "BOOLEAN", "TRUE"),
+                ("telegram", "TEXT", "''"),
+                ("email", "TEXT", "''"),
+                ("telephone", "TEXT", "''"),
+                ("copy_actif", "BOOLEAN", "TRUE"),
+                ("date_souscription", "TIMESTAMP", "NOW()"),
+                ("date_fin", "TIMESTAMP", "NOW() + INTERVAL \'30 days\'"),
+            ]
+            for col, typ, default in cols_to_add:
+                try:
+                    conn.run(f"ALTER TABLE members ADD COLUMN IF NOT EXISTS {col} {typ} DEFAULT {default}")
+                except: pass
             conn.close()
             return True
         except Exception as e:
@@ -598,11 +621,17 @@ def inscription():
     try:
         conn = get_conn()
         parrain_ref = data.get("parrain_code","").strip().upper()
+        # Insérer sans parrain_code d'abord (colonne peut ne pas exister encore)
         conn.run(
-            "INSERT INTO members (code,nom,capital,email,telephone,telegram,parrain_code,params,historique) VALUES (:c,:n,:cap,:e,:t,:tg,:pr,:p,:h)",
+            "INSERT INTO members (code,nom,capital,email,telephone,telegram,params,historique) VALUES (:c,:n,:cap,:e,:t,:tg,:p,:h)",
             c=code, n=nom_complet, cap=capital, e=email, t=telephone, tg=telegram,
-            pr=parrain_ref, p=json.dumps(default_params()), h=json.dumps([])
+            p=json.dumps(default_params()), h=json.dumps([])
         )
+        # Essayer de mettre à jour parrain_code si la colonne existe
+        if parrain_ref:
+            try:
+                conn.run("UPDATE members SET parrain_code=:pr WHERE code=:c", pr=parrain_ref, c=code)
+            except: pass
         # Créditer le parrain si code valide
         if parrain_ref:
             try:
