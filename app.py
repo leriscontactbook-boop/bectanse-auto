@@ -12,6 +12,8 @@ ADMIN_ID   = os.environ.get("ADMIN_ID",   "6164373751")
 ADMIN_KEY  = os.environ.get("ADMIN_KEY",  "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
+ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "8565312655:AAFyfFQvKEiFtFJYA0yDQE1bLdH8N50UX4c")
+ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
 GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
 
 # ── DB ────────────────────────────────────────────────────────────────────────
@@ -1140,6 +1142,97 @@ def register_webhook():
         )
     except: pass
 
+
+# ── BOT CALENDRIER ÉCONOMIQUE ─────────────────────────────────────────────────
+
+IMPACT_ICONS = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}
+FLAG_MAP = {
+    "USD":"🇺🇸","EUR":"🇪🇺","GBP":"🇬🇧","JPY":"🇯🇵",
+    "AUD":"🇦🇺","CAD":"🇨🇦","CHF":"🇨🇭","NZD":"🇳🇿","CNY":"🇨🇳"
+}
+JOURS_FR = {"Monday":"Lundi","Tuesday":"Mardi","Wednesday":"Mercredi",
+    "Thursday":"Jeudi","Friday":"Vendredi","Saturday":"Samedi","Sunday":"Dimanche"}
+MOIS_FR = {"January":"janvier","February":"février","March":"mars","April":"avril",
+    "May":"mai","June":"juin","July":"juillet","August":"août",
+    "September":"septembre","October":"octobre","November":"novembre","December":"décembre"}
+
+def get_eco_calendar():
+    try:
+        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+        r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        if r.status_code != 200:
+            return []
+        data = r.json()
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        events = []
+        for event in data:
+            try:
+                event_date = event.get("date","")[:10]
+                if event_date == today_str and event.get("impact") in ["High","Medium"]:
+                    events.append(event)
+            except: pass
+        return sorted(events, key=lambda x: x.get("date",""))
+    except Exception as e:
+        app.logger.error(f"eco_calendar: {e}")
+        return []
+
+def send_eco_message():
+    try:
+        events = get_eco_calendar()
+        now = datetime.now()
+        date_fr = now.strftime("%A %d %B %Y")
+        for en, fr in JOURS_FR.items(): date_fr = date_fr.replace(en, fr)
+        for en, fr in MOIS_FR.items(): date_fr = date_fr.replace(en, fr)
+        date_fr = date_fr.capitalize()
+
+        if not events:
+            msg = (
+                f"📅 *CALENDRIER ÉCONOMIQUE — {date_fr}*\n\n"
+                f"✅ Aucune annonce majeure aujourd\'hui.\n"
+                f"Journée calme — trading normal.\n\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"🔥 *Bectanse AUTO — Copy Trading Automatique*"
+            )
+        else:
+            high_count = sum(1 for e in events if e.get("impact") == "High")
+            msg = f"📅 *CALENDRIER ÉCONOMIQUE — {date_fr}*\n\n"
+            if high_count > 0:
+                msg += f"⚠️ *{high_count} annonce(s) à fort impact*\n\n"
+            for event in events:
+                try:
+                    currency = event.get("currency","")
+                    title = event.get("title","")
+                    impact = event.get("impact","Low")
+                    forecast = event.get("forecast","—") or "—"
+                    previous = event.get("previous","—") or "—"
+                    date_str = event.get("date","")
+                    try:
+                        from datetime import timezone
+                        dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S%z")
+                        heure = dt.strftime("%H:%M")
+                    except:
+                        heure = "—"
+                    flag = FLAG_MAP.get(currency, "🌐")
+                    icon = IMPACT_ICONS.get(impact,"⚪")
+                    msg += f"{icon} *{heure}* {flag} {title}\n"
+                    if forecast != "—":
+                        msg += f"   Prévision: `{forecast}` | Précédent: `{previous}`\n"
+                    msg += "\n"
+                except: pass
+            msg += "━━━━━━━━━━━━━━━\n"
+            msg += "🔴 Fort impact  🟡 Moyen impact\n\n"
+            msg += "🔥 *Bectanse AUTO — Copy Trading Automatique*\n"
+            msg += "📲 bectanse-auto.up.railway.app"
+
+        requests.post(
+            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/sendMessage",
+            json={"chat_id": ECO_CANAL, "text": msg, "parse_mode": "Markdown"},
+            timeout=10
+        )
+        app.logger.info("Calendrier économique envoyé")
+    except Exception as e:
+        app.logger.error(f"send_eco_message: {e}")
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def _startup():
@@ -1149,6 +1242,12 @@ def _startup():
         app.logger.info("DB ready")
         register_webhook()
         app.logger.info("Webhook enregistré")
+        # Scheduler calendrier économique 08:00
+        from apscheduler.schedulers.background import BackgroundScheduler
+        scheduler = BackgroundScheduler(timezone='Europe/Paris')
+        scheduler.add_job(send_eco_message, 'cron', hour=8, minute=0)
+        scheduler.start()
+        app.logger.info("Scheduler calendrier démarré")
     except Exception as e:
         app.logger.error(f"startup: {e}")
 
