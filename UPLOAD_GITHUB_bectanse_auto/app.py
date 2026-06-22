@@ -1279,7 +1279,7 @@ def send_eco_message():
                 f"✅ Aucune annonce majeure aujourd\'hui.\n"
                 f"Journée calme — trading normal.\n\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"🔥 *Bectanse AUTO — Copy Trading Automatique*"
+                f"🔥 *Bectanse AUTO — Copy Trading Automatique*\n📲 bectanse-academie.com/lerisluketoVIP"
             )
         else:
             high_count = sum(1 for e in events if e.get("impact") == "High")
