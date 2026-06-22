@@ -1768,6 +1768,101 @@ def push_init_db():
     except Exception as e:
         return f"<pre style='background:#111;color:#f00;padding:20px'>❌ Erreur: {e}</pre>"
 
+
+# ── RELANCES AUTOMATIQUES EMAIL ───────────────────────────────────────────────
+
+def send_email(to, subject, html_body):
+    """Envoie un email via GMAIL."""
+    if not GMAIL_USER or not GMAIL_PASS or not to:
+        return False
+    try:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"Bectanse AUTO <{GMAIL_USER}>"
+        msg["To"]      = to
+        msg.attach(MIMEText(html_body, "html"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(GMAIL_USER, GMAIL_PASS)
+            server.sendmail(GMAIL_USER, to, msg.as_string())
+        return True
+    except Exception as e:
+        app.logger.error(f"send_email to {to}: {e}")
+        return False
+
+def email_relance_html(nom, jours, lien_renouvellement):
+    """Génère le HTML de l'email de relance."""
+    if jours > 0:
+        subject = f"⚠️ Ton abonnement Bectanse AUTO expire dans {jours} jour{'s' if jours > 1 else ''}"
+        headline = f"Ton accès expire dans <span style='color:#F59E0B'>{jours} jour{'s' if jours > 1 else ''}</span>"
+        msg = "Ne laisse pas ton copy trading s'arrêter. Renouvelle maintenant pour continuer à profiter des signaux XAU/USD en temps réel."
+        cta = "Renouveler mon abonnement →"
+        color = "#F59E0B" if jours <= 3 else "#5B21B6"
+    else:
+        subject = "❌ Ton abonnement Bectanse AUTO a expiré"
+        headline = "Ton accès <span style='color:#EF4444'>a expiré</span>"
+        msg = "Ton abonnement Bectanse AUTO est terminé. Reprends maintenant pour ne manquer aucun signal et continuer le copy trading sur l'or."
+        cta = "Réactiver mon accès →"
+        color = "#EF4444"
+
+    return subject, f"""
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0A0A14;font-family:Arial,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:28px;font-weight:900;letter-spacing:0.05em;color:#F59E0B;">B€CTAN$€ AUTO</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:0.2em;text-transform:uppercase;margin-top:4px;">Copy Trading XAU/USD</div>
+    </div>
+    <!-- Card -->
+    <div style="background:#111827;border-radius:16px;padding:28px;border:1px solid rgba(91,33,182,0.3);border-top:3px solid {color};">
+      <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:12px;">Bonjour {nom} 👋</div>
+      <div style="font-size:18px;color:rgba(255,255,255,0.85);margin-bottom:16px;line-height:1.5;">{headline}</div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.55);line-height:1.7;margin-bottom:24px;">{msg}</div>
+      <!-- CTA -->
+      <div style="text-align:center;">
+        <a href="{lien_renouvellement}" style="display:inline-block;background:{color};color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:0.05em;">{cta}</a>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="text-align:center;margin-top:24px;font-size:11px;color:rgba(255,255,255,0.2);">
+      Bectanse AUTO — bectanse-auto.up.railway.app<br>
+      Tu reçois cet email car tu es membre Bectanse AUTO.
+    </div>
+  </div>
+</body>
+</html>"""
+
+def check_and_send_relances():
+    """Vérifie chaque matin les abonnements et envoie les emails de relance."""
+    try:
+        conn = get_conn()
+        membres = conn.run(
+            """SELECT code, nom, email, date_fin FROM membres
+               WHERE actif=TRUE AND email != '' AND date_fin IS NOT NULL"""
+        )
+        conn.close()
+        lien = "https://bectanse-auto.up.railway.app/offres"
+        sent = 0
+        for code, nom, email, date_fin in membres:
+            if not email or not date_fin:
+                continue
+            from datetime import date as _date
+            now = datetime.now()
+            jours = (date_fin.date() - now.date()).days if hasattr(date_fin, 'date') else (date_fin - now).days
+            if jours in (7, 3, 1, 0):
+                subject, html = email_relance_html(nom.split()[0], jours, lien)
+                if send_email(email, subject, html):
+                    sent += 1
+                    app.logger.info(f"Relance J{jours} envoyée à {email}")
+        app.logger.info(f"check_relances: {sent} emails envoyés")
+    except Exception as e:
+        app.logger.error(f"check_and_send_relances: {e}")
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def _startup():
@@ -1783,6 +1878,7 @@ def _startup():
         from apscheduler.schedulers.background import BackgroundScheduler
         scheduler = BackgroundScheduler(timezone='Europe/Paris')
         scheduler.add_job(send_eco_message, 'cron', hour=8, minute=0)
+        scheduler.add_job(check_and_send_relances, 'cron', hour=9, minute=0)
         scheduler.start()
         app.logger.info("Scheduler calendrier démarré")
     except Exception as e:
