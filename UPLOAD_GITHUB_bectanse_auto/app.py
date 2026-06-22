@@ -64,6 +64,16 @@ def init_db():
                     paiement_type     TEXT DEFAULT '',
                     historique        TEXT DEFAULT '[]'
                 )
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS push_subscriptions (
+                    id          SERIAL PRIMARY KEY,
+                    member_code TEXT NOT NULL,
+                    endpoint    TEXT UNIQUE NOT NULL,
+                    p256dh      TEXT NOT NULL,
+                    auth        TEXT NOT NULL,
+                    created_at  TIMESTAMP DEFAULT NOW()
+                )
+            """)
             """)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
@@ -1322,11 +1332,93 @@ def send_eco_message():
         app.logger.error(f"send_eco_message: {e}")
 
 
+
+# ── WEB PUSH ──────────────────────────────────────────────────────────────────
+
+@app.route("/api/push/vapid-public")
+def vapid_public():
+    return jsonify({"key": VAPID_PUBLIC})
+
+@app.route("/api/push/subscribe", methods=["POST"])
+def push_subscribe():
+    if "member_code" not in session:
+        return jsonify({"error": "non connecté"}), 401
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "pas de données"}), 400
+    code     = session["member_code"]
+    endpoint = data.get("endpoint", "")
+    p256dh   = data.get("keys", {}).get("p256dh", "")
+    auth_key = data.get("keys", {}).get("auth", "")
+    if not endpoint or not p256dh or not auth_key:
+        return jsonify({"error": "données incomplètes"}), 400
+    try:
+        conn = get_conn()
+        conn.run(
+            """INSERT INTO push_subscriptions (member_code, endpoint, p256dh, auth)
+               VALUES (:code, :ep, :p256dh, :auth)
+               ON CONFLICT (endpoint) DO UPDATE SET
+               member_code=:code, p256dh=:p256dh, auth=:auth""",
+            code=code, ep=endpoint, p256dh=p256dh, auth=auth_key
+        )
+        conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/push/unsubscribe", methods=["POST"])
+def push_unsubscribe():
+    data = request.get_json()
+    if data and data.get("endpoint"):
+        try:
+            conn = get_conn()
+            conn.run("DELETE FROM push_subscriptions WHERE endpoint=:ep", ep=data["endpoint"])
+            conn.close()
+        except: pass
+    return jsonify({"ok": True})
+
+def send_push_to_all(title, body, url="/canal"):
+    """Envoie une Web Push à tous les membres abonnés."""
+    try:
+        from pywebpush import webpush, WebPushException
+        conn = get_conn()
+        subs = conn.run("SELECT endpoint, p256dh, auth FROM push_subscriptions")
+        conn.close()
+        if not subs:
+            return
+        payload = json.dumps({"title": title, "body": body, "url": url})
+        dead = []
+        for ep, p256dh, auth_key in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": ep, "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    data=payload,
+                    vapid_private_key=VAPID_PRIVATE,
+                    vapid_claims=VAPID_CLAIMS
+                )
+            except WebPushException as ex:
+                if ex.response and ex.response.status_code in (404, 410):
+                    dead.append(ep)
+            except Exception:
+                pass
+        if dead:
+            conn2 = get_conn()
+            for ep in dead:
+                try:
+                    conn2.run("DELETE FROM push_subscriptions WHERE endpoint=:ep", ep=ep)
+                except: pass
+            conn2.close()
+    except Exception as e:
+        app.logger.error(f"send_push_to_all: {e}")
+
 # ── CANAL VIP ─────────────────────────────────────────────────────────────────
 
 CANAL_BOT_TOKEN = "8895323708:AAFNFHv8BXada_wFDnZhh69rKPLKs2oGAco"
 CANAL_GROUP_ID  = -1003605441967
-CANAL_ADMIN_CODE = "BCT-LERIS"  # code membre admin qui peut publier depuis webapp
+CANAL_ADMIN_CODE = "BCT-LERIS"
+VAPID_PUBLIC  = "BI5TQpefuRvs_HIPgRzXnBQqcQ5V9puh2hteQmdRp8pQFMEh-XyvgPGpYrO5ioPak9Z7ml6laSl2WnNh96RFrv8"
+VAPID_PRIVATE = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmeZdDREE6AdkScXLD0GeI65NwMQ3C7kBzmRN49e-XTqhRANCAASOU0KXn7kb7PxyD4Ec15wUKnEOVfabodobXkJnUafKUBTBIfl8r4DxqWKzuYqD2pPWe5pepWkpdlpzYfekRa7_"
+VAPID_CLAIMS  = {"sub": "mailto:bectanse@gmail.com"}  # code membre admin qui peut publier depuis webapp
 
 def detect_msg_type(text):
     """Détecte automatiquement le type de message selon les mots-clés."""
@@ -1437,6 +1529,12 @@ def canal_webhook():
                 mid=tg_msg_id, txt=text_content, typ=msg_type, photo=photo_url, audio=audio_url
             )
         conn.close()
+        # Web Push si nouveau message
+        if not edited and text_content:
+            TYPE_LABELS = {"signal":"📊 Signal","resultat":"✅ Résultat","alerte":"🚨 Alerte","annonce":"📢 Annonce","message":"💬 Canal VIP"}
+            label = TYPE_LABELS.get(msg_type, "💬 Canal VIP")
+            preview = text_content[:80] + ("…" if len(text_content) > 80 else "")
+            threading.Thread(target=send_push_to_all, args=(label, preview), daemon=True).start()
     except Exception as e:
         app.logger.error(f"canal_webhook: {e}")
     return jsonify({"ok": True})
