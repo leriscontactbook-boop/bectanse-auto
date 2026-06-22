@@ -64,6 +64,7 @@ def init_db():
                     paiement_type     TEXT DEFAULT '',
                     historique        TEXT DEFAULT '[]'
                 )
+            """)
             conn.run("""
                 CREATE TABLE IF NOT EXISTS push_subscriptions (
                     id          SERIAL PRIMARY KEY,
@@ -73,7 +74,6 @@ def init_db():
                     auth        TEXT NOT NULL,
                     created_at  TIMESTAMP DEFAULT NOW()
                 )
-            """)
             """)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
