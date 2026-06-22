@@ -1742,6 +1742,32 @@ def canal_init_db():
     except Exception as e:
         return f"<pre style='background:#111;color:#f00;padding:20px'>❌ Erreur: {e}</pre>"
 
+
+@app.route("/admin/push-init-db")
+def push_init_db():
+    """Force la création de la table push_subscriptions."""
+    from flask import request as freq
+    key = freq.args.get("key", "")
+    if key != ADMIN_KEY:
+        return "Interdit", 403
+    try:
+        conn = get_conn()
+        conn.run("""
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id          SERIAL PRIMARY KEY,
+                member_code TEXT NOT NULL,
+                endpoint    TEXT UNIQUE NOT NULL,
+                p256dh      TEXT NOT NULL,
+                auth        TEXT NOT NULL,
+                created_at  TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        count = conn.run("SELECT COUNT(*) FROM push_subscriptions")[0][0]
+        conn.close()
+        return f"<pre style='background:#111;color:#0f0;padding:20px'>✅ Table push_subscriptions créée.\n📊 Abonnés actuels : {count}</pre>"
+    except Exception as e:
+        return f"<pre style='background:#111;color:#f00;padding:20px'>❌ Erreur: {e}</pre>"
+
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def _startup():
