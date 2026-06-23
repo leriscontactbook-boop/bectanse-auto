@@ -1,7 +1,7 @@
 import os, json, secrets, string, requests, time, threading
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify
 import pg8000.native
 
 app = Flask(__name__)
@@ -216,6 +216,12 @@ def login_required(f):
     return decorated
 
 # ── ROUTES ───────────────────────────────────────────────────────────────────
+
+
+@app.route("/vip")
+def vip_landing():
+    return send_from_directory("static/vip", "index.html")
+
 
 @app.route("/support", methods=["GET", "POST"])
 @login_required
@@ -1670,7 +1676,7 @@ def canal():
 @app.route("/admin/canal-diag")
 def canal_diag():
     """Diagnostic du bot canal + force re-register webhook."""
-    from flask import request as freq
+    from flask import send_from_directory, request as freq
     key = freq.args.get("key", "")
     if key != ADMIN_KEY:
         return "Interdit", 403
@@ -1720,7 +1726,7 @@ def canal_diag():
 @app.route("/admin/canal-init-db")
 def canal_init_db():
     """Force la création de la table canal_messages."""
-    from flask import request as freq
+    from flask import send_from_directory, request as freq
     key = freq.args.get("key", "")
     if key != ADMIN_KEY:
         return "Interdit", 403
@@ -1746,7 +1752,7 @@ def canal_init_db():
 @app.route("/admin/push-init-db")
 def push_init_db():
     """Force la création de la table push_subscriptions."""
-    from flask import request as freq
+    from flask import send_from_directory, request as freq
     key = freq.args.get("key", "")
     if key != ADMIN_KEY:
         return "Interdit", 403
