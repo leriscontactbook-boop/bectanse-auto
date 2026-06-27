@@ -1808,7 +1808,8 @@
 </div>
 
 <script>
-  // ── TICKER ──
+
+  // -- TICKER --
   const tickerData = [
     { pair: 'XAUUSD', pts: '+284 pts', date: '24 juin', color: 'green' },
     { pair: 'XAUUSD', pts: '+197 pts', date: '24 juin', color: 'green' },
@@ -1830,7 +1831,7 @@
     </div>
   `).join('');
 
-  // ── PHONE ANIMATIONS ──
+  // -- PHONE ANIMATIONS --
   const pnls = [
     ['+$312', '+$241', '-$67'],
     ['+$198', '+$156', '-$21'],
@@ -1864,7 +1865,7 @@
     }, 3000);
   }, 8000);
 
-  // ── SIMULATEUR ──
+  // -- SIMULATEUR --
   const simPts = [
     { s1: '+284 pts', s2: '+197 pts', s3: '-43 pts', profit: '438', bal: '12 847' },
     { s1: '+312 pts', s2: '+241 pts', s3: '-67 pts', profit: '486', bal: '12 923' },
@@ -1893,7 +1894,7 @@
   updateTime();
   setInterval(updateTime, 60000);
 
-  // ── LAST SYNC TIMER ──
+  // -- LAST SYNC TIMER --
   let syncSeconds = 3;
   setInterval(() => {
     syncSeconds = Math.floor(Math.random() * 12) + 1;
@@ -1901,7 +1902,7 @@
     if (el) el.textContent = 'il y a ' + syncSeconds + ' seconde' + (syncSeconds > 1 ? 's' : '');
   }, 4000);
 
-  // ── LOAD VIDEO ──
+  // -- LOAD VIDEO --
   function loadVideo() {
     const iframe = document.getElementById('demoVideo');
     const overlay = document.getElementById('videoOverlay');
@@ -1912,7 +1913,7 @@
     if (overlay) overlay.style.display = 'none';
   }
 
-  // ── MEMBERS COUNT ──
+  // -- MEMBERS COUNT --
   let memberBase = 1247;
   setInterval(() => {
     memberBase += Math.floor(Math.random() * 5) - 2;
@@ -1921,7 +1922,7 @@
     if (el) el.textContent = memberBase.toLocaleString('fr-FR');
   }, 4000);
 
-  // ── PLACES RESTANTES ──
+  // -- PLACES RESTANTES --
   const places = [3, 4, 2, 5];
   let placeIdx = 0;
   setInterval(() => {
@@ -1930,7 +1931,7 @@
     if (el) el.textContent = places[placeIdx] + ' places';
   }, 12000);
 
-  // ── STATS COUNTER ──
+  // -- STATS COUNTER --
   function animateCounters() {
     document.querySelectorAll('.stat-val[data-target]').forEach(el => {
       const target = parseInt(el.getAttribute('data-target'));
@@ -1945,7 +1946,7 @@
     });
   }
 
-  // ── SCROLL REVEAL + STATS ──
+  // -- SCROLL REVEAL + STATS --
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       if (e.isIntersecting) {
@@ -1956,7 +1957,7 @@
     });
   }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
 
-  // Fallback file:// — forcer visible si IntersectionObserver ne se déclenche pas
+  // Fallback file:// -- forcer visible si IntersectionObserver ne se déclenche pas
   if (window.location.protocol === 'file:' || !('IntersectionObserver' in window)) {
     document.body.classList.add('no-observer');
     document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
@@ -1964,7 +1965,7 @@
 
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-  // ── FAQ ──
+  // -- FAQ --
   function toggleFaq(el) {
     const item = el.parentElement;
     const wasOpen = item.classList.contains('open');
@@ -1972,7 +1973,7 @@
     if (!wasOpen) item.classList.add('open');
   }
 
-  // ── FORM ──
+  // -- FORM --
   function validateEmail(input) {
     const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value);
     input.classList.toggle('valid', valid);
@@ -1995,10 +1996,10 @@
     document.getElementById('dot2').classList.add('active');
   }
 
-  // ── CONFIG — modifier uniquement ces deux valeurs ──────────────
+  // -- CONFIG -- modifier uniquement ces deux valeurs --------------
   const WHATSAPP_NUMBER = '33600000000'; // Numéro sans + ni espaces (ex: 33612345678)
   const GOOGLE_SHEETS_URL = 'GOOGLE_SHEETS_WEBHOOK_URL'; // URL du Google Apps Script webhook
-  // ─────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------
 
   async function submitForm() {
     const prenom = document.getElementById('prenomInput').value.trim();
@@ -2016,7 +2017,7 @@
     btn.disabled = true;
     btn.style.opacity = '0.7';
 
-    // ── Enregistrement Google Sheets (no-cors pour éviter les erreurs CORS) ──
+    // -- Enregistrement Google Sheets (no-cors pour éviter les erreurs CORS) --
     const payload = {
       prenom,
       nom,
@@ -2035,10 +2036,10 @@
       });
     } catch(e) {
       console.warn('Google Sheets:', e.message);
-      // On continue quoi qu'il arrive — aucun lead perdu
+      // On continue quoi qu'il arrive -- aucun lead perdu
     }
 
-    // ── Préparer le lien WhatsApp ──
+    // -- Préparer le lien WhatsApp --
     const msg = encodeURIComponent(
       'Bonjour,
 
@@ -2051,14 +2052,14 @@ Merci.'
     const waBtn = document.getElementById('whatsappBtn');
     if (waBtn) waBtn.href = waLink;
 
-    // ── Afficher l'écran de confirmation ──
+    // -- Afficher l'écran de confirmation --
     document.getElementById('step2').classList.remove('visible');
     document.getElementById('dot2').classList.remove('active');
     document.getElementById('formSuccess').classList.add('show');
     document.getElementById('reassurance').style.display = 'none';
   }
 
-  // ── AUDIO PLAYER ──
+  // -- AUDIO PLAYER --
   const audioInstances = new Map();
 
   function toggleAudio(btn) {
@@ -2078,7 +2079,7 @@ Merci.'
 
     if (!audioInstances.has(btn)) {
       if (!src || src === 'AUDIO_JULIEN_URL' || src === 'AUDIO_ANGEL_URL' || src === 'AUDIO_SAMUEL_URL') {
-        // Placeholder — audio non encore configuré
+        // Placeholder -- audio non encore configuré
         alert('⚠️ Les URLs des audios ne sont pas encore configurées. Envoie les URLs des MP3 pour finaliser.');
         return;
       }
