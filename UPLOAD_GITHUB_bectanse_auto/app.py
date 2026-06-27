@@ -13,8 +13,9 @@ ADMIN_ID   = os.environ.get("ADMIN_ID",   "6164373751")
 ADMIN_KEY  = os.environ.get("ADMIN_KEY",  "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
-FIREBASE_SERVER_KEY = os.environ.get("FIREBASE_SERVER_KEY", "LdGzu7zxikkb6WGnqSsDS3Dj7Hiemh85ZMjlri2lauc")
-FIREBASE_SENDER_ID  = os.environ.get("FIREBASE_SENDER_ID", "228109399118")
+VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY",  "BP3k0fJd97TMN7N9I37KkkXkUTTIzJFVHhZLGqg-0VrsFFPaKgQb15zPw-DIgS2lBst8QOSlMGLLA04uMpzCyEg")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "-BH9Fk2jRo9Wms-svtp4s-AJZPZ6Iv1s2JedOJWNrWY")
+VAPID_CLAIMS      = {"sub": "mailto:bectanseacademie@gmail.com"}
 CLOUDINARY_CLOUD  = os.environ.get("CLOUDINARY_CLOUD", "dqgd441is")
 CLOUDINARY_KEY    = os.environ.get("CLOUDINARY_KEY", "631288474842446")
 CLOUDINARY_SECRET = os.environ.get("CLOUDINARY_SECRET", "GqmAD-4OOtkLGhu6boCcnwUXXUE")
@@ -228,41 +229,50 @@ def build_notif(member, params, code):
         f"━━━━━━━━━━━━━━━━"
     )
 
-def send_fcm_push(tokens, title, body, url="/accueil"):
-    """Envoie une notification push Firebase à une liste de tokens."""
-    if not tokens or not FIREBASE_SERVER_KEY:
-        return
+def send_webpush_notification(subscription_info, title, body, url="/accueil"):
+    """Envoie une notification Web Push standard via VAPID."""
     try:
-        for token in tokens:
-            requests.post(
-                "https://fcm.googleapis.com/fcm/send",
-                headers={
-                    "Authorization": f"key={FIREBASE_SERVER_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "to": token,
-                    "notification": {"title": title, "body": body, "icon": "/static/icons/icon-192.png"},
-                    "data": {"url": url},
-                    "webpush": {
-                        "notification": {"icon": "/static/icons/icon-192.png", "badge": "/static/icons/icon-192.png"},
-                        "fcm_options": {"link": url}
-                    }
-                },
-                timeout=10
-            )
+        import json as _json
+        from pywebpush import webpush, WebPushException
+        webpush(
+            subscription_info=subscription_info,
+            data=_json.dumps({"title": title, "body": body, "url": url, "icon": "/static/icons/icon-192.png"}),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=VAPID_CLAIMS,
+            timeout=10
+        )
     except Exception as e:
-        app.logger.error(f"FCM push error: {e}")
+        app.logger.debug(f"webpush: {e}")
 
-def send_push_to_all_fcm(title, body, url="/accueil"):
-    """Envoie une notification push à tous les membres abonnés."""
+def send_fcm_push(tokens, title, body, url="/accueil"):
+    """Alias — envoie via Web Push à une liste de tokens (subscriptions JSON)."""
     try:
         conn = get_conn()
-        rows = conn.run("SELECT token FROM push_tokens")
+        rows = conn.run("SELECT subscription FROM push_tokens WHERE token = ANY(:t)", t=tokens)
         conn.close()
-        tokens = [r[0] for r in rows if r[0]]
-        if tokens:
-            threading.Thread(target=send_fcm_push, args=(tokens, title, body, url), daemon=True).start()
+    except:
+        rows = []
+    for row in rows:
+        try:
+            import json as _json
+            sub = _json.loads(row[0]) if row[0] else None
+            if sub:
+                send_webpush_notification(sub, title, body, url)
+        except: pass
+
+def send_push_to_all_fcm(title, body, url="/accueil"):
+    """Envoie une notification Web Push à tous les membres abonnés."""
+    try:
+        import json as _json
+        conn = get_conn()
+        rows = conn.run("SELECT subscription FROM push_tokens WHERE subscription IS NOT NULL")
+        conn.close()
+        for row in rows:
+            try:
+                sub = _json.loads(row[0]) if row[0] else None
+                if sub:
+                    threading.Thread(target=send_webpush_notification, args=(sub, title, body, url), daemon=True).start()
+            except: pass
     except Exception as e:
         app.logger.error(f"send_push_to_all_fcm: {e}")
 
@@ -934,23 +944,26 @@ def firebase_sw():
 @app.route("/api/push/register", methods=["POST"])
 @login_required
 def push_register():
-    """Enregistre le token FCM d'un membre."""
+    """Enregistre la subscription Web Push d'un membre."""
     data = request.get_json()
-    fcm_token = data.get("token", "")
-    if not fcm_token:
+    subscription = data.get("subscription")  # objet {endpoint, keys: {p256dh, auth}}
+    if not subscription:
         return jsonify({"ok": False})
     try:
+        import json as _json
+        endpoint = subscription.get("endpoint", "")
         conn = get_conn()
         conn.run("""CREATE TABLE IF NOT EXISTS push_tokens (
             id SERIAL PRIMARY KEY,
             member_code TEXT,
             token TEXT UNIQUE,
+            subscription TEXT,
             created_at TIMESTAMP DEFAULT NOW()
         )""")
-        conn.run("""INSERT INTO push_tokens (member_code, token)
-            VALUES (:code, :token)
-            ON CONFLICT (token) DO UPDATE SET member_code=:code""",
-            code=session["member_code"], token=fcm_token)
+        conn.run("""INSERT INTO push_tokens (member_code, token, subscription)
+            VALUES (:code, :token, :sub)
+            ON CONFLICT (token) DO UPDATE SET member_code=:code, subscription=:sub""",
+            code=session["member_code"], token=endpoint, sub=_json.dumps(subscription))
         conn.close()
         return jsonify({"ok": True})
     except Exception as e:
