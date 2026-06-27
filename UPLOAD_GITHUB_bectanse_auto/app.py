@@ -1607,6 +1607,15 @@ def handle_notif_individuelle(chat_id, code_dest, contenu):
         conn.run("""UPDATE members 
                     SET notif_type='individuelle', notif_message=:m, notif_lue=FALSE 
                     WHERE code=:c""", m=contenu, c=code_dest)
+        # Push Firebase individuel
+        try:
+            conn2 = get_conn()
+            tok_rows = conn2.run("SELECT token FROM push_tokens WHERE member_code=:c", c=code_dest)
+            conn2.close()
+            tokens = [r[0] for r in tok_rows if r[0]]
+            if tokens:
+                threading.Thread(target=send_fcm_push, args=(tokens, "💬 Message Personnel", contenu, "/dashboard"), daemon=True).start()
+        except: pass
         conn.close()
         bot_send(chat_id,
             f"✅ *Message envoyé à {nom} !*\n\n"
@@ -1962,6 +1971,15 @@ def send_eco_message():
             timeout=10
         )
         app.logger.info("Calendrier économique envoyé")
+        # Push Firebase calendrier
+        nb_high = sum(1 for e in events if e.get("impact") == "High") if events else 0
+        if nb_high > 0:
+            push_title = "📅 Calendrier Économique"
+            push_body = f"{nb_high} annonce(s) à fort impact aujourd'hui — Soyez prudents"
+        else:
+            push_title = "📅 Calendrier Économique"
+            push_body = "Aucune annonce majeure aujourd'hui — Trading normal"
+        threading.Thread(target=send_push_to_all_fcm, args=(push_title, push_body, "/accueil"), daemon=True).start()
     except Exception as e:
         app.logger.error(f"send_eco_message: {e}")
 
