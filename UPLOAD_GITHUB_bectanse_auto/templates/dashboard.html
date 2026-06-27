@@ -1948,12 +1948,13 @@ async function saveParams() {
     const res  = await fetch('/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(payload),
     });
     const data = await res.json();
 
     if (data.ok) {
-      showToast('Demande envoyée ! Notre équipe va appliquer tes paramètres sous 2h.', 'success');
+      showToast('✅ Demande envoyée ! Notre équipe va appliquer tes paramètres sous 2h.', 'success');
     } else {
       showToast('Erreur : ' + (data.error || 'Réessaie.'), 'error');
     }
