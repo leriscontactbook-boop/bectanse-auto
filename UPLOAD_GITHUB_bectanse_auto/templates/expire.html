@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Accès expiré — Bectanse AUTO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100vh;background:#0A0A0F;font-family:'Barlow',sans-serif;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(220,38,38,0.2),transparent 60%);pointer-events:none}
+
+/* LOGO */
+.logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.08em;color:#F59E0B;margin-bottom:32px;opacity:0.6}
+
+/* CARD */
+.card{background:#111827;border:1px solid rgba(220,38,38,0.3);border-radius:24px;padding:40px 32px;max-width:420px;width:100%;text-align:center;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#DC2626,#F87171,#DC2626)}
+
+.lock-icon{font-size:56px;margin-bottom:20px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+
+.title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.04em;color:#fff;margin-bottom:8px}
+.subtitle{font-size:13px;color:#FCA5A5;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:20px}
+.desc{font-size:14px;color:rgba(255,255,255,0.45);line-height:1.7;margin-bottom:32px}
+
+/* SECTIONS VERROUILLÉES */
+.locked-sections{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:32px}
+.locked-item{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px 8px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.2);display:flex;flex-direction:column;align-items:center;gap:6px}
+.locked-item .li{font-size:18px;opacity:0.3}
+
+/* OFFRES */
+.offres-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:14px}
+.offres-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px}
+.offre-btn{display:flex;flex-direction:column;align-items:center;padding:14px 8px;background:rgba(91,33,182,0.12);border:1px solid rgba(91,33,182,0.3);border-radius:12px;text-decoration:none;transition:all 0.2s;cursor:pointer}
+.offre-btn:hover{background:rgba(91,33,182,0.25);border-color:rgba(91,33,182,0.6);transform:translateY(-2px)}
+.offre-duree{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:#fff;margin-bottom:3px}
+.offre-prix{font-family:'Bebas Neue',sans-serif;font-size:20px;color:#F59E0B;letter-spacing:0.04em}
+
+/* WA */
+.wa-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;background:#25D366;border-radius:12px;text-decoration:none;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#fff;transition:all 0.2s;margin-bottom:16px}
+.wa-btn:hover{background:#1db954;transform:translateY(-1px)}
+
+.logout-link{font-size:12px;color:rgba(255,255,255,0.2);text-decoration:none;display:block;margin-top:8px}
+.logout-link:hover{color:rgba(255,255,255,0.4)}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="logo">B€CTAN$€ AUTO</div>
+
+<div class="card">
+  <div class="lock-icon">🔒</div>
+  <div class="title">Accès suspendu</div>
+  <div class="subtitle">Abonnement expiré</div>
+  <div class="desc">
+    Bonjour <strong style="color:#fff">{{ member.nom.split()[0] }}</strong>,<br>
+    ton abonnement Bectanse AUTO a expiré.<br>
+    Renouvelle maintenant pour retrouver l'accès complet.
+  </div>
+
+  <!-- Sections verrouillées -->
+  <div class="locked-sections">
+    <div class="locked-item"><span class="li">⚙️</span>Paramètres</div>
+    <div class="locked-item"><span class="li">📡</span>Canal VIP</div>
+    <div class="locked-item"><span class="li">🎓</span>Formation</div>
+    <div class="locked-item"><span class="li">🎁</span>Parrainage</div>
+    <div class="locked-item"><span class="li">📅</span>Calendrier</div>
+    <div class="locked-item"><span class="li">📊</span>Historique</div>
+  </div>
+
+  <!-- Offres -->
+  <div class="offres-title">Choisir mon offre</div>
+  <div class="offres-grid">
+    <a href="https://buy.stripe.com/28EeVcdoA8Ed9gr5HAgA802" target="_blank" class="offre-btn">
+      <div class="offre-duree">1 mois</div>
+      <div class="offre-prix">500€</div>
+    </a>
+    <a href="https://buy.stripe.com/eVq4gyesE3jTboz5HAgA80a" target="_blank" class="offre-btn">
+      <div class="offre-duree">3 mois</div>
+      <div class="offre-prix">1 000€</div>
+    </a>
+    <a href="https://buy.stripe.com/00w28q84g5s1csDgmegA804" target="_blank" class="offre-btn">
+      <div class="offre-duree">6 mois</div>
+      <div class="offre-prix">2 500€</div>
+    </a>
+    <a href="https://buy.stripe.com/bJecN498kbQp64f7PIgA803" target="_blank" class="offre-btn">
+      <div class="offre-duree">1 an</div>
+      <div class="offre-prix">4 000€</div>
+    </a>
+  </div>
+
+  <!-- WhatsApp -->
+  <a href="https://wa.me/436785328698?text=Bonjour%2C%20mon%20abonnement%20Bectanse%20AUTO%20a%20expir%C3%A9%20({{ member.code }})%20et%20je%20souhaite%20le%20renouveler." target="_blank" class="wa-btn">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+    Contacter sur WhatsApp
+  </a>
+
+  <a href="/logout" class="logout-link">Se déconnecter</a>
+</div>
+
+</body>
+</html>
