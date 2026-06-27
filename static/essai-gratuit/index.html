@@ -1107,6 +1107,8 @@
       opacity: 1;
       transform: none;
     }
+    /* Fallback si pas de serveur (file://) */
+    .no-observer .reveal { opacity: 1 !important; transform: none !important; }
 
     /* ── RESPONSIVE ── */
     @media (max-width: 768px) {
@@ -1953,6 +1955,12 @@
       }
     });
   }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+
+  // Fallback file:// — forcer visible si IntersectionObserver ne se déclenche pas
+  if (window.location.protocol === 'file:' || !('IntersectionObserver' in window)) {
+    document.body.classList.add('no-observer');
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+  }
 
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
