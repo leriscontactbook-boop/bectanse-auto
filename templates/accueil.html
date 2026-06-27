@@ -443,126 +443,142 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 const JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const MOIS  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
-// ── DATE ET HEURE PARIS
+// ── HEURE PARIS
 function getNowParis() {
   return new Date(new Date().toLocaleString('en-US', {timeZone:'Europe/Paris'}));
 }
+
 function formatDate(d) {
   return `${JOURS[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// ── MARCHÉ XAU/USD
+// ── MARCHÉ XAUUSD — horaires réels heure Paris
+// Ouvert : lundi 00h00 → vendredi 23h59
+// Fermé  : vendredi 23h59 → lundi 00h00 (week-end)
+// Pause nuit : chaque jour 23h00 → 00h00 (sauf vendredi)
 function getMarketStatus() {
   const now = getNowParis();
-  const day = now.getDay(); // 0=dim 1=lun ... 5=ven 6=sam
+  const day = now.getDay(); // 0=dim 1=lun 2=mar 3=mer 4=jeu 5=ven 6=sam
   const h   = now.getHours();
-  const m   = now.getMinutes();
-  const t   = h * 60 + m;
+  const min = now.getMinutes();
+  const t   = h * 60 + min; // minutes depuis minuit
 
-  // Week-end : sam après 23h ou sam entier ou dim entier ou lun avant 01h
-  if (day === 6 && t >= 23*60) return {open:false, reason:'Week-end', nextOpen:'lundi'};
-  if (day === 6) return {open:false, reason:'Week-end', nextOpen:'lundi'};
-  if (day === 0) return {open:false, reason:'Week-end', nextOpen:'lundi'};
-  if (day === 1 && t < 60) return {open:false, reason:'Week-end', nextOpen:'lundi'};
-
-  // Vendredi après 23h → week-end
-  if (day === 5 && t >= 23*60) return {open:false, reason:'Week-end', nextOpen:'lundi'};
-
-  // Pause nuit 23h00→00h00 (lun-jeu)
-  if (t >= 23*60) return {open:false, reason:'Pause technique', nextOpen:'demain'};
-
-  return {open:true};
+  // WEEK-END : samedi toute la journée
+  if (day === 6) {
+    return {open: false, reason: 'Week-end', type: 'weekend'};
+  }
+  // WEEK-END : dimanche toute la journée
+  if (day === 0) {
+    return {open: false, reason: 'Week-end', type: 'weekend'};
+  }
+  // VENDREDI après 23h00 → week-end
+  if (day === 5 && t >= 23*60) {
+    return {open: false, reason: 'Week-end', type: 'weekend'};
+  }
+  // PAUSE NUIT : 23h00 → 00h00 (lun-jeu)
+  if (t >= 23*60) {
+    return {open: false, reason: 'Pause technique (23h-00h)', type: 'pause'};
+  }
+  // OUVERT
+  return {open: true, type: 'open'};
 }
 
-function getMinutesUntilOpen() {
-  // Calcule les minutes exactes jusqu'à la prochaine ouverture (lundi 01h00)
+// Calcule les minutes exactes jusqu'au lundi 00h00
+function getMinsUntilMonday() {
   const now = getNowParis();
   const day = now.getDay();
-  const t   = now.getHours()*60 + now.getMinutes();
+  // Prochain lundi 00h00
+  const next = new Date(now);
+  const daysToMonday = day === 0 ? 1 : day === 6 ? 2 : 8 - day;
+  next.setDate(now.getDate() + daysToMonday);
+  next.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((next - now) / 60000));
+}
 
-  // Prochaine ouverture = lundi 01h00
-  const nextMonday = new Date(now);
-  let daysUntilMonday = (8 - day) % 7; // jours jusqu'au prochain lundi
-  if (daysUntilMonday === 0 && t >= 60) daysUntilMonday = 7; // déjà lundi passé 01h
-  if (daysUntilMonday === 0 && t < 60) daysUntilMonday = 0;  // lundi avant 01h
-  nextMonday.setDate(now.getDate() + daysUntilMonday);
-  nextMonday.setHours(1, 0, 0, 0);
-  return Math.max(0, Math.round((nextMonday - now) / 60000));
+// Formate une durée en minutes → "Xh YYmin" ou "Xj Xh"
+function formatDuration(mins) {
+  if (mins >= 24*60) {
+    const j = Math.floor(mins / (24*60));
+    const h = Math.floor((mins % (24*60)) / 60);
+    return `${j}j ${h}h`;
+  }
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${m < 10 ? '0'+m : m}min`;
 }
 
 function getActiveSessions() {
   const now = getNowParis();
   const t = now.getHours() * 60 + now.getMinutes();
-  const sessions = [
-    {name:'Tokyo',    start: 1*60,  end: 9*60},
-    {name:'Londres',  start: 9*60,  end:18*60},
-    {name:'New York', start:14*60,  end:23*60},
+  return [
+    {name:'Tokyo',    start:1*60,   end:9*60,  active: t>=1*60 && t<9*60},
+    {name:'Londres',  start:9*60,   end:18*60, active: t>=9*60 && t<18*60},
+    {name:'New York', start:14*60,  end:23*60, active: t>=14*60 && t<23*60},
   ];
-  return sessions.map(s => ({
-    ...s,
-    active: t >= s.start && t < s.end,
-    overlap: s.name === 'Londres' && t >= 14*60 && t < 18*60
-  }));
-}
-
-function getNextClose() {
-  const now = getNowParis();
-  const t = now.getHours() * 60 + now.getMinutes();
-  const day = now.getDay();
-  const closeMin = 23*60;
-  const diff = closeMin - t;
-  if (diff > 0 && (day === 5 || diff < 8*60)) {
-    const hh = Math.floor(diff/60);
-    const mm = diff % 60;
-    return `Fermeture dans ${hh}h${mm < 10 ? '0'+mm : mm}`;
-  }
-  return null;
-}
-
-function getTimeUntil(targetH, targetM) {
-  const now = getNowParis();
-  const nowMin = now.getHours()*60 + now.getMinutes();
-  const targetMin = targetH*60 + targetM;
-  let diff = targetMin - nowMin;
-  if (diff < 0) diff += 24*60;
-  const h = Math.floor(diff/60);
-  const m = diff % 60;
-  return `${h}h ${m < 10 ? '0'+m : m}min`;
 }
 
 // ── UPDATE MARCHÉ
 function updateMarket() {
-  const status = getMarketStatus();
-  const dot      = document.getElementById('market-dot');
-  const text     = document.getElementById('market-text');
-  const detail   = document.getElementById('market-detail');
-  const countdown= document.getElementById('market-countdown');
-  const card     = document.getElementById('market-card');
-  const pills    = document.getElementById('sessions-pills');
+  const status  = getMarketStatus();
+  const dot     = document.getElementById('market-dot');
+  const text    = document.getElementById('market-text');
+  const detail  = document.getElementById('market-detail');
+  const cdEl    = document.getElementById('market-countdown');
+  const card    = document.getElementById('market-card');
+  const pills   = document.getElementById('sessions-pills');
 
   if (status.open) {
-    dot.className    = 'market-dot open';
-    text.className   = 'market-text open';
+    dot.className   = 'market-dot open';
+    text.className  = 'market-text open';
     text.textContent = 'MARCHÉ OUVERT';
-    card.className   = 'card green';
-    const closeMsg = getNextClose();
-    detail.textContent = closeMsg ? closeMsg : 'Session en cours';
-    countdown.textContent = '';
+    card.className  = 'card green';
+
+    // Temps avant fermeture
+    const now = getNowParis();
+    const t   = now.getHours()*60 + now.getMinutes();
+    const day = now.getDay();
+    let closeMin;
+    if (day === 5) closeMin = 23*60; // vendredi → ferme à 23h
+    else closeMin = 23*60;           // autres jours → pause à 23h
+    const diff = closeMin - t;
+    if (diff > 0 && diff < 8*60) {
+      const hh = Math.floor(diff/60);
+      const mm = diff%60;
+      detail.textContent = `Fermeture dans ${hh}h${mm < 10 ? '0'+mm : mm}`;
+    } else {
+      detail.textContent = 'Session en cours';
+    }
+    cdEl.textContent = '';
+
+    // Sessions
     const sessions = getActiveSessions();
     pills.innerHTML = sessions.map(s => {
-      const cls = !s.active ? 'inactive' : (s.overlap ? 'overlap' : 'active');
-      const suffix = s.overlap ? ' ⚡' : '';
-      return `<div class="session-pill ${cls}">${s.name}${suffix}</div>`;
+      const overlap = s.name === 'New York' || (s.name === 'Londres' && s.active && sessions.find(x=>x.name==='New York'&&x.active));
+      const cls = !s.active ? 'inactive' : overlap ? 'overlap' : 'active';
+      return `<div class="session-pill ${cls}">${s.name}</div>`;
     }).join('');
+
   } else {
-    dot.className    = 'market-dot closed';
-    text.className   = 'market-text closed';
+    dot.className   = 'market-dot closed';
+    text.className  = 'market-text closed';
     text.textContent = 'MARCHÉ FERMÉ';
-    card.className   = 'card red';
-    detail.textContent = status.reason;
-    const [th, tm] = status.nextOpen.includes('01h') ? [1,0] : [0,0];
-    countdown.textContent = `Réouverture dans ${getTimeUntil(th, tm)}`;
-    pills.innerHTML = `<div class="session-pill inactive">Tokyo</div><div class="session-pill inactive">Londres</div><div class="session-pill inactive">New York</div>`;
+    card.className  = 'card red';
+
+    if (status.type === 'weekend') {
+      const mins = getMinsUntilMonday();
+      detail.textContent = 'Week-end';
+      cdEl.textContent = `Réouverture lundi dans ${formatDuration(mins)}`;
+    } else {
+      // Pause nuit → réouvre à 00h00
+      const now = getNowParis();
+      const minsLeft = (24*60) - (now.getHours()*60 + now.getMinutes());
+      detail.textContent = status.reason;
+      cdEl.textContent = `Réouverture dans ${formatDuration(minsLeft)}`;
+    }
+    pills.innerHTML = `
+      <div class="session-pill inactive">Tokyo</div>
+      <div class="session-pill inactive">Londres</div>
+      <div class="session-pill inactive">New York</div>`;
   }
 }
 
