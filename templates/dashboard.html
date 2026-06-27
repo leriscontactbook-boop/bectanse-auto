@@ -921,19 +921,23 @@ input[name="objectif_periode"] { display: none; }
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
-  z-index: 500;
-  align-items: flex-end;
+  background: rgba(0,0,0,0.75);
+  z-index: 600;
+  align-items: center;
   justify-content: center;
+  padding: 20px;
+  padding-bottom: 90px;
 }
 .copy-modal-overlay.open { display: flex; }
 .copy-modal-box {
   background: #111827;
-  border: 1px solid rgba(91,33,182,0.3);
-  border-radius: 20px 20px 0 0;
-  padding: 28px 24px 40px;
+  border: 1px solid rgba(91,33,182,0.4);
+  border-radius: 20px;
+  padding: 28px 24px 28px;
   width: 100%;
+  max-width: 360px;
   text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
 }
 .copy-modal-title {
   font-family: 'Barlow Condensed', sans-serif;
