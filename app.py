@@ -13,6 +13,8 @@ ADMIN_ID   = os.environ.get("ADMIN_ID",   "6164373751")
 ADMIN_KEY  = os.environ.get("ADMIN_KEY",  "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
+FIREBASE_SERVER_KEY = os.environ.get("FIREBASE_SERVER_KEY", "LdGzu7zxikkb6WGnqSsDS3Dj7Hiemh85ZMjlri2lauc")
+FIREBASE_SENDER_ID  = os.environ.get("FIREBASE_SENDER_ID", "228109399118")
 CLOUDINARY_CLOUD  = os.environ.get("CLOUDINARY_CLOUD", "dqgd441is")
 CLOUDINARY_KEY    = os.environ.get("CLOUDINARY_KEY", "631288474842446")
 CLOUDINARY_SECRET = os.environ.get("CLOUDINARY_SECRET", "GqmAD-4OOtkLGhu6boCcnwUXXUE")
@@ -225,6 +227,45 @@ def build_notif(member, params, code):
         f"📅 News:{bool_icon(p.get('filtre_news'))}\n"
         f"━━━━━━━━━━━━━━━━"
     )
+
+def send_fcm_push(tokens, title, body, url="/accueil"):
+    """Envoie une notification push Firebase à une liste de tokens."""
+    if not tokens or not FIREBASE_SERVER_KEY:
+        return
+    try:
+        for token in tokens:
+            requests.post(
+                "https://fcm.googleapis.com/fcm/send",
+                headers={
+                    "Authorization": f"key={FIREBASE_SERVER_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "to": token,
+                    "notification": {"title": title, "body": body, "icon": "/static/icons/icon-192.png"},
+                    "data": {"url": url},
+                    "webpush": {
+                        "notification": {"icon": "/static/icons/icon-192.png", "badge": "/static/icons/icon-192.png"},
+                        "fcm_options": {"link": url}
+                    }
+                },
+                timeout=10
+            )
+    except Exception as e:
+        app.logger.error(f"FCM push error: {e}")
+
+def send_push_to_all_fcm(title, body, url="/accueil"):
+    """Envoie une notification push à tous les membres abonnés."""
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT token FROM push_tokens")
+        conn.close()
+        tokens = [r[0] for r in rows if r[0]]
+        if tokens:
+            threading.Thread(target=send_fcm_push, args=(tokens, title, body, url), daemon=True).start()
+    except Exception as e:
+        app.logger.error(f"send_push_to_all_fcm: {e}")
+
 
 def send_telegram(text, reply_markup=None, chat_id=None):
     if not BOT_TOKEN: return
@@ -882,6 +923,38 @@ def admin_api_stats():
         return jsonify({"ok":True,"total":total,"actifs":actifs,"copy_on":copy_on,"expires":expires,"nouveaux_7j":nouveaux})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
+
+
+@app.route("/firebase-messaging-sw.js")
+def firebase_sw():
+    from flask import send_from_directory
+    return send_from_directory("static", "firebase-messaging-sw.js",
+        mimetype="application/javascript")
+
+@app.route("/api/push/register", methods=["POST"])
+@login_required
+def push_register():
+    """Enregistre le token FCM d'un membre."""
+    data = request.get_json()
+    fcm_token = data.get("token", "")
+    if not fcm_token:
+        return jsonify({"ok": False})
+    try:
+        conn = get_conn()
+        conn.run("""CREATE TABLE IF NOT EXISTS push_tokens (
+            id SERIAL PRIMARY KEY,
+            member_code TEXT,
+            token TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.run("""INSERT INTO push_tokens (member_code, token)
+            VALUES (:code, :token)
+            ON CONFLICT (token) DO UPDATE SET member_code=:code""",
+            code=session["member_code"], token=fcm_token)
+        conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/health")
 def health():
@@ -2096,7 +2169,7 @@ def canal_webhook():
             TYPE_LABELS = {"signal":"📊 Signal","resultat":"✅ Résultat","alerte":"🚨 Alerte","annonce":"📢 Annonce","message":"💬 Canal VIP"}
             label = TYPE_LABELS.get(msg_type, "💬 Canal VIP")
             preview = text_content[:80] + ("…" if len(text_content) > 80 else "")
-            threading.Thread(target=send_push_to_all, args=(label, preview), daemon=True).start()
+            threading.Thread(target=send_push_to_all_fcm, args=(label, preview, "/canal"), daemon=True).start()
     except Exception as e:
         app.logger.error(f"canal_webhook: {e}")
     return jsonify({"ok": True})
