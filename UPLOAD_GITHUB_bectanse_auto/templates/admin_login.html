@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bectanse Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:#0A0A0F;display:flex;align-items:center;justify-content:center;font-family:'Barlow',sans-serif}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(91,33,182,0.3),transparent 60%);pointer-events:none}
+.box{background:#111827;border:1px solid rgba(91,33,182,0.3);border-radius:20px;padding:40px;width:100%;max-width:380px;position:relative;z-index:1}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;color:#F59E0B;text-align:center;margin-bottom:4px;letter-spacing:0.08em}
+.sub{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.2);text-align:center;margin-bottom:32px}
+label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.4);display:block;margin-bottom:8px}
+input{width:100%;background:#1F2937;border:1px solid rgba(91,33,182,0.3);border-radius:10px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:border-color 0.15s}
+input:focus{border-color:#5B21B6}
+.btn{width:100%;background:#5B21B6;color:#fff;border:none;border-radius:10px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;margin-top:20px;transition:background 0.15s}
+.btn:hover{background:#4C1D95}
+.error{background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);color:#FCA5A5;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:14px;text-align:center}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="box">
+  <div class="logo">B€CTAN$€</div>
+  <div class="sub">Espace Administrateur</div>
+  <form method="POST" action="/admin-panel/login">
+    <label>Clé d'accès admin</label>
+    <input type="password" name="key" placeholder="••••••••••••••••••••" autofocus>
+    <button class="btn" type="submit">Accéder →</button>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  </form>
+</div>
+</body>
+</html>
