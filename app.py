@@ -6,6 +6,7 @@ import pg8000.native
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "bectanse2026secretkeyprod")
+app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=30)
 
 BOT_TOKEN  = os.environ.get("BOT_TOKEN",  "8673691177:AAGWihA4Ch_T73nuJCLUq49Yr_3OiFdOoHs")
 ADMIN_ID   = os.environ.get("ADMIN_ID",   "6164373751")
@@ -1046,6 +1047,14 @@ def marquer_alerte_lue():
     code = session["member_code"]
     try:
         conn = get_conn()
+        # Ne pas permettre de fermer si abonnement expiré ou expire dans 3 jours
+        from datetime import datetime
+        rows = conn.run("SELECT date_fin FROM members WHERE code=:c", c=code)
+        if rows and rows[0][0]:
+            delta = (rows[0][0] - datetime.now()).days
+            if delta <= 3:  # expire dans 3 jours ou déjà expiré → bannière non fermable
+                conn.close()
+                return jsonify({"ok": False, "locked": True})
         conn.run("UPDATE members SET alerte_lue=TRUE WHERE code=:c", c=code)
         conn.close()
         return jsonify({"ok": True})
@@ -1622,6 +1631,138 @@ def register_webhook():
             timeout=10
         )
     except: pass
+
+
+# ── EMAILS RELANCE AUTOMATIQUES ─────────────────────────────────────────────
+
+STRIPE_LINKS = [
+    ("1 mois", "500€",   "https://buy.stripe.com/28EeVcdoA8Ed9gr5HAgA802"),
+    ("3 mois", "1 000€", "https://buy.stripe.com/eVq4gyesE3jTboz5HAgA80a"),
+    ("6 mois", "2 500€", "https://buy.stripe.com/00w28q84g5s1csDgmegA804"),
+    ("1 an",   "4 000€", "https://buy.stripe.com/bJecN498kbQp64f7PIgA803"),
+]
+
+def send_email_relance(member, jours_restants):
+    """Envoie un email de relance au membre."""
+    try:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        email_dest = member.get("email", "")
+        if not email_dest:
+            return False
+
+        prenom = member.get("nom", "").split()[0]
+        code   = member.get("code", "")
+
+        if jours_restants > 0:
+            sujet = f"⚠️ Ton accès Bectanse AUTO expire dans {jours_restants} jour{'s' if jours_restants > 1 else ''}"
+            intro = f"Ton abonnement Bectanse AUTO expire dans <strong>{jours_restants} jour{'s' if jours_restants > 1 else ''}</strong>."
+            urgence = "🔴 Action requise" if jours_restants <= 3 else "⚠️ Rappel important"
+        else:
+            jours_apres = abs(jours_restants)
+            sujet = f"🚨 Ton accès Bectanse AUTO a expiré il y a {jours_apres} jour{'s' if jours_apres > 1 else ''}"
+            intro = f"Ton abonnement Bectanse AUTO a expiré. Tu n'as plus accès au copy trading automatique."
+            urgence = "🚨 Accès suspendu"
+
+        stripe_html = "".join([
+            f'''<a href="{lien}" style="display:inline-block;margin:6px;padding:12px 20px;background:#5B21B6;color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px">{duree} — {prix}</a>'''
+            for duree, prix, lien in STRIPE_LINKS
+        ])
+
+        html_body = f"""
+        <div style="background:#0A0A0F;color:#fff;font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border-radius:16px;overflow:hidden">
+          <div style="background:linear-gradient(135deg,#5B21B6,#1e0a40);padding:28px 24px;text-align:center">
+            <div style="font-size:24px;font-weight:900;letter-spacing:0.06em;color:#F59E0B">B€CTAN$€ AUTO</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;letter-spacing:0.2em;text-transform:uppercase">Copy Trading Automatique</div>
+          </div>
+          <div style="padding:28px 24px">
+            <div style="font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#F59E0B;margin-bottom:8px">{urgence}</div>
+            <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:16px">Bonjour {prenom} 👋</div>
+            <p style="color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:20px">{intro}<br><br>
+            Pour continuer à bénéficier du copy trading automatique sur XAU/USD, renouvelle ton accès maintenant.</p>
+            <div style="background:#111827;border:1px solid rgba(91,33,182,0.3);border-radius:12px;padding:20px;margin-bottom:20px;text-align:center">
+              <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">Choisir ma formule</div>
+              {stripe_html}
+            </div>
+            <p style="color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6">
+              Une question ? Contacte-nous sur WhatsApp : <a href="https://wa.me/436785328698" style="color:#F59E0B">+43 678 532 8698</a><br>
+              Ton code d'accès : <strong style="color:#C4B5FD">{code}</strong>
+            </p>
+          </div>
+          <div style="background:#111827;padding:16px 24px;text-align:center;border-top:1px solid rgba(255,255,255,0.05)">
+            <a href="https://bectanse-auto.up.railway.app" style="color:#5B21B6;font-size:12px;text-decoration:none">bectanse-auto.up.railway.app</a>
+          </div>
+        </div>
+        """
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = sujet
+        msg["From"]    = f"Bectanse AUTO <{GMAIL_USER}>"
+        msg["To"]      = email_dest
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(GMAIL_USER, GMAIL_PASS)
+            smtp.sendmail(GMAIL_USER, email_dest, msg.as_string())
+
+        app.logger.info(f"Email relance envoyé à {email_dest} ({jours_restants}j)")
+        return True
+    except Exception as e:
+        app.logger.error(f"send_email_relance: {e}")
+        return False
+
+
+def job_relances_quotidiennes():
+    """Tourne chaque matin — envoie emails relance J-7 à J-1 et J+1 à J+7."""
+    try:
+        from datetime import datetime, timedelta
+        conn = get_conn()
+        membres = conn.run("""
+            SELECT code, nom, email, date_fin, capital
+            FROM members WHERE actif=TRUE AND email IS NOT NULL AND email != ''
+        """)
+        conn.close()
+
+        now = datetime.now()
+        expires_today = []
+
+        for code, nom, email, date_fin, capital in membres:
+            if not date_fin: continue
+            delta = (date_fin - now).days
+
+            # J-7 à J-1 : envoyer email chaque jour
+            if 0 < delta <= 7:
+                member = {"code": code, "nom": nom, "email": email, "capital": capital}
+                send_email_relance(member, delta)
+                # Mettre bannière dans l'app
+                try:
+                    conn2 = get_conn()
+                    conn2.run("""UPDATE members SET notif_type='alerte',
+                        notif_message=:m, notif_lue=FALSE WHERE code=:c""",
+                        m=f"⚠️ Ton abonnement expire dans {delta} jour{'s' if delta>1 else ''} — Renouvelle maintenant !",
+                        c=code)
+                    conn2.close()
+                except: pass
+
+            # J+1 à J+7 après expiration
+            elif -7 <= delta < 0:
+                member = {"code": code, "nom": nom, "email": email, "capital": capital}
+                send_email_relance(member, delta)
+
+            # Jour J exact → notif Telegram admin
+            if delta == 0:
+                expires_today.append(f"👤 *{nom}* | `{code}`\n📧 {email}")
+
+        if expires_today:
+            msg = "🚨 *EXPIRATIONS AUJOURD\'HUI*\n\n" + "\n\n".join(expires_today)
+            msg += "\n\n_Relances email envoyées automatiquement._"
+            send_telegram(msg)
+
+        app.logger.info(f"job_relances: {len(membres)} membres vérifiés")
+    except Exception as e:
+        app.logger.error(f"job_relances: {e}")
 
 
 # ── BOT CALENDRIER ÉCONOMIQUE ─────────────────────────────────────────────────
