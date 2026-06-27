@@ -2242,5 +2242,46 @@ async function fermerNotif() {
   <a class="m-univ-nav-item  " target="_blank" href="https://wa.me/436785328698?text=Bonjour"><span class="mni">💬</span><span>Support</span></a>
 </nav>
 
+
+<!-- Firebase Push Notifications -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+<script>
+(async function initPush() {
+  try {
+    if (typeof firebase === 'undefined') return;
+    if (firebase.apps.length === 0) {
+      firebase.initializeApp({
+        apiKey: "AIzaSyD46fBm-SMtHiQ94lMzEcrYT9r3eIBqVwo",
+        projectId: "bectanse-auto",
+        messagingSenderId: "228109399118",
+        appId: "1:228109399118:web:303109201c76ee180abf1f"
+      });
+    }
+    const messaging = firebase.messaging();
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const token = await messaging.getToken({ vapidKey: "BMRymTxrja24jwKyhgbIUsqNXfVOlrF78J-jdf-OpOLgUDBgLj1TjPaDz2Cd119YGy4uXIqIWOODwwB98CxGVh0" });
+    if (token) {
+      await fetch('/api/push/register', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({token})
+      });
+    }
+    messaging.onMessage(payload => {
+      const title = payload.notification?.title || 'Bectanse AUTO';
+      const body  = payload.notification?.body  || '';
+      const url   = payload.data?.url || '/accueil';
+      if (typeof showToast === 'function') showToast(title + ' — ' + body, 'success');
+      if (Notification.permission === 'granted') {
+        const n = new Notification(title, {body, icon:'/static/icons/icon-192.png'});
+        n.onclick = () => { window.location.href = url; n.close(); };
+      }
+    });
+  } catch(e) { console.log('FCM:', e.message); }
+})();
+</script>
+
 </body>
 </html>
