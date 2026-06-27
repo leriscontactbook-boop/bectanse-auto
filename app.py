@@ -293,6 +293,24 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if "member_code" not in session:
             return redirect(url_for("login"))
+        # Vérifier expiration — rediriger vers page blocage sauf routes autorisées
+        allowed = ["accueil_expire", "logout", "marquer_alerte_lue", "marquer_notif_lue",
+                   "offres", "service_worker", "health", "push_register"]
+        if f.__name__ not in allowed:
+            try:
+                from datetime import datetime
+                code = session["member_code"]
+                conn = get_conn()
+                rows = conn.run("SELECT date_fin, actif FROM members WHERE code=:c", c=code)
+                conn.close()
+                if rows:
+                    date_fin, actif = rows[0]
+                    if not actif:
+                        return redirect(url_for("logout"))
+                    if date_fin and (date_fin - datetime.now()).days < 0:
+                        if f.__name__ != "offres":
+                            return redirect(url_for("accueil_expire"))
+            except: pass
         return f(*args, **kwargs)
     return decorated
 
@@ -556,6 +574,27 @@ def formation():
     if not member:
         return redirect(url_for("login"))
     return render_template("formation.html", member=member)
+
+
+@app.route("/expire")
+def accueil_expire():
+    """Page d'accès bloqué — abonnement expiré."""
+    if "member_code" not in session:
+        return redirect(url_for("login"))
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return redirect(url_for("login"))
+    # Si pas expiré → rediriger vers accueil
+    try:
+        from datetime import datetime
+        conn = get_conn()
+        rows = conn.run("SELECT date_fin FROM members WHERE code=:c", c=code)
+        conn.close()
+        if rows and rows[0][0] and (rows[0][0] - datetime.now()).days >= 0:
+            return redirect(url_for("accueil"))
+    except: pass
+    return render_template("expire.html", member=member)
 
 @app.route("/accueil")
 @login_required
