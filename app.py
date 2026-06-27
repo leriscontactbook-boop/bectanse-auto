@@ -12,6 +12,9 @@ ADMIN_ID   = os.environ.get("ADMIN_ID",   "6164373751")
 ADMIN_KEY  = os.environ.get("ADMIN_KEY",  "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
+CLOUDINARY_CLOUD  = os.environ.get("CLOUDINARY_CLOUD", "dqgd441is")
+CLOUDINARY_KEY    = os.environ.get("CLOUDINARY_KEY", "631288474842446")
+CLOUDINARY_SECRET = os.environ.get("CLOUDINARY_SECRET", "GqmAD-4OOtkLGhu6boCcnwUXXUE")
 ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "8565312655:AAFyfFQvKEiFtFJYA0yDQE1bLdH8N50UX4c")
 ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
 GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
@@ -1409,6 +1412,43 @@ def handle_prolonger(chat_id, code, jours):
         bot_send(chat_id, f"❌ Erreur : {e}")
 
 
+def upload_to_cloudinary(file_bytes, resource_type="image", filename="file"):
+    """Upload fichier sur Cloudinary, retourne URL publique permanente."""
+    try:
+        import hashlib, time, io
+        timestamp = str(int(time.time()))
+        to_sign = f"timestamp={timestamp}{CLOUDINARY_SECRET}"
+        signature = hashlib.sha1(to_sign.encode()).hexdigest()
+        r = requests.post(
+            f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD}/{resource_type}/upload",
+            files={"file": (filename, io.BytesIO(file_bytes))},
+            data={"api_key": CLOUDINARY_KEY, "timestamp": timestamp, "signature": signature},
+            timeout=30
+        )
+        return r.json().get("secure_url", "")
+    except Exception as e:
+        app.logger.error(f"Cloudinary upload: {e}")
+        return ""
+
+def tg_download_and_upload(file_id, bot_token, resource_type="image"):
+    """Télécharge depuis Telegram et upload sur Cloudinary."""
+    try:
+        r = requests.get(
+            f"https://api.telegram.org/bot{bot_token}/getFile",
+            params={"file_id": file_id}, timeout=10
+        )
+        file_path = r.json()["result"]["file_path"]
+        file_bytes = requests.get(
+            f"https://api.telegram.org/file/bot{bot_token}/{file_path}",
+            timeout=30
+        ).content
+        ext = file_path.split(".")[-1] if "." in file_path else "jpg"
+        return upload_to_cloudinary(file_bytes, resource_type, f"bectanse_{file_id}.{ext}")
+    except Exception as e:
+        app.logger.error(f"tg_download_and_upload: {e}")
+        return ""
+
+
 def handle_notif_globale(chat_id, contenu, notif_type):
     """Envoie une notification à TOUS les membres actifs"""
     if not contenu:
@@ -1823,37 +1863,38 @@ def canal_webhook():
         photo_url = None
         audio_url = None
 
-        # Photo
+        # Photo → Cloudinary (URL permanente)
         photos = msg.get("photo")
         if photos:
             file_id = photos[-1]["file_id"]
-            try:
-                r = requests.get(
-                    f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
-                    params={"file_id": file_id}, timeout=8
-                )
-                file_path = r.json()["result"]["file_path"]
-                photo_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{file_path}"
-            except:
-                photo_url = None
+            photo_url = tg_download_and_upload(file_id, CANAL_BOT_TOKEN, "image")
+            if not photo_url:
+                # Fallback URL Telegram directe
+                try:
+                    r2 = requests.get(f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
+                        params={"file_id": file_id}, timeout=8)
+                    fp = r2.json()["result"]["file_path"]
+                    photo_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{fp}"
+                except: photo_url = None
 
-        # Audio / Message vocal
+        # Audio / Message vocal → Cloudinary
         voice = msg.get("voice")
         audio = msg.get("audio")
         media = voice or audio
         if media:
             file_id = media["file_id"]
-            try:
-                r = requests.get(
-                    f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
-                    params={"file_id": file_id}, timeout=8
-                )
-                file_path = r.json()["result"]["file_path"]
-                audio_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{file_path}"
-                if not text_content:
-                    text_content = "🎙️ Message vocal" if voice else "🎵 Audio"
-            except:
-                audio_url = None
+            audio_url = tg_download_and_upload(file_id, CANAL_BOT_TOKEN, "video")
+            if not audio_url:
+                try:
+                    r2 = requests.get(f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
+                        params={"file_id": file_id}, timeout=8)
+                    fp = r2.json()["result"]["file_path"]
+                    audio_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{fp}"
+                except: audio_url = None
+            if not text_content:
+                text_content = "🎙️ Message vocal" if voice else "🎵 Audio"
+            if audio_url:
+                msg_type = "audio"
 
         conn = get_conn()
         if edited:
