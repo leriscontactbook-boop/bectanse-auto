@@ -1918,31 +1918,35 @@ async function saveParams() {
   const bool = id => { const el = document.getElementById(id); return el ? el.checked : false; };
   const val  = id => { const el = document.getElementById(id); return el ? el.value : ''; };
 
+  const flt = (id, def_=0) => { const el = document.getElementById(id); return el && el.value !== '' ? parseFloat(el.value) || def_ : def_; };
+  const int_ = (id, def_=0) => { const el = document.getElementById(id); return el && el.value !== '' ? parseInt(el.value) || def_ : def_; };
+  const str_ = (id, def_='') => { const el = document.getElementById(id); return el ? el.value : def_; };
+  const chk  = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
+
   const payload = {
-    mode_risque:              val('mode_risque'),
-    lots:                     parseFloat(val('lots')),
-    lots_max:                 parseFloat(val('lots_max')),
-    slippage:                 parseInt(val('slippage')),
-    forcer_lot_minimum:       bool('forcer_lot_minimum'),
-    inverser_trades:          bool('inverser_trades'),
-    copier_ordres_en_attente: bool('copier_ordres_en_attente'),
-    convertir_pending_invalide: bool('convertir_pending_invalide'),
-    copier_sl:                bool('copier_sl'),
-    drawdown_actif:           bool('drawdown_actif'),
-    drawdown_pct:             parseFloat(val('drawdown_pct')),
-    drawdown_gain_actif:      bool('drawdown_gain_actif'),
-    drawdown_gain_pct:        parseFloat(val('drawdown_gain_pct')),
-    objectif_actif:           bool('objectif_actif'),
-    objectif_gain_pct:        parseFloat(val('objectif_gain_pct')),
-    objectif_perte_pct:       parseFloat(val('objectif_perte_pct')),
-    objectif_periode:         val('objectif_periode'),
-    filtre_news:              bool('filtre_news'),
-    lot_symboles: (val('mode_risque') === 'Lot par symbole') ? JSON.parse(JSON.stringify(symLots)) : {},
-    risque_pct:               parseFloat(val('risque_pct') || 1),
-    multiplicateur:           parseFloat(val('multiplicateur') || 1),
-    risque_balance_pct:       parseFloat(val('risque_balance_pct') || 1),
-    risque_equity_pct:        parseFloat(val('risque_equity_pct') || 1),
-    lot_symboles:             (val('mode_risque') === 'Lot par symbole') ? symLots : {},
+    mode_risque:              str_('mode_risque', 'Lots fixes'),
+    lots:                     flt('lots', 0.01),
+    lots_max:                 flt('lots_max', 5),
+    slippage:                 int_('slippage', 100),
+    forcer_lot_minimum:       chk('forcer_lot_minimum'),
+    inverser_trades:          chk('inverser_trades'),
+    copier_ordres_en_attente: chk('copier_ordres_en_attente'),
+    convertir_pending_invalide: chk('convertir_pending_invalide'),
+    copier_sl:                chk('copier_sl'),
+    drawdown_actif:           chk('drawdown_actif'),
+    drawdown_pct:             flt('drawdown_pct', 5),
+    drawdown_gain_actif:      chk('drawdown_gain_actif'),
+    drawdown_gain_pct:        flt('drawdown_gain_pct', 5),
+    objectif_actif:           chk('objectif_actif'),
+    objectif_gain_pct:        flt('objectif_gain_pct', 5),
+    objectif_perte_pct:       flt('objectif_perte_pct', 3),
+    objectif_periode:         str_('objectif_periode', 'Mensuel'),
+    filtre_news:              chk('filtre_news'),
+    risque_pct:               flt('risque_pct', 1),
+    multiplicateur:           flt('multiplicateur', 1),
+    risque_balance_pct:       flt('risque_balance_pct', 1),
+    risque_equity_pct:        flt('risque_equity_pct', 1),
+    lot_symboles:             (str_('mode_risque') === 'Lot par symbole') ? symLots : {},
   };
 
   try {
