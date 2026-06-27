@@ -607,14 +607,14 @@ async function loadCanalMessages() {
 }
 
 async function supprimerCanalMsg(id) {
-  const r = await fetch(`/api/canal/supprimer/${id}`, {method:'POST', credentials:'same-origin'});
+  const r = await fetch(`/api/canal/supprimer/${id}?key=${KEY}`, {method:'POST', credentials:'same-origin'});
   const d = await r.json();
   if (d.ok) { toast('✅ Message masqué dans l\'app'); loadCanalMessages(); }
   else toast('Erreur : ' + (d.error||''), 'error');
 }
 
 async function restaurerCanalMsg(id) {
-  const r = await fetch(`/api/canal/restaurer/${id}`, {method:'POST', credentials:'same-origin'});
+  const r = await fetch(`/api/canal/restaurer/${id}?key=${KEY}`, {method:'POST', credentials:'same-origin'});
   const d = await r.json();
   if (d.ok) { toast('✅ Message restauré'); loadCanalMessages(); }
   else toast('Erreur : ' + (d.error||''), 'error');
