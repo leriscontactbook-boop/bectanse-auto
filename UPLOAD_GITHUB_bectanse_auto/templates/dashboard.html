@@ -2243,8 +2243,7 @@ async function fermerNotif() {
 </nav>
 
 
-<!-- Firebase Push Notifications -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script>
 (async function initPush() {
@@ -2281,6 +2280,55 @@ async function fermerNotif() {
     });
   } catch(e) { console.log('FCM:', e.message); }
 })();
+</script>
+
+
+<!-- Web Push Notifications VAPID -->
+<script>
+const VAPID_PUBLIC_KEY = 'BP3k0fJd97TMN7N9I37KkkXkUTTIzJFVHhZLGqg-0VrsFFPaKgQb15zPw-DIgS2lBst8QOSlMGLLA04uMpzCyEg';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function initWebPush() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    // Enregistrer sur le serveur
+    await fetch('/api/push/register', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({subscription: sub.toJSON()})
+    });
+  } catch(e) {
+    console.log('WebPush init:', e.message);
+  }
+}
+
+// Démarrer après chargement
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initWebPush);
+} else {
+  initWebPush();
+}
 </script>
 
 </body>
