@@ -1908,14 +1908,15 @@ function showToast(msg, type='success') {
 
 // ── Save
 async function saveParams() {
-  // Trouver le bon bouton (desktop ou mobile)
+  // Boutons
   const btn = document.getElementById('saveBtn');
   const mBtn = document.querySelector('.mobile-envoyer-btn');
   if (btn) { btn.classList.add('loading'); btn.textContent = 'Envoi en cours...'; }
   if (mBtn) { mBtn.disabled = true; mBtn.textContent = 'Envoi en cours...'; }
 
-  const bool = id => document.getElementById(id).checked;
-  const val  = id => document.getElementById(id).value;
+  // Lecture sécurisée — ne plante pas si l'élément est caché ou absent
+  const bool = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+  const val  = id => { const el = document.getElementById(id); return el ? el.value : ''; };
 
   const payload = {
     mode_risque:              val('mode_risque'),
