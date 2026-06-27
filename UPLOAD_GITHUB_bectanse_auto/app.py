@@ -1911,6 +1911,18 @@ def api_canal_messages():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/canal/restaurer/<int:msg_id>", methods=["POST"])
+@login_required
+def api_canal_restaurer(msg_id):
+    try:
+        conn = get_conn()
+        conn.run("UPDATE canal_messages SET deleted=FALSE WHERE id=:id", id=msg_id)
+        conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
 @app.route("/api/canal/supprimer/<int:msg_id>", methods=["POST"])
 def api_canal_supprimer(msg_id):
     """Supprime un message du canal webapp + Telegram."""
