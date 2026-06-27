@@ -222,13 +222,16 @@ def build_notif(member, params, code):
         f"━━━━━━━━━━━━━━━━"
     )
 
-def send_telegram(text, reply_markup=None):
+def send_telegram(text, reply_markup=None, chat_id=None):
     if not BOT_TOKEN: return
     try:
-        payload = {"chat_id": ADMIN_ID, "text": text, "parse_mode": "Markdown"}
+        target = str(chat_id) if chat_id else str(ADMIN_ID)
+        payload = {"chat_id": target, "text": text, "parse_mode": "Markdown"}
         if reply_markup: payload["reply_markup"] = reply_markup
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=payload, timeout=5)
-    except: pass
+        r = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=payload, timeout=10)
+        app.logger.info(f"Telegram → {target}: {r.status_code}")
+    except Exception as e:
+        app.logger.error(f"send_telegram error: {e}")
 
 def login_required(f):
     @wraps(f)
@@ -997,7 +1000,12 @@ def save():
             {"text":"✅ Appliqué sur notre système","url":confirm_url},
             {"text":"❌ Problème — Contacter","url":problem_url}
         ]]}
-        send_telegram(build_notif(member, p, code), reply_markup=markup)
+        try:
+            tg_msg = build_notif(member, p, code)
+            send_telegram(tg_msg, reply_markup=markup)
+            app.logger.info(f"Telegram envoyé pour {code}")
+        except Exception as tg_err:
+            app.logger.error(f"Telegram save error: {tg_err}")
         return jsonify({"ok": True})
     except Exception as e:
         app.logger.error(f"save: {e}")
