@@ -95,6 +95,29 @@ def init_db():
                 try:
                     conn.run(f"ALTER TABLE members ADD COLUMN IF NOT EXISTS {col} {typ} DEFAULT {default}")
                 except: pass
+            # Tables formation et annonces
+            conn.run("""CREATE TABLE IF NOT EXISTS formation_videos (
+                id SERIAL PRIMARY KEY,
+                num INTEGER, titre TEXT, youtube_id TEXT,
+                duree TEXT, ordre INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW()
+            )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS formation_pdfs (
+                id SERIAL PRIMARY KEY,
+                num INTEGER, titre TEXT, drive_id TEXT,
+                taille TEXT, ordre INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW()
+            )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS annonces (
+                id SERIAL PRIMARY KEY,
+                titre TEXT, contenu TEXT,
+                type TEXT DEFAULT 'message',
+                audio_url TEXT DEFAULT '',
+                cible TEXT DEFAULT 'tous',
+                cible_code TEXT DEFAULT '',
+                actif BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )""")
             # Migration robuste — ajouter toutes les colonnes une par une
             cols_to_add = [
                 ("parrain_code", "TEXT", "''"),
@@ -546,6 +569,312 @@ def notif_lue():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True}), 200
+
+
+# ══════════════════════════════════════════════════════════════
+# PAGE ADMIN COMPLÈTE
+# ══════════════════════════════════════════════════════════════
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        key = request.headers.get("X-Admin-Key") or request.args.get("key") or request.json.get("key","") if request.is_json else request.form.get("key","") or request.args.get("key","")
+        if key != ADMIN_KEY:
+            return jsonify({"ok": False, "error": "Non autorisé"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route("/admin-panel")
+def admin_panel():
+    key = request.args.get("key","")
+    if key != ADMIN_KEY:
+        return render_template("admin_login.html")
+    return render_template("admin_panel.html", admin_key=ADMIN_KEY)
+
+@app.route("/admin-panel/login", methods=["POST"])
+def admin_panel_login():
+    key = request.form.get("key","")
+    if key == ADMIN_KEY:
+        return redirect(f"/admin-panel?key={ADMIN_KEY}")
+    return render_template("admin_login.html", error="Clé incorrecte")
+
+# ── MEMBRES ──
+@app.route("/admin/api/membres", methods=["GET"])
+def admin_api_membres():
+    key = request.args.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT code,nom,capital,actif,copy_actif,date_fin,email,telephone,telegram,parrain_code,filleuls_count,gains_parrainage FROM members ORDER BY created_at DESC")
+        cols = ["code","nom","capital","actif","copy_actif","date_fin","email","telephone","telegram","parrain_code","filleuls_count","gains_parrainage"]
+        membres = []
+        from datetime import datetime
+        for r in rows:
+            m = dict(zip(cols, r))
+            if m["date_fin"] and hasattr(m["date_fin"],"strftime"):
+                delta = m["date_fin"] - datetime.now()
+                m["jours_restants"] = max(0, delta.days)
+                m["date_fin"] = m["date_fin"].strftime("%d/%m/%Y")
+            else:
+                m["jours_restants"] = 0
+            membres.append(m)
+        conn.close()
+        return jsonify({"ok":True,"membres":membres})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/membre/update", methods=["POST"])
+def admin_api_membre_update():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        data = request.json
+        code = data.get("code")
+        conn = get_conn()
+        if "capital" in data:
+            conn.run("UPDATE members SET capital=:v WHERE code=:c", v=data["capital"], c=code)
+        if "actif" in data:
+            conn.run("UPDATE members SET actif=:v WHERE code=:c", v=data["actif"], c=code)
+        if "copy_actif" in data:
+            conn.run("UPDATE members SET copy_actif=:v WHERE code=:c", v=data["copy_actif"], c=code)
+        if "jours" in data:
+            from datetime import datetime, timedelta
+            rows = conn.run("SELECT date_fin FROM members WHERE code=:c", c=code)
+            date_fin = rows[0][0] if rows else datetime.now()
+            if date_fin and date_fin > datetime.now():
+                nouvelle = date_fin + timedelta(days=int(data["jours"]))
+            else:
+                nouvelle = datetime.now() + timedelta(days=int(data["jours"]))
+            conn.run("UPDATE members SET date_fin=:df WHERE code=:c", df=nouvelle, c=code)
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/membre/supprimer", methods=["POST"])
+def admin_api_membre_supprimer():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        code = request.json.get("code")
+        conn = get_conn()
+        conn.run("DELETE FROM members WHERE code=:c", c=code)
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+# ── NOTIFICATIONS ──
+@app.route("/admin/api/notif/globale", methods=["POST"])
+def admin_api_notif_globale():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        notif_type = request.json.get("type","message")
+        contenu = request.json.get("contenu","")
+        conn = get_conn()
+        rows = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")
+        total = rows[0][0]
+        conn.run("UPDATE members SET notif_type=:t, notif_message=:m, notif_lue=FALSE WHERE actif=TRUE", t=notif_type, m=contenu)
+        conn.close()
+        return jsonify({"ok":True,"total":total})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/notif/individuelle", methods=["POST"])
+def admin_api_notif_individuelle():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        code = request.json.get("code")
+        contenu = request.json.get("contenu","")
+        conn = get_conn()
+        rows = conn.run("SELECT nom FROM members WHERE code=:c AND actif=TRUE", c=code)
+        if not rows:
+            conn.close()
+            return jsonify({"ok":False,"error":"Membre introuvable"})
+        conn.run("UPDATE members SET notif_type='individuelle', notif_message=:m, notif_lue=FALSE WHERE code=:c", m=contenu, c=code)
+        conn.close()
+        return jsonify({"ok":True,"nom":rows[0][0]})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+# ── ANNONCES ──
+@app.route("/admin/api/annonces", methods=["GET"])
+def admin_api_annonces():
+    key = request.args.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT id,titre,contenu,type,audio_url,cible,cible_code,actif,created_at FROM annonces ORDER BY created_at DESC")
+        cols = ["id","titre","contenu","type","audio_url","cible","cible_code","actif","created_at"]
+        annonces = []
+        for r in rows:
+            a = dict(zip(cols, r))
+            if a["created_at"]: a["created_at"] = a["created_at"].strftime("%d/%m/%Y %H:%M")
+            annonces.append(a)
+        conn.close()
+        return jsonify({"ok":True,"annonces":annonces})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/annonces/add", methods=["POST"])
+def admin_api_annonces_add():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        d = request.json
+        conn = get_conn()
+        conn.run("INSERT INTO annonces (titre,contenu,type,audio_url,cible,cible_code) VALUES (:ti,:co,:ty,:au,:ci,:cc)",
+            ti=d.get("titre",""), co=d.get("contenu",""), ty=d.get("type","message"),
+            au=d.get("audio_url",""), ci=d.get("cible","tous"), cc=d.get("cible_code",""))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/annonces/update", methods=["POST"])
+def admin_api_annonces_update():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        d = request.json
+        conn = get_conn()
+        conn.run("UPDATE annonces SET titre=:ti,contenu=:co,type=:ty,audio_url=:au,actif=:ac WHERE id=:id",
+            ti=d.get("titre",""), co=d.get("contenu",""), ty=d.get("type","message"),
+            au=d.get("audio_url",""), ac=d.get("actif",True), id=d.get("id"))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/annonces/supprimer", methods=["POST"])
+def admin_api_annonces_supprimer():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        conn = get_conn()
+        conn.run("DELETE FROM annonces WHERE id=:id", id=request.json.get("id"))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+# ── FORMATION ──
+@app.route("/admin/api/formation/pdfs", methods=["GET"])
+def admin_api_formation_pdfs():
+    key = request.args.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        conn = get_conn()
+        rows = conn.run("SELECT id,num,titre,drive_id,taille,ordre FROM formation_pdfs ORDER BY ordre,num")
+        cols = ["id","num","titre","drive_id","taille","ordre"]
+        pdfs = [dict(zip(cols,r)) for r in rows]
+        conn.close()
+        return jsonify({"ok":True,"pdfs":pdfs})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/formation/pdfs/add", methods=["POST"])
+def admin_api_formation_pdfs_add():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        d = request.json
+        conn = get_conn()
+        conn.run("INSERT INTO formation_pdfs (num,titre,drive_id,taille,ordre) VALUES (:n,:t,:d,:ta,:o)",
+            n=d.get("num",0), t=d.get("titre",""), d=d.get("drive_id",""),
+            ta=d.get("taille",""), o=d.get("ordre",0))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/formation/pdfs/update", methods=["POST"])
+def admin_api_formation_pdfs_update():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        d = request.json
+        conn = get_conn()
+        conn.run("UPDATE formation_pdfs SET num=:n,titre=:t,drive_id=:d,taille=:ta,ordre=:o WHERE id=:id",
+            n=d.get("num",0), t=d.get("titre",""), d=d.get("drive_id",""),
+            ta=d.get("taille",""), o=d.get("ordre",0), id=d.get("id"))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/formation/pdfs/supprimer", methods=["POST"])
+def admin_api_formation_pdfs_supprimer():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        conn = get_conn()
+        conn.run("DELETE FROM formation_pdfs WHERE id=:id", id=request.json.get("id"))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/formation/videos/add", methods=["POST"])
+def admin_api_formation_videos_add():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        d = request.json
+        conn = get_conn()
+        conn.run("INSERT INTO formation_videos (num,titre,youtube_id,duree,ordre) VALUES (:n,:t,:y,:du,:o)",
+            n=d.get("num",0), t=d.get("titre",""), y=d.get("youtube_id",""),
+            du=d.get("duree",""), o=d.get("ordre",0))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+@app.route("/admin/api/formation/videos/supprimer", methods=["POST"])
+def admin_api_formation_videos_supprimer():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        conn = get_conn()
+        conn.run("DELETE FROM formation_videos WHERE id=:id", id=request.json.get("id"))
+        conn.close()
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+# ── TELEGRAM ADMIN ──
+@app.route("/admin/api/telegram/envoyer", methods=["POST"])
+def admin_api_telegram_envoyer():
+    key = request.json.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        canal = request.json.get("canal", "@BECTANSE_ACADEMIE")
+        message = request.json.get("message","")
+        send_telegram(message, chat_id=canal)
+        return jsonify({"ok":True})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
+# ── STATS ──
+@app.route("/admin/api/stats", methods=["GET"])
+def admin_api_stats():
+    key = request.args.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    try:
+        conn = get_conn()
+        from datetime import datetime
+        total = conn.run("SELECT COUNT(*) FROM members")[0][0]
+        actifs = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")[0][0]
+        copy_on = conn.run("SELECT COUNT(*) FROM members WHERE copy_actif=TRUE AND actif=TRUE")[0][0]
+        expires = conn.run("SELECT COUNT(*) FROM members WHERE date_fin < NOW() AND actif=TRUE")[0][0]
+        nouveaux = conn.run("SELECT COUNT(*) FROM members WHERE created_at > NOW() - INTERVAL '7 days'")[0][0]
+        conn.close()
+        return jsonify({"ok":True,"total":total,"actifs":actifs,"copy_on":copy_on,"expires":expires,"nouveaux_7j":nouveaux})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
 
 @app.route("/health")
 def health():
