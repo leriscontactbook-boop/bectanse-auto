@@ -998,11 +998,11 @@ def save():
         conn.run("UPDATE members SET params=:p, historique=:h, last_login=NOW() WHERE code=:c",
                  p=json.dumps(p), h=json.dumps(hist[-50:]), c=code)
         conn.close()
-        confirm_url = f"https://bectanse-auto.up.railway.app/confirm/{code}"
-        problem_url = f"https://bectanse-auto.up.railway.app/problem/{code}"
+        confirm_url = f"https://bectanse-auto.up.railway.app/confirm/{code}?t={ADMIN_KEY}"
+        problem_url = f"https://bectanse-auto.up.railway.app/problem/{code}?t={ADMIN_KEY}"
         markup = {"inline_keyboard":[[
             {"text":"✅ Appliqué sur notre système","url":confirm_url},
-            {"text":"❌ Problème — Contacter","url":problem_url}
+            {"text":"❌ Refuser la demande","url":problem_url}
         ]]}
         try:
             tg_msg = build_notif(member, p, code)
@@ -1157,37 +1157,74 @@ def inscription():
 @app.route("/confirm/<code>")
 def confirm_params(code):
     if request.args.get("t","") != ADMIN_KEY:
-        return "<h2 style='padding:40px;color:red'>⛔ Non autorisé</h2>", 403
+        return "<h2 style='padding:40px;font-family:Arial;color:red'>⛔ Non autorisé</h2>", 403
     try:
         conn = get_conn()
         rows = conn.run("SELECT nom, historique FROM members WHERE code=:c", c=code)
-        if not rows: return "<h2 style='padding:40px'>❌ Introuvable</h2>"
+        if not rows:
+            return "<h2 style='padding:40px;font-family:Arial'>❌ Membre introuvable</h2>"
         nom = rows[0][0]
+        # Mettre à jour le dernier statut en_attente → applique
         hist = json.loads(rows[0][1]) if rows[0][1] else []
-        for h in reversed(hist):
-            if h.get("statut") == "en_attente":
-                h["statut"] = "applique"
+        for i in range(len(hist)-1, -1, -1):
+            if hist[i].get("statut") == "en_attente":
+                hist[i]["statut"] = "applique"
                 break
-        conn.run("UPDATE members SET historique=:h WHERE code=:c", h=json.dumps(hist), c=code)
+        # Notifier le membre dans son espace
+        conn.run("""UPDATE members SET historique=:h,
+            notif_type='resultat',
+            notif_message='✅ Tes paramètres ont été appliqués sur le système Bectanse AUTO.',
+            notif_lue=FALSE WHERE code=:c""",
+            h=json.dumps(hist), c=code)
         conn.close()
-        send_telegram(f"✅ *Paramètres appliqués !*\n\n👤 *{nom}* — compte mis à jour. 🚀")
-        return f"<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center'><h1 style='color:#059669'>✅ Appliqué !</h1><p>{nom}</p></body></html>"
+        return """<html><head><meta charset='utf-8'>
+        <style>body{font-family:Arial;background:#0A0A0F;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+        .box{background:#111827;border:1px solid rgba(5,150,105,0.4);border-radius:16px;padding:40px;text-align:center;max-width:400px}
+        .icon{font-size:48px;margin-bottom:16px}.title{font-size:22px;font-weight:700;color:#6EE7B7;margin-bottom:8px}
+        .desc{color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6}</style></head>
+        <body><div class='box'><div class='icon'>✅</div>
+        <div class='title'>Paramètres appliqués</div>
+        <div class='desc'>Les paramètres de <strong style='color:#fff'>""" + nom + """</strong> (<code style='color:#C4B5FD'>""" + code + """</code>) ont été marqués comme appliqués.<br><br>Le membre a reçu une notification dans son espace.</div>
+        </div></body></html>"""
     except Exception as e:
-        return f"<h2>Erreur: {e}</h2>"
+        return f"<h2 style='padding:40px;font-family:Arial;color:red'>❌ Erreur: {e}</h2>"
+
 
 @app.route("/problem/<code>")
 def problem_params(code):
     if request.args.get("t","") != ADMIN_KEY:
-        return "<h2 style='padding:40px;color:red'>⛔ Non autorisé</h2>", 403
+        return "<h2 style='padding:40px;font-family:Arial;color:red'>⛔ Non autorisé</h2>", 403
     try:
         conn = get_conn()
-        rows = conn.run("SELECT nom FROM members WHERE code=:c", c=code)
-        nom = rows[0][0] if rows else "Membre"
+        rows = conn.run("SELECT nom, historique FROM members WHERE code=:c", c=code)
+        if not rows:
+            return "<h2 style='padding:40px;font-family:Arial'>❌ Membre introuvable</h2>"
+        nom = rows[0][0]
+        # Mettre à jour le dernier statut en_attente → probleme
+        hist = json.loads(rows[0][1]) if rows[0][1] else []
+        for i in range(len(hist)-1, -1, -1):
+            if hist[i].get("statut") == "en_attente":
+                hist[i]["statut"] = "probleme"
+                break
+        # Notifier le membre
+        conn.run("""UPDATE members SET historique=:h,
+            notif_type='alerte',
+            notif_message='⚠️ Un problème a été détecté sur ta demande. Notre équipe va te contacter sur WhatsApp.',
+            notif_lue=FALSE WHERE code=:c""",
+            h=json.dumps(hist), c=code)
         conn.close()
-        send_telegram(f"⚠️ *Problème signalé*\n\n👤 *{nom}* (`{code}`) — à contacter.")
-        return f"<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center'><h1 style='color:#F59E0B'>⚠️ Signalé</h1><p>Contacter <strong>{nom}</strong></p></body></html>"
+        return """<html><head><meta charset='utf-8'>
+        <style>body{font-family:Arial;background:#0A0A0F;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+        .box{background:#111827;border:1px solid rgba(220,38,38,0.4);border-radius:16px;padding:40px;text-align:center;max-width:400px}
+        .icon{font-size:48px;margin-bottom:16px}.title{font-size:22px;font-weight:700;color:#FCA5A5;margin-bottom:8px}
+        .desc{color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6}</style></head>
+        <body><div class='box'><div class='icon'>⚠️</div>
+        <div class='title'>Problème signalé</div>
+        <div class='desc'>La demande de <strong style='color:#fff'>""" + nom + """</strong> (<code style='color:#C4B5FD'>""" + code + """</code>) a été marquée avec un problème.<br><br>Le membre a reçu une notification et sera contacté sur WhatsApp.</div>
+        </div></body></html>"""
     except Exception as e:
-        return f"<h2>Erreur: {e}</h2>"
+        return f"<h2 style='padding:40px;font-family:Arial;color:red'>❌ Erreur: {e}</h2>"
+
 
 @app.route("/set-dates/<code>", methods=["GET","POST"])
 def set_dates(code):
