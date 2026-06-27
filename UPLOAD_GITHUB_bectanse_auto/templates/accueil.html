@@ -454,16 +454,40 @@ function formatDate(d) {
 // ── MARCHÉ XAU/USD
 function getMarketStatus() {
   const now = getNowParis();
-  const day  = now.getDay();
-  const h    = now.getHours();
-  const m    = now.getMinutes();
-  const timeMin = h * 60 + m;
-  if (day === 6) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
-  if (day === 0) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
-  if (day === 1 && timeMin < 60) return {open: false, reason: 'Ouverture imminente', nextOpen: 'Lundi à 01h00'};
-  if (day === 5 && timeMin >= 23*60) return {open: false, reason: 'Week-end', nextOpen: 'Lundi à 01h00'};
-  if (timeMin >= 23*60) return {open: false, reason: 'Pause technique', nextOpen: 'Demain à 00h00'};
-  return {open: true};
+  const day = now.getDay(); // 0=dim 1=lun ... 5=ven 6=sam
+  const h   = now.getHours();
+  const m   = now.getMinutes();
+  const t   = h * 60 + m;
+
+  // Week-end : sam après 23h ou sam entier ou dim entier ou lun avant 01h
+  if (day === 6 && t >= 23*60) return {open:false, reason:'Week-end', nextOpen:'lundi'};
+  if (day === 6) return {open:false, reason:'Week-end', nextOpen:'lundi'};
+  if (day === 0) return {open:false, reason:'Week-end', nextOpen:'lundi'};
+  if (day === 1 && t < 60) return {open:false, reason:'Week-end', nextOpen:'lundi'};
+
+  // Vendredi après 23h → week-end
+  if (day === 5 && t >= 23*60) return {open:false, reason:'Week-end', nextOpen:'lundi'};
+
+  // Pause nuit 23h00→00h00 (lun-jeu)
+  if (t >= 23*60) return {open:false, reason:'Pause technique', nextOpen:'demain'};
+
+  return {open:true};
+}
+
+function getMinutesUntilOpen() {
+  // Calcule les minutes exactes jusqu'à la prochaine ouverture (lundi 01h00)
+  const now = getNowParis();
+  const day = now.getDay();
+  const t   = now.getHours()*60 + now.getMinutes();
+
+  // Prochaine ouverture = lundi 01h00
+  const nextMonday = new Date(now);
+  let daysUntilMonday = (8 - day) % 7; // jours jusqu'au prochain lundi
+  if (daysUntilMonday === 0 && t >= 60) daysUntilMonday = 7; // déjà lundi passé 01h
+  if (daysUntilMonday === 0 && t < 60) daysUntilMonday = 0;  // lundi avant 01h
+  nextMonday.setDate(now.getDate() + daysUntilMonday);
+  nextMonday.setHours(1, 0, 0, 0);
+  return Math.max(0, Math.round((nextMonday - now) / 60000));
 }
 
 function getActiveSessions() {
