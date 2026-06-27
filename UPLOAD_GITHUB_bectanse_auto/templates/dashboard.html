@@ -2045,6 +2045,23 @@ async function saveParams() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
+
+async function fermerNotif() {
+  const banner = document.getElementById('notif-banner');
+  if (banner) {
+    banner.style.opacity = '0';
+    banner.style.transform = 'translateY(-10px)';
+    banner.style.transition = 'all 0.3s ease';
+    setTimeout(() => { banner.style.display = 'none'; }, 300);
+  }
+  try {
+    await fetch('/marquer-notif-lue', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'}
+    });
+  } catch(e) {}
+}
   </script>
 
 <!-- ═══════════════════════════════════ -->
