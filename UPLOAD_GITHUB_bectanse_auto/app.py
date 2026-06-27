@@ -1915,6 +1915,11 @@ def api_canal_messages():
 @app.route("/api/canal/restaurer/<int:msg_id>", methods=["POST"])
 @login_required
 def api_canal_restaurer(msg_id):
+    key = request.args.get("key","") or (request.json.get("key","") if request.is_json else "")
+    is_admin_key = (key == ADMIN_KEY)
+    is_canal_admin = ("member_code" in session and session.get("member_code") == CANAL_ADMIN_CODE)
+    if not is_admin_key and not is_canal_admin:
+        return jsonify({"error": "non autorisé"}), 403
     try:
         conn = get_conn()
         conn.run("UPDATE canal_messages SET deleted=FALSE WHERE id=:id", id=msg_id)
@@ -1925,10 +1930,12 @@ def api_canal_restaurer(msg_id):
 
 @app.route("/api/canal/supprimer/<int:msg_id>", methods=["POST"])
 def api_canal_supprimer(msg_id):
-    """Supprime un message du canal webapp + Telegram."""
-    if "member_code" not in session:
-        return jsonify({"error": "non connecté"}), 401
-    if session["member_code"] != CANAL_ADMIN_CODE:
+    """Supprime un message du canal webapp."""
+    # Accepter soit la session admin canal, soit la clé admin
+    key = request.args.get("key","") or (request.json.get("key","") if request.is_json else "")
+    is_admin_key = (key == ADMIN_KEY)
+    is_canal_admin = ("member_code" in session and session["member_code"] == CANAL_ADMIN_CODE)
+    if not is_admin_key and not is_canal_admin:
         return jsonify({"error": "non autorisé"}), 403
     try:
         conn = get_conn()
