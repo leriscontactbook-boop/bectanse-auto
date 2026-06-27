@@ -133,6 +133,8 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <div class="s-section">Formation</div>
     <a class="s-item" onclick="showSection('videos')"><span class="s-icon">🎬</span> Vidéos</a>
     <a class="s-item" onclick="showSection('pdfs')"><span class="s-icon">📚</span> PDFs</a>
+    <div class="s-section">Canal</div>
+    <a class="s-item" onclick="showSection('canal')"><span class="s-icon">📡</span> Canal VIP</a>
   </nav>
 </aside>
 
@@ -298,6 +300,19 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <button class="btn btn-purple" onclick="ajouterPDF()">Ajouter le PDF →</button>
   </div>
   <div id="pdfs-list"></div>
+</div>
+
+
+<!-- CANAL VIP -->
+<div class="section" id="section-canal">
+  <div class="section-title">Canal VIP — Messages</div>
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+    <button class="btn btn-purple" onclick="loadCanalMessages()">↻ Actualiser</button>
+    <span style="font-size:12px;color:rgba(255,255,255,0.3)">Les messages supprimés disparaissent de l'app membre mais restent sur Telegram</span>
+  </div>
+  <div id="canal-messages-list">
+    <div style="text-align:center;color:rgba(255,255,255,0.25);padding:24px">Cliquez sur Actualiser pour charger les messages</div>
+  </div>
 </div>
 
 </main>
@@ -553,6 +568,56 @@ async function supprimerPDF(id, titre) {
     if (d.ok) { toast('✅ PDF supprimé'); loadPDFs(); }
     else toast('Erreur', 'error');
   });
+}
+
+
+// ── CANAL VIP
+async function loadCanalMessages() {
+  const el = document.getElementById('canal-messages-list');
+  el.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.25);padding:24px">Chargement...</div>';
+  try {
+    const r = await fetch('/api/canal/messages');
+    const d = await r.json();
+    if (!d.messages || !d.messages.length) {
+      el.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.25);padding:24px">Aucun message</div>';
+      return;
+    }
+    const TYPE_LABELS = {signal:'Signal',resultat:'Résultat',alerte:'Alerte',annonce:'Annonce',message:'Message',audio:'Audio'};
+    const TYPE_COLORS = {signal:'#6EE7B7',resultat:'#34D399',alerte:'#FCA5A5',annonce:'#C4B5FD',message:'rgba(255,255,255,0.5)',audio:'#FCD34D'};
+    el.innerHTML = d.messages.map(m => `
+      <div id="canal-msg-${m.id}" style="background:var(--d2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;gap:14px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${TYPE_COLORS[m.msg_type]||'rgba(255,255,255,0.4)'}">${TYPE_LABELS[m.msg_type]||m.msg_type}</span>
+            <span style="font-size:10px;color:rgba(255,255,255,0.2)">${m.sent_at||''}</span>
+            ${m.deleted ? '<span style="font-size:10px;color:#FCA5A5;background:rgba(220,38,38,0.1);padding:2px 8px;border-radius:10px">Supprimé</span>' : ''}
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.5;white-space:pre-wrap">${(m.text_content||'(contenu vide)').substring(0,200)}${(m.text_content||'').length>200?'...':''}</div>
+          ${m.photo_url ? `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.3)">📷 Photo jointe</div>` : ''}
+          ${m.audio_url ? `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.3)">🔊 Audio joint</div>` : ''}
+        </div>
+        <div style="flex-shrink:0">
+          ${!m.deleted ? `<button class="btn btn-red btn-sm" onclick="supprimerCanalMsg(${m.id})">✕ Masquer</button>` : `<button class="btn btn-sm" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.1)" onclick="restaurerCanalMsg(${m.id})">↩ Restaurer</button>`}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="text-align:center;color:#FCA5A5;padding:24px">Erreur de chargement</div>';
+  }
+}
+
+async function supprimerCanalMsg(id) {
+  const r = await fetch(`/api/canal/supprimer/${id}`, {method:'POST', credentials:'same-origin'});
+  const d = await r.json();
+  if (d.ok) { toast('✅ Message masqué dans l\'app'); loadCanalMessages(); }
+  else toast('Erreur : ' + (d.error||''), 'error');
+}
+
+async function restaurerCanalMsg(id) {
+  const r = await fetch(`/api/canal/restaurer/${id}`, {method:'POST', credentials:'same-origin'});
+  const d = await r.json();
+  if (d.ok) { toast('✅ Message restauré'); loadCanalMessages(); }
+  else toast('Erreur : ' + (d.error||''), 'error');
 }
 
 // ── INIT
