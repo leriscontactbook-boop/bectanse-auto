@@ -1008,6 +1008,63 @@ def push_register():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
+
+# ── ESSAI GRATUIT ─────────────────────────────────────────────────────────────
+
+@app.route("/testgratuit")
+def testgratuit():
+    return send_from_directory("static/essai-gratuit", "index.html")
+
+@app.route("/api/essai/register", methods=["POST"])
+def essai_register():
+    data = request.get_json()
+    prenom    = data.get("prenom", "").strip()
+    nom       = data.get("nom", "").strip()
+    email     = data.get("email", "").strip()
+    phone     = data.get("phone", "").strip()
+    source    = data.get("source", "Landing Essai Gratuit")
+    date_str  = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    if not email:
+        return jsonify({"ok": False, "error": "Email requis"}), 400
+
+    # Enregistrement PostgreSQL
+    try:
+        conn = get_conn()
+        conn.run("""
+            CREATE TABLE IF NOT EXISTS essai_gratuit (
+                id         SERIAL PRIMARY KEY,
+                prenom     TEXT DEFAULT '',
+                nom        TEXT DEFAULT '',
+                email      TEXT NOT NULL,
+                telephone  TEXT DEFAULT '',
+                source     TEXT DEFAULT 'Landing Essai Gratuit',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        conn.run(
+            "INSERT INTO essai_gratuit (prenom, nom, email, telephone, source) VALUES (:p, :n, :e, :t, :s)",
+            p=prenom, n=nom, e=email, t=phone, s=source
+        )
+        conn.close()
+    except Exception as db_err:
+        app.logger.error(f"essai_register DB: {db_err}")
+
+    # Notification Telegram admin
+    try:
+        send_telegram(
+            f"\U0001f7e2 *NOUVEL ESSAI GRATUIT*\n\n"
+            f"\U0001f464 *{prenom} {nom}*\n"
+            f"\U0001f4e7 `{email}`\n"
+            f"\U0001f4f1 `{phone}`\n"
+            f"\U0001f4c5 {date_str}\n"
+            f"\U0001f4cd Source : {source}"
+        )
+    except Exception as tg_err:
+        app.logger.error(f"essai_register TG: {tg_err}")
+
+    return jsonify({"ok": True})
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
