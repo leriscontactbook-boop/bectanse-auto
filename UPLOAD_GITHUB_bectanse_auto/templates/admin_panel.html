@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bectanse Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--d2:#111827;--d3:#1F2937;--white:#fff;--gray:rgba(255,255,255,0.5);--border:rgba(91,33,182,0.2);--green:#059669;--red:#DC2626}
+html,body{min-height:100vh;background:var(--dark);color:var(--white);font-family:'Barlow',sans-serif}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(91,33,182,0.25),transparent 55%);pointer-events:none;z-index:0}
+
+/* LAYOUT */
+.app{display:flex;min-height:100vh;position:relative;z-index:1}
+.sidebar{width:220px;background:rgba(10,10,20,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100}
+.main{margin-left:220px;flex:1;padding:28px 32px 60px}
+
+/* SIDEBAR */
+.s-brand{padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.s-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:0.08em}
+.s-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:2px}
+.s-nav{padding:8px 0;flex:1}
+.s-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.18);padding:12px 16px 5px}
+.s-item{display:flex;align-items:center;gap:9px;padding:9px 16px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.45);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;text-decoration:none}
+.s-item:hover,.s-item.active{color:var(--white);background:rgba(91,33,182,0.1);border-left-color:var(--purple)}
+.s-item.active{color:var(--white)}
+.s-icon{font-size:15px;flex-shrink:0}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px}
+.stat-card{background:var(--d2);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.purple::before{background:var(--purple)}
+.stat-card.gold::before{background:var(--gold)}
+.stat-card.green::before{background:var(--green)}
+.stat-card.red::before{background:var(--red)}
+.stat-card.blue::before{background:#0891B2}
+.stat-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:6px}
+.stat-value{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--white);letter-spacing:0.03em}
+
+/* SECTIONS */
+.section{display:none}
+.section.active{display:block}
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:0.04em;color:var(--white);margin-bottom:20px}
+
+/* TABLE */
+.table-wrap{background:var(--d2);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:20px}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.table-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.5)}
+table{width:100%;border-collapse:collapse}
+th{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.25);padding:10px 16px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.05)}
+td{padding:10px 16px;font-size:13px;color:rgba(255,255,255,0.7);border-bottom:1px solid rgba(255,255,255,0.03)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700}
+.badge.on{background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3)}
+.badge.off{background:rgba(220,38,38,0.12);color:#FCA5A5;border:1px solid rgba(220,38,38,0.25)}
+.badge.warn{background:rgba(245,158,11,0.12);color:#FCD34D;border:1px solid rgba(245,158,11,0.25)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.15s}
+.btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{background:#4C1D95}
+.btn-gold{background:rgba(245,158,11,0.15);color:var(--gold);border:1px solid rgba(245,158,11,0.3)}.btn-gold:hover{background:rgba(245,158,11,0.25)}
+.btn-red{background:rgba(220,38,38,0.12);color:#FCA5A5;border:1px solid rgba(220,38,38,0.25)}.btn-red:hover{background:rgba(220,38,38,0.2)}
+.btn-green{background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3)}.btn-green:hover{background:rgba(5,150,105,0.25)}
+.btn-sm{padding:5px 10px;font-size:10px}
+
+/* FORMS */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.form-grid.full{grid-template-columns:1fr}
+.field label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);display:block;margin-bottom:6px}
+.field input,.field textarea,.field select{width:100%;background:var(--d3);border:1px solid rgba(91,33,182,0.25);border-radius:8px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;transition:border-color 0.15s;font-family:'Barlow',sans-serif}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--purple)}
+.field textarea{resize:vertical;min-height:80px}
+.field select option{background:var(--d3)}
+
+/* CARD FORM */
+.card-form{background:var(--d2);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+.card-form-title{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+
+/* TOAST */
+.toast{position:fixed;top:20px;right:20px;z-index:9999;background:var(--d2);border:1px solid var(--border);border-radius:12px;padding:14px 20px;font-size:13px;font-weight:500;transform:translateX(120%);transition:transform 0.3s;box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+.toast.show{transform:translateX(0)}
+.toast.success{border-color:rgba(5,150,105,0.4);color:#6EE7B7}
+.toast.error{border-color:rgba(220,38,38,0.4);color:#FCA5A5}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--d2);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:480px}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:20px}
+.modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+
+/* MOBILE */
+@media(max-width:768px){
+  .sidebar{width:100%;height:auto;position:relative;border-right:none;border-bottom:1px solid var(--border)}
+  .app{flex-direction:column}
+  .main{margin-left:0;padding:16px 14px 60px}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr}
+  table{font-size:12px}
+  th,td{padding:8px 10px}
+}
+
+/* SEARCH */
+.search-bar{display:flex;gap:10px;margin-bottom:16px}
+.search-input{flex:1;background:var(--d2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;color:var(--white);font-size:13px;outline:none}
+.search-input:focus{border-color:var(--purple)}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="s-brand">
+    <div class="s-logo">B€CTAN$€ ADMIN</div>
+    <div class="s-tag">Panneau de contrôle</div>
+  </div>
+  <nav class="s-nav">
+    <div class="s-section">Tableau de bord</div>
+    <a class="s-item active" onclick="showSection('dashboard')"><span class="s-icon">📊</span> Vue d'ensemble</a>
+    <div class="s-section">Membres</div>
+    <a class="s-item" onclick="showSection('membres')"><span class="s-icon">👥</span> Tous les membres</a>
+    <div class="s-section">Communication</div>
+    <a class="s-item" onclick="showSection('notifications')"><span class="s-icon">🔔</span> Notifications</a>
+    <a class="s-item" onclick="showSection('annonces')"><span class="s-icon">📢</span> Annonces</a>
+    <a class="s-item" onclick="showSection('telegram')"><span class="s-icon">✈️</span> Telegram</a>
+    <div class="s-section">Formation</div>
+    <a class="s-item" onclick="showSection('videos')"><span class="s-icon">🎬</span> Vidéos</a>
+    <a class="s-item" onclick="showSection('pdfs')"><span class="s-icon">📚</span> PDFs</a>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- DASHBOARD -->
+<div class="section active" id="section-dashboard">
+  <div class="section-title">Vue d'ensemble</div>
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card purple"><div class="stat-label">Total membres</div><div class="stat-value" id="s-total">—</div></div>
+    <div class="stat-card green"><div class="stat-label">Actifs</div><div class="stat-value" id="s-actifs">—</div></div>
+    <div class="stat-card gold"><div class="stat-label">Copy ON</div><div class="stat-value" id="s-copy">—</div></div>
+    <div class="stat-card red"><div class="stat-label">Expirés</div><div class="stat-value" id="s-expires">—</div></div>
+    <div class="stat-card blue"><div class="stat-label">Nouveaux 7j</div><div class="stat-value" id="s-new">—</div></div>
+  </div>
+</div>
+
+<!-- MEMBRES -->
+<div class="section" id="section-membres">
+  <div class="section-title">Gestion des membres</div>
+  <div class="search-bar">
+    <input class="search-input" id="membre-search" placeholder="Rechercher par nom ou code..." oninput="filterMembres()">
+    <button class="btn btn-purple" onclick="loadMembres()">↻ Actualiser</button>
+  </div>
+  <div class="table-wrap">
+    <table id="membres-table">
+      <thead><tr>
+        <th>Code</th><th>Nom</th><th>Capital</th><th>Statut</th>
+        <th>Copy</th><th>Expire</th><th>Jours</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="membres-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div class="section" id="section-notifications">
+  <div class="section-title">Envoyer une notification</div>
+  <div class="card-form">
+    <div class="card-form-title">Notification globale — tous les membres</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Type</label>
+        <select id="notif-type">
+          <option value="alerte">🔴 Alerte urgente</option>
+          <option value="message">💜 Message info</option>
+          <option value="resultat">🟢 Performance</option>
+          <option value="maintenance">🔧 Maintenance</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:16px">
+      <label>Message</label>
+      <textarea id="notif-contenu" placeholder="Écris ton message ici..."></textarea>
+    </div>
+    <button class="btn btn-purple" onclick="envoyerNotifGlobale()">Envoyer à tous →</button>
+  </div>
+
+  <div class="card-form">
+    <div class="card-form-title">Message individuel — un membre spécifique</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Code membre</label>
+        <input type="text" id="notif-ind-code" placeholder="BCT-XXXXXXXX">
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:16px">
+      <label>Message personnalisé</label>
+      <textarea id="notif-ind-contenu" placeholder="Message visible uniquement par ce membre..."></textarea>
+    </div>
+    <button class="btn btn-gold" onclick="envoyerNotifIndividuelle()">Envoyer →</button>
+  </div>
+</div>
+
+<!-- ANNONCES -->
+<div class="section" id="section-annonces">
+  <div class="section-title">Gestion des annonces</div>
+  <div class="card-form">
+    <div class="card-form-title">Nouvelle annonce</div>
+    <div class="form-grid">
+      <div class="field"><label>Titre</label><input type="text" id="ann-titre" placeholder="Titre de l'annonce"></div>
+      <div class="field">
+        <label>Type</label>
+        <select id="ann-type">
+          <option value="message">Message</option>
+          <option value="alerte">Alerte</option>
+          <option value="resultat">Résultat</option>
+          <option value="audio">Audio</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:14px">
+      <label>Contenu</label>
+      <textarea id="ann-contenu" placeholder="Contenu de l'annonce..."></textarea>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Lien audio (optionnel)</label><input type="text" id="ann-audio" placeholder="https://..."></div>
+      <div class="field">
+        <label>Destinataire</label>
+        <select id="ann-cible">
+          <option value="tous">Tous les membres</option>
+          <option value="individuel">Membre spécifique</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="ann-code-wrap" style="display:none;margin-bottom:14px">
+      <label>Code membre</label>
+      <input type="text" id="ann-cible-code" placeholder="BCT-XXXXXXXX">
+    </div>
+    <button class="btn btn-purple" onclick="ajouterAnnonce()">Publier l'annonce →</button>
+  </div>
+  <div id="annonces-list"></div>
+</div>
+
+<!-- TELEGRAM -->
+<div class="section" id="section-telegram">
+  <div class="section-title">Envoyer sur Telegram</div>
+  <div class="card-form">
+    <div class="card-form-title">Message sur le canal public @BECTANSE_ACADEMIE</div>
+    <div class="field" style="margin-bottom:16px">
+      <label>Message</label>
+      <textarea id="tg-canal-msg" placeholder="Message pour le canal public..." rows="4"></textarea>
+    </div>
+    <button class="btn btn-purple" onclick="envoyerTelegram('@BECTANSE_ACADEMIE')">Envoyer sur @BECTANSE_ACADEMIE →</button>
+  </div>
+</div>
+
+<!-- VIDÉOS -->
+<div class="section" id="section-videos">
+  <div class="section-title">Gestion des vidéos</div>
+  <div class="card-form">
+    <div class="card-form-title">Ajouter une vidéo YouTube</div>
+    <div class="form-grid">
+      <div class="field"><label>Numéro</label><input type="number" id="vid-num" placeholder="07"></div>
+      <div class="field"><label>Durée</label><input type="text" id="vid-duree" placeholder="5:24"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Titre</label><input type="text" id="vid-titre" placeholder="Titre de la vidéo"></div>
+      <div class="field"><label>ID YouTube</label><input type="text" id="vid-yt" placeholder="xTDauJuGM-0"></div>
+    </div>
+    <button class="btn btn-purple" onclick="ajouterVideo()">Ajouter la vidéo →</button>
+  </div>
+</div>
+
+<!-- PDFs -->
+<div class="section" id="section-pdfs">
+  <div class="section-title">Gestion des PDFs</div>
+  <div class="card-form">
+    <div class="card-form-title">Ajouter un PDF Google Drive</div>
+    <div class="form-grid">
+      <div class="field"><label>Numéro</label><input type="number" id="pdf-num" placeholder="08"></div>
+      <div class="field"><label>Taille</label><input type="text" id="pdf-taille" placeholder="12.5 KB"></div>
+    </div>
+    <div class="field" style="margin-bottom:14px">
+      <label>Titre</label>
+      <input type="text" id="pdf-titre" placeholder="Titre du PDF">
+    </div>
+    <div class="field" style="margin-bottom:16px">
+      <label>ID Google Drive (bout de l'URL drive.google.com/file/d/ICI/view)</label>
+      <input type="text" id="pdf-drive-id" placeholder="1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6">
+    </div>
+    <button class="btn btn-purple" onclick="ajouterPDF()">Ajouter le PDF →</button>
+  </div>
+  <div id="pdfs-list"></div>
+</div>
+
+</main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL CONFIRMATION -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-title" id="confirm-title">Confirmer</div>
+    <div id="confirm-body" style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6"></div>
+    <div class="modal-actions">
+      <button class="btn btn-gold" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-red" id="confirm-btn">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY = '{{ admin_key }}';
+const API = (path) => `${path}?key=${KEY}`;
+
+// ── TOAST
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ── MODAL
+let confirmCallback = null;
+function confirm(title, body, cb) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-body').textContent = body;
+  confirmCallback = cb;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+document.getElementById('confirm-btn').onclick = () => { closeModal(); if(confirmCallback) confirmCallback(); };
+function closeModal() { document.getElementById('confirm-modal').classList.remove('open'); }
+
+// ── NAV
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.querySelectorAll('.s-item').forEach(i => i.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  if (id === 'membres') loadMembres();
+  if (id === 'annonces') loadAnnonces();
+  if (id === 'pdfs') loadPDFs();
+}
+
+// ── STATS
+async function loadStats() {
+  const r = await fetch(API('/admin/api/stats'));
+  const d = await r.json();
+  if (!d.ok) return;
+  document.getElementById('s-total').textContent = d.total;
+  document.getElementById('s-actifs').textContent = d.actifs;
+  document.getElementById('s-copy').textContent = d.copy_on;
+  document.getElementById('s-expires').textContent = d.expires;
+  document.getElementById('s-new').textContent = d.nouveaux_7j;
+}
+
+// ── MEMBRES
+let allMembres = [];
+async function loadMembres() {
+  const tbody = document.getElementById('membres-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr>';
+  const r = await fetch(API('/admin/api/membres'));
+  const d = await r.json();
+  if (!d.ok) { toast('Erreur chargement', 'error'); return; }
+  allMembres = d.membres;
+  renderMembres(allMembres);
+}
+
+function filterMembres() {
+  const q = document.getElementById('membre-search').value.toLowerCase();
+  renderMembres(allMembres.filter(m => m.nom.toLowerCase().includes(q) || m.code.toLowerCase().includes(q)));
+}
+
+function renderMembres(membres) {
+  const tbody = document.getElementById('membres-tbody');
+  if (!membres.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Aucun membre</td></tr>';
+    return;
+  }
+  tbody.innerHTML = membres.map(m => `
+    <tr>
+      <td><code style="color:#C4B5FD;font-size:11px">${m.code}</code></td>
+      <td style="font-weight:600;color:#fff">${m.nom}</td>
+      <td>${m.capital || '—'}</td>
+      <td><span class="badge ${m.actif ? 'on' : 'off'}">${m.actif ? 'Actif' : 'Inactif'}</span></td>
+      <td><span class="badge ${m.copy_actif ? 'on' : 'off'}">${m.copy_actif ? 'ON' : 'OFF'}</span></td>
+      <td style="font-size:12px">${m.date_fin || '—'}</td>
+      <td><span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span></td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-gold btn-sm" onclick="prolongerMembre('${m.code}')">+Jours</button>
+          <button class="btn btn-sm" style="background:rgba(91,33,182,0.15);color:#C4B5FD;border:1px solid rgba(91,33,182,0.3)" onclick="msgMembre('${m.code}','${m.nom}')">Msg</button>
+          <button class="btn btn-red btn-sm" onclick="supprimerMembre('${m.code}','${m.nom}')">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function prolongerMembre(code) {
+  const jours = prompt(`Combien de jours ajouter pour ${code} ?`);
+  if (!jours || isNaN(jours)) return;
+  const r = await fetch('/admin/api/membre/update', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code,jours:parseInt(jours)})});
+  const d = await r.json();
+  if (d.ok) { toast(`✅ +${jours} jours ajoutés`); loadMembres(); }
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+async function msgMembre(code, nom) {
+  const msg = prompt(`Message pour ${nom} :`);
+  if (!msg) return;
+  const r = await fetch('/admin/api/notif/individuelle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code,contenu:msg})});
+  const d = await r.json();
+  if (d.ok) toast(`✅ Message envoyé à ${nom}`);
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+async function supprimerMembre(code, nom) {
+  confirm('Supprimer le membre', `Supprimer définitivement ${nom} (${code}) ? Cette action est irréversible.`, async () => {
+    const r = await fetch('/admin/api/membre/supprimer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code})});
+    const d = await r.json();
+    if (d.ok) { toast(`✅ ${nom} supprimé`); loadMembres(); }
+    else toast('Erreur : ' + d.error, 'error');
+  });
+}
+
+// ── NOTIFICATIONS
+async function envoyerNotifGlobale() {
+  const type = document.getElementById('notif-type').value;
+  const contenu = document.getElementById('notif-contenu').value.trim();
+  if (!contenu) { toast('Écris un message', 'error'); return; }
+  const r = await fetch('/admin/api/notif/globale', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,type,contenu})});
+  const d = await r.json();
+  if (d.ok) { toast(`✅ Envoyé à ${d.total} membres`); document.getElementById('notif-contenu').value = ''; }
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+async function envoyerNotifIndividuelle() {
+  const code = document.getElementById('notif-ind-code').value.trim().toUpperCase();
+  const contenu = document.getElementById('notif-ind-contenu').value.trim();
+  if (!code || !contenu) { toast('Remplis tous les champs', 'error'); return; }
+  const r = await fetch('/admin/api/notif/individuelle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code,contenu})});
+  const d = await r.json();
+  if (d.ok) { toast(`✅ Message envoyé à ${d.nom}`); document.getElementById('notif-ind-contenu').value = ''; }
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+// ── ANNONCES
+document.getElementById('ann-cible').addEventListener('change', function() {
+  document.getElementById('ann-code-wrap').style.display = this.value === 'individuel' ? 'block' : 'none';
+});
+
+async function ajouterAnnonce() {
+  const body = {key:KEY,titre:document.getElementById('ann-titre').value,contenu:document.getElementById('ann-contenu').value,
+    type:document.getElementById('ann-type').value,audio_url:document.getElementById('ann-audio').value,
+    cible:document.getElementById('ann-cible').value,cible_code:document.getElementById('ann-cible-code').value};
+  if (!body.contenu) { toast('Contenu vide', 'error'); return; }
+  const r = await fetch('/admin/api/annonces/add', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if (d.ok) { toast('✅ Annonce publiée'); loadAnnonces(); }
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+async function loadAnnonces() {
+  const r = await fetch(API('/admin/api/annonces'));
+  const d = await r.json();
+  if (!d.ok) return;
+  const el = document.getElementById('annonces-list');
+  if (!d.annonces.length) { el.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.25);padding:20px">Aucune annonce</div>'; return; }
+  el.innerHTML = d.annonces.map(a => `
+    <div style="background:var(--d2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;color:#fff;margin-bottom:4px">${a.titre || '(sans titre)'}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px">${a.contenu.substring(0,80)}${a.contenu.length>80?'...':''}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.25)">${a.created_at} — ${a.cible}</div>
+      </div>
+      <button class="btn btn-red btn-sm" onclick="supprimerAnnonce(${a.id})">✕</button>
+    </div>
+  `).join('');
+}
+
+async function supprimerAnnonce(id) {
+  const r = await fetch('/admin/api/annonces/supprimer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,id})});
+  const d = await r.json();
+  if (d.ok) { toast('✅ Annonce supprimée'); loadAnnonces(); }
+  else toast('Erreur', 'error');
+}
+
+// ── TELEGRAM
+async function envoyerTelegram(canal) {
+  const msg = document.getElementById('tg-canal-msg').value.trim();
+  if (!msg) { toast('Message vide', 'error'); return; }
+  const r = await fetch('/admin/api/telegram/envoyer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,canal,message:msg})});
+  const d = await r.json();
+  if (d.ok) { toast('✅ Message envoyé sur Telegram'); document.getElementById('tg-canal-msg').value = ''; }
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+// ── VIDÉOS
+async function ajouterVideo() {
+  const body = {key:KEY,num:parseInt(document.getElementById('vid-num').value),
+    titre:document.getElementById('vid-titre').value,youtube_id:document.getElementById('vid-yt').value,
+    duree:document.getElementById('vid-duree').value,ordre:parseInt(document.getElementById('vid-num').value)};
+  if (!body.titre || !body.youtube_id) { toast('Remplis tous les champs', 'error'); return; }
+  const r = await fetch('/admin/api/formation/videos/add', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if (d.ok) { toast('✅ Vidéo ajoutée'); document.getElementById('vid-titre').value = ''; document.getElementById('vid-yt').value = ''; }
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+// ── PDFs
+async function ajouterPDF() {
+  const body = {key:KEY,num:parseInt(document.getElementById('pdf-num').value),
+    titre:document.getElementById('pdf-titre').value,drive_id:document.getElementById('pdf-drive-id').value,
+    taille:document.getElementById('pdf-taille').value,ordre:parseInt(document.getElementById('pdf-num').value)};
+  if (!body.titre || !body.drive_id) { toast('Remplis tous les champs', 'error'); return; }
+  const r = await fetch('/admin/api/formation/pdfs/add', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if (d.ok) { toast('✅ PDF ajouté'); document.getElementById('pdf-titre').value = ''; document.getElementById('pdf-drive-id').value = ''; loadPDFs(); }
+  else toast('Erreur : ' + d.error, 'error');
+}
+
+async function loadPDFs() {
+  const r = await fetch(API('/admin/api/formation/pdfs'));
+  const d = await r.json();
+  if (!d.ok) return;
+  const el = document.getElementById('pdfs-list');
+  if (!d.pdfs.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Titre</th><th>Drive ID</th><th>Taille</th><th>Action</th></tr></thead><tbody>' +
+    d.pdfs.map(p => `<tr>
+      <td style="color:var(--gold);font-weight:700">PDF ${String(p.num).padStart(2,'0')}</td>
+      <td style="color:#fff">${p.titre}</td>
+      <td><code style="font-size:10px;color:#C4B5FD">${p.drive_id.substring(0,20)}...</code></td>
+      <td>${p.taille}</td>
+      <td><button class="btn btn-red btn-sm" onclick="supprimerPDF(${p.id},'${p.titre}')">✕ Supprimer</button></td>
+    </tr>`).join('') + '</tbody></table></div>';
+}
+
+async function supprimerPDF(id, titre) {
+  confirm('Supprimer le PDF', `Supprimer "${titre}" définitivement ?`, async () => {
+    const r = await fetch('/admin/api/formation/pdfs/supprimer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,id})});
+    const d = await r.json();
+    if (d.ok) { toast('✅ PDF supprimé'); loadPDFs(); }
+    else toast('Erreur', 'error');
+  });
+}
+
+// ── INIT
+loadStats();
+</script>
+</body>
+</html>
