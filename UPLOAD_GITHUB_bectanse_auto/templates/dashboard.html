@@ -1191,7 +1191,7 @@ input[name="objectif_periode"] { display: none; }
 
       {% if afficher_alerte %}
       <div class="alerte-banner" id="alerte-banner">
-        <div class="alerte-text">
+        <div class="alerte-text" style="flex:1">
           <div class="alerte-title">
             {% if jours_restants == 0 %}🚨 Ton abonnement expire aujourd'hui !
             {% elif jours_restants == 1 %}🔴 Ton abonnement expire demain !
@@ -1199,15 +1199,19 @@ input[name="objectif_periode"] { display: none; }
             {% else %}⚠️ Ton abonnement expire dans {{ jours_restants }} jours
             {% endif %}
           </div>
-          <div class="alerte-desc">
-            Pour continuer à bénéficier du copy trading sans interruption,
-            contacte notre équipe dès maintenant pour renouveler.
+          <div class="alerte-desc" style="margin-bottom:12px">
+            Renouvelle maintenant pour continuer à bénéficier du copy trading automatique.
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <a href="https://buy.stripe.com/28EeVcdoA8Ed9gr5HAgA802" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">1 mois — 500€</a>
+            <a href="https://buy.stripe.com/eVq4gyesE3jTboz5HAgA80a" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">3 mois — 1 000€</a>
+            <a href="https://buy.stripe.com/00w28q84g5s1csDgmegA804" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">6 mois — 2 500€</a>
+            <a href="https://buy.stripe.com/bJecN498kbQp64f7PIgA803" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">1 an — 4 000€</a>
           </div>
         </div>
-        <a href="https://t.me/LERISGANGSUPPORT" target="_blank" class="alerte-btn">
-          Renouveler →
-        </a>
+        {% if jours_restants > 3 %}
         <button class="alerte-close" onclick="fermerAlerte()" title="Fermer">✕</button>
+        {% endif %}
       </div>
       {% endif %}
 
