@@ -205,6 +205,32 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   body{padding-bottom:78px}
 }
 </style>
+{% if demo_mode %}
+<style>
+/* Masquer bouton WhatsApp flottant + lien agent en mode demo */
+a[href*="wa.me"],
+a[href*="whatsapp"],
+.wa-float,
+.whatsapp-btn,
+[class*="whatsapp"],
+[class*="wa-"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Masquer tous les liens wa.me
+  document.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp"]').forEach(function(el) {
+    el.style.display = 'none';
+    // Masquer aussi le parent si c'est un nav-item
+    var parent = el.closest('.nav-item, li, .support-btn');
+    if (parent) parent.style.display = 'none';
+  });
+});
+</script>
+{% endif %}
 </head>
 <body>
 {% if demo_mode %}
