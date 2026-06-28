@@ -628,16 +628,21 @@
 
       <!-- SUCCESS -->
       <div class="form-success" id="formSuccess">
-        <div class="success-icon">&#x2713;</div>
-        <p style="font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--orange);margin-bottom:14px;">Presque termin&eacute;</p>
-        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-bottom:14px;">Ton inscription est presque termin&eacute;e.</h3>
-        <p style="font-size:15px;color:var(--text-muted);line-height:1.7;margin-bottom:8px;">Il ne reste plus qu&rsquo;une &eacute;tape pour recevoir ton acc&egrave;s &agrave; l&rsquo;essai gratuit.</p>
-        <p style="font-size:15px;font-weight:600;line-height:1.7;margin-bottom:4px;">Confirme simplement ta demande sur WhatsApp.</p>
+        <div style="font-size:48px;margin-bottom:16px;">&#x1F511;</div>
+        <p style="font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--orange);margin-bottom:14px;">Derni&egrave;re &eacute;tape</p>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;margin-bottom:16px;letter-spacing:-0.5px;">Ton acc&egrave;s est<br/>presque activ&eacute;</h3>
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.7;margin-bottom:20px;">Clique sur continuer pour activer ton test gratuit.<br/>Tu seras redirig&eacute; vers WhatsApp pour<br/><strong style="color:var(--text);">finaliser en 2 secondes.</strong></p>
+        <div style="background:rgba(255,106,0,0.06);border:1px solid rgba(255,106,0,0.2);border-radius:12px;padding:16px 20px;margin-bottom:24px;text-align:left;">
+          <p style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">Message qui partira :</p>
+          <p style="font-size:13px;color:var(--orange);font-style:italic;line-height:1.6;" id="waPreview">Bonjour je m&rsquo;appelle [Pr&eacute;nom] j&rsquo;ai [&Acirc;ge] ans et je veux activer mon test 7 jours gratuit sans risque</p>
+        </div>
         <a id="whatsappBtn" href="#" target="_blank" rel="noopener" class="wa-btn">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.554 4.107 1.523 5.834L.057 23.857c-.068.258.173.497.43.43l6.1-1.473A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.967 0-3.808-.542-5.385-1.482l-.386-.23-4.003.967.983-3.9-.251-.402A9.944 9.944 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
-          Confirmer sur WhatsApp
+          Continuer vers WhatsApp
         </a>
-        <p style="font-size:12px;color:var(--text-dim);">Un message est d&eacute;j&agrave; pr&eacute;rempli. Il te suffit d&rsquo;appuyer sur Envoyer.</p>
+        <p style="font-size:13px;color:var(--orange);font-weight:700;margin-top:14px;">&#x26A1; Activation en moins de 2 minutes</p>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:6px;">Aucun paiement demand&eacute; &middot; Aucun d&eacute;p&ocirc;t n&eacute;cessaire</p>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:4px;">Seuls les acc&egrave;s confirm&eacute;s sont activ&eacute;s</p>
       </div>
 
       <p class="form-reassurance" id="reassurance">Aucune carte bancaire &middot; Donn&eacute;es jamais revendues &middot; D&eacute;sinscription &agrave; tout moment</p>
@@ -690,7 +695,7 @@
 
 <script>
   // CONFIG - modifier uniquement ces valeurs
-  var WHATSAPP_NUMBER = '33600000000';
+  var WHATSAPP_NUMBER = '4367853286983';
   var GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbybLm5OLmuY-uAPUvJTCEoyZmFMKbySM56j01LHrdcaxFYgBazimscbzZa4lxsP6DSp/exec';
 
   // TICKER
@@ -874,9 +879,13 @@
       });
     }catch(e){console.warn('Sheets:',e);}
     // WhatsApp
-    var msg=encodeURIComponent('Bonjour,\n\nJe viens de remplir le formulaire pour beneficier de l\'essai gratuit de Bectanse Academie.\nJe souhaite recevoir mon acces.\n\nMerci.');
+        var msgText='Bonjour je m\'appelle '+prenom+' j\'ai '+age+' ans et je veux activer mon test 7 jours gratuit sans risque | source=testgratuit';
+    var msg=encodeURIComponent(msgText);
+    var waLink='https://api.whatsapp.com/send/?phone='+WHATSAPP_NUMBER+'&text='+msg+'&type=phone_number&app_absent=0';
     var waBtn=document.getElementById('whatsappBtn');
-    if(waBtn) waBtn.href='https://wa.me/'+WHATSAPP_NUMBER+'?text='+msg;
+    if(waBtn) waBtn.href=waLink;
+    var preview=document.getElementById('waPreview');
+    if(preview) preview.textContent=msgText;
     // Show success
     document.getElementById('step2').classList.remove('visible');
     document.getElementById('dot2').classList.remove('active');
