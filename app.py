@@ -573,8 +573,14 @@ def formation():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    return render_template("formation.html", member=member,
-        demo_mode=(session.get("member_code","")=="BCT-DEMO2026"))
+    demo_mode = (code == "BCT-DEMO2026")
+    # En mode demo : ne pas envoyer les vraies URLs au client
+    if demo_mode:
+        return render_template("formation.html", member=member,
+            demo_mode=True,
+            pdfs=[],
+            videos=[])
+    return render_template("formation.html", member=member, demo_mode=False)
 
 
 @app.route("/expire")
