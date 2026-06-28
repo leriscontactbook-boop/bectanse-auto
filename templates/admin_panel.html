@@ -159,6 +159,9 @@ tr:hover td{background:rgba(255,255,255,0.02)}
   <div class="search-bar">
     <input class="search-input" id="membre-search" placeholder="Rechercher par nom ou code..." oninput="filterMembres()">
     <button class="btn btn-purple" onclick="loadMembres()">↻ Actualiser</button>
+    <a class="btn btn-green" href="/admin/export-emails?key={{ admin_key }}" download>
+      ⬇ Exporter emails CSV
+    </a>
   </div>
   <div class="table-wrap">
     <table id="membres-table">
