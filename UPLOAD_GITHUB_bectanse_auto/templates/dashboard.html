@@ -1184,9 +1184,9 @@ input[name="objectif_periode"] { display: none; }
 <button type="button" style="width:100%;padding:18px;background:#333;border:2px solid #555;border-radius:14px;color:rgba(255,255,255,0.4);font-size:15px;font-weight:700;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;" disabled>
   🔒 Réservé aux membres
 </button>
-{% else %}<button class="save-btn" onclick="saveParams()" id="saveBtn">
+{% else %}{% if demo_mode %}<button onclick="window.location='/vip'" style="width:100%;padding:18px;background:#1a1a1a;border:2px solid #333;border-radius:14px;color:rgba(255,255,255,0.35);font-size:15px;font-weight:700;cursor:not-allowed;letter-spacing:.05em;text-transform:uppercase;" disabled>🔒 Réservé aux membres</button>{% else %}<button class="save-btn" onclick="saveParams()" id="saveBtn">
         Envoyer la demande →
-      </button>
+      </button>{% endif %}
 {% endif %}
 {% endif %}
     </div>
@@ -1615,9 +1615,9 @@ input[name="objectif_periode"] { display: none; }
 
       <!-- BOUTON ENVOYER MOBILE DANS LE CONTENT -->
       <div class="mobile-envoyer-wrap">
-        <button class="mobile-envoyer-btn" onclick="saveParams()">
+        {% if demo_mode %}<button onclick="window.location='/vip'" style="width:100%;padding:18px;background:#1a1a1a;border:2px solid #333;border-radius:14px;color:rgba(255,255,255,0.35);font-size:15px;font-weight:700;cursor:not-allowed;letter-spacing:.05em;text-transform:uppercase;" disabled>🔒 Réservé aux membres</button>{% else %}<button class="mobile-envoyer-btn" onclick="saveParams()">
           ENVOYER LA DEMANDE →
-        </button>
+        </button>{% endif %}
       </div>
 
 <!-- ── HISTORIQUE ── -->
@@ -2356,6 +2356,21 @@ if (document.readyState === 'loading') {
 function saveParams() { window.location = '/vip'; return false; }
 // Neutraliser toggleCopy
 function toggleCopy() { window.location = '/vip'; return false; }
+</script>
+{% endif %}
+
+
+{% if demo_mode %}
+<script>
+function saveParams(){ window.location='/vip'; return false; }
+function toggleCopy(){ window.location='/vip'; return false; }
+// Bloquer tous les toggles
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('input[type=checkbox], input[type=range], .toggle').forEach(function(el){
+    el.addEventListener('change', function(e){ e.preventDefault(); e.stopPropagation(); });
+    el.disabled = true;
+  });
+});
 </script>
 {% endif %}
 
