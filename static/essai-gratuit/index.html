@@ -959,7 +959,7 @@
     }catch(e){console.warn('Sheets:',e);}
 
     // WhatsApp
-    var msgText='Bonjour je m\'appelle '+prenom+' j\'ai '+age+' ans et je veux activer mon test 7 jours gratuit sans risque | source=testgratuit';
+    var msgText='Bonjour, je m\'appelle '+prenom+', j\'ai '+age+' ans. Je viens de remplir le formulaire pour l\'essai gratuit de Bectanse AUTO et je souhaite recevoir mon acces. | source=testgratuit';
     var msg=encodeURIComponent(msgText);
     var waLink='https://api.whatsapp.com/send/?phone='+WHATSAPP_NUMBER+'&text='+msg+'&type=phone_number&app_absent=0';
     var waBtn=document.getElementById('whatsappBtn');
