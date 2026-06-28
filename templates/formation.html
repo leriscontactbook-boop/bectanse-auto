@@ -165,6 +165,13 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 </style>
 </head>
 <body>
+{% if demo_mode %}
+<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
+  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
+  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
+</div>
+<div style="height:44px;"></div>
+{% endif %}
 
 <!-- MOBILE TOP BAR -->
 <div class="m-topbar">
@@ -205,6 +212,13 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   </aside>
 
   <div class="content">
+{% if demo_mode %}
+<div onclick="window.location='/vip'" style="position:absolute;inset:0;background:rgba(11,11,11,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border-radius:inherit;z-index:10;">
+  <div style="font-size:36px;margin-bottom:8px;">🔒</div>
+  <p style="color:#fff;font-weight:700;font-size:14px;margin:0 0 4px;">Accès réservé aux membres</p>
+  <p style="color:#FF6A00;font-size:12px;font-weight:700;margin:0;">Rejoindre Bectanse AUTO →</p>
+</div>
+{% endif %}
     <div class="page-badge">Formation incluse — Membres Bectanse AUTO</div>
     <div class="page-title">Formation de base</div>
     <div class="page-desc">Les fondamentaux pour comprendre et suivre tes trades.<br>Vidéos et guides PDF exclusifs développés par l'équipe Bectanse.</div>
