@@ -2764,6 +2764,7 @@ def _startup():
         scheduler = BackgroundScheduler(timezone='Europe/Paris')
         scheduler.add_job(send_eco_message, 'cron', hour=8, minute=0)
         scheduler.add_job(check_and_send_relances, 'cron', hour=9, minute=0)
+        init_demo_account()
         scheduler.start()
         app.logger.info("Scheduler calendrier démarré")
     except Exception as e:
