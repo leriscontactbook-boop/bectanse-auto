@@ -1045,6 +1045,43 @@ def essai_register():
 
     return jsonify({"ok": True})
 
+
+@app.route("/admin/export-emails")
+def admin_export_emails():
+    key = request.args.get("key","")
+    if key != ADMIN_KEY:
+        return "Non autorise", 403
+    try:
+        conn = get_conn()
+        rows = conn.run("""
+            SELECT nom, email, telephone, capital, date_fin
+            FROM members
+            WHERE actif=TRUE AND email IS NOT NULL AND email != ''
+            ORDER BY nom
+        """)
+        conn.close()
+        import csv, io
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Nom", "Email", "Telephone", "Capital", "Date expiration"])
+        for nom, email, tel, capital, date_fin in rows:
+            writer.writerow([
+                nom or "",
+                email or "",
+                tel or "",
+                capital or "",
+                date_fin.strftime("%d/%m/%Y") if date_fin and hasattr(date_fin,"strftime") else ""
+            ])
+        output.seek(0)
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=bectanse_membres_emails.csv"}
+        )
+    except Exception as e:
+        return f"Erreur: {e}", 500
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
