@@ -1063,6 +1063,24 @@ def essai_register():
     except Exception as tg_err:
         app.logger.error(f"essai_register TG: {tg_err}")
 
+    # Telegram Leads Bot
+    try:
+        import urllib.request as _ur
+        import urllib.parse as _up
+        phone_sans = phone.replace("+","").replace(" ","")
+        wa_msg = "Salut " + prenom + ",\nje viens de voir que tu as rempli le formulaire pour l'essai gratuit de Bectanse AUTO.\n" + prenom + ", tu es disponible pour qu'on en parle ?"
+        wa_url = "https://api.whatsapp.com/send/?phone=" + phone_sans + "&text=" + _up.quote(wa_msg) + "&type=phone_number&app_absent=0"
+        tg_body = json.dumps({
+            "chat_id": "6164373751",
+            "text": "\U0001f7e2 *NOUVEAU LEAD*\n\n\U0001f464 *" + prenom + "*\n\U0001f4e7 " + email + "\n\U0001f4f1 " + phone + "\n\U0001f382 " + age + " ans\n\U0001f30d " + pays + "\n\U0001f4c5 " + date_str,
+            "parse_mode": "Markdown",
+            "reply_markup": {"inline_keyboard": [[{"text": "\U0001f4f2 Contacter " + prenom + " sur WhatsApp", "url": wa_url}]]}
+        }).encode()
+        tg_req = _ur.Request("https://api.telegram.org/bot8949673956:AAGRZeL8Ian4cHkf_WVs6XzS59eOexgmxRc/sendMessage", data=tg_body, headers={"Content-Type": "application/json"})
+        _ur.urlopen(tg_req, timeout=8)
+    except Exception as tg_err:
+        app.logger.error(f"essai TG: {tg_err}")
+
     return jsonify({"ok": True})
 
 @app.route("/health")
