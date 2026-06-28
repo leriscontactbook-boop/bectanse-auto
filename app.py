@@ -1057,20 +1057,27 @@ def essai_register():
         tg_payload = json.dumps({
             "chat_id": TG_CHAT_LEADS,
             "text": (
-                f"\U0001f7e2 *NOUVEAU LEAD \u2014 Essai Gratuit*\n\n"
-                f"\U0001f464 *{prenom}*\n"
-                f"\U0001f4e7 {email}\n"
-                f"\U0001f4f1 {phone}\n"
-                f"\U0001f382 {age} ans\n"
-                f"\U0001f30d {pays}\n"
-                f"\U0001f4c5 {date_str}"
+                f"🟢 *NOUVEAU LEAD — Essai Gratuit*
+
+"
+                f"👤 *{prenom}*
+"
+                f"📧 {email}
+"
+                f"📱 {phone}
+"
+                f"🎂 {age} ans
+"
+                f"🌍 {pays}
+"
+                f"📅 {date_str}"
             ),
             "parse_mode": "Markdown",
-            "reply_markup": json.dumps({
+            "reply_markup": {
                 "inline_keyboard": [[
-                    {"text": f"\U0001f4f2 Contacter {prenom} sur WhatsApp", "url": wa_url}
+                    {"text": f"📲 Contacter {prenom} sur WhatsApp", "url": wa_url}
                 ]]
-            })
+            }
         }).encode()
 
         tg_req = _urllib.Request(
