@@ -2554,8 +2554,13 @@ def canal():
     if not member:
         return redirect(url_for("login"))
     is_admin = (code == CANAL_ADMIN_CODE)
-    return render_template("canal.html", member=member, is_admin=is_admin,
-        demo_mode=(session.get("member_code","")=="BCT-DEMO2026"))
+    demo_mode = (code == "BCT-DEMO2026")
+    # En mode demo : aucun message envoyé au client
+    if demo_mode:
+        return render_template("canal.html", member=member,
+            is_admin=False, demo_mode=True, messages=[], total=0)
+    return render_template("canal.html", member=member,
+        is_admin=is_admin, demo_mode=False)
 
 
 @app.route("/admin/canal-diag")
