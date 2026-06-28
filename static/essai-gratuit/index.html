@@ -973,20 +973,7 @@
     document.getElementById('formSuccess').classList.add('show');
     document.getElementById('reassurance').style.display='none';
   }
-    // WhatsApp
-        var msgText='Bonjour je m\'appelle '+prenom+' j\'ai '+age+' ans et je veux activer mon test 7 jours gratuit sans risque | source=testgratuit';
-    var msg=encodeURIComponent(msgText);
-    var waLink='https://api.whatsapp.com/send/?phone='+WHATSAPP_NUMBER+'&text='+msg+'&type=phone_number&app_absent=0';
-    var waBtn=document.getElementById('whatsappBtn');
-    if(waBtn) waBtn.href=waLink;
-    var preview=document.getElementById('waPreview');
-    if(preview) preview.textContent=msgText;
-    // Show success
-    document.getElementById('step2').classList.remove('visible');
-    document.getElementById('dot2').classList.remove('active');
-    document.getElementById('formSuccess').classList.add('show');
-    document.getElementById('reassurance').style.display='none';
-  }
+
 
   // AUDIO
   var audioInstances=new Map();
