@@ -374,9 +374,10 @@ def support():
 @app.route("/faq")
 @login_required
 def faq():
-    code = session["member_code"]
-    member = get_member(code)
-    return render_template("faq.html", member=member)
+        code = session["member_code"]
+        member = get_member(code)
+        return render_template("faq.html", member=member,
+            demo_mode=(code == "BCT-DEMO2026"))
 
 @app.route("/parrainage")
 @login_required
