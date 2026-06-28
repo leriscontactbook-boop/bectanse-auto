@@ -573,7 +573,8 @@ def formation():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    return render_template("formation.html", member=member)
+    return render_template("formation.html", member=member,
+        demo_mode=(session.get("member_code","")=="BCT-DEMO2026"))
 
 
 @app.route("/expire")
@@ -1149,7 +1150,8 @@ def dashboard():
         notif_type=notif_type,
         notif_message=notif_message,
         afficher_notif=afficher_notif
-    )
+    ,
+        demo_mode=(session.get("member_code","")=="BCT-DEMO2026"))
 
 @app.route("/offres")
 @login_required
@@ -1964,6 +1966,22 @@ def send_email_relance(member, jours_restants):
 
 
 
+
+def init_demo_account():
+    """Créer le compte demo BCT-DEMO2026 si absent."""
+    try:
+        conn = get_conn()
+        existing = conn.run("SELECT code FROM members WHERE code='BCT-DEMO2026'")
+        if not existing:
+            conn.run(
+                "INSERT INTO members (code,nom,capital,email,telephone,telegram,params,historique,actif,copy_actif) "
+                "VALUES ('BCT-DEMO2026','Compte Demo','1000','demo@bectanse.com','','',\'{}\',\'[]\',TRUE,FALSE)"
+            )
+            app.logger.info("Compte demo BCT-DEMO2026 cree")
+        conn.close()
+    except Exception as e:
+        app.logger.error("init_demo: %s", e)
+
 # ── BREVO MEMBRES
 def send_brevo_membre(to_email, to_name, subject, html_content, tag):
     import urllib.request as _ur, os as _os
@@ -2530,7 +2548,8 @@ def canal():
     if not member:
         return redirect(url_for("login"))
     is_admin = (code == CANAL_ADMIN_CODE)
-    return render_template("canal.html", member=member, is_admin=is_admin)
+    return render_template("canal.html", member=member, is_admin=is_admin,
+        demo_mode=(session.get("member_code","")=="BCT-DEMO2026"))
 
 
 @app.route("/admin/canal-diag")
