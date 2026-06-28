@@ -1017,69 +1017,31 @@ def testgratuit():
 
 @app.route("/api/essai/register", methods=["POST"])
 def essai_register():
+    import urllib.request as _ur
+    import urllib.parse as _up
     data = request.get_json()
-    prenom    = data.get("prenom", "").strip()
-    nom       = data.get("nom", "").strip()
-    email     = data.get("email", "").strip()
-    phone     = data.get("phone", "").strip()
-    source    = data.get("source", "Landing Essai Gratuit")
-    date_str  = datetime.now().strftime("%d/%m/%Y %H:%M")
+    prenom   = data.get("prenom", "").strip()
+    email    = data.get("email", "").strip()
+    phone    = data.get("phone", "").strip()
+    age      = data.get("age", "").strip()
+    pays     = data.get("pays", "").strip()
+    source   = data.get("source", "Landing Essai Gratuit")
+    date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     if not email:
         return jsonify({"ok": False, "error": "Email requis"}), 400
 
-    # Enregistrement PostgreSQL
+    # Appel Apps Script — celui-ci gere Sheet + Telegram
     try:
-        conn = get_conn()
-        conn.run("""
-            CREATE TABLE IF NOT EXISTS essai_gratuit (
-                id         SERIAL PRIMARY KEY,
-                prenom     TEXT DEFAULT '',
-                nom        TEXT DEFAULT '',
-                email      TEXT NOT NULL,
-                telephone  TEXT DEFAULT '',
-                source     TEXT DEFAULT 'Landing Essai Gratuit',
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        conn.run(
-            "INSERT INTO essai_gratuit (prenom, nom, email, telephone, source) VALUES (:p, :n, :e, :t, :s)",
-            p=prenom, n=nom, e=email, t=phone, s=source
-        )
-        conn.close()
-    except Exception as db_err:
-        app.logger.error(f"essai_register DB: {db_err}")
-
-    # Notification Telegram admin
-    try:
-        send_telegram(
-            f"\U0001f7e2 *NOUVEL ESSAI GRATUIT*\n\n"
-            f"\U0001f464 *{prenom} {nom}*\n"
-            f"\U0001f4e7 `{email}`\n"
-            f"\U0001f4f1 `{phone}`\n"
-            f"\U0001f4c5 {date_str}\n"
-            f"\U0001f4cd Source : {source}"
-        )
-    except Exception as tg_err:
-        app.logger.error(f"essai_register TG: {tg_err}")
-
-    # Telegram Leads Bot
-    try:
-        import urllib.request as _ur
-        import urllib.parse as _up
-        phone_sans = phone.replace("+","").replace(" ","")
-        wa_msg = "Salut " + prenom + ",\nje viens de voir que tu as rempli le formulaire pour l'essai gratuit de Bectanse AUTO.\n" + prenom + ", tu es disponible pour qu'on en parle ?"
-        wa_url = "https://api.whatsapp.com/send/?phone=" + phone_sans + "&text=" + _up.quote(wa_msg) + "&type=phone_number&app_absent=0"
-        tg_body = json.dumps({
-            "chat_id": "6164373751",
-            "text": "\U0001f7e2 *NOUVEAU LEAD*\n\n\U0001f464 *" + prenom + "*\n\U0001f4e7 " + email + "\n\U0001f4f1 " + phone + "\n\U0001f382 " + age + " ans\n\U0001f30d " + pays + "\n\U0001f4c5 " + date_str,
-            "parse_mode": "Markdown",
-            "reply_markup": {"inline_keyboard": [[{"text": "\U0001f4f2 Contacter " + prenom + " sur WhatsApp", "url": wa_url}]]}
+        APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwIKdtjm1B8O2rFfhtMfVSuFj0fjZMHcBXk8hPJbUQ9rNc2SLhQW_mcGiTXKRs3lOgA/exec"
+        payload = json.dumps({
+            "prenom": prenom, "email": email, "phone": phone,
+            "age": age, "pays": pays, "date": date_str, "source": source
         }).encode()
-        tg_req = _ur.Request("https://api.telegram.org/bot8949673956:AAGRZeL8Ian4cHkf_WVs6XzS59eOexgmxRc/sendMessage", data=tg_body, headers={"Content-Type": "application/json"})
-        _ur.urlopen(tg_req, timeout=8)
-    except Exception as tg_err:
-        app.logger.error(f"essai TG: {tg_err}")
+        req = _ur.Request(APPS_SCRIPT_URL, data=payload, headers={"Content-Type": "application/json"})
+        _ur.urlopen(req, timeout=15)
+    except Exception as e:
+        app.logger.error(f"essai Apps Script: {e}")
 
     return jsonify({"ok": True})
 
