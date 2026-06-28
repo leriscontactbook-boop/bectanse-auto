@@ -600,30 +600,86 @@
     <p class="section-sub" style="margin:16px auto 0;text-align:center;">Remplis le formulaire. Tu re&ccedil;ois les acc&egrave;s sous 24h.</p>
 
     <div class="form-box">
-      <div class="form-steps-indicator">
-        <div class="fsi-dot active" id="dot1"></div>
-        <div class="fsi-dot" id="dot2"></div>
-      </div>
 
-      <!-- STEP 1 -->
-      <div class="form-step visible" id="step1">
+      <!-- FORMULAIRE 1 ETAPE -->
+      <div id="formFields">
         <div class="form-group">
-          <label>Adresse email</label>
-          <input type="email" class="form-input" id="emailInput" placeholder="ton@email.com" oninput="validateEmail(this)" />
-          <div class="input-check" id="emailCheck">&#x2713; Email valide</div>
+          <label>Pr&eacute;nom *</label>
+          <input type="text" class="form-input" id="prenomInput" placeholder="Ton pr&eacute;nom" />
         </div>
-        <button class="btn-submit" onclick="nextStep()" id="step1Btn" disabled>Continuer &rarr;</button>
-      </div>
-
-      <!-- STEP 2 -->
-      <div class="form-step" id="step2">
-        <div class="step-msg">&#x2713; Plus qu&rsquo;une &eacute;tape &mdash; entre tes coordonn&eacute;es pour recevoir les acc&egrave;s.</div>
-        <div class="form-group"><label>Pr&eacute;nom</label><input type="text" class="form-input" id="prenomInput" placeholder="Ton pr&eacute;nom" /></div>
-        <div class="form-group"><label>Nom</label><input type="text" class="form-input" id="nomInput" placeholder="Ton nom" /></div>
-        <div class="form-group"><label>T&eacute;l&eacute;phone (WhatsApp)</label><input type="tel" class="form-input" id="phoneInput" placeholder="+33 6 00 00 00 00" /></div>
-        <div class="form-group"><label>&Acirc;ge</label><input type="number" class="form-input" id="ageInput" placeholder="Ton &acirc;ge" min="18" max="99" /></div>
-        <div class="form-group"><label>Pays</label><input type="text" class="form-input" id="paysInput" placeholder="France, Belgique, Maroc..." /></div>
-        <button class="btn-submit" onclick="submitForm()" id="submitBtn">Je veux voir le robot en action &rarr;</button>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" class="form-input" id="emailInput" placeholder="ton@email.com" />
+          <div class="input-error" id="emailError" style="display:none;color:#ef4444;font-size:12px;margin-top:6px;">Adresse email invalide</div>
+        </div>
+        <div class="form-group">
+          <label>T&eacute;l&eacute;phone *</label>
+          <div style="display:flex;gap:8px;">
+            <select class="form-input" id="indicatifInput" style="width:140px;flex-shrink:0;">
+              <option value="+33">&#x1F1EB;&#x1F1F7; +33</option>
+              <option value="+32">&#x1F1E7;&#x1F1EA; +32</option>
+              <option value="+41">&#x1F1E8;&#x1F1ED; +41</option>
+              <option value="+352">&#x1F1F1;&#x1F1FA; +352</option>
+              <option value="+212">&#x1F1F2;&#x1F1E6; +212</option>
+              <option value="+213">&#x1F1E9;&#x1F1FF; +213</option>
+              <option value="+216">&#x1F1F9;&#x1F1F3; +216</option>
+              <option value="+221">&#x1F1F8;&#x1F1F3; +221</option>
+              <option value="+225">&#x1F1E8;&#x1F1EE; +225</option>
+              <option value="+237">&#x1F1E8;&#x1F1F2; +237</option>
+              <option value="+243">&#x1F1E8;&#x1F1E9; +243</option>
+              <option value="+1">&#x1F1FA;&#x1F1F8; +1</option>
+              <option value="+44">&#x1F1EC;&#x1F1E7; +44</option>
+              <option value="+49">&#x1F1E9;&#x1F1EA; +49</option>
+              <option value="+34">&#x1F1EA;&#x1F1F8; +34</option>
+              <option value="+39">&#x1F1EE;&#x1F1F9; +39</option>
+              <option value="+351">&#x1F1F5;&#x1F1F9; +351</option>
+              <option value="+590">&#x1F1EC;&#x1F1F5; +590</option>
+              <option value="+596">&#x1F1F2;&#x1F1F6; +596</option>
+              <option value="+262">&#x1F1F7;&#x1F1EA; +262</option>
+            </select>
+            <input type="tel" class="form-input" id="phoneInput" placeholder="6 00 00 00 00" style="flex:1;" />
+          </div>
+          <div class="input-error" id="phoneError" style="display:none;color:#ef4444;font-size:12px;margin-top:6px;">Num&eacute;ro invalide (minimum 6 chiffres)</div>
+        </div>
+        <div class="form-group">
+          <label>&Acirc;ge *</label>
+          <input type="number" class="form-input" id="ageInput" placeholder="Ton &acirc;ge" min="18" max="99" />
+        </div>
+        <div class="form-group">
+          <label>Pays *</label>
+          <select class="form-input" id="paysInput">
+            <option value="">-- S&eacute;lectionne ton pays --</option>
+            <option>France</option>
+            <option>Belgique</option>
+            <option>Suisse</option>
+            <option>Luxembourg</option>
+            <option>Canada</option>
+            <option>Maroc</option>
+            <option>Alg&eacute;rie</option>
+            <option>Tunisie</option>
+            <option>S&eacute;n&eacute;gal</option>
+            <option>C&ocirc;te d&rsquo;Ivoire</option>
+            <option>Cameroun</option>
+            <option>Congo</option>
+            <option>Mali</option>
+            <option>Burkina Faso</option>
+            <option>Togo</option>
+            <option>B&eacute;nin</option>
+            <option>Gabon</option>
+            <option>Guadeloupe</option>
+            <option>Martinique</option>
+            <option>R&eacute;union</option>
+            <option>Guin&eacute;e</option>
+            <option>Madagascar</option>
+            <option>Royaume-Uni</option>
+            <option>Espagne</option>
+            <option>Italie</option>
+            <option>Portugal</option>
+            <option>Allemagne</option>
+            <option>Autre</option>
+          </select>
+        </div>
+        <button class="btn-submit" onclick="submitForm()" id="submitBtn">&#x1F680; Je veux acc&eacute;der gratuitement</button>
       </div>
 
       <!-- SUCCESS -->
@@ -634,7 +690,7 @@
         <p style="font-size:14px;color:var(--text-muted);line-height:1.7;margin-bottom:20px;">Clique sur continuer pour activer ton test gratuit.<br/>Tu seras redirig&eacute; vers WhatsApp pour<br/><strong style="color:var(--text);">finaliser en 2 secondes.</strong></p>
         <div style="background:rgba(255,106,0,0.06);border:1px solid rgba(255,106,0,0.2);border-radius:12px;padding:16px 20px;margin-bottom:24px;text-align:left;">
           <p style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">Message qui partira :</p>
-          <p style="font-size:13px;color:var(--orange);font-style:italic;line-height:1.6;" id="waPreview">Bonjour je m&rsquo;appelle [Pr&eacute;nom] j&rsquo;ai [&Acirc;ge] ans et je veux activer mon test 7 jours gratuit sans risque</p>
+          <p style="font-size:13px;color:var(--orange);font-style:italic;line-height:1.6;" id="waPreview">...</p>
         </div>
         <a id="whatsappBtn" href="#" target="_blank" rel="noopener" class="wa-btn">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.554 4.107 1.523 5.834L.057 23.857c-.068.258.173.497.43.43l6.1-1.473A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.967 0-3.808-.542-5.385-1.482l-.386-.23-4.003.967.983-3.9-.251-.402A9.944 9.944 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
@@ -645,7 +701,9 @@
         <p style="font-size:11px;color:var(--text-dim);margin-top:4px;">Seuls les acc&egrave;s confirm&eacute;s sont activ&eacute;s</p>
       </div>
 
-      <p class="form-reassurance" id="reassurance">Aucune carte bancaire &middot; Donn&eacute;es jamais revendues &middot; D&eacute;sinscription &agrave; tout moment</p>
+    </div>
+
+    <p class="form-reassurance" id="reassurance">Aucune carte bancaire &middot; Donn&eacute;es jamais revendues &middot; D&eacute;sinscription &agrave; tout moment</p>
     </div>
 
   </div>
@@ -861,23 +919,60 @@
 
   async function submitForm(){
     var prenom=document.getElementById('prenomInput').value.trim();
-    var nom=document.getElementById('nomInput').value.trim();
-    var phone=document.getElementById('phoneInput').value.trim();
     var email=document.getElementById('emailInput').value.trim();
+    var indicatif=document.getElementById('indicatifInput').value;
+    var phoneNum=document.getElementById('phoneInput').value.trim().replace(/\s/g,'');
     var age=document.getElementById('ageInput').value.trim();
     var pays=document.getElementById('paysInput').value.trim();
-    if(!prenom||!phone){alert('Merci de remplir tous les champs.');return;}
+
+    // Validation email
+    var emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    document.getElementById('emailError').style.display=emailOk?'none':'block';
+
+    // Validation telephone (min 6 chiffres)
+    var phoneOk=/^[0-9]{6,15}$/.test(phoneNum);
+    document.getElementById('phoneError').style.display=phoneOk?'none':'block';
+
+    if(!prenom||!emailOk||!phoneOk||!age||!pays){
+      if(!prenom) alert('Merci d'entrer ton pr\u00E9nom.');
+      return;
+    }
+
     var btn=document.getElementById('submitBtn');
     btn.textContent='Enregistrement...';
     btn.disabled=true;
+
+    var phoneComplet=indicatif+phoneNum;
+    var phoneSans=phoneComplet.replace('+','').replace(/\s/g,'');
+
     // Google Sheets
     try{
       await fetch(GOOGLE_SHEETS_URL,{
         method:'POST',mode:'no-cors',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prenom:prenom,nom:nom,email:email,phone:phone,age:age,pays:pays,date:new Date().toLocaleString('fr-FR',{timeZone:'Europe/Paris'}),source:'Landing Essai Gratuit'})
+        body:JSON.stringify({
+          prenom:prenom,email:email,phone:phoneComplet,
+          age:age,pays:pays,
+          date:new Date().toLocaleString('fr-FR',{timeZone:'Europe/Paris'}),
+          source:'Landing Essai Gratuit'
+        })
       });
     }catch(e){console.warn('Sheets:',e);}
+
+    // WhatsApp
+    var msgText='Bonjour je m\'appelle '+prenom+' j\'ai '+age+' ans et je veux activer mon test 7 jours gratuit sans risque | source=testgratuit';
+    var msg=encodeURIComponent(msgText);
+    var waLink='https://api.whatsapp.com/send/?phone='+WHATSAPP_NUMBER+'&text='+msg+'&type=phone_number&app_absent=0';
+    var waBtn=document.getElementById('whatsappBtn');
+    if(waBtn) waBtn.href=waLink;
+    var preview=document.getElementById('waPreview');
+    if(preview) preview.textContent=msgText;
+
+    // Afficher succes
+    document.getElementById('formFields').style.display='none';
+    document.getElementById('formSuccess').classList.add('show');
+    document.getElementById('reassurance').style.display='none';
+  }
     // WhatsApp
         var msgText='Bonjour je m\'appelle '+prenom+' j\'ai '+age+' ans et je veux activer mon test 7 jours gratuit sans risque | source=testgratuit';
     var msg=encodeURIComponent(msgText);
