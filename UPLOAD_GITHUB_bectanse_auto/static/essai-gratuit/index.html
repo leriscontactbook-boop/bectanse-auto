@@ -917,7 +917,7 @@
     document.getElementById('dot2').classList.add('active');
   }
 
-  async function submitForm(){
+  function submitForm(){
     var prenom=document.getElementById('prenomInput').value.trim();
     var email=document.getElementById('emailInput').value.trim();
     var indicatif=document.getElementById('indicatifInput').value;
@@ -947,7 +947,7 @@
 
     // Google Sheets
     try{
-      await fetch(GOOGLE_SHEETS_URL,{
+      fetch(GOOGLE_SHEETS_URL,{
         method:'POST',mode:'no-cors',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
