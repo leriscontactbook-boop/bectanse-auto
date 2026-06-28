@@ -1056,6 +1056,13 @@ input[name="objectif_periode"] { display: none; }
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
 <body>
+{% if demo_mode %}
+<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
+  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
+  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
+</div>
+<div style="height:44px;"></div>
+{% endif %}
 <div class="app">
 
   <!-- ── SIDEBAR ── -->
