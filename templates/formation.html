@@ -167,37 +167,69 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 <body>
 {% if demo_mode %}
 <style>
-/* Flouter tout le contenu formation */
-.video-grid, .video-card, .pdf-list, .pdf-item,
-.resources-section, .formation-section, .content-card,
-main > *, .page-content > *, .container > *:not(nav):not(.bottom-nav) {
-  filter: blur(4px) !important;
-  pointer-events: none !important;
-  user-select: none !important;
+/* Overlay global qui capte tous les clics */
+.demo-intercept {
+  position: fixed;
+  inset: 0;
+  z-index: 8999;
+  background: transparent;
+  cursor: pointer;
 }
-.bottom-nav, nav, .tab-bar { 
-  filter: none !important; 
-  pointer-events: auto !important; 
-  z-index: 10000;
+/* Flouter le contenu visible */
+.video-section, .video-grid, .pdf-section, .pdf-list,
+.resources-section, .serie-section, .section-content,
+.formation-main, main {
+  filter: blur(3px);
+  user-select: none;
+}
+/* Nav reste propre */
+.bottom-nav, .mobile-nav, nav, .tab-bar, .topbar {
+  filter: none !important;
+  pointer-events: auto !important;
+  z-index: 9000;
+  position: relative;
+}
+/* Bannière demo */
+.demo-banner-wrap {
+  filter: none !important;
+  pointer-events: auto !important;
+  z-index: 9001;
   position: relative;
 }
 </style>
-<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9000;background:rgba(11,11,11,0.97);border:2px solid #FF6A00;border-radius:20px;padding:36px 28px;text-align:center;width:300px;max-width:90vw;">
+
+<!-- Intercept global des clics sur le contenu -->
+<div class="demo-intercept" onclick="window.location='/vip'"></div>
+
+<!-- Cadenas central -->
+<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9500;background:rgba(11,11,11,0.97);border:2px solid #FF6A00;border-radius:20px;padding:36px 28px;text-align:center;width:300px;max-width:90vw;pointer-events:auto;">
   <div style="font-size:52px;margin-bottom:12px;">🔒</div>
   <p style="color:#fff;font-weight:800;font-size:18px;margin:0 0 8px;">Formation Bectanse AUTO</p>
   <p style="color:rgba(255,255,255,.55);font-size:13px;line-height:1.5;margin:0 0 20px;">Vidéos et guides exclusifs réservés aux membres</p>
   <a href="/vip" style="display:block;background:#FF6A00;color:#fff;font-weight:800;text-decoration:none;padding:15px 24px;border-radius:10px;font-size:15px;">Rejoindre Bectanse AUTO →</a>
 </div>
+
 <script>
-document.addEventListener('DOMContentLoaded',function(){
-  document.querySelectorAll('a,button').forEach(function(el){
-    if(!el.closest('nav') && !el.closest('.bottom-nav') && !el.closest('.tab-bar')){
-      el.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.location='/vip';},true);
-    }
-  });
-});
+// Neutraliser TOUTES les fonctions d'ouverture
+function openPDF() { window.location = '/vip'; return false; }
+function openVideo() { window.location = '/vip'; return false; }
+function closePDF() {}
+function closeVideo() {}
+function closePDFModal() {}
+function closeVideoModal() {}
+
+// Intercepter tous les clics sur le document
+document.addEventListener('click', function(e) {
+  var nav = e.target.closest('.bottom-nav, .mobile-nav, nav, .tab-bar, .topbar, .demo-banner-wrap, [href="/accueil"], [href="/parrainage"], [href="/faq"], [href="/offres"], [href="/dashboard"], [href="/canal"], [href="/formation"], [href="/"]');
+  if (!nav) {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location = '/vip';
+  }
+}, true);
 </script>
 {% endif %}
+
 
 
 
