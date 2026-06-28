@@ -167,29 +167,31 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 <body>
 {% if demo_mode %}
 <style>
-.demo-lock-overlay{position:fixed;inset:0;z-index:9998;background:transparent;pointer-events:none;}
-.demo-lock-overlay *{pointer-events:auto;}
-/* Bloquer les clics sur tout le contenu */
-body > *:not(.demo-banner):not(.nav):not(.bottom-nav):not(nav):not(.demo-lock-overlay){pointer-events:none !important;}
-/* Flouter le contenu */
-.formation-content,.video-grid,.pdf-list,.resources-list,.content-wrapper,.main-content,
-.video-card,.pdf-item,.resource-card,section:not(.nav){
-  filter:blur(2px) !important;
-  user-select:none !important;
+/* Flouter tout le contenu formation */
+.video-grid, .video-card, .pdf-list, .pdf-item,
+.resources-section, .formation-section, .content-card,
+main > *, .page-content > *, .container > *:not(nav):not(.bottom-nav) {
+  filter: blur(4px) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+.bottom-nav, nav, .tab-bar { 
+  filter: none !important; 
+  pointer-events: auto !important; 
+  z-index: 10000;
+  position: relative;
 }
 </style>
-<div class="demo-lock-overlay" onclick="window.location='/vip'">
-  <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(11,11,11,0.95);border:2px solid #FF6A00;border-radius:20px;padding:32px 28px;text-align:center;z-index:9999;width:300px;pointer-events:auto;">
-    <div style="font-size:48px;margin-bottom:12px;">🔒</div>
-    <p style="color:#fff;font-weight:800;font-size:17px;margin:0 0 8px;">Formation complète</p>
-    <p style="color:rgba(255,255,255,.6);font-size:13px;margin:0 0 20px;">Accès réservé aux membres Bectanse AUTO</p>
-    <a href="/vip" style="display:block;background:#FF6A00;color:#fff;font-weight:800;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:14px;">Rejoindre Bectanse AUTO →</a>
-  </div>
+<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9000;background:rgba(11,11,11,0.97);border:2px solid #FF6A00;border-radius:20px;padding:36px 28px;text-align:center;width:300px;max-width:90vw;">
+  <div style="font-size:52px;margin-bottom:12px;">🔒</div>
+  <p style="color:#fff;font-weight:800;font-size:18px;margin:0 0 8px;">Formation Bectanse AUTO</p>
+  <p style="color:rgba(255,255,255,.55);font-size:13px;line-height:1.5;margin:0 0 20px;">Vidéos et guides exclusifs réservés aux membres</p>
+  <a href="/vip" style="display:block;background:#FF6A00;color:#fff;font-weight:800;text-decoration:none;padding:15px 24px;border-radius:10px;font-size:15px;">Rejoindre Bectanse AUTO →</a>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded',function(){
-  document.querySelectorAll('a,button,[onclick]').forEach(function(el){
-    if(!el.closest('.demo-lock-overlay') && !el.closest('nav') && !el.closest('.nav') && !el.closest('.bottom-nav')){
+  document.querySelectorAll('a,button').forEach(function(el){
+    if(!el.closest('nav') && !el.closest('.bottom-nav') && !el.closest('.tab-bar')){
       el.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.location='/vip';},true);
     }
   });
@@ -197,13 +199,8 @@ document.addEventListener('DOMContentLoaded',function(){
 </script>
 {% endif %}
 
-{% if demo_mode %}
-<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
-  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
-  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
-</div>
-<div style="height:44px;"></div>
-{% endif %}
+
+
 
 <!-- MOBILE TOP BAR -->
 <div class="m-topbar">
@@ -244,13 +241,7 @@ document.addEventListener('DOMContentLoaded',function(){
   </aside>
 
   <div class="content">
-{% if demo_mode %}
-<div onclick="window.location='/vip'" style="position:absolute;inset:0;background:rgba(11,11,11,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border-radius:inherit;z-index:10;">
-  <div style="font-size:36px;margin-bottom:8px;">🔒</div>
-  <p style="color:#fff;font-weight:700;font-size:14px;margin:0 0 4px;">Accès réservé aux membres</p>
-  <p style="color:#FF6A00;font-size:12px;font-weight:700;margin:0;">Rejoindre Bectanse AUTO →</p>
-</div>
-{% endif %}
+
     <div class="page-badge">Formation incluse — Membres Bectanse AUTO</div>
     <div class="page-title">Formation de base</div>
     <div class="page-desc">Les fondamentaux pour comprendre et suivre tes trades.<br>Vidéos et guides PDF exclusifs développés par l'équipe Bectanse.</div>
