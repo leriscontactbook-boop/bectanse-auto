@@ -1314,6 +1314,10 @@ def inscription():
             json={"chat_id":ADMIN_ID,"text":notif,"parse_mode":"Markdown","reply_markup":markup},
             timeout=5)
     except: pass
+    try:
+        email_bienvenue_membre(prenom, email, code)
+    except Exception as e:
+        app.logger.error("bienvenue: %s", e)
     return jsonify({"ok": True, "code": code})
 
 @app.route("/confirm/<code>")
@@ -1922,6 +1926,70 @@ def send_email_relance(member, jours_restants):
         return False
 
 
+
+# ── BREVO MEMBRES
+def send_brevo_membre(to_email, to_name, subject, html_content, tag):
+    import urllib.request as _ur, os as _os
+    brevo_key = _os.environ.get("BREVO_KEY", "")
+    if not brevo_key:
+        app.logger.warning("BREVO_KEY non definie")
+        return
+    try:
+        p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Leris - Bectanse AUTO"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
+        r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
+        _ur.urlopen(r,timeout=10)
+    except Exception as e:
+        app.logger.error("Brevo: %s",e)
+
+def email_bienvenue_membre(prenom, email, code_acces):
+    html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
+        "<div style='max-width:600px;margin:0 auto;'>"
+        "<div style='background:#FF6A00;padding:20px;border-radius:0 0 16px 16px;margin-bottom:8px;'>"
+        "<span style='font-size:20px;font-weight:900;color:#fff;'>BectanseAUTO</span></div>"
+        "<div style='background:#111;border-radius:16px;padding:32px;margin-bottom:8px;'>"
+        "<p style='color:#FF6A00;font-size:11px;text-transform:uppercase;font-weight:700;margin:0 0 8px;'>Bienvenue dans la famille</p>"
+        "<h1 style='color:#fff;font-size:26px;font-weight:900;margin:0 0 16px;'>Bienvenue, "+prenom+".<br>Ton acc&egrave;s est pr&ecirc;t.</h1>"
+        "<p style='color:rgba(255,255,255,.7);font-size:15px;line-height:1.8;margin:0 0 20px;'>Tu fais maintenant partie des <strong style='color:#fff;'>5000+ membres</strong> Bectanse AUTO.</p>"
+        "<div style='background:#0b0b0b;border:2px solid #FF6A00;border-radius:14px;padding:24px;text-align:center;margin-bottom:20px;'>"
+        "<p style='color:#FF6A00;font-size:11px;text-transform:uppercase;font-weight:700;margin:0 0 10px;'>Ton code d'acc&egrave;s</p>"
+        "<p style='color:#fff;font-size:32px;font-weight:900;letter-spacing:4px;font-family:monospace;margin:0 0 8px;'>"+code_acces+"</p>"
+        "<p style='color:rgba(255,255,255,.4);font-size:12px;margin:0;'>Conserve ce code pour te connecter</p>"
+        "</div>"
+        "<p style='color:rgba(255,255,255,.7);font-size:14px;margin:0;'>Connecte-toi sur <strong style='color:#fff;'>acces.bectanse-academie.com</strong> et entre ce code.</p>"
+        "</div>"
+        "<div style='text-align:center;padding:20px 0;'>"
+        "<a href='https://acces.bectanse-academie.com' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Acc&eacute;der &agrave; mon espace &rarr;</a>"
+        "</div>"
+        "<p style='text-align:center;color:rgba(255,255,255,.2);font-size:11px;'>&copy; 2026 Bectanse Acad&eacute;mie &mdash; LERIS CORP FZCO, Dubai</p>"
+        "</div></body></html>")
+    send_brevo_membre(email, prenom, "Bienvenue "+prenom+" - Ton code Bectanse AUTO", html, "bienvenue")
+
+def email_relance_expiration(prenom, email, jours):
+    cfgs = {
+        7: ("relance-j-7", prenom+", ton abonnement expire dans 7 jours", "Expire dans 7 jours", "Il te reste 7 jours. Renouvelle maintenant.", "#FF6A00"),
+        3: ("relance-j-3", prenom+", plus que 3 jours", "Plus que 3 jours", "Dans 3 jours, le robot s'arr&ecirc;te.", "#FF6A00"),
+        1: ("relance-j-1", prenom+", ton acc&egrave;s expire demain", "Expire demain", "Derni&egrave;re chance avant suspension.", "#FF6A00"),
+        -1: ("relance-j+1", prenom+", ton acc&egrave;s est suspendu", "Acc&egrave;s suspendu", "Expir&eacute; hier. Renouvelle pour reprendre.", "#ef4444"),
+        -3: ("relance-j+3", prenom+", le robot attend ton retour", "Le robot attend", "Expir&eacute; depuis 3 jours. Renouvelle pour tout relancer.", "#ef4444"),
+        -7: ("relance-j+7", prenom+", une derni&egrave;re chose", "Derni&egrave;re chance", "7 jours sans acc&egrave;s. Si tu veux reprendre, c'est maintenant.", "#ef4444"),
+    }
+    if jours not in cfgs: return
+    tag, subject, titre, corps, couleur = cfgs[jours]
+    html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
+        "<div style='max-width:600px;margin:0 auto;'>"
+        "<div style='background:"+couleur+";padding:20px;border-radius:0 0 16px 16px;margin-bottom:8px;'>"
+        "<span style='font-size:20px;font-weight:900;color:#fff;'>BectanseAUTO</span></div>"
+        "<div style='background:#111;border-radius:16px;padding:32px;margin-bottom:8px;'>"
+        "<h1 style='color:#fff;font-size:26px;font-weight:900;margin:0 0 16px;'>"+titre+"</h1>"
+        "<p style='color:rgba(255,255,255,.7);font-size:15px;line-height:1.8;margin:0;'>"+corps+"</p>"
+        "</div>"
+        "<div style='text-align:center;padding:20px 0;'>"
+        "<a href='https://acces.bectanse-academie.com' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
+        "</div>"
+        "<p style='text-align:center;color:rgba(255,255,255,.2);font-size:11px;'>&copy; 2026 Bectanse Acad&eacute;mie</p>"
+        "</div></body></html>")
+    send_brevo_membre(email, prenom, subject, html, tag)
+
 def job_relances_quotidiennes():
     """Tourne chaque matin — envoie emails relance J-7 à J-1 et J+1 à J+7."""
     try:
@@ -1941,9 +2009,9 @@ def job_relances_quotidiennes():
             delta = (date_fin - now).days
 
             # J-7 à J-1 : envoyer email chaque jour
-            if 0 < delta <= 7:
-                member = {"code": code, "nom": nom, "email": email, "capital": capital}
-                send_email_relance(member, delta)
+            if delta in [7, 3, 1]:
+                prenom_m = nom.split()[0] if nom else nom
+                email_relance_expiration(prenom_m, email, delta)
                 # Mettre bannière dans l'app
                 try:
                     conn2 = get_conn()
@@ -1955,9 +2023,9 @@ def job_relances_quotidiennes():
                 except: pass
 
             # J+1 à J+7 après expiration
-            elif -7 <= delta < 0:
-                member = {"code": code, "nom": nom, "email": email, "capital": capital}
-                send_email_relance(member, delta)
+            elif delta in [-1, -3, -7]:
+                prenom_m = nom.split()[0] if nom else nom
+                email_relance_expiration(prenom_m, email, delta)
 
             # Jour J exact → notif Telegram admin
             if delta == 0:
