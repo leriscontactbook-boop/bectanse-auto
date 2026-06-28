@@ -1140,14 +1140,14 @@ input[name="objectif_periode"] { display: none; }
       </div>
 
       <div class="copy-toggle-wrap">
-      <button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
+      {% if demo_mode %}<button onclick="window.location='/vip'" style="background:#555;opacity:0.7;cursor:pointer;border:none;padding:10px 20px;border-radius:20px;color:#fff;font-weight:700;">🔒 Bloqué</button>{% else %}<button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"<button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
               id="copyToggleBtn" onclick="showCopyConfirm()">
         <div class="copy-dot {% if copy_actif %}actif{% else %}inactif{% endif %}"></div>
         <span class="copy-status-label">
           {% if copy_actif %}Copy Trading Actif{% else %}Copy Trading Inactif{% endif %}
         </span>
         <span class="copy-arrow">⏯</span>
-      </button>
+      </button>{% endif %}
       <div class="copy-confirm" id="copyConfirm">
         {% if copy_actif %}
           ⚠️ Désactiver le copy trading ?<br>Les trades auto s'arrêteront.
@@ -1175,9 +1175,15 @@ input[name="objectif_periode"] { display: none; }
         <div class="topbar-title">Paramètres de risque</div>
         <div class="topbar-sub">Toutes les modifications seront envoyées à l'équipe Bectanse pour application.</div>
       </div>
-      <button class="save-btn" onclick="saveParams()" id="saveBtn">
+      {% if demo_mode %}
+<button class="save-btn" onclick="window.location='/vip'" style="opacity:0.7;background:#555;cursor:pointer;">
+  🔒 Réservé aux membres — Rejoindre →
+</button>
+{% else %}
+<button class="save-btn" onclick="saveParams()" id="saveBtn">
         Envoyer la demande →
       </button>
+{% endif %}
     </div>
 
     <div class="content">
