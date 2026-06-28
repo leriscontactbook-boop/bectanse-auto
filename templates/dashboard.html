@@ -1180,9 +1180,14 @@ input[name="objectif_periode"] { display: none; }
   🔒 Réservé aux membres — Rejoindre →
 </button>
 {% else %}
-<button class="save-btn" onclick="saveParams()" id="saveBtn">
+{% if demo_mode %}
+<button type="button" style="width:100%;padding:18px;background:#333;border:2px solid #555;border-radius:14px;color:rgba(255,255,255,0.4);font-size:15px;font-weight:700;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;" disabled>
+  🔒 Réservé aux membres
+</button>
+{% else %}<button class="save-btn" onclick="saveParams()" id="saveBtn">
         Envoyer la demande →
       </button>
+{% endif %}
 {% endif %}
     </div>
 
@@ -2343,6 +2348,16 @@ if (document.readyState === 'loading') {
   initWebPush();
 }
 </script>
+
+
+{% if demo_mode %}
+<script>
+// Neutraliser saveParams en mode demo
+function saveParams() { window.location = '/vip'; return false; }
+// Neutraliser toggleCopy
+function toggleCopy() { window.location = '/vip'; return false; }
+</script>
+{% endif %}
 
 </body>
 </html>
