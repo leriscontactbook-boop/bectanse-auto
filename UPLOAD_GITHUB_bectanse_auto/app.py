@@ -628,6 +628,7 @@ def accueil():
     notif_message = member.get("notif_message", "") or ""
     notif_lue     = member.get("notif_lue", True)
     afficher_notif = bool(notif_type and notif_message and not notif_lue)
+    demo_mode = (code == "BCT-DEMO2026")
     return render_template("accueil.html",
         member=member, params=params,
         copy_actif=copy_actif,
@@ -637,7 +638,8 @@ def accueil():
         statut_abo=statut_abo,
         notif_type=notif_type,
         notif_message=notif_message,
-        afficher_notif=afficher_notif
+        afficher_notif=afficher_notif,
+        demo_mode=demo_mode
     )
 
 
