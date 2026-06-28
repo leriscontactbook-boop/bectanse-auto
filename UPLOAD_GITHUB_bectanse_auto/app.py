@@ -1033,7 +1033,7 @@ def essai_register():
 
     # Appel Apps Script — celui-ci gere Sheet + Telegram
     try:
-        APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmfVEzBcy9fRTiQPBTNAEVf6kLCyPwTL3GgvoUBWb9w-Q03rB-dTzhOLWoRAHTPS4/exec"
+        APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgVGsr5ztXV3UkHuHIIO2LNIZcCNPYNDleyoh3bMUAUBOaKB1RPX2L4lg0w4xovnVK/exec"
         payload = json.dumps({
             "prenom": prenom, "email": email, "phone": phone,
             "age": age, "pays": pays, "date": date_str, "source": source
