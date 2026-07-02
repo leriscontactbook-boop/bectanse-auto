@@ -281,15 +281,25 @@ def send_push_to_all_fcm(title, body, url="/accueil"):
 
 
 def send_telegram(text, reply_markup=None, chat_id=None):
-    if not BOT_TOKEN: return
+    if not BOT_TOKEN:
+        app.logger.error("send_telegram: BOT_TOKEN manquant")
+        return
+    target = str(chat_id) if chat_id else str(ADMIN_ID)
+    payload = {"chat_id": target, "text": text, "parse_mode": "Markdown"}
+    if reply_markup: payload["reply_markup"] = reply_markup
     try:
-        target = str(chat_id) if chat_id else str(ADMIN_ID)
-        payload = {"chat_id": target, "text": text, "parse_mode": "Markdown"}
-        if reply_markup: payload["reply_markup"] = reply_markup
-        r = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=payload, timeout=10)
-        app.logger.info(f"Telegram → {target}: {r.status_code}")
+        r = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=payload, timeout=15
+        )
+        result = r.json()
+        if result.get("ok"):
+            app.logger.info(f"✅ Telegram → {target}: envoyé")
+        else:
+            app.logger.error(f"❌ Telegram → {target}: {result.get('description','erreur')}")
     except Exception as e:
-        app.logger.error(f"send_telegram error: {e}")
+        app.logger.error(f"❌ send_telegram exception: {e}")
+        raise  # Re-raise pour que l'appelant puisse gérer
 
 def login_required(f):
     @wraps(f)
@@ -1282,9 +1292,15 @@ def save():
         try:
             tg_msg = build_notif(member, p, code)
             send_telegram(tg_msg, reply_markup=markup)
-            app.logger.info(f"Telegram envoyé pour {code}")
         except Exception as tg_err:
-            app.logger.error(f"Telegram save error: {tg_err}")
+            app.logger.error(f"❌ Telegram /save FAILED pour {code}: {tg_err}")
+            # 2ème tentative
+            try:
+                import time; time.sleep(2)
+                send_telegram(build_notif(member, p, code), reply_markup=markup)
+                app.logger.info(f"✅ Telegram /save envoyé (2ème tentative) pour {code}")
+            except Exception as e2:
+                app.logger.error(f"❌ Telegram /save 2ème tentative FAILED: {e2}")
         return jsonify({"ok": True})
     except Exception as e:
         app.logger.error(f"save: {e}")
@@ -1423,10 +1439,18 @@ def inscription():
     )
     markup = {"inline_keyboard":[[{"text":"📅 Définir les dates d'abonnement","url":set_dates_url}]]}
     try:
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={"chat_id":ADMIN_ID,"text":notif,"parse_mode":"Markdown","reply_markup":markup},
-            timeout=5)
-    except: pass
+        send_telegram(notif, reply_markup=markup)
+        app.logger.info(f"✅ Notif inscription envoyée pour {code} — {nom_complet}")
+    except Exception as e:
+        app.logger.error(f"❌ Notif inscription FAILED pour {code}: {e}")
+        # 2ème tentative
+        try:
+            import time
+            time.sleep(2)
+            send_telegram(notif, reply_markup=markup)
+            app.logger.info(f"✅ Notif inscription envoyée (2ème tentative) pour {code}")
+        except Exception as e2:
+            app.logger.error(f"❌ Notif inscription 2ème tentative FAILED: {e2}")
     try:
         email_bienvenue_membre(prenom, email, code)
     except Exception as e:
