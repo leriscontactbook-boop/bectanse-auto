@@ -169,9 +169,12 @@ def get_member(code):
         m = dict(zip(cols, rows[0]))
         conn.close()
         for k in ("params","historique"):
-            if isinstance(m.get(k), str):
-                try: m[k] = json.loads(m[k])
+            v = m.get(k)
+            if isinstance(v, str):
+                try: m[k] = json.loads(v)
                 except: m[k] = {} if k=="params" else []
+            elif v is None:
+                m[k] = {} if k=="params" else []
         if m.get("copy_actif") is None: m["copy_actif"] = True
         return m
     except Exception as e:
@@ -611,7 +614,11 @@ def accueil():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    params = member.get("params") or default_params()
+    raw_params = member.get("params") or {}
+    # Fusionner avec les defaults pour les clés manquantes
+    dp = default_params()
+    dp.update(raw_params)
+    params = dp
     copy_actif = member.get("copy_actif", True)
     date_souscription = member.get("date_souscription")
     date_fin = member.get("date_fin")
@@ -1178,7 +1185,11 @@ def dashboard():
     if not member:
         session.clear()
         return redirect(url_for("login"))
-    params = member.get("params") or default_params()
+    raw_params = member.get("params") or {}
+    # Fusionner avec les defaults pour les clés manquantes
+    dp = default_params()
+    dp.update(raw_params)
+    params = dp
     hist   = list(reversed((member.get("historique") or [])[-10:]))
     copy_actif = member.get("copy_actif", True)
     date_souscription = member.get("date_souscription")
