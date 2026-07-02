@@ -492,7 +492,7 @@ def activer_prospect():
         conn.run(
             "INSERT INTO members (code,nom,capital,email,telephone,parrain_code,params,historique) VALUES (:c,:n,:cap,:e,:t,:pr,:p,:h)",
             c=code, n=nom_complet, cap=offre, e=email, t=telephone,
-            pr=parrain_code, p=json.dumps(default_params()), h=json.dumps([])
+            pr=parrain_code, p=json.dumps({**default_params(), "mt_login": mt_login, "mt_password": mt_pass, "serveur": serveur, "plateforme": plateforme}), h=json.dumps([])
         )
 
         # Créditer le parrain
@@ -1140,13 +1140,15 @@ def admin_api_membre_profil():
         # Extraire infos MT4 depuis params
         import json as _json
         try:
-            p = _json.loads(r[19]) if r[19] else {}
-            member["mt_login"] = p.get("mt_login","—")
-            member["mt_server"] = p.get("serveur","—")
-            member["mt_password"] = p.get("mt_password","—")
-            member["mode_risque"] = p.get("mode_risque","—")
-            member["lots"] = p.get("lots","—")
-        except: pass
+            p = _json.loads(r[19]) if isinstance(r[19], str) else (r[19] or {})
+            member["mt_login"]    = p.get("mt_login","—") or "—"
+            member["mt_server"]   = p.get("serveur","—") or "—"
+            member["mt_password"] = p.get("mt_password","—") or "—"
+            member["mode_risque"] = p.get("mode_risque","—") or "—"
+            member["lots"]        = p.get("lots","—")
+            member["plateforme"]  = p.get("plateforme","MT4") or "MT4"
+        except Exception as ep:
+            app.logger.error(f"profil params parse: {ep}")
         return jsonify({"ok":True,"member":member})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
@@ -1377,7 +1379,7 @@ def inscription():
         conn.run(
             "INSERT INTO members (code,nom,capital,email,telephone,telegram,params,historique) VALUES (:c,:n,:cap,:e,:t,:tg,:p,:h)",
             c=code, n=nom_complet, cap=capital, e=email, t=telephone, tg=telegram,
-            p=json.dumps(default_params()), h=json.dumps([])
+            p=json.dumps({**default_params(), "mt_login": mt_login, "mt_password": mt_pass, "serveur": serveur, "plateforme": plateforme}), h=json.dumps([])
         )
         # Essayer de mettre à jour parrain_code si la colonne existe
         if parrain_ref:
@@ -1578,7 +1580,7 @@ def admin_add():
     try:
         conn = get_conn()
         conn.run("INSERT INTO members (code,nom,capital,params,historique) VALUES (:c,:n,:cap,:p,:h)",
-                 c=code, n=nom, cap=capital, p=json.dumps(default_params()), h=json.dumps([]))
+                 c=code, n=nom, cap=capital, p=json.dumps({**default_params(), "mt_login": mt_login, "mt_password": mt_pass, "serveur": serveur, "plateforme": plateforme}), h=json.dumps([]))
         conn.close()
         send_telegram(f"✅ *Nouveau membre*\n\n👤 *{nom}* | 💰 *{capital}*\n🔑 `{code}`")
         return jsonify({"ok": True, "code": code})
