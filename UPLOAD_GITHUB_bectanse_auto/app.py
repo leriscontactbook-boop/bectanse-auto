@@ -1092,6 +1092,58 @@ def admin_export_emails():
     except Exception as e:
         return f"Erreur: {e}", 500
 
+
+@app.route("/admin/api/membre/profil")
+def admin_api_membre_profil():
+    key = request.args.get("key","")
+    if key != ADMIN_KEY: return jsonify({"ok":False}), 403
+    code = request.args.get("code","")
+    try:
+        conn = get_conn()
+        rows = conn.run("""
+            SELECT code, nom, email, telephone, telegram,
+                   capital, actif, copy_actif,
+                   date_souscription, date_fin,
+                   parrain_code, filleuls_count, gains_parrainage,
+                   paiement_type, paiement_iban, paiement_bic,
+                   paiement_titulaire, paiement_crypto_reseau,
+                   paiement_crypto_adresse, params, historique,
+                   created_at, last_login
+            FROM members WHERE code=:c
+        """, c=code)
+        conn.close()
+        if not rows: return jsonify({"ok":False,"error":"Introuvable"})
+        r = rows[0]
+        from datetime import datetime
+        def fmt(d): return d.strftime("%d/%m/%Y %H:%M") if d and hasattr(d,"strftime") else "—"
+        member = {
+            "code": r[0], "nom": r[1], "email": r[2] or "—",
+            "telephone": r[3] or "—", "telegram": r[4] or "—",
+            "capital": r[5] or "—", "actif": r[6], "copy_actif": r[7],
+            "date_souscription": fmt(r[8]), "date_fin": fmt(r[9]),
+            "parrain_code": r[10] or "—", "filleuls_count": r[11] or 0,
+            "gains_parrainage": r[12] or 0,
+            "paiement_type": r[13] or "—", "paiement_iban": r[14] or "—",
+            "paiement_bic": r[15] or "—", "paiement_titulaire": r[16] or "—",
+            "paiement_crypto_reseau": r[17] or "—",
+            "paiement_crypto_adresse": r[18] or "—",
+            "params": r[19], "historique": r[20],
+            "created_at": fmt(r[21]), "last_login": fmt(r[22]),
+        }
+        # Extraire infos MT4 depuis params
+        import json as _json
+        try:
+            p = _json.loads(r[19]) if r[19] else {}
+            member["mt_login"] = p.get("mt_login","—")
+            member["mt_server"] = p.get("serveur","—")
+            member["mt_password"] = p.get("mt_password","—")
+            member["mode_risque"] = p.get("mode_risque","—")
+            member["lots"] = p.get("lots","—")
+        except: pass
+        return jsonify({"ok":True,"member":member})
+    except Exception as e:
+        return jsonify({"ok":False,"error":str(e)})
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
