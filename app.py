@@ -281,25 +281,44 @@ def send_push_to_all_fcm(title, body, url="/accueil"):
 
 
 def send_telegram(text, reply_markup=None, chat_id=None):
-    if not BOT_TOKEN:
-        app.logger.error("send_telegram: BOT_TOKEN manquant")
-        return
+    """Envoie un message Telegram — 3 tentatives, alerte si échec total."""
+    if not BOT_TOKEN: return
     target = str(chat_id) if chat_id else str(ADMIN_ID)
     payload = {"chat_id": target, "text": text, "parse_mode": "Markdown"}
     if reply_markup: payload["reply_markup"] = reply_markup
+
+    for attempt in range(3):
+        try:
+            import time
+            if attempt > 0: time.sleep(3)
+            r = requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                json=payload, timeout=15
+            )
+            result = r.json()
+            if result.get("ok"):
+                return  # Succès
+            # Erreur API Telegram
+            err = result.get("description", "erreur inconnue")
+            app.logger.error(f"Telegram tentative {attempt+1}: {err}")
+        except Exception as e:
+            app.logger.error(f"Telegram tentative {attempt+1} exception: {e}")
+
+    # 3 tentatives échouées — envoyer alerte via bot de secours (ECO_BOT)
     try:
-        r = requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json=payload, timeout=15
+        alert = (
+            f"🚨 *ALERTE SYSTÈME*\n\n"
+            f"Une notification n'a pas pu être envoyée sur le bot admin.\n"
+            f"Vérifie immédiatement.\n\n"
+            f"Destinataire : `{target}`\n"
+            f"Message : {text[:200]}..."
         )
-        result = r.json()
-        if result.get("ok"):
-            app.logger.info(f"✅ Telegram → {target}: envoyé")
-        else:
-            app.logger.error(f"❌ Telegram → {target}: {result.get('description','erreur')}")
-    except Exception as e:
-        app.logger.error(f"❌ send_telegram exception: {e}")
-        raise  # Re-raise pour que l'appelant puisse gérer
+        requests.post(
+            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/sendMessage",
+            json={"chat_id": ADMIN_ID, "text": alert, "parse_mode": "Markdown"},
+            timeout=10
+        )
+    except: pass
 
 def login_required(f):
     @wraps(f)
@@ -1289,18 +1308,8 @@ def save():
             {"text":"✅ Appliqué sur notre système","url":confirm_url},
             {"text":"❌ Refuser la demande","url":problem_url}
         ]]}
-        try:
-            tg_msg = build_notif(member, p, code)
-            send_telegram(tg_msg, reply_markup=markup)
-        except Exception as tg_err:
-            app.logger.error(f"❌ Telegram /save FAILED pour {code}: {tg_err}")
-            # 2ème tentative
-            try:
-                import time; time.sleep(2)
-                send_telegram(build_notif(member, p, code), reply_markup=markup)
-                app.logger.info(f"✅ Telegram /save envoyé (2ème tentative) pour {code}")
-            except Exception as e2:
-                app.logger.error(f"❌ Telegram /save 2ème tentative FAILED: {e2}")
+        tg_msg = build_notif(member, p, code)
+        send_telegram(tg_msg, reply_markup=markup)
         return jsonify({"ok": True})
     except Exception as e:
         app.logger.error(f"save: {e}")
@@ -1438,19 +1447,7 @@ def inscription():
         f"⚡ *ACTION REQUISE* — Connecter sur notre système"
     )
     markup = {"inline_keyboard":[[{"text":"📅 Définir les dates d'abonnement","url":set_dates_url}]]}
-    try:
-        send_telegram(notif, reply_markup=markup)
-        app.logger.info(f"✅ Notif inscription envoyée pour {code} — {nom_complet}")
-    except Exception as e:
-        app.logger.error(f"❌ Notif inscription FAILED pour {code}: {e}")
-        # 2ème tentative
-        try:
-            import time
-            time.sleep(2)
-            send_telegram(notif, reply_markup=markup)
-            app.logger.info(f"✅ Notif inscription envoyée (2ème tentative) pour {code}")
-        except Exception as e2:
-            app.logger.error(f"❌ Notif inscription 2ème tentative FAILED: {e2}")
+    send_telegram(notif, reply_markup=markup)
     try:
         email_bienvenue_membre(prenom, email, code)
     except Exception as e:
