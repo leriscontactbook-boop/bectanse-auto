@@ -321,6 +321,18 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 </main>
 </div>
 
+
+<!-- MODAL PROFIL MEMBRE -->
+<div class="modal-overlay" id="profil-modal" onclick="closeProfilModal(event)">
+  <div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
+    <div class="modal-title" id="profil-nom">Profil membre</div>
+    <div id="profil-content" style="margin-top:16px"></div>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn btn-gold" onclick="document.getElementById('profil-modal').classList.remove('open')">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -621,6 +633,74 @@ async function restaurerCanalMsg(id) {
   const d = await r.json();
   if (d.ok) { toast('✅ Message restauré'); loadCanalMessages(); }
   else toast('Erreur : ' + (d.error||''), 'error');
+}
+
+
+// ── PROFIL MEMBRE
+async function voirProfil(code) {
+  document.getElementById('profil-nom').textContent = 'Chargement...';
+  document.getElementById('profil-content').innerHTML = '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3)">Chargement...</div>';
+  document.getElementById('profil-modal').classList.add('open');
+
+  const r = await fetch(`/admin/api/membre/profil?key=${KEY}&code=${code}`);
+  const d = await r.json();
+  if (!d.ok) { document.getElementById('profil-content').innerHTML = '<div style="color:#FCA5A5">Erreur de chargement</div>'; return; }
+
+  const m = d.member;
+  document.getElementById('profil-nom').textContent = `👤 ${m.nom} — ${m.code}`;
+
+  const row = (label, val, color='rgba(255,255,255,0.7)') =>
+    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.3)">${label}</span>
+      <span style="font-size:13px;font-weight:600;color:${color};text-align:right;max-width:60%;word-break:break-all">${val}</span>
+    </div>`;
+
+  const section = (title, color='#F59E0B') =>
+    `<div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:${color};margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid ${color}33">${title}</div>`;
+
+  document.getElementById('profil-content').innerHTML = `
+    ${section('Informations personnelles', '#67E8F9')}
+    ${row('Code accès', m.code, '#C4B5FD')}
+    ${row('Nom complet', m.nom, '#fff')}
+    ${row('Email', m.email)}
+    ${row('Téléphone', m.telephone)}
+    ${row('Telegram', m.telegram)}
+    ${row('Inscrit le', m.created_at)}
+    ${row('Dernière connexion', m.last_login)}
+
+    ${section('Abonnement', '#F59E0B')}
+    ${row('Statut', m.actif ? '✅ Actif' : '❌ Inactif', m.actif ? '#6EE7B7' : '#FCA5A5')}
+    ${row('Copy Trading', m.copy_actif ? '✅ ON' : '⏸️ OFF', m.copy_actif ? '#6EE7B7' : '#FCA5A5')}
+    ${row('Capital déclaré', m.capital, '#F59E0B')}
+    ${row('Date souscription', m.date_souscription)}
+    ${row('Date expiration', m.date_fin)}
+
+    ${section('Connexion MT4/MT5', '#C4B5FD')}
+    ${row('Login MT4', m.mt_login || '—', '#C4B5FD')}
+    ${row('Serveur', m.mt_server || '—')}
+    ${row('Mot de passe', m.mt_password || '—', '#FCA5A5')}
+    ${row('Mode de risque', m.mode_risque || '—')}
+    ${row('Lots', m.lots || '—')}
+
+    ${section('Parrainage', '#6EE7B7')}
+    ${row('Parrain', m.parrain_code)}
+    ${row('Filleuls', m.filleuls_count)}
+    ${row('Gains parrainage', m.gains_parrainage + ' €', '#6EE7B7')}
+
+    ${m.paiement_type && m.paiement_type !== '—' ? `
+    ${section('Infos paiement parrainage', '#FCD34D')}
+    ${row('Type', m.paiement_type)}
+    ${m.paiement_iban !== '—' ? row('IBAN', m.paiement_iban) : ''}
+    ${m.paiement_bic !== '—' ? row('BIC', m.paiement_bic) : ''}
+    ${m.paiement_titulaire !== '—' ? row('Titulaire', m.paiement_titulaire) : ''}
+    ${m.paiement_crypto_adresse !== '—' ? row('Adresse crypto', m.paiement_crypto_adresse, '#FCD34D') : ''}
+    ${m.paiement_crypto_reseau !== '—' ? row('Réseau', m.paiement_crypto_reseau) : ''}
+    ` : ''}
+  `;
+}
+
+function closeProfilModal(e) {
+  if (e.target.id === 'profil-modal') document.getElementById('profil-modal').classList.remove('open');
 }
 
 // ── INIT
