@@ -151,6 +151,24 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <div class="stat-card red"><div class="stat-label">Expirés</div><div class="stat-value" id="s-expires">—</div></div>
     <div class="stat-card blue"><div class="stat-label">Nouveaux 7j</div><div class="stat-value" id="s-new">—</div></div>
   </div>
+
+  <!-- TABLEAU MEMBRES SUR LA PAGE D'ACCUEIL -->
+  <div class="search-bar" style="margin-bottom:12px">
+    <input class="search-input" id="dashboard-search" placeholder="Rechercher par nom ou code..." oninput="filterDashboardMembres()">
+    <button class="btn btn-purple" onclick="loadDashboardMembres()">↻ Actualiser</button>
+    <a class="btn btn-green" href="/admin/export-emails?key={{ admin_key }}" download>⬇ CSV</a>
+  </div>
+  <div class="table-wrap">
+    <table id="dashboard-membres-table">
+      <thead><tr>
+        <th>Code</th><th>Nom</th><th>Capital</th><th>Statut</th>
+        <th>Copy</th><th>Expire</th><th>Jours</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="dashboard-membres-tbody">
+        <tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <!-- MEMBRES -->
@@ -704,8 +722,56 @@ function closeProfilModal(e) {
   if (e.target.id === 'profil-modal') document.getElementById('profil-modal').classList.remove('open');
 }
 
+// ── TABLEAU DASHBOARD
+let allDashboardMembres = [];
+
+async function loadDashboardMembres() {
+  const tbody = document.getElementById('dashboard-membres-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr>';
+  const r = await fetch(API('/admin/api/membres'));
+  const d = await r.json();
+  if (!d.ok) { toast('Erreur chargement membres', 'error'); return; }
+  allDashboardMembres = d.membres;
+  renderDashboardMembres(allDashboardMembres);
+}
+
+function filterDashboardMembres() {
+  const q = document.getElementById('dashboard-search').value.toLowerCase();
+  renderDashboardMembres(allDashboardMembres.filter(m =>
+    m.nom.toLowerCase().includes(q) || m.code.toLowerCase().includes(q)
+  ));
+}
+
+function renderDashboardMembres(membres) {
+  const tbody = document.getElementById('dashboard-membres-tbody');
+  if (!membres.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Aucun membre</td></tr>';
+    return;
+  }
+  tbody.innerHTML = membres.map(m => `
+    <tr>
+      <td><code style="color:#C4B5FD;font-size:11px">${m.code}</code></td>
+      <td style="font-weight:600;color:#fff">${m.nom}</td>
+      <td>${m.capital || '—'}</td>
+      <td><span class="badge ${m.actif ? 'on' : 'off'}">${m.actif ? 'Actif' : 'Inactif'}</span></td>
+      <td><span class="badge ${m.copy_actif ? 'on' : 'off'}">${m.copy_actif ? 'ON' : 'OFF'}</span></td>
+      <td style="font-size:12px">${m.date_fin || '—'}</td>
+      <td><span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span></td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm" style="background:rgba(8,145,178,0.15);color:#67E8F9;border:1px solid rgba(8,145,178,0.3)" onclick="voirProfil('${m.code}')">👤</button>
+          <button class="btn btn-gold btn-sm" onclick="prolongerMembre('${m.code}')">+Jours</button>
+          <button class="btn btn-sm" style="background:rgba(91,33,182,0.15);color:#C4B5FD;border:1px solid rgba(91,33,182,0.3)" onclick="msgMembre('${m.code}','${m.nom}')">Msg</button>
+          <button class="btn btn-red btn-sm" onclick="supprimerMembre('${m.code}','${m.nom}')">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
 // ── INIT
 loadStats();
+loadDashboardMembres();
 </script>
 </body>
 </html>
