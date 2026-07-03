@@ -1182,6 +1182,15 @@ def admin_api_membre_profil():
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
 
+@app.route("/calculateur")
+@login_required
+def calculateur():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        return redirect(url_for("login"))
+    return render_template("calculateur.html", member=member)
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
