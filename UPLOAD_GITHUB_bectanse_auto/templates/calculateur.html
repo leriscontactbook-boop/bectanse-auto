@@ -249,9 +249,9 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
       <div class="advanced-panel" id="advanced-panel">
         <div class="gc" style="margin-bottom:14px">
           <div class="gc-label">Stop Loss (optionnel)</div>
-          <div class="sl-auto-badge" id="sl-auto-badge">SL automatique — 200 pips (standard XAU/USD)</div>
+          <div class="sl-auto-badge" id="sl-auto-badge">SL par défaut — 100 pips (PU Prime XAU/USD)</div>
           <div class="pills" id="sl-pills">
-            <span class="pill" data-sl="100">100 pips</span>
+            <span class="pill active" data-sl="100">100 pips</span>
             <span class="pill" data-sl="150">150 pips</span>
             <span class="pill" data-sl="200">200 pips</span>
             <span class="pill" data-sl="300">300 pips</span>
@@ -262,7 +262,7 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
             <span class="field-suffix">PIPS</span>
           </div>
           <div id="sl-warning" style="display:none;margin-top:10px;font-size:11px;color:#FCA5A5;line-height:1.6">
-            ⚠️ Un stop loss inférieur à 100 pips est très risqué sur XAU/USD. La volatilité de l'or peut déclencher ce stop en quelques secondes.
+            ⚠️ Stop loss inférieur à 50 pips très risqué sur XAU/USD. La volatilité de l'or peut déclencher ce stop en quelques secondes.
           </div>
         </div>
       </div>
@@ -313,7 +313,7 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
     </div>
 
     <div class="footer-note">
-      Calculateur basé sur les spécifications réelles XAU/USD (1 lot = 100 oz, 1 pip = 1 USD/lot). Stop loss par défaut de 200 pips adapté à la volatilité standard de l'or. Le taux EUR/USD est mis à jour automatiquement. Ce calculateur est un outil d'aide à la décision — chaque membre reste responsable de la gestion de son capital.
+      Formule MT5 certifiée — Broker de référence : PU Prime. XAU/USD : Contract Size 100 oz · Pip Size 0.01 USD · Pip Value $10/lot standard · Compte EUR. Formule : Lot = (Capital × Risque%) ÷ (SL_pips × 10 ÷ EURUSD). Taux EUR/USD mis à jour en temps réel. Ce calculateur est un outil d'aide à la décision — chaque membre reste responsable de la gestion de son capital.
     </div>
 
   </div>
@@ -337,9 +337,9 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
 </a>
 
 <script>
-let capital=1000, risk=1, sl=200, rr=2, eurusd=1.09;
+let capital=1000, risk=1, sl=100, rr=2, eurusd=1.09;
 let advancedOpen=false;
-const SL_DEFAULT=200;
+const SL_DEFAULT=100;
 
 const LOTS=[0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.10,0.12,0.15,0.20,0.25,0.30,0.40,0.50,0.75,1.00,1.50,2.00,3.00,5.00];
 
@@ -424,9 +424,13 @@ function update(){
   flash(document.getElementById('risk-amt'),fmt(realRisk)+' €');
   const theoreticalRisk=riskEUR;
   const overRisk=realRisk>theoreticalRisk*1.5;
-  document.getElementById('risk-pct-sub').textContent=overRisk
-    ? `⚠️ Lot minimum dépasse ton risque cible (${fmt(theoreticalRisk)} €)`
-    : `soit ${((realRisk/capital)*100).toFixed(2)}% du capital`;
+  const realPct=(realRisk/capital)*100;
+  if(overRisk){
+    document.getElementById('risk-pct-sub').innerHTML=
+      `<span style="color:#FCA5A5;font-size:10px">⚠️ Lot min 0.01 représente ${realPct.toFixed(2)}% (cible ${risk}%)</span>`;
+  } else {
+    document.getElementById('risk-pct-sub').textContent=`soit ${realPct.toFixed(2)}% du capital`;
+  }
   document.getElementById('rg-cap').textContent=fmt(capital)+' €';
   document.getElementById('rg-risk').textContent=risk+'%';
   document.getElementById('rg-sl').textContent=fmt(sl)+' pips';
@@ -499,7 +503,7 @@ document.getElementById('sl-input').addEventListener('input',e=>{
   if(v&&v>0){
     sl=v;
     document.getElementById('sl-auto-badge').style.display='none';
-    document.getElementById('sl-warning').style.display=v<100?'block':'none';
+    document.getElementById('sl-warning').style.display=v<50?'block':'none';
   } else {
     sl=SL_DEFAULT;
     document.getElementById('sl-auto-badge').style.display='inline-flex';
@@ -512,7 +516,7 @@ document.querySelectorAll('#sl-pills .pill').forEach(p=>p.addEventListener('clic
   sl=parseFloat(p.dataset.sl);
   document.getElementById('sl-input').value=sl;
   document.getElementById('sl-auto-badge').style.display='none';
-  document.getElementById('sl-warning').style.display=sl<100?'block':'none';
+  document.getElementById('sl-warning').style.display=sl<50?'block':'none';
   document.querySelectorAll('#sl-pills .pill').forEach(x=>x.classList.remove('active'));
   p.classList.add('active');
   update();
