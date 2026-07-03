@@ -279,6 +279,7 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
           <div class="rm-label">Lot conseillé</div>
           <div class="rm-val" id="lot-val">0.05</div>
           <div class="rm-sub">pour XAU/USD (or)</div>
+          <div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.2);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.1em">EUR/USD : <span id="eurusd-rate">1.0900</span></div>
         </div>
         <div class="result-metric">
           <div class="rm-label">Montant risqué</div>
@@ -351,12 +352,42 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
 let capital=1000, risk=1, sl=20, rr=2;
 
 const LOTS=[0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.10,0.12,0.15,0.20,0.25,0.30,0.40,0.50,0.75,1.00,1.50,2.00,3.00,5.00];
-function calcLot(cap,riskPct,slPips){
-  const riskAmt=cap*(riskPct/100);
-  const raw=riskAmt/(slPips*1);
-  let best=LOTS[0];
-  for(const l of LOTS){if(l<=raw)best=l;else break;}
+
+// Taux EUR/USD — mis à jour dynamiquement
+let EURUSD = 1.09;
+
+async function fetchEURUSD() {
+  try {
+    const r = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD');
+    const d = await r.json();
+    if (d.rates && d.rates.USD) {
+      EURUSD = d.rates.USD;
+      document.getElementById('eurusd-rate').textContent = EURUSD.toFixed(4);
+      update();
+    }
+  } catch(e) {
+    // Garder le taux par défaut 1.09
+    document.getElementById('eurusd-rate').textContent = EURUSD.toFixed(4) + ' (défaut)';
+  }
+}
+
+function calcLot(cap, riskPct, slPips) {
+  // Formule officielle MT4/MT5 XAU/USD compte EUR
+  // 1 lot standard XAU/USD = 100 oz
+  // 1 pip (0.01) sur 1 lot = 1 USD par lot
+  // Valeur pip en EUR = 1 / EURUSD
+  const riskAmt = cap * (riskPct / 100);
+  const pipValueEUR = 1.0 / EURUSD;
+  const rawLot = riskAmt / (slPips * pipValueEUR);
+  let best = LOTS[0];
+  for (const l of LOTS) { if (l <= rawLot) best = l; else break; }
   return best;
+}
+
+function calcRawLot(cap, riskPct, slPips) {
+  const riskAmt = cap * (riskPct / 100);
+  const pipValueEUR = 1.0 / EURUSD;
+  return riskAmt / (slPips * pipValueEUR);
 }
 
 function fmtNum(v,dec=0){return new Intl.NumberFormat('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(v);}
@@ -426,6 +457,8 @@ function update(){
   if(amtEl.textContent!==newAmt){flashEl(amtEl);amtEl.textContent=newAmt;}
 
   document.getElementById('risk-pct-label').textContent=`soit ${risk}% du capital`;
+  const rawLotDisplay = calcRawLot(capital, risk, sl);
+  document.getElementById('s-lot').textContent = lot.toFixed(2) + ' (' + rawLotDisplay.toFixed(4) + ' brut)';
   document.getElementById('s-cap').textContent=fmtNum(capital)+' €';
   document.getElementById('s-risk').textContent=risk+'%';
   document.getElementById('s-amt').textContent=fmtNum(riskAmt)+' €';
@@ -540,6 +573,7 @@ document.querySelectorAll('#rr-pills .rr-pill').forEach(p=>p.addEventListener('c
   updateGain();
 }));
 
+fetchEURUSD();
 update();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 </script>
