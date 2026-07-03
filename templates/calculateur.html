@@ -11,17 +11,10 @@
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--d2:#111827;--d3:#1F2937;--white:#fff;--gray:#9CA3AF;--border:rgba(91,33,182,0.18);--green:#059669;--red:#DC2626;--blue:#0891B2;--orange:#D97706}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--d2:#111827;--d3:#1F2937;--white:#fff;--gray:#9CA3AF;--border:rgba(91,33,182,0.18)}
 html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark);color:var(--white);overflow-x:hidden}
-
-/* BG AMBIENT */
-.bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse 60% 40% at 20% 20%,rgba(91,33,182,0.12) 0%,transparent 60%),
-             radial-gradient(ellipse 40% 30% at 80% 80%,rgba(245,158,11,0.06) 0%,transparent 55%)}
-
+.bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 60% 40% at 20% 20%,rgba(91,33,182,0.1) 0%,transparent 60%),radial-gradient(ellipse 40% 30% at 80% 80%,rgba(245,158,11,0.05) 0%,transparent 55%)}
 .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh;position:relative;z-index:1}
-
-/* SIDEBAR */
 .sidebar{background:rgba(11,11,20,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;backdrop-filter:blur(20px)}
 .sidebar-brand{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05)}
 .sidebar-logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.08em;color:var(--gold)}
@@ -38,117 +31,109 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .sidebar-bottom{padding:12px;border-top:1px solid rgba(255,255,255,0.05);margin-top:auto}
 .logout-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,0.3);text-decoration:none;font-size:13px;transition:all 0.15s}
 .logout-btn:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05)}
-
-/* CONTENT */
-.content{padding:40px 44px 80px;max-width:860px}
-
-/* PAGE HEADER */
-.page-header{margin-bottom:36px}
+.content{padding:40px 44px 80px;max-width:820px}
 .page-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:20px;padding:5px 14px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
 .page-title{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:0.03em;color:var(--white);margin-bottom:6px}
-.page-desc{font-size:14px;color:rgba(255,255,255,0.35);line-height:1.6;font-style:italic}
+.page-desc{font-size:14px;color:rgba(255,255,255,0.3);line-height:1.6;margin-bottom:36px}
+
+/* GLASS CARD */
+.gc{background:rgba(17,24,39,0.7);border:1px solid rgba(91,33,182,0.2);border-radius:20px;padding:26px;position:relative;overflow:hidden;backdrop-filter:blur(10px);margin-bottom:14px}
+.gc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(91,33,182,0.35),transparent)}
+.gc-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-bottom:16px}
 
 /* GRID */
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-
-/* GLASS CARDS */
-.gc{background:rgba(17,24,39,0.7);border:1px solid rgba(91,33,182,0.2);border-radius:20px;padding:24px;position:relative;overflow:hidden;backdrop-filter:blur(10px);transition:border-color 0.3s,transform 0.2s}
-.gc:hover{border-color:rgba(91,33,182,0.4)}
-.gc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(91,33,182,0.4),transparent)}
-.gc-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:16px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:0}
 
 /* PILLS */
 .pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
-.pill{padding:5px 12px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);font-size:12px;color:rgba(255,255,255,0.4);cursor:pointer;transition:all 0.2s;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.06em}
-.pill:hover{background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.4);color:rgba(255,255,255,0.8)}
-.pill.active{background:rgba(91,33,182,0.2);border-color:rgba(91,33,182,0.6);color:#C4B5FD}
+.pill{padding:5px 13px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);font-size:12px;color:rgba(255,255,255,0.38);cursor:pointer;transition:all 0.2s;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.05em}
+.pill:hover{background:rgba(91,33,182,0.12);border-color:rgba(91,33,182,0.35);color:rgba(255,255,255,0.75)}
+.pill.active{background:rgba(91,33,182,0.2);border-color:rgba(91,33,182,0.55);color:#C4B5FD}
 
-/* INPUTS */
-.input-row{display:flex;align-items:center;gap:10px}
-.field-input{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 16px;color:#fff;font-size:18px;font-weight:600;font-family:'Barlow Condensed',sans-serif;outline:none;transition:border-color 0.2s}
+/* FIELD */
+.field-row{display:flex;align-items:center;gap:10px}
+.field-input{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 16px;color:#fff;font-size:20px;font-weight:700;font-family:'Barlow Condensed',sans-serif;outline:none;transition:border-color 0.2s}
 .field-input:focus{border-color:rgba(91,33,182,0.6);background:rgba(91,33,182,0.05)}
-.field-suffix{font-size:14px;color:rgba(255,255,255,0.3);white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.06em}
+.field-suffix{font-size:13px;color:rgba(255,255,255,0.28);white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.08em}
 
 /* SLIDER */
 .slider-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.slider-display{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:0.04em;transition:color 0.4s}
-.slider-unit{font-size:16px;color:rgba(255,255,255,0.4);margin-left:2px}
-.slider-track{position:relative;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin:8px 0 12px}
-.slider-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px;transition:width 0.1s,background 0.4s}
+.slider-display{font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:0.04em;transition:color 0.4s;line-height:1}
+.slider-track{position:relative;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin:10px 0 14px}
+.slider-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px;transition:width 0.08s,background 0.4s}
 input[type=range].bct{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:transparent;outline:none;cursor:pointer;position:absolute;top:-5px;left:0}
-input[type=range].bct::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--dark);border:2px solid;cursor:pointer;transition:border-color 0.4s,transform 0.15s,box-shadow 0.3s}
+input[type=range].bct::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--dark);border:2.5px solid;cursor:pointer;transition:border-color 0.4s,transform 0.15s}
 input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
-.slider-hints{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.2);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.06em}
-.risk-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.risk-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.06em;cursor:pointer;border:1px solid;transition:all 0.2s}
+.slider-hints{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.18);font-family:'Barlow Condensed',sans-serif}
+.rpills{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.rpill{padding:5px 13px;border-radius:20px;font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.06em;cursor:pointer;border:1px solid;transition:all 0.2s;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.07)}
+.rpill.active{color:#fff}
 
-/* ALERT */
-.alert{border-radius:16px;padding:16px 20px;display:flex;gap:14px;align-items:flex-start;transition:all 0.4s;margin-bottom:16px;position:relative;overflow:hidden}
-.alert::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;border-radius:0 0 0 0}
-.alert-icon{font-size:20px;flex-shrink:0;margin-top:2px}
-.alert-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.06em;margin-bottom:4px}
-.alert-body{font-size:12px;line-height:1.7;color:rgba(255,255,255,0.6)}
+/* INDICATEUR CONFIANCE */
+.confidence{display:flex;align-items:center;gap:14px;padding:16px 22px;border-radius:14px;margin-bottom:14px;transition:all 0.4s;border:1px solid}
+.conf-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;transition:background 0.4s}
+.conf-label{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;transition:color 0.4s}
+.conf-desc{font-size:12px;color:rgba(255,255,255,0.45);flex:1}
 
-/* RESULT CARD */
-.result-card{background:rgba(17,24,39,0.8);border:1px solid rgba(91,33,182,0.25);border-radius:20px;overflow:hidden;margin-bottom:16px;backdrop-filter:blur(10px)}
-.result-main{padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
-.result-metric{}
-.rm-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:6px}
-.rm-val{font-family:'Bebas Neue',sans-serif;font-size:44px;letter-spacing:0.03em;color:#fff;line-height:1;transition:all 0.3s}
-.rm-sub{font-size:12px;color:rgba(255,255,255,0.35);margin-top:4px}
-.result-divider{height:1px;background:rgba(255,255,255,0.05);margin:0 28px}
-.result-summary{padding:18px 28px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.sum-item{}
-.sum-label{font-size:9px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:4px}
-.sum-val{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:rgba(255,255,255,0.75)}
+/* RÉSULTAT PRINCIPAL */
+.result-main{background:rgba(17,24,39,0.85);border:1px solid rgba(91,33,182,0.22);border-radius:20px;overflow:hidden;margin-bottom:14px;backdrop-filter:blur(10px)}
+.result-top{padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.rm-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-bottom:8px}
+.rm-val{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:0.02em;color:#fff;line-height:1;transition:all 0.25s}
+.rm-sub{font-size:11px;color:rgba(255,255,255,0.3);margin-top:5px}
+.result-bar{height:1px;background:rgba(255,255,255,0.05);margin:0 28px}
+.result-grid{padding:18px 28px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.rg-item .rg-l{font-size:9px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.22);margin-bottom:3px}
+.rg-item .rg-v{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:rgba(255,255,255,0.65)}
+
+/* MODE AVANCÉ */
+.advanced-toggle{display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;width:fit-content;padding:6px 0}
+.advanced-toggle span{font-size:12px;color:rgba(255,255,255,0.3);font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;transition:color 0.2s;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,0.15)}
+.advanced-toggle:hover span{color:rgba(255,255,255,0.55)}
+.advanced-panel{display:none;animation:slideDown 0.25s ease}
+.advanced-panel.open{display:block}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 
 /* SIMULATION */
-.sim-card{background:rgba(17,24,39,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:22px;margin-bottom:16px}
-.sim-title{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.sim-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:6px;transition:background 0.2s}
-.sim-row:hover{background:rgba(255,255,255,0.05)}
+.sim{background:rgba(17,24,39,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:22px;margin-bottom:14px}
+.sim-head{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.sim-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:6px;transition:background 0.15s}
+.sim-row:hover{background:rgba(255,255,255,0.055)}
 .sim-row:last-child{margin-bottom:0}
-.sim-row-label{font-size:13px;color:rgba(255,255,255,0.5)}
-.sim-val-wrap{text-align:right}
-.sim-row-val{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700}
-.sim-row-sub{font-size:11px;color:rgba(255,255,255,0.25);margin-top:1px}
+.sim-lbl{font-size:13px;color:rgba(255,255,255,0.45)}
+.sim-right{text-align:right}
+.sim-val{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700}
+.sim-sub{font-size:10px;color:rgba(255,255,255,0.22);margin-top:1px}
 .loss{color:#F87171}.gain{color:#6EE7B7}
 
-.rr-pills{display:flex;gap:8px;margin-bottom:14px}
-.rr-pill{padding:6px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:rgba(255,255,255,0.4);cursor:pointer;transition:all 0.2s}
-.rr-pill.active{background:rgba(5,150,105,0.15);border-color:rgba(5,150,105,0.4);color:#6EE7B7}
+.rr-pills{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.rr-p{padding:6px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.06em;color:rgba(255,255,255,0.38);cursor:pointer;transition:all 0.2s}
+.rr-p.active{background:rgba(5,150,105,0.15);border-color:rgba(5,150,105,0.4);color:#6EE7B7}
 
-/* FOOTER */
-.calc-footer{margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px;color:rgba(255,255,255,0.2);line-height:1.7;font-style:italic}
+/* SL AUTO BADGE */
+.sl-auto-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(91,33,182,0.12);border:1px solid rgba(91,33,182,0.25);border-radius:8px;padding:4px 10px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(91,33,182,0.8);margin-bottom:12px}
+
+.footer-note{margin-top:24px;font-size:11px;color:rgba(255,255,255,0.17);line-height:1.7;font-style:italic}
 
 /* ANIMATIONS */
-@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse-glow{0%,100%{box-shadow:0 0 0 0 rgba(91,33,182,0)}50%{box-shadow:0 0 20px 4px rgba(91,33,182,0.15)}}
-@keyframes countUp{from{transform:translateY(4px);opacity:0}to{transform:translateY(0);opacity:1}}
-.fade-in{animation:fadeInUp 0.5s ease forwards}
-.fade-in-1{animation:fadeInUp 0.5s 0.05s ease both}
-.fade-in-2{animation:fadeInUp 0.5s 0.1s ease both}
-.fade-in-3{animation:fadeInUp 0.5s 0.15s ease both}
-.fade-in-4{animation:fadeInUp 0.5s 0.2s ease both}
-.fade-in-5{animation:fadeInUp 0.5s 0.25s ease both}
-.fade-in-6{animation:fadeInUp 0.5s 0.3s ease both}
-.num-flash{animation:countUp 0.25s ease forwards}
-.result-card.updated{animation:pulse-glow 0.6s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes numFlash{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fadeUp 0.45s ease both}
+.fu1{animation-delay:0.04s}.fu2{animation-delay:0.08s}.fu3{animation-delay:0.12s}
+.fu4{animation-delay:0.16s}.fu5{animation-delay:0.20s}.fu6{animation-delay:0.24s}
+.flash{animation:numFlash 0.2s ease both}
 
-/* WA FLOAT */
-.wa-float{position:fixed;bottom:28px;right:28px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);text-decoration:none;animation:wa-pulse 2.5s ease-in-out infinite}
-@keyframes wa-pulse{0%,100%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 0 rgba(37,211,102,0.3)}50%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 10px rgba(37,211,102,0)}}
-
-/* MOBILE */
+/* NAV MOBILE */
 .m-topbar,.m-univ-nav{display:none}
+.wa-float{position:fixed;bottom:28px;right:28px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);text-decoration:none}
+
 @media(max-width:768px){
-  .app{display:block}
-  .sidebar{display:none}
-  .content{padding:72px 14px 90px;max-width:100%}
+  .app{display:block}.sidebar{display:none}
+  .content{padding:70px 14px 90px;max-width:100%}
   .grid-2{grid-template-columns:1fr}
-  .result-main{grid-template-columns:1fr 1fr}
-  .result-summary{grid-template-columns:1fr 1fr}
-  .rr-pills{flex-wrap:wrap}
+  .result-top{grid-template-columns:1fr 1fr}
+  .result-grid{grid-template-columns:1fr 1fr}
+  .rm-val{font-size:40px}
   .m-topbar{display:flex;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,10,15,0.97);border-bottom:1px solid rgba(91,33,182,0.2);z-index:200;align-items:center;justify-content:space-between;padding:0 16px;backdrop-filter:blur(20px)}
   .m-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:0.06em}
   .m-member{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:rgba(255,255,255,0.5)}
@@ -163,7 +148,6 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
 </head>
 <body>
 <div class="bg-glow"></div>
-
 <div class="m-topbar">
   <div class="m-logo">B€CTAN$€</div>
   <div class="m-member">{{ member.nom.split()[0] }}</div>
@@ -199,15 +183,15 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
 
   <div class="content">
 
-    <div class="page-header fade-in">
+    <div class="fu">
       <div class="page-badge">📐 Outil Premium</div>
-      <div class="page-title">Calculateur de Gestion du Risque</div>
-      <div class="page-desc">Chaque décision commence par une bonne gestion du risque.</div>
+      <div class="page-title">Calculateur de Risque</div>
+      <div class="page-desc">Entre ton capital et ton niveau de risque — ton lot optimal s'affiche instantanément.</div>
     </div>
 
-    <!-- CAPITAL + STOP LOSS -->
-    <div class="grid-2">
-      <div class="gc fade-in-1">
+    <!-- SIMPLE : CAPITAL + RISQUE -->
+    <div class="grid-2 fu1" style="margin-bottom:14px">
+      <div class="gc">
         <div class="gc-label">Capital de trading</div>
         <div class="pills" id="capital-pills">
           <span class="pill" data-val="100">100 €</span>
@@ -217,114 +201,119 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
           <span class="pill" data-val="5000">5 000 €</span>
           <span class="pill" data-val="10000">10 000 €</span>
         </div>
-        <div class="input-row">
+        <div class="field-row">
           <input type="number" class="field-input" id="capital" value="1000" min="1" step="100">
           <span class="field-suffix">EUR</span>
         </div>
       </div>
 
-      <div class="gc fade-in-2">
-        <div class="gc-label">Stop loss (pips)</div>
-        <div class="pills" id="sl-pills">
-          <span class="pill" data-sl="10">10</span>
-          <span class="pill active" data-sl="20">20</span>
-          <span class="pill" data-sl="30">30</span>
-          <span class="pill" data-sl="50">50</span>
-          <span class="pill" data-sl="100">100</span>
+      <div class="gc">
+        <div class="gc-label">Niveau de risque par trade</div>
+        <div class="slider-header">
+          <div style="font-size:12px;color:rgba(255,255,255,0.28)">Pourcentage du capital</div>
+          <div style="display:flex;align-items:baseline;gap:3px">
+            <span class="slider-display" id="risk-display">1</span>
+            <span style="font-size:16px;color:rgba(255,255,255,0.3)">%</span>
+          </div>
         </div>
-        <div class="input-row">
-          <input type="number" class="field-input" id="sl" value="20" min="1" step="1">
-          <span class="field-suffix">PIPS</span>
+        <div class="slider-track">
+          <div class="slider-fill" id="slider-fill"></div>
+          <input type="range" class="bct" id="risk-range" min="0.25" max="10" step="0.25" value="1">
         </div>
-        <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.6">Champ facultatif. Si vide, estimation basée sur 20 pips (XAU/USD standard).</div>
+        <div class="slider-hints"><span>0.25%</span><span>1%</span><span>2%</span><span>5%</span><span>10%</span></div>
+        <div class="rpills" id="rpills">
+          <span class="rpill" data-r="0.25">0.25%</span>
+          <span class="rpill active" data-r="1">1%</span>
+          <span class="rpill" data-r="1.5">1.5%</span>
+          <span class="rpill" data-r="2">2%</span>
+          <span class="rpill" data-r="3">3%</span>
+          <span class="rpill" data-r="5">5%</span>
+        </div>
       </div>
     </div>
 
-    <!-- RISQUE SLIDER -->
-    <div class="gc fade-in-3" style="margin-bottom:16px">
-      <div class="gc-label">Niveau de risque par trade</div>
-      <div class="slider-header">
-        <div style="font-size:13px;color:rgba(255,255,255,0.3)">Pourcentage de capital</div>
+    <!-- INDICATEUR DE CONFIANCE -->
+    <div class="confidence fu2" id="confidence">
+      <div class="conf-dot" id="conf-dot"></div>
+      <div style="flex:1">
+        <div class="conf-label" id="conf-label"></div>
+        <div class="conf-desc" id="conf-desc"></div>
+      </div>
+    </div>
+
+    <!-- MODE AVANCÉ -->
+    <div class="fu3">
+      <div class="advanced-toggle" onclick="toggleAdvanced()">
+        <span id="advanced-toggle-text">⚙ Personnaliser mon Stop Loss</span>
+      </div>
+      <div class="advanced-panel" id="advanced-panel">
+        <div class="gc" style="margin-bottom:14px">
+          <div class="gc-label">Stop Loss (optionnel)</div>
+          <div class="sl-auto-badge" id="sl-auto-badge">SL automatique — 200 pips (standard XAU/USD)</div>
+          <div class="pills" id="sl-pills">
+            <span class="pill" data-sl="100">100 pips</span>
+            <span class="pill" data-sl="150">150 pips</span>
+            <span class="pill" data-sl="200">200 pips</span>
+            <span class="pill" data-sl="300">300 pips</span>
+            <span class="pill" data-sl="500">500 pips</span>
+          </div>
+          <div class="field-row">
+            <input type="number" class="field-input" id="sl-input" placeholder="200" min="10" step="10" style="font-size:16px">
+            <span class="field-suffix">PIPS</span>
+          </div>
+          <div id="sl-warning" style="display:none;margin-top:10px;font-size:11px;color:#FCA5A5;line-height:1.6">
+            ⚠️ Un stop loss inférieur à 100 pips est très risqué sur XAU/USD. La volatilité de l'or peut déclencher ce stop en quelques secondes.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RÉSULTAT PRINCIPAL -->
+    <div class="result-main fu4">
+      <div class="result-top">
         <div>
-          <span class="slider-display" id="risk-display">1</span>
-          <span class="slider-unit">%</span>
-        </div>
-      </div>
-      <div class="slider-track">
-        <div class="slider-fill" id="slider-fill" style="width:7.4%;background:var(--purple)"></div>
-        <input type="range" class="bct" id="risk-range" min="0.25" max="10" step="0.25" value="1">
-      </div>
-      <div class="slider-hints">
-        <span>0.25%</span><span>1%</span><span>2%</span><span>5%</span><span>10%</span>
-      </div>
-      <div class="risk-pills" id="risk-pills">
-        <span class="risk-pill active" data-risk="0.25">0.25%</span>
-        <span class="risk-pill" data-risk="0.5">0.5%</span>
-        <span class="risk-pill" data-risk="1">1%</span>
-        <span class="risk-pill" data-risk="1.5">1.5%</span>
-        <span class="risk-pill" data-risk="2">2%</span>
-        <span class="risk-pill" data-risk="3">3%</span>
-        <span class="risk-pill" data-risk="5">5%</span>
-        <span class="risk-pill" data-risk="10">10%</span>
-      </div>
-    </div>
-
-    <!-- ALERTE -->
-    <div class="alert fade-in-4" id="alert-box"></div>
-
-    <!-- RÉSULTAT -->
-    <div class="result-card fade-in-5" id="result-card">
-      <div class="result-main">
-        <div class="result-metric">
           <div class="rm-label">Lot conseillé</div>
           <div class="rm-val" id="lot-val">0.05</div>
-          <div class="rm-sub">pour XAU/USD (or)</div>
-          <div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.2);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.1em">EUR/USD : <span id="eurusd-rate">1.0900</span></div>
+          <div class="rm-sub">pour XAU/USD · <span id="eurusd-display" style="color:rgba(91,33,182,0.6)">EUR/USD 1.0900</span></div>
         </div>
-        <div class="result-metric">
+        <div>
           <div class="rm-label">Montant risqué</div>
-          <div class="rm-val" id="risk-amount">10</div>
-          <div class="rm-sub" id="risk-pct-label">soit 1% du capital</div>
+          <div class="rm-val" id="risk-amt">10 €</div>
+          <div class="rm-sub" id="risk-pct-sub">soit 1% du capital</div>
         </div>
       </div>
-      <div class="result-divider"></div>
-      <div class="result-summary">
-        <div class="sum-item"><div class="sum-label">Capital</div><div class="sum-val" id="s-cap">1 000 €</div></div>
-        <div class="sum-item"><div class="sum-label">Risque</div><div class="sum-val" id="s-risk">1%</div></div>
-        <div class="sum-item"><div class="sum-label">Montant</div><div class="sum-val" id="s-amt">10 €</div></div>
-        <div class="sum-item"><div class="sum-label">Lot</div><div class="sum-val" id="s-lot">0.05</div></div>
+      <div class="result-bar"></div>
+      <div class="result-grid">
+        <div class="rg-item"><div class="rg-l">Capital</div><div class="rg-v" id="rg-cap">1 000 €</div></div>
+        <div class="rg-item"><div class="rg-l">Risque</div><div class="rg-v" id="rg-risk">1%</div></div>
+        <div class="rg-item"><div class="rg-l">SL utilisé</div><div class="rg-v" id="rg-sl">200 pips</div></div>
+        <div class="rg-item"><div class="rg-l">Lot brut</div><div class="rg-v" id="rg-raw">0.0550</div></div>
       </div>
     </div>
 
     <!-- SIMULATION PERTES -->
-    <div class="sim-card fade-in-6">
-      <div class="sim-title">
-        <span style="font-size:16px">📉</span>
-        Simulation — pertes consécutives
-      </div>
+    <div class="sim fu5">
+      <div class="sim-head">📉 Projection — pertes consécutives</div>
       <div id="loss-rows"></div>
     </div>
 
     <!-- SIMULATION GAINS -->
-    <div class="sim-card fade-in-6">
-      <div class="sim-title">
-        <span style="font-size:16px">📈</span>
-        Simulation — gain potentiel
-      </div>
+    <div class="sim fu6">
+      <div class="sim-head">📈 Projection — gain potentiel</div>
       <div style="margin-bottom:12px">
-        <div style="font-size:11px;color:rgba(255,255,255,0.25);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px">Ratio risque / rendement</div>
-        <div class="rr-pills" id="rr-pills">
-          <span class="rr-pill" data-rr="1">1 : 1</span>
-          <span class="rr-pill active" data-rr="2">1 : 2</span>
-          <span class="rr-pill" data-rr="3">1 : 3</span>
-          <span class="rr-pill" data-rr="5">1 : 5</span>
+        <div style="font-size:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.22);margin-bottom:8px">Ratio risque / rendement</div>
+        <div class="rr-pills">
+          <span class="rr-p" data-rr="1">1 : 1</span>
+          <span class="rr-p active" data-rr="2">1 : 2</span>
+          <span class="rr-p" data-rr="3">1 : 3</span>
+          <span class="rr-p" data-rr="5">1 : 5</span>
         </div>
       </div>
       <div id="gain-rows"></div>
     </div>
 
-    <div class="calc-footer">
-      Le calculateur est un outil d'aide à la décision. Chaque membre reste entièrement responsable de la gestion de son capital et de son niveau de risque. Les résultats sont des estimations basées sur des paramètres standards XAU/USD.
+    <div class="footer-note">
+      Calculateur basé sur les spécifications réelles XAU/USD (1 lot = 100 oz, 1 pip = 1 USD/lot). Stop loss par défaut de 200 pips adapté à la volatilité standard de l'or. Le taux EUR/USD est mis à jour automatiquement. Ce calculateur est un outil d'aide à la décision — chaque membre reste responsable de la gestion de son capital.
     </div>
 
   </div>
@@ -343,174 +332,132 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
   <a class="m-univ-nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span class="mni">💬</span><span>Support</span></a>
 </nav>
 
-<!-- WA -->
 <a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
 </a>
 
 <script>
-let capital=1000, risk=1, sl=20, rr=2;
+let capital=1000, risk=1, sl=200, rr=2, eurusd=1.09;
+let advancedOpen=false;
+const SL_DEFAULT=200;
 
 const LOTS=[0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.10,0.12,0.15,0.20,0.25,0.30,0.40,0.50,0.75,1.00,1.50,2.00,3.00,5.00];
 
-// Taux EUR/USD — mis à jour dynamiquement
-let EURUSD = 1.09;
-
-async function fetchEURUSD() {
-  try {
-    const r = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD');
-    const d = await r.json();
-    if (d.rates && d.rates.USD) {
-      EURUSD = d.rates.USD;
-      document.getElementById('eurusd-rate').textContent = EURUSD.toFixed(4);
-      update();
-    }
-  } catch(e) {
-    // Garder le taux par défaut 1.09
-    document.getElementById('eurusd-rate').textContent = EURUSD.toFixed(4) + ' (défaut)';
-  }
+function calcRaw(cap,riskPct,slPips){
+  const riskEUR=cap*(riskPct/100);
+  const pipValueEUR=1.0/eurusd;
+  return riskEUR/(slPips*pipValueEUR);
 }
 
-function calcLot(cap, riskPct, slPips) {
-  // Formule officielle MT4/MT5 XAU/USD compte EUR
-  // 1 lot standard XAU/USD = 100 oz
-  // 1 pip (0.01) sur 1 lot = 1 USD par lot
-  // Valeur pip en EUR = 1 / EURUSD
-  const riskAmt = cap * (riskPct / 100);
-  const pipValueEUR = 1.0 / EURUSD;
-  const rawLot = riskAmt / (slPips * pipValueEUR);
-  let best = LOTS[0];
-  for (const l of LOTS) { if (l <= rawLot) best = l; else break; }
+function roundLot(raw){
+  let best=LOTS[0];
+  for(const l of LOTS){if(l<=raw)best=l;else break;}
   return best;
 }
 
-function calcRawLot(cap, riskPct, slPips) {
-  const riskAmt = cap * (riskPct / 100);
-  const pipValueEUR = 1.0 / EURUSD;
-  return riskAmt / (slPips * pipValueEUR);
+function fmt(n,dec=0){return new Intl.NumberFormat('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(n);}
+
+function flash(el,val){
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.textContent=val;
+  el.classList.add('flash');
 }
 
-function fmtNum(v,dec=0){return new Intl.NumberFormat('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(v);}
+// Niveaux de confiance
+const CONF=[
+  {max:1,  dot:'#059669',bg:'rgba(5,150,105,0.08)',bc:'rgba(5,150,105,0.22)',label:'🟢 Prudent',desc:'Gestion conservatrice — idéal pour préserver son capital sur la durée.'},
+  {max:2,  dot:'#2563EB',bg:'rgba(37,99,235,0.08)',bc:'rgba(37,99,235,0.22)',label:'🔵 Équilibré',desc:'Bon compromis entre rendement et protection du capital.'},
+  {max:3,  dot:'#D97706',bg:'rgba(217,119,6,0.08)', bc:'rgba(217,119,6,0.25)', label:'🟠 Dynamique',desc:'Exposition augmentée — à utiliser avec une stratégie claire.'},
+  {max:999,dot:'#DC2626',bg:'rgba(220,38,38,0.08)', bc:'rgba(220,38,38,0.28)', label:'🔴 Agressif',desc:'Risque élevé — une série de pertes peut fortement impacter le capital.'},
+];
 
-const RISK_COLORS={
-  low:'#059669',
-  med:'#2563EB',
-  high:'#D97706',
-  vhigh:'#DC2626',
-  extreme:'#991B1B'
-};
+function getConf(r){return CONF.find(c=>r<=c.max)||CONF[CONF.length-1];}
 
-function getRiskLevel(r){
-  if(r<1)return'low';
-  if(r<2)return'med';
-  if(r<3)return'high';
-  if(r<5)return'vhigh';
-  return'extreme';
+function updateConf(){
+  const c=getConf(risk);
+  const el=document.getElementById('confidence');
+  el.style.background=c.bg;
+  el.style.borderColor=c.bc;
+  document.getElementById('conf-dot').style.background=c.dot;
+  document.getElementById('conf-label').style.color=c.dot;
+  document.getElementById('conf-label').textContent=c.label;
+  document.getElementById('conf-desc').textContent=c.desc;
 }
 
-const ALERTS={
-  low:{icon:'🛡️',title:'Gestion prudente',body:'Approche généralement utilisée pour préserver son capital sur le long terme. Idéal pour débuter ou traverser une période difficile.',bg:'rgba(5,150,105,0.08)',border:'rgba(5,150,105,0.25)',color:'#6EE7B7'},
-  med:{icon:'⚖️',title:'Approche équilibrée',body:'Bon compromis entre protection du capital et potentiel de rendement. L\'approche recommandée pour la plupart des traders.',bg:'rgba(37,99,235,0.08)',border:'rgba(37,99,235,0.25)',color:'#93C5FD'},
-  high:{icon:'⚡',title:'Exposition augmentée',body:'Tu augmentes ton exposition. Assure-toi que cette décision est cohérente avec ton plan de trading et ton capital disponible.',bg:'rgba(217,119,6,0.08)',border:'rgba(217,119,6,0.3)',color:'#FCD34D'},
-  vhigh:{icon:'⚠️',title:'Risque élevé',body:'Un risque élevé peut accélérer les gains mais également les pertes. Assure-toi de comprendre les conséquences avant d\'utiliser cette taille de position.',bg:'rgba(220,38,38,0.08)',border:'rgba(220,38,38,0.3)',color:'#FCA5A5'},
-  extreme:{icon:'🚨',title:'Risque très élevé',body:'La plupart des traders particuliers perdent leur capital à cause d\'une gestion du risque excessive. Nous te recommandons de rester sous les 2% par position. Tu restes toutefois libre de choisir.',bg:'rgba(153,27,27,0.12)',border:'rgba(153,27,27,0.4)',color:'#F87171'}
-};
-
-function flashEl(el){
-  el.style.transition='none';
-  el.style.opacity='0';
-  el.style.transform='translateY(4px)';
-  requestAnimationFrame(()=>{
-    el.style.transition='opacity 0.25s ease,transform 0.25s ease';
-    el.style.opacity='1';
-    el.style.transform='translateY(0)';
+function updateSlider(){
+  const pct=((risk-0.25)/(10-0.25))*100;
+  const c=getConf(risk).dot;
+  document.getElementById('slider-fill').style.width=pct+'%';
+  document.getElementById('slider-fill').style.background=c;
+  document.getElementById('risk-display').style.color=c;
+  document.getElementById('risk-display').textContent=risk;
+  const s=document.getElementById('thumb-style')||document.createElement('style');
+  s.id='thumb-style';
+  s.textContent=`input[type=range].bct::-webkit-slider-thumb{border-color:${c};box-shadow:0 0 10px ${c}50}`;
+  if(!s.parentNode)document.head.appendChild(s);
+  document.querySelectorAll('#rpills .rpill').forEach(p=>{
+    const match=parseFloat(p.dataset.r)===risk;
+    p.classList.toggle('active',match);
+    p.style.color=match?c:'';
+    p.style.background=match?c+'18':'';
+    p.style.borderColor=match?c+'55':'';
   });
 }
 
 function update(){
-  const slv=parseFloat(document.getElementById('sl').value)||20;
-  sl=slv;
-  const lot=calcLot(capital,risk,sl);
-  const riskAmt=capital*risk/100;
-  const level=getRiskLevel(risk);
-  const col=RISK_COLORS[level];
+  updateConf();
+  updateSlider();
 
-  // Slider visuel
-  const pct=((risk-0.25)/(10-0.25))*100;
-  document.getElementById('slider-fill').style.width=pct+'%';
-  document.getElementById('slider-fill').style.background=col;
-  document.getElementById('risk-display').style.color=col;
-  document.getElementById('risk-range').style.setProperty('--thumb-color',col);
+  const raw=calcRaw(capital,risk,sl);
+  const lot=roundLot(raw);
+  const riskEUR=capital*risk/100;
 
-  // Thumb border via CSS
-  const style=document.getElementById('thumb-style')||document.createElement('style');
-  style.id='thumb-style';
-  style.textContent=`input[type=range].bct::-webkit-slider-thumb{border-color:${col};box-shadow:0 0 12px ${col}40}`;
-  if(!style.parentNode)document.head.appendChild(style);
+  flash(document.getElementById('lot-val'),lot.toFixed(2));
+  flash(document.getElementById('risk-amt'),fmt(riskEUR)+' €');
+  document.getElementById('risk-pct-sub').textContent=`soit ${risk}% du capital`;
+  document.getElementById('rg-cap').textContent=fmt(capital)+' €';
+  document.getElementById('rg-risk').textContent=risk+'%';
+  document.getElementById('rg-sl').textContent=fmt(sl)+' pips';
+  document.getElementById('rg-raw').textContent=raw.toFixed(4);
 
-  // Résultats avec flash
-  const lotEl=document.getElementById('lot-val');
-  const amtEl=document.getElementById('risk-amount');
-  const newLot=lot.toFixed(2);
-  const newAmt=fmtNum(riskAmt)+' €';
-  if(lotEl.textContent!==newLot){flashEl(lotEl);lotEl.textContent=newLot;}
-  if(amtEl.textContent!==newAmt){flashEl(amtEl);amtEl.textContent=newAmt;}
-
-  document.getElementById('risk-pct-label').textContent=`soit ${risk}% du capital`;
-  const rawLotDisplay = calcRawLot(capital, risk, sl);
-  document.getElementById('s-lot').textContent = lot.toFixed(2) + ' (' + rawLotDisplay.toFixed(4) + ' brut)';
-  document.getElementById('s-cap').textContent=fmtNum(capital)+' €';
-  document.getElementById('s-risk').textContent=risk+'%';
-  document.getElementById('s-amt').textContent=fmtNum(riskAmt)+' €';
-  document.getElementById('s-lot').textContent=lot.toFixed(2);
-
-  // Alerte
-  const a=ALERTS[level];
-  const ab=document.getElementById('alert-box');
-  ab.style.background=a.bg;
-  ab.style.borderColor=a.border;
-  ab.style.borderWidth='1px';
-  ab.style.borderStyle='solid';
-  ab.innerHTML=`<span class="alert-icon">${a.icon}</span><div><div class="alert-title" style="color:${a.color}">${a.title}</div><div class="alert-body">${a.body}</div></div>`;
-
-  // Pulse résultat
-  const rc=document.getElementById('result-card');
-  rc.classList.remove('updated');
-  void rc.offsetWidth;
-  rc.classList.add('updated');
-
-  updateLoss();
-  updateGain();
+  updateLoss(lot,riskEUR);
+  updateGain(riskEUR);
 }
 
-function updateLoss(){
+function updateLoss(lot,riskEUR){
   const rows=[{n:1,l:'1 perte'},{n:5,l:'5 pertes'},{n:10,l:'10 pertes'},{n:20,l:'20 pertes'}];
   document.getElementById('loss-rows').innerHTML=rows.map(r=>{
     const rem=Math.round(capital*Math.pow(1-risk/100,r.n));
     const lost=capital-rem;
     return `<div class="sim-row">
-      <span class="sim-row-label">${r.l} consécutive${r.n>1?'s':''}</span>
-      <div class="sim-val-wrap">
-        <div class="sim-row-val loss">−${fmtNum(lost)} €</div>
-        <div class="sim-row-sub">${fmtNum(rem)} € restants</div>
+      <span class="sim-lbl">${r.l} consécutive${r.n>1?'s':''}</span>
+      <div class="sim-right">
+        <div class="sim-val loss">−${fmt(lost)} €</div>
+        <div class="sim-sub">${fmt(rem)} € restants</div>
       </div>
     </div>`;
   }).join('');
 }
 
-function updateGain(){
-  const riskAmt=capital*risk/100;
+function updateGain(riskEUR){
   const trades=[{n:1,l:'1 trade gagnant'},{n:3,l:'3 trades gagnants'},{n:5,l:'5 trades gagnants'}];
   document.getElementById('gain-rows').innerHTML=trades.map(t=>{
-    const gain=riskAmt*rr*t.n;
+    const gain=riskEUR*rr*t.n;
     return `<div class="sim-row">
-      <span class="sim-row-label">${t.l} (1:${rr})</span>
-      <div class="sim-val-wrap">
-        <div class="sim-row-val gain">+${fmtNum(gain)} €</div>
-        <div class="sim-row-sub">${fmtNum(capital+gain)} € total</div>
+      <span class="sim-lbl">${t.l} (1:${rr})</span>
+      <div class="sim-right">
+        <div class="sim-val gain">+${fmt(gain)} €</div>
+        <div class="sim-sub">${fmt(capital+gain)} € total</div>
       </div>
     </div>`;
   }).join('');
+}
+
+function toggleAdvanced(){
+  advancedOpen=!advancedOpen;
+  document.getElementById('advanced-panel').classList.toggle('open',advancedOpen);
+  document.getElementById('advanced-toggle-text').textContent=advancedOpen?'✕ Masquer les options avancées':'⚙ Personnaliser mon Stop Loss';
 }
 
 // Events capital
@@ -527,51 +474,56 @@ document.querySelectorAll('#capital-pills .pill').forEach(p=>p.addEventListener(
   update();
 }));
 
+// Events risque
+document.getElementById('risk-range').addEventListener('input',e=>{risk=parseFloat(e.target.value);update();});
+document.querySelectorAll('#rpills .rpill').forEach(p=>p.addEventListener('click',()=>{
+  risk=parseFloat(p.dataset.r);
+  document.getElementById('risk-range').value=risk;
+  update();
+}));
+
 // Events SL
-document.getElementById('sl').addEventListener('input',e=>{
-  sl=parseFloat(e.target.value)||20;
+document.getElementById('sl-input').addEventListener('input',e=>{
+  const v=parseFloat(e.target.value);
+  if(v&&v>0){
+    sl=v;
+    document.getElementById('sl-auto-badge').style.display='none';
+    document.getElementById('sl-warning').style.display=v<100?'block':'none';
+  } else {
+    sl=SL_DEFAULT;
+    document.getElementById('sl-auto-badge').style.display='inline-flex';
+    document.getElementById('sl-warning').style.display='none';
+  }
   document.querySelectorAll('#sl-pills .pill').forEach(p=>p.classList.toggle('active',parseFloat(p.dataset.sl)===sl));
   update();
 });
 document.querySelectorAll('#sl-pills .pill').forEach(p=>p.addEventListener('click',()=>{
   sl=parseFloat(p.dataset.sl);
-  document.getElementById('sl').value=sl;
+  document.getElementById('sl-input').value=sl;
+  document.getElementById('sl-auto-badge').style.display='none';
+  document.getElementById('sl-warning').style.display=sl<100?'block':'none';
   document.querySelectorAll('#sl-pills .pill').forEach(x=>x.classList.remove('active'));
   p.classList.add('active');
   update();
 }));
 
-// Events risque
-document.getElementById('risk-range').addEventListener('input',e=>{
-  risk=parseFloat(e.target.value);
-  document.getElementById('risk-display').textContent=risk;
-  syncRiskPills();
-  update();
-});
-function syncRiskPills(){
-  document.querySelectorAll('#risk-pills .risk-pill').forEach(p=>{
-    const match=parseFloat(p.dataset.risk)===risk;
-    p.classList.toggle('active',match);
-    const col=RISK_COLORS[getRiskLevel(risk)];
-    if(match){p.style.background=col+'22';p.style.borderColor=col+'88';p.style.color=col;}
-    else{p.style.background='';p.style.borderColor='';p.style.color='';}
-  });
-}
-document.querySelectorAll('#risk-pills .risk-pill').forEach(p=>p.addEventListener('click',()=>{
-  risk=parseFloat(p.dataset.risk);
-  document.getElementById('risk-range').value=risk;
-  document.getElementById('risk-display').textContent=risk;
-  syncRiskPills();
-  update();
+// Events RR
+document.querySelectorAll('.rr-p').forEach(p=>p.addEventListener('click',()=>{
+  rr=parseFloat(p.dataset.rr);
+  document.querySelectorAll('.rr-p').forEach(x=>x.classList.remove('active'));
+  p.classList.add('active');
+  const riskEUR=capital*risk/100;
+  updateGain(riskEUR);
 }));
 
-// Events RR
-document.querySelectorAll('#rr-pills .rr-pill').forEach(p=>p.addEventListener('click',()=>{
-  rr=parseFloat(p.dataset.rr);
-  document.querySelectorAll('#rr-pills .rr-pill').forEach(x=>x.classList.remove('active'));
-  p.classList.add('active');
-  updateGain();
-}));
+// EUR/USD live
+async function fetchEURUSD(){
+  try{
+    const r=await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD');
+    const d=await r.json();
+    if(d.rates&&d.rates.USD){eurusd=d.rates.USD;document.getElementById('eurusd-display').textContent='EUR/USD '+eurusd.toFixed(4);update();}
+  }catch(e){}
+}
 
 fetchEURUSD();
 update();
