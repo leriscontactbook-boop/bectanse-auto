@@ -344,9 +344,15 @@ const SL_DEFAULT=200;
 const LOTS=[0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.10,0.12,0.15,0.20,0.25,0.30,0.40,0.50,0.75,1.00,1.50,2.00,3.00,5.00];
 
 function calcRaw(cap,riskPct,slPips){
+  // XAU/USD : 1 pip = $10 par lot standard (100 oz × $0.10)
   const riskEUR=cap*(riskPct/100);
-  const pipValueEUR=1.0/eurusd;
+  const pipValueEUR=10.0/eurusd;
   return riskEUR/(slPips*pipValueEUR);
+}
+
+function calcRealRisk(lot,slPips){
+  // Montant réellement risqué avec le lot arrondi
+  return lot*slPips*(10.0/eurusd);
 }
 
 function roundLot(raw){
@@ -414,15 +420,20 @@ function update(){
   const riskEUR=capital*risk/100;
 
   flash(document.getElementById('lot-val'),lot.toFixed(2));
-  flash(document.getElementById('risk-amt'),fmt(riskEUR)+' €');
-  document.getElementById('risk-pct-sub').textContent=`soit ${risk}% du capital`;
+  const realRisk=calcRealRisk(lot,sl);
+  flash(document.getElementById('risk-amt'),fmt(realRisk)+' €');
+  const theoreticalRisk=riskEUR;
+  const overRisk=realRisk>theoreticalRisk*1.5;
+  document.getElementById('risk-pct-sub').textContent=overRisk
+    ? `⚠️ Lot minimum dépasse ton risque cible (${fmt(theoreticalRisk)} €)`
+    : `soit ${((realRisk/capital)*100).toFixed(2)}% du capital`;
   document.getElementById('rg-cap').textContent=fmt(capital)+' €';
   document.getElementById('rg-risk').textContent=risk+'%';
   document.getElementById('rg-sl').textContent=fmt(sl)+' pips';
   document.getElementById('rg-raw').textContent=raw.toFixed(4);
 
-  updateLoss(lot,riskEUR);
-  updateGain(riskEUR);
+  updateLoss(lot,realRisk);
+  updateGain(realRisk);
 }
 
 function updateLoss(lot,riskEUR){
