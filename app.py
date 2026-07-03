@@ -1189,7 +1189,7 @@ def calculateur():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    return render_template("calculateur.html", member=member)
+    return render_template("calculateur.html", member=member, demo_mode=(code == "BCT-DEMO2026"))
 
 @app.route("/health")
 def health():
