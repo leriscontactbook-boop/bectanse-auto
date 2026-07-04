@@ -2191,38 +2191,63 @@ def job_relances_quotidiennes():
 
             # ── LISTES POUR RAPPELS TELEGRAM ADMIN
             if delta == 7:
-                j7_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital}")
+                j7_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital or '—'}")
             elif delta == 2:
-                j2_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital}")
+                j2_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital or '—'}")
             elif delta == 0:
-                j0_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital}")
+                j0_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital or '—'}")
 
-        # ── RAPPEL J-7
-        if j7_list:
+        # ── RAPPEL J-7 avec boutons par membre
+        for code, nom, capital in [(m.split('|')[1].strip().strip('`'), m.split('|')[0].replace('👤 *','').replace('*','').strip(), m.split('|')[2].replace('Capital:','').strip()) for m in j7_list]:
             msg = (
-                "📅 *RAPPEL — Expirations dans 7 jours*\n\n"
-                + "\n".join(j7_list)
-                + "\n\n_Emails de relance envoyés automatiquement._"
+                f"📅 *Expiration dans 7 jours*\n\n"
+                f"👤 *{nom}*\n"
+                f"🔑 `{code}`\n"
+                f"💰 Capital : {capital}\n\n"
+                f"_Email de relance envoyé automatiquement._"
             )
-            send_telegram(msg)
+            markup = {"inline_keyboard": [[
+                {"text": "➕ Prolonger 30j", "url": f"{BASE_URL}/admin-panel?key={ADMIN_KEY}"},
+                {"text": "💬 Contacter", "url": f"https://t.me/lerisluketobot"}
+            ], [
+                {"text": "👤 Voir le profil", "url": f"{BASE_URL}/admin/api/membre/profil?key={ADMIN_KEY}&code={code}"}
+            ]]}
+            send_telegram(msg, reply_markup=markup)
 
-        # ── RAPPEL J-2 (48h)
-        if j2_list:
+        # ── RAPPEL J-2 (48h) avec boutons par membre
+        for code, nom, capital in [(m.split('|')[1].strip().strip('`'), m.split('|')[0].replace('👤 *','').replace('*','').strip(), m.split('|')[2].replace('Capital:','').strip()) for m in j2_list]:
             msg = (
-                "⚠️ *RAPPEL URGENT — Expirations dans 48h*\n\n"
-                + "\n".join(j2_list)
-                + "\n\n_Pense à relancer ces membres directement._"
+                f"⚠️ *URGENT — Expiration dans 48h*\n\n"
+                f"👤 *{nom}*\n"
+                f"🔑 `{code}`\n"
+                f"💰 Capital : {capital}\n\n"
+                f"_Relance directe recommandée._"
             )
-            send_telegram(msg)
+            markup = {"inline_keyboard": [[
+                {"text": "➕ Prolonger 30j", "url": f"{BASE_URL}/admin-panel?key={ADMIN_KEY}"},
+                {"text": "💬 Contacter", "url": f"https://t.me/lerisluketobot"}
+            ], [
+                {"text": "👤 Voir le profil", "url": f"{BASE_URL}/admin/api/membre/profil?key={ADMIN_KEY}&code={code}"}
+            ]]}
+            send_telegram(msg, reply_markup=markup)
 
-        # ── RAPPEL J=0 (expire aujourd'hui)
-        if j0_list:
+        # ── RAPPEL J=0 (expire aujourd'hui) avec boutons par membre
+        for code, nom, capital in [(m.split('|')[1].strip().strip('`'), m.split('|')[0].replace('👤 *','').replace('*','').strip(), m.split('|')[2].replace('Capital:','').strip()) for m in j0_list]:
             msg = (
-                "🚨 *EXPIRATIONS AUJOURD\'HUI*\n\n"
-                + "\n".join(j0_list)
-                + "\n\n_Accès bloqué. En attente de renouvellement._"
+                f"🚨 *EXPIRATION AUJOURD\'HUI*\n\n"
+                f"👤 *{nom}*\n"
+                f"🔑 `{code}`\n"
+                f"💰 Capital : {capital}\n\n"
+                f"_Accès bloqué — en attente de renouvellement._"
             )
-            send_telegram(msg)
+            markup = {"inline_keyboard": [[
+                {"text": "➕ Prolonger 30j", "url": f"{BASE_URL}/admin-panel?key={ADMIN_KEY}"},
+                {"text": "➕ Prolonger 90j", "url": f"{BASE_URL}/admin-panel?key={ADMIN_KEY}"}
+            ], [
+                {"text": "💬 Contacter membre", "url": f"https://t.me/lerisluketobot"},
+                {"text": "👤 Voir profil", "url": f"{BASE_URL}/admin/api/membre/profil?key={ADMIN_KEY}&code={code}"}
+            ]]}
+            send_telegram(msg, reply_markup=markup)
 
         app.logger.info(f"job_relances: {len(membres)} membres vérifiés — J7:{len(j7_list)} J2:{len(j2_list)} J0:{len(j0_list)}")
     except Exception as e:
