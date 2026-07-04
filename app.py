@@ -2889,10 +2889,10 @@ def _startup():
         from apscheduler.schedulers.background import BackgroundScheduler
         scheduler = BackgroundScheduler(timezone='Europe/Paris')
         scheduler.add_job(send_eco_message, 'cron', hour=8, minute=0)
-        scheduler.add_job(check_and_send_relances, 'cron', hour=9, minute=0)
+        scheduler.add_job(job_relances_quotidiennes, 'cron', hour=9, minute=0)
         init_demo_account()
         scheduler.start()
-        app.logger.info("Scheduler calendrier démarré")
+        app.logger.info("✅ Schedulers: calendrier 8h + relances 9h (J-7/J-2/J=0 Telegram + emails)")
     except Exception as e:
         app.logger.error(f"startup: {e}")
 
