@@ -2150,28 +2150,30 @@ def email_relance_expiration(prenom, email, jours):
     send_brevo_membre(email, prenom, subject, html, tag)
 
 def job_relances_quotidiennes():
-    """Tourne chaque matin — envoie emails relance J-7 à J-1 et J+1 à J+7."""
+    """Tourne chaque matin à 9h — emails + rappels Telegram admin J-7, J-2, J=0."""
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime
         conn = get_conn()
         membres = conn.run("""
             SELECT code, nom, email, date_fin, capital
-            FROM members WHERE actif=TRUE AND email IS NOT NULL AND email != ''
+            FROM members WHERE actif=TRUE
         """)
         conn.close()
 
         now = datetime.now()
-        expires_today = []
+        j7_list = []
+        j2_list = []
+        j0_list = []
 
         for code, nom, email, date_fin, capital in membres:
             if not date_fin: continue
             delta = (date_fin - now).days
 
-            # J-7 à J-1 : envoyer email chaque jour
-            if delta in [7, 3, 1]:
+            # ── EMAILS + BANNIÈRE APP
+            if delta in [7, 3, 1] and email:
                 prenom_m = nom.split()[0] if nom else nom
-                email_relance_expiration(prenom_m, email, delta)
-                # Mettre bannière dans l'app
+                try: email_relance_expiration(prenom_m, email, delta)
+                except: pass
                 try:
                     conn2 = get_conn()
                     conn2.run("""UPDATE members SET notif_type='alerte',
@@ -2181,37 +2183,52 @@ def job_relances_quotidiennes():
                     conn2.close()
                 except: pass
 
-            # J+1 à J+7 après expiration
-            elif delta in [-1, -3, -7]:
+            # Après expiration
+            elif delta in [-1, -3, -7] and email:
                 prenom_m = nom.split()[0] if nom else nom
-                email_relance_expiration(prenom_m, email, delta)
+                try: email_relance_expiration(prenom_m, email, delta)
+                except: pass
 
-            # Jour J exact → notif Telegram admin
-            if delta == 0:
-                expires_today.append(f"👤 *{nom}* | `{code}`\n📧 {email}")
+            # ── LISTES POUR RAPPELS TELEGRAM ADMIN
+            if delta == 7:
+                j7_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital}")
+            elif delta == 2:
+                j2_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital}")
+            elif delta == 0:
+                j0_list.append(f"👤 *{nom}* | `{code}` | Capital: {capital}")
 
-        if expires_today:
-            msg = "🚨 *EXPIRATIONS AUJOURD\'HUI*\n\n" + "\n\n".join(expires_today)
-            msg += "\n\n_Relances email envoyées automatiquement._"
+        # ── RAPPEL J-7
+        if j7_list:
+            msg = (
+                "📅 *RAPPEL — Expirations dans 7 jours*\n\n"
+                + "\n".join(j7_list)
+                + "\n\n_Emails de relance envoyés automatiquement._"
+            )
             send_telegram(msg)
 
-        app.logger.info(f"job_relances: {len(membres)} membres vérifiés")
+        # ── RAPPEL J-2 (48h)
+        if j2_list:
+            msg = (
+                "⚠️ *RAPPEL URGENT — Expirations dans 48h*\n\n"
+                + "\n".join(j2_list)
+                + "\n\n_Pense à relancer ces membres directement._"
+            )
+            send_telegram(msg)
+
+        # ── RAPPEL J=0 (expire aujourd'hui)
+        if j0_list:
+            msg = (
+                "🚨 *EXPIRATIONS AUJOURD\'HUI*\n\n"
+                + "\n".join(j0_list)
+                + "\n\n_Accès bloqué. En attente de renouvellement._"
+            )
+            send_telegram(msg)
+
+        app.logger.info(f"job_relances: {len(membres)} membres vérifiés — J7:{len(j7_list)} J2:{len(j2_list)} J0:{len(j0_list)}")
     except Exception as e:
         app.logger.error(f"job_relances: {e}")
+        send_telegram(f"❌ *ERREUR job_relances*\n`{e}`")
 
-
-# ── BOT CALENDRIER ÉCONOMIQUE ─────────────────────────────────────────────────
-
-IMPACT_ICONS = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}
-FLAG_MAP = {
-    "USD":"🇺🇸","EUR":"🇪🇺","GBP":"🇬🇧","JPY":"🇯🇵",
-    "AUD":"🇦🇺","CAD":"🇨🇦","CHF":"🇨🇭","NZD":"🇳🇿","CNY":"🇨🇳"
-}
-JOURS_FR = {"Monday":"Lundi","Tuesday":"Mardi","Wednesday":"Mercredi",
-    "Thursday":"Jeudi","Friday":"Vendredi","Saturday":"Samedi","Sunday":"Dimanche"}
-MOIS_FR = {"January":"janvier","February":"février","March":"mars","April":"avril",
-    "May":"mai","June":"juin","July":"juillet","August":"août",
-    "September":"septembre","October":"octobre","November":"novembre","December":"décembre"}
 
 def get_eco_calendar():
     try:
