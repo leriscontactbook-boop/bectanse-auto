@@ -1991,7 +1991,7 @@ def register_webhook():
 # ── EMAILS RELANCE AUTOMATIQUES ─────────────────────────────────────────────
 
 STRIPE_LINKS = [
-    ("1 mois", "500€",   "https://buy.stripe.com/7sYdR9f1egK03hxfMUgfu0o"),
+    ("1 mois", "500€",   "https://buy.stripe.com/4gMeVdaKYctK7xN8ksgfu0p"),
     ("3 mois", "1 000€", "https://buy.stripe.com/bJefZh06k8du05leIQgfu0n"),
     ("6 mois", "2 500€", "https://buy.stripe.com/00w28q84g5s1csDgmegA804"),
     ("1 an",   "4 000€", "https://buy.stripe.com/bJecN498kbQp64f7PIgA803"),
