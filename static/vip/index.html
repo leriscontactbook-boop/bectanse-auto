@@ -1572,7 +1572,7 @@ select,
 </nav>
 
 <!-- HERO -->
-<section class="hero hero-v2">
+<section class="hero hero-v2 hero-replaced" style="display:none" aria-hidden="true">
   <div class="hero-scan"></div>
   <div class="hero-v2-inner">
     <div class="hero-pill"><i></i>Bectanse Académie · nouvelle génération</div>
@@ -1887,6 +1887,121 @@ select,
     <div style="margin-top:14px;font-size:13px;color:rgba(255,255,255,0.36)">Tant que ça dépend de <strong style="color:#fff">ton temps</strong>, de <strong style="color:#fff">tes connaissances</strong>, de <strong style="color:#fff">ta réactivité</strong> — tu rates.<br>Il te faut un système qui fonctionne sans toi.</div>
   </div>
 </div>
+
+<style id="mobile-production-fixes">
+/* Correctifs de production : hero, mobile, témoignages et pictogrammes */
+.hero-v2.hero-replaced{display:none!important}
+.truth-section::after{pointer-events:none}
+.mind-app.youtube i{position:relative;font-size:0!important;background:#ff0033!important}
+.mind-app.youtube i::before{
+  content:"";width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;
+  border-left:7px solid #fff;transform:translateX(1px)
+}
+.ocard-btn::after{
+  content:""!important;background-color:#fff!important;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M7 17 17 7M9 7h8v8'/%3E%3C/svg%3E") center/14px 14px no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M7 17 17 7M9 7h8v8'/%3E%3C/svg%3E") center/14px 14px no-repeat;
+  border:1px solid rgba(255,255,255,.22);box-shadow:none
+}
+.control-counter{font-variant-numeric:tabular-nums}
+
+@media(max-width:800px){
+  .screens-section.app-hero-mode{
+    min-height:auto!important;padding:82px 0 42px!important;overflow:hidden!important
+  }
+  .app-hero-mode .screens-head{margin-bottom:22px!important}
+  .app-hero-mode .phones{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    width:min(100%,560px)!important;gap:6px!important;overflow:visible!important;
+    padding:4px 10px 12px!important;align-items:end!important;scroll-snap-type:none!important
+  }
+  .app-hero-mode .ph,.app-hero-mode .ph.mid{
+    box-sizing:border-box!important;min-width:0!important;width:100%!important;max-width:none!important;
+    flex:none!important;height:246px!important;margin:0!important;border-width:3px!important;
+    border-radius:22px!important;transform:none!important;rotate:0deg!important;translate:0 0!important;
+    box-shadow:0 16px 34px rgba(0,0,0,.58),0 0 0 1px rgba(232,93,4,.08)!important
+  }
+  .app-hero-mode .ph.mid{height:270px!important}
+  .app-hero-mode .ph::before,.app-hero-mode .ph::after{display:none!important}
+  .app-hero-mode .pnotch{height:16px!important}
+  .app-hero-mode .pnb{width:42px!important;height:11px!important}
+  .app-hero-mode .pnb::before,.app-hero-mode .pnb::after{display:none!important}
+  .app-hero-mode .ph>*:not(.pnotch){font-size:clamp(4px,1.15vw,7px)!important}
+  .app-hero-mode .phead,.app-hero-mode .canal-tb{padding:7px!important}
+  .app-hero-mode .bbl,.app-hero-mode .vid,.app-hero-mode .pdf{padding:6px!important;margin-bottom:4px!important}
+  .app-hero-mode .pcard{padding:7px!important;margin:4px 6px!important}
+
+  .truth-section{overflow:hidden!important}
+  .truth-section::after{display:none!important}
+  .truth-title{font-size:clamp(40px,11.6vw,55px)!important;line-height:.98!important;margin-bottom:26px!important}
+  .truth-title br{display:none}
+
+  .proof-wall{padding:72px 12px 54px!important;overflow:hidden}
+  .proof-wall-built{height:auto!important;position:relative!important}
+  .proof-deck{
+    position:relative!important;top:auto!important;display:flex!important;width:auto!important;height:auto!important;
+    overflow-x:auto!important;overflow-y:hidden!important;gap:12px!important;padding:12px 8vw 20px!important;
+    margin:0 -12px!important;scroll-snap-type:x mandatory!important;scroll-padding:8vw!important;
+    -webkit-overflow-scrolling:touch;perspective:none!important;scrollbar-width:none
+  }
+  .proof-deck::-webkit-scrollbar{display:none}
+  .proof-card,.proof-card:nth-child(2),.proof-card:nth-child(3){
+    position:relative!important;inset:auto!important;display:block!important;flex:0 0 min(78vw,330px)!important;
+    width:min(78vw,330px)!important;height:auto!important;min-height:0!important;max-height:none!important;
+    opacity:1!important;pointer-events:auto!important;transform:none!important;scroll-snap-align:center!important;
+    border-radius:20px!important
+  }
+  .proof-media{height:230px!important}
+  .proof-card-body{height:auto!important;padding:13px!important;display:block!important}
+  .proof-person{margin-bottom:9px!important}
+  .proof-result{padding:9px 11px!important;margin-bottom:9px!important}
+  .proof-result b{font-size:24px!important}
+  .voice-player{margin-top:0!important;padding:10px!important}
+  .proof-slide-hint{position:static!important;transform:none!important;margin:0 auto 8px!important}
+  .proof-note{position:static!important;width:auto!important;margin:14px auto 0!important;background:transparent!important;border:0!important}
+}
+@media(max-width:420px){
+  .app-hero-mode .ph,.app-hero-mode .ph.mid{height:218px!important}
+  .app-hero-mode .ph.mid{height:238px!important}
+  .proof-media{height:205px!important}
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  /* Supprime les pictogrammes emoji décoratifs : les icônes sont désormais dessinées en CSS. */
+  const emojiRange=/[\u{1F000}-\u{1FAFF}]\uFE0F?/gu;
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  const nodes=[];
+  while(walker.nextNode())nodes.push(walker.currentNode);
+  nodes.forEach(function(node){node.nodeValue=node.nodeValue.replace(emojiRange,'')});
+
+  const counters=[...document.querySelectorAll('.control-counter')];
+  const runCounters=function(){
+    counters.forEach(function(counter){
+      if(counter.dataset.done)return;
+      counter.dataset.done='1';
+      const target=Number(counter.dataset.count||0);
+      const suffix=counter.dataset.suffix||'';
+      const started=performance.now();
+      const duration=1100;
+      const tick=function(now){
+        const progress=Math.min(1,(now-started)/duration);
+        const eased=1-Math.pow(1-progress,3);
+        counter.textContent=Math.round(target*eased)+suffix;
+        if(progress<1)requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  };
+  const counterSection=counters[0]&&counters[0].parentElement.parentElement;
+  if(counterSection&&'IntersectionObserver'in window){
+    const observer=new IntersectionObserver(function(entries){
+      if(entries.some(function(entry){return entry.isIntersecting})){runCounters();observer.disconnect()}
+    },{threshold:.35});
+    observer.observe(counterSection);
+  }else runCounters();
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded',function(){
   var truth=document.querySelector('.truth-section');
@@ -1958,7 +2073,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <div class="divl"></div>
 
 <!-- APP SCREENS -->
-<div class="screens-section" id="app">
+<div class="screens-section app-hero-mode" id="app">
   <div class="screens-head">
     <div class="eyebrow">BECTANSE ACADÉMIE</div>
     <div class="sec-h2" style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:clamp(36px,6vw,60px);line-height:0.9;color:#fff;margin-bottom:14px;text-align:center">Ton Espace.<br><span style="color:var(--orange)">Ton App.</span> Ta Performance.</div>
@@ -2140,8 +2255,8 @@ document.addEventListener('DOMContentLoaded',function(){
 
   <!-- CHIFFRES -->
   <div style="background:linear-gradient(135deg,rgba(232,93,4,0.07),rgba(232,93,4,0.03));border:1px solid rgba(232,93,4,0.16);border-radius:16px;padding:28px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:28px;text-align:center">
-    <div><div style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:44px;color:#E85D04;line-height:1;margin-bottom:5px">6</div><div style="font-size:11px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.08em">Modes de gestion des lots</div></div>
-    <div style="border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06)"><div style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:44px;color:#E85D04;line-height:1;margin-bottom:5px">100%</div><div style="font-size:11px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.08em">Contrôle de ton compte</div></div>
+    <div><div class="control-counter" data-count="6" style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:44px;color:#E85D04;line-height:1;margin-bottom:5px">0</div><div style="font-size:11px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.08em">Modes de gestion des lots</div></div>
+    <div style="border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06)"><div class="control-counter" data-count="100" data-suffix="%" style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:44px;color:#E85D04;line-height:1;margin-bottom:5px">0%</div><div style="font-size:11px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.08em">Contrôle de ton compte</div></div>
     <div><div style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:44px;color:#E85D04;line-height:1;margin-bottom:5px">0</div><div style="font-size:11px;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:0.08em">Commission sur tes gains</div></div>
   </div>
 </div>
@@ -3731,6 +3846,66 @@ document.addEventListener('DOMContentLoaded',function(){
 
 
 </div>
+<style id="mobile-production-fixes-final">
+@media(max-width:800px){
+  .screens-section.app-hero-mode{min-height:auto!important;padding:82px 0 42px!important;overflow:hidden!important}
+  .app-hero-mode .screens-head{margin-bottom:22px!important}
+  .app-hero-mode .phones{
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:min(100%,560px)!important;
+    gap:6px!important;overflow:visible!important;padding:4px 10px 12px!important;align-items:end!important;
+    scroll-snap-type:none!important
+  }
+  .app-hero-mode .ph,.app-hero-mode .ph.mid{
+    position:relative!important;inset:auto!important;box-sizing:border-box!important;min-width:0!important;
+    width:100%!important;max-width:none!important;flex:none!important;height:246px!important;margin:0!important;
+    border-width:3px!important;border-radius:22px!important;transform:none!important;rotate:0deg!important;
+    translate:0 0!important;opacity:1!important;scroll-snap-align:none!important
+  }
+  .app-hero-mode .ph.mid{height:270px!important}
+  .app-hero-mode .ph::before,.app-hero-mode .ph::after{display:none!important}
+  .app-hero-mode .pnotch{height:16px!important}
+  .app-hero-mode .pnb{width:42px!important;height:11px!important}
+  .app-hero-mode .pnb::before,.app-hero-mode .pnb::after{display:none!important}
+  .app-hero-mode .ph>*:not(.pnotch){font-size:clamp(4px,1.15vw,7px)!important}
+  .app-hero-mode .phead,.app-hero-mode .canal-tb{padding:7px!important}
+  .app-hero-mode .bbl,.app-hero-mode .vid,.app-hero-mode .pdf{padding:6px!important;margin-bottom:4px!important}
+  .app-hero-mode .pcard{padding:7px!important;margin:4px 6px!important}
+
+  .truth-section{overflow:hidden!important}
+  .truth-section::after{display:none!important}
+  .truth-title{font-size:clamp(40px,11.6vw,55px)!important;line-height:.98!important;margin-bottom:26px!important}
+  .truth-title br{display:none!important}
+
+  .proof-wall{padding:72px 12px 54px!important;overflow:hidden!important}
+  .proof-wall-built{height:auto!important;position:relative!important}
+  .proof-deck{
+    position:relative!important;top:auto!important;display:flex!important;width:auto!important;height:auto!important;
+    overflow-x:auto!important;overflow-y:hidden!important;gap:12px!important;padding:12px 8vw 20px!important;
+    margin:0 -12px!important;scroll-snap-type:x mandatory!important;scroll-padding:8vw!important;
+    -webkit-overflow-scrolling:touch;perspective:none!important;scrollbar-width:none
+  }
+  .proof-deck::-webkit-scrollbar{display:none}
+  .proof-card,.proof-card:nth-child(2),.proof-card:nth-child(3){
+    position:relative!important;inset:auto!important;display:block!important;flex:0 0 min(78vw,330px)!important;
+    width:min(78vw,330px)!important;height:auto!important;min-height:0!important;max-height:none!important;
+    opacity:1!important;pointer-events:auto!important;transform:none!important;scroll-snap-align:center!important;
+    border-radius:20px!important
+  }
+  .proof-media{height:230px!important}
+  .proof-card-body{height:auto!important;padding:13px!important;display:block!important}
+  .proof-person{margin-bottom:9px!important}
+  .proof-result{padding:9px 11px!important;margin-bottom:9px!important}
+  .proof-result b{font-size:24px!important}
+  .voice-player{margin-top:0!important;padding:10px!important}
+  .proof-slide-hint{position:static!important;transform:none!important;margin:0 auto 8px!important}
+  .proof-note{position:static!important;width:auto!important;margin:14px auto 0!important;background:transparent!important;border:0!important}
+}
+@media(max-width:420px){
+  .app-hero-mode .ph,.app-hero-mode .ph.mid{height:218px!important}
+  .app-hero-mode .ph.mid{height:238px!important}
+  .proof-media{height:205px!important}
+}
+</style>
 <script>
 (() => {
   const originalHero = document.querySelector('.hero-v2');
