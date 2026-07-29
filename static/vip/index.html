@@ -2887,7 +2887,29 @@ document.addEventListener('DOMContentLoaded',function(){
   backdrop-filter:blur(14px);
 }
 .telegram-message:nth-child(2) .telegram-message-meta{border-radius:16px 16px 5px 16px}
-.telegram-message-meta b{display:block;font-size:12px;line-height:1.2}
+.telegram-message-meta b{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:12px;
+  line-height:1.2;
+}
+.telegram-message-meta b::after{
+  content:"✓";
+  flex:0 0 auto;
+  width:16px;
+  height:16px;
+  display:grid;
+  place-items:center;
+  clip-path:polygon(50% 0,61% 8%,75% 5%,83% 17%,95% 25%,92% 39%,100% 50%,92% 61%,95% 75%,83% 83%,75% 95%,61% 92%,50% 100%,39% 92%,25% 95%,17% 83%,5% 75%,8% 61%,0 50%,8% 39%,5% 25%,17% 17%,25% 5%,39% 8%);
+  background:linear-gradient(145deg,#30a8ff,#087be8);
+  color:#fff;
+  font-family:Arial,sans-serif;
+  font-size:10px;
+  font-weight:900;
+  line-height:1;
+  filter:drop-shadow(0 2px 5px rgba(8,123,232,.35));
+}
 .telegram-message-meta span{display:block;margin-top:3px;color:rgba(255,255,255,.42);font-size:9px}
 .telegram-video-modal[hidden]{display:none}
 .telegram-video-modal{
