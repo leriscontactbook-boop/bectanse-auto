@@ -1875,7 +1875,7 @@ select,
 </style>
 <div class="truth-section" style="padding:72px 20px;max-width:760px;margin:0 auto">
   <div class="truth-kicker" style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(232,93,4,0.8);margin-bottom:10px">Soyons honnêtes 2 secondes.</div>
-  <div class="truth-title" style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:clamp(32px,6vw,54px);line-height:0.9;color:#fff;margin-bottom:24px">Tu es là parce que tu as déjà<br><span style="color:#E85D04">essayé quelque chose avant.</span></div>
+  <div class="truth-title" style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:clamp(32px,6vw,54px);line-height:0.9;color:#fff;margin-bottom:24px">Tu es là parce que tu as déjà<br><span class="truth-title-accent" style="color:#E85D04">essayé quelque chose avant.</span></div>
   <div class="truth-points">
     <div class="truth-card"><span>❌</span><div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.65">Tu as suivi <strong style="color:#E85D04">des formations de trading</strong>... et tu n'as jamais vraiment osé passer des trades réels.</div></div>
     <div class="truth-card"><span>❌</span><div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.65">Tu as rejoint <strong style="color:#E85D04">des canaux de signaux</strong>... mais tu en rates la moitié parce que tu es au boulot ou occupé par ta vie.</div></div>
@@ -2063,10 +2063,10 @@ document.addEventListener('DOMContentLoaded',function(){
   <div class="zero-bar"><div class="zero-fill"></div></div>
   <div class="zero-label">80% de nos membres ont commencé sans aucune expérience</div>
   <div class="zero-grid">
-    <div class="zero-card"><span class="zero-emoji">📱</span><div class="zero-t">Zéro compétence requise</div><div class="zero-d">Tu n'as pas besoin de savoir lire un graphique, ni comprendre un indicateur. Le système s'occupe de tout. Tu encaisses, c'est tout.</div></div>
-    <div class="zero-card"><span class="zero-emoji">🤖</span><div class="zero-t">Le système trade pour toi</div><div class="zero-d">BECTANSE AUTO exécute les signaux à ta place, même quand tu dors, quand tu bosses, quand tu vis ta vie. Tu ne peux rien rater.</div></div>
-    <div class="zero-card"><span class="zero-emoji">🛡️</span><div class="zero-t">Zéro erreur possible</div><div class="zero-d">Pas de mauvaise saisie, pas de lot mal calculé, pas de stress. Tout est automatisé au pip près. L'erreur humaine est éliminée.</div></div>
-    <div class="zero-card"><span class="zero-emoji">👥</span><div class="zero-t">Tu n'es jamais seul</div><div class="zero-d">Notre équipe t'accompagne en direct. Questions, configuration, suivi — un humain est toujours là pour te répondre.</div></div>
+    <div class="zero-card"><span class="zero-emoji"><img src="/static/vip/assets/premium-learning.png" alt="" loading="lazy"></span><div class="zero-t">Zéro compétence requise</div><div class="zero-d">Tu n'as pas besoin de savoir lire un graphique, ni comprendre un indicateur. Le système s'occupe de tout. Tu encaisses, c'est tout.</div></div>
+    <div class="zero-card"><span class="zero-emoji"><img src="/static/vip/assets/premium-automation.png" alt="" loading="lazy"></span><div class="zero-t">Le système trade pour toi</div><div class="zero-d">BECTANSE AUTO exécute les signaux à ta place, même quand tu dors, quand tu bosses, quand tu vis ta vie. Tu ne peux rien rater.</div></div>
+    <div class="zero-card"><span class="zero-emoji"><img src="/static/vip/assets/premium-shield.png" alt="" loading="lazy"></span><div class="zero-t">Zéro erreur possible</div><div class="zero-d">Pas de mauvaise saisie, pas de lot mal calculé, pas de stress. Tout est automatisé au pip près. L'erreur humaine est éliminée.</div></div>
+    <div class="zero-card"><span class="zero-emoji"><img src="/static/vip/assets/premium-support.png" alt="" loading="lazy"></span><div class="zero-t">Tu n'es jamais seul</div><div class="zero-d">Notre équipe t'accompagne en direct. Questions, configuration, suivi — un humain est toujours là pour te répondre.</div></div>
   </div>
 </div>
 
@@ -2409,9 +2409,10 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
 
     <!-- PHONE PARAMETRES -->
-    <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
-      <div style="width:175px;background:#0D0D1C;border:1px solid rgba(232,93,4,0.3);border-radius:22px;overflow:hidden;box-shadow:0 32px 64px rgba(0,0,0,0.6),0 0 40px rgba(232,93,4,0.07)">
-        <div style="height:20px;background:#06060E;display:flex;align-items:center;justify-content:center"><div style="width:46px;height:11px;background:#0D0D1C;border-radius:6px;border:1px solid rgba(255,255,255,0.07)"></div></div>
+    <div class="control-phone-presentation">
+      <div class="control-iphone-3d" aria-label="Aperçu de l’interface de contrôle Bectanse Auto">
+        <div class="control-iphone-screen">
+          <div class="control-phone-ui">
         <div style="background:#06060E;border-bottom:1px solid rgba(232,93,4,0.18);padding:7px 10px;display:flex;align-items:center;justify-content:space-between">
           <div style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:11px;color:#E85D04;letter-spacing:0.06em">B€CTAN$€</div>
           <div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:7px;color:rgba(255,255,255,0.32)">Paramètres</div>
@@ -2429,9 +2430,9 @@ document.addEventListener('DOMContentLoaded',function(){
           </div>
           <div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:6px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-bottom:5px">Options copy</div>
           <div style="background:rgba(17,24,39,0.9);border:1px solid rgba(232,93,4,0.18);border-radius:8px;padding:8px;margin-bottom:7px">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:6px;color:rgba(255,255,255,0.4)">Copy Trading actif</span><div style="width:20px;height:11px;border-radius:6px;background:#E85D04;position:relative"><div style="position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;top:2px;left:11px"></div></div></div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:6px;color:rgba(255,255,255,0.4)">Prendre les TP</span><div style="width:20px;height:11px;border-radius:6px;background:#E85D04;position:relative"><div style="position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;top:2px;left:11px"></div></div></div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0"><span style="font-size:6px;color:rgba(255,255,255,0.4)">Inverser les signaux</span><div style="width:20px;height:11px;border-radius:6px;background:rgba(255,255,255,0.1);position:relative"><div style="position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;top:2px;left:2px"></div></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:6px;color:rgba(255,255,255,0.4)">Copy Trading actif</span><div class="control-toggle is-on" data-toggle-sequence="0"><i></i></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:6px;color:rgba(255,255,255,0.4)">Prendre les TP</span><div class="control-toggle is-on" data-toggle-sequence="1"><i></i></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0"><span style="font-size:6px;color:rgba(255,255,255,0.4)">Inverser les signaux</span><div class="control-toggle" data-toggle-sequence="2"><i></i></div></div>
           </div>
           <div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:6px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-bottom:5px">Protection</div>
           <div style="background:rgba(17,24,39,0.9);border:1px solid rgba(255,255,255,0.055);border-radius:8px;padding:8px;margin-bottom:7px">
@@ -2439,6 +2440,8 @@ document.addEventListener('DOMContentLoaded',function(){
             <div style="display:flex;justify-content:space-between;padding:1px 0"><span style="font-size:6px;color:rgba(255,255,255,0.35)">Capital protégé</span><span style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:9px;font-weight:700;color:#E85D04">850€</span></div>
           </div>
           <div style="width:100%;background:linear-gradient(135deg,#E85D04,#E85D04);color:#fff;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:7px;border-radius:6px;text-align:center">Sauvegarder →</div>
+        </div>
+          </div>
         </div>
       </div>
       <div style="text-align:center;font-size:10px;color:rgba(255,255,255,0.25);line-height:1.5;max-width:160px"><strong style="color:rgba(255,255,255,0.55);display:block;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:11px;font-weight:700;margin-bottom:2px">Interface réelle</strong>Modifiable à tout moment</div>
@@ -3338,20 +3341,20 @@ document.addEventListener('DOMContentLoaded',function(){
       <div>Ce que tu peux construire</div>
     </div>
     <div class="decision-row">
-      <div class="waste"><i>📺</i><span><b>Abonnements TV : Netflix, Disney+, Prime, foot…</b><small>≈ 120 € / mois</small></span></div>
-      <div class="build-value"><i>🤖</i><span><b>Bectanse Auto</b><small>Exécution automatisée selon tes paramètres</small></span></div>
+      <div class="waste"><i><img src="/static/vip/assets/premium-tv.png" alt="" loading="lazy"></i><span><b>Abonnements TV : Netflix, Disney+, Prime, foot…</b><small>≈ 120 € / mois</small></span></div>
+      <div class="build-value"><i><img src="/static/vip/assets/premium-automation.png" alt="" loading="lazy"></i><span><b>Bectanse Auto</b><small>Exécution automatisée selon tes paramètres</small></span></div>
     </div>
     <div class="decision-row">
-      <div class="waste"><i>🎵</i><span><b>Spotify, YouTube Premium</b><small>≈ 30 € / mois</small></span></div>
-      <div class="build-value"><i>📚</i><span><b>Formation structurée</b><small>Pour comprendre ce que tu utilises</small></span></div>
+      <div class="waste"><i><img src="/static/vip/assets/premium-music.png" alt="" loading="lazy"></i><span><b>Spotify, YouTube Premium</b><small>≈ 30 € / mois</small></span></div>
+      <div class="build-value"><i><img src="/static/vip/assets/premium-formation.png" alt="" loading="lazy"></i><span><b>Formation structurée</b><small>Pour comprendre ce que tu utilises</small></span></div>
     </div>
     <div class="decision-row">
-      <div class="waste"><i>🍔</i><span><b>Uber Eats, Deliveroo, fast-food</b><small>≈ 80 € / mois</small></span></div>
-      <div class="build-value"><i>🛠️</i><span><b>Accompagnement</b><small>Une équipe pour t’aider à avancer</small></span></div>
+      <div class="waste"><i><img src="/static/vip/assets/premium-food.png" alt="" loading="lazy"></i><span><b>Uber Eats, Deliveroo, fast-food</b><small>≈ 80 € / mois</small></span></div>
+      <div class="build-value"><i><img src="/static/vip/assets/premium-support.png" alt="" loading="lazy"></i><span><b>Accompagnement</b><small>Une équipe pour t’aider à avancer</small></span></div>
     </div>
     <div class="decision-row">
-      <div class="waste"><i>☕</i><span><b>Sorties et dépenses quotidiennes</b><small>≈ 100 € / mois</small></span></div>
-      <div class="build-value"><i>🎛️</i><span><b>Contrôle conservé</b><small>Ton compte et tes réglages restent les tiens</small></span></div>
+      <div class="waste"><i><img src="/static/vip/assets/premium-lifestyle.png" alt="" loading="lazy"></i><span><b>Sorties et dépenses quotidiennes</b><small>≈ 100 € / mois</small></span></div>
+      <div class="build-value"><i><img src="/static/vip/assets/premium-control.png" alt="" loading="lazy"></i><span><b>Contrôle conservé</b><small>Ton compte et tes réglages restent les tiens</small></span></div>
     </div>
     <div class="decision-total">
       <div><small>Dépenses mensuelles estimées</small><strong>330 €</strong></div>
@@ -3380,22 +3383,22 @@ document.addEventListener('DOMContentLoaded',function(){
     <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#E85D04,#E85D04,#E85D04)"></div>
     <div style="padding:28px 24px;display:flex;flex-direction:column;gap:0">
       <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <span style="font-size:20px;flex-shrink:0">🤖</span>
+        <span class="included-icon"><img src="/static/vip/assets/premium-automation.png" alt="" loading="lazy"></span>
         <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Copy trading automatique 24h/24</div><div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px">Bectanse AUTO — activable/désactivable à tout moment</div></div>
         <div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:12px;font-weight:700;color:#E85D04;flex-shrink:0">INCLUS</div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <span style="font-size:20px;flex-shrink:0">📡</span>
+        <span class="included-icon"><img src="/static/vip/assets/premium-signal.png" alt="" loading="lazy"></span>
         <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Canal VIP + signaux en temps réel</div><div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px">Signaux XAU/USD, alertes, résultats — 24h/24</div></div>
         <div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:12px;font-weight:700;color:#E85D04;flex-shrink:0">INCLUS</div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-        <span style="font-size:20px;flex-shrink:0">📱</span>
+        <span class="included-icon"><img src="/static/vip/assets/premium-app.png" alt="" loading="lazy"></span>
         <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Application membre iOS &amp; Android</div><div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px">Dashboard, paramètres, notifications push</div></div>
         <div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:12px;font-weight:700;color:#E85D04;flex-shrink:0">INCLUS</div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05);background:rgba(232,93,4,0.04)">
-        <span style="font-size:20px;flex-shrink:0">📚</span>
+        <span class="included-icon"><img src="/static/vip/assets/premium-formation.png" alt="" loading="lazy"></span>
         <div style="flex:1">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <div style="font-size:14px;font-weight:600;color:#fff">Formation complète — 500 pages · 21 phases · +20h</div>
@@ -3408,7 +3411,7 @@ document.addEventListener('DOMContentLoaded',function(){
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;padding:14px 0">
-        <span style="font-size:20px;flex-shrink:0">🛠️</span>
+        <span class="included-icon"><img src="/static/vip/assets/premium-onboarding.png" alt="" loading="lazy"></span>
         <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Onboarding complet en moins de 15 minutes</div><div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:2px">Notre équipe te configure tout — broker, robot, paramètres</div></div>
         <div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:12px;font-weight:700;color:#E85D04;flex-shrink:0">INCLUS</div>
       </div>
@@ -4364,6 +4367,184 @@ document.addEventListener('DOMContentLoaded',function(){
   originalHero.classList.add('hero-replaced');
   appHero.classList.add('app-hero-mode');
   nav.insertAdjacentElement('afterend', appHero);
+})();
+</script>
+<style id="premium-pictograms-and-control-iphone">
+/* Icônes PNG locales : aucun chargement externe, rendu identique sur ordinateur et mobile */
+.zero-emoji,
+.included-icon,
+.decision-row i{
+  overflow:hidden;
+  isolation:isolate;
+}
+.zero-emoji img,
+.included-icon img,
+.decision-row i img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.zero-emoji{
+  width:58px!important;
+  height:58px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:17px!important;
+  background:transparent!important;
+  filter:drop-shadow(0 10px 18px rgba(232,93,4,.16));
+}
+.decision-row i{
+  width:36px!important;
+  height:36px!important;
+  flex-basis:36px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:11px!important;
+  background:transparent!important;
+}
+.included-icon{
+  display:block!important;
+  width:50px!important;
+  height:50px!important;
+  flex:0 0 50px!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:0!important;
+  border-radius:15px!important;
+  background:transparent!important;
+  filter:drop-shadow(0 9px 14px rgba(232,93,4,.13));
+}
+
+/* iPhone de contrôle : même interface, intégrée dans un châssis réaliste */
+.control-phone-presentation{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:13px;
+  min-width:200px;
+}
+.control-iphone-3d{
+  position:relative!important;
+  width:196px!important;
+  aspect-ratio:700 / 1590;
+  overflow:visible!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  isolation:isolate;
+  transform:perspective(1100px) rotateY(-5deg) rotateX(1.4deg);
+  transform-origin:center 62%;
+  filter:drop-shadow(0 34px 31px rgba(0,0,0,.76)) drop-shadow(0 0 22px rgba(232,93,4,.12));
+  animation:controlPhoneFloat 6s ease-in-out infinite;
+}
+.control-iphone-3d::after{
+  content:"";
+  position:absolute;
+  z-index:8;
+  inset:0;
+  pointer-events:none;
+  background:url("/static/vip/assets/iphone-frame-real-v1.png") center/100% 100% no-repeat;
+}
+.control-iphone-screen{
+  position:absolute;
+  z-index:1;
+  inset:2.6% 7.5% 3.25% 8.15%;
+  overflow:hidden;
+  border-radius:13% / 5.6%;
+  background:#06060e;
+}
+.control-phone-ui{
+  box-sizing:border-box;
+  width:100%;
+  height:100%;
+  padding-top:34px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 55% 45%,rgba(232,93,4,.055),transparent 45%),
+    #06060e;
+}
+.control-phone-ui>div:first-child{flex:0 0 auto}
+.control-phone-ui>div:nth-child(2){
+  box-sizing:border-box;
+  flex:1 1 auto;
+  min-height:0;
+  display:flex!important;
+  flex-direction:column;
+  justify-content:center;
+  gap:6px;
+}
+.control-phone-ui>div:nth-child(2)>div{margin-bottom:0!important}
+.control-toggle{
+  position:relative;
+  width:20px;
+  height:11px;
+  flex:0 0 20px;
+  border-radius:999px;
+  background:rgba(255,255,255,.11);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035);
+  transition:background .42s ease,box-shadow .42s ease;
+}
+.control-toggle i{
+  position:absolute;
+  top:2px;
+  left:2px;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.5);
+  transition:transform .42s cubic-bezier(.2,.8,.2,1);
+}
+.control-toggle.is-on{
+  background:#e85d04;
+  box-shadow:0 0 11px rgba(232,93,4,.38);
+}
+.control-toggle.is-on i{transform:translateX(9px)}
+@keyframes controlPhoneFloat{
+  0%,100%{transform:perspective(1100px) rotateY(-5deg) rotateX(1.4deg) translateY(0)}
+  50%{transform:perspective(1100px) rotateY(-2.4deg) rotateX(.3deg) translateY(-8px)}
+}
+@media(max-width:720px){
+  .truth-title br + .truth-title-accent::before{content:" "}
+  .zero-emoji{width:52px!important;height:52px!important}
+  .decision-row i{width:30px!important;height:30px!important;flex-basis:30px!important}
+  .included-icon{width:44px!important;height:44px!important;flex-basis:44px!important}
+  .control-phone-presentation{min-width:0;margin:3px auto 8px}
+  .control-iphone-3d{width:184px!important;transform:perspective(900px) rotateY(-3deg) rotateX(1deg)}
+}
+@media(prefers-reduced-motion:reduce){
+  .control-iphone-3d{animation:none!important;transform:none!important}
+  .control-toggle,.control-toggle i{transition:none!important}
+}
+</style>
+<script>
+(() => {
+  const toggles = [...document.querySelectorAll('.control-toggle')];
+  if (!toggles.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let timer;
+  let phase = 0;
+  const render = () => {
+    toggles.forEach((toggle, index) => {
+      const active = index === 2 ? phase % 3 === 2 : (phase + index) % 3 !== 2;
+      toggle.classList.toggle('is-on', active);
+    });
+    phase += 1;
+  };
+  const observer = new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting && !timer) {
+      render();
+      timer = window.setInterval(render, 1450);
+    } else if (!entry.isIntersecting && timer) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+  }, {threshold:.35});
+  const phone = document.querySelector('.control-iphone-3d');
+  if (phone) observer.observe(phone);
 })();
 </script>
 </body></html>
