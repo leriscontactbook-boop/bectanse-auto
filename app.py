@@ -753,18 +753,22 @@ def admin_api_membres():
     if key != ADMIN_KEY: return jsonify({"ok":False}), 403
     try:
         conn = get_conn()
-        rows = conn.run("SELECT code,nom,capital,actif,copy_actif,date_fin,email,telephone,telegram,parrain_code,filleuls_count,gains_parrainage FROM members ORDER BY created_at DESC")
-        cols = ["code","nom","capital","actif","copy_actif","date_fin","email","telephone","telegram","parrain_code","filleuls_count","gains_parrainage"]
+        rows = conn.run("SELECT code,nom,capital,actif,copy_actif,date_fin,email,telephone,telegram,parrain_code,filleuls_count,gains_parrainage,created_at FROM members ORDER BY created_at DESC")
+        cols = ["code","nom","capital","actif","copy_actif","date_fin","email","telephone","telegram","parrain_code","filleuls_count","gains_parrainage","created_at"]
         membres = []
-        from datetime import datetime
+        from datetime import datetime, timedelta
+        maintenant = datetime.now()
         for r in rows:
             m = dict(zip(cols, r))
+            m["est_expire"] = bool(m["date_fin"] and m["date_fin"] < maintenant and m["actif"])
+            m["nouveau_7j"] = bool(m["created_at"] and m["created_at"] > maintenant - timedelta(days=7))
             if m["date_fin"] and hasattr(m["date_fin"],"strftime"):
-                delta = m["date_fin"] - datetime.now()
+                delta = m["date_fin"] - maintenant
                 m["jours_restants"] = max(0, delta.days)
                 m["date_fin"] = m["date_fin"].strftime("%d/%m/%Y")
             else:
                 m["jours_restants"] = 0
+            m.pop("created_at", None)
             membres.append(m)
         conn.close()
         return jsonify({"ok":True,"membres":membres})
