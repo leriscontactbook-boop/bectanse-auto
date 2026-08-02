@@ -338,7 +338,7 @@ def login_required(f):
                 if rows:
                     date_fin, actif = rows[0]
                     if not actif:
-                        return redirect(url_for("logout"))
+                        return redirect(url_for("accueil_expire"))
                     if date_fin and (date_fin - datetime.now()).days < 0:
                         if f.__name__ != "offres":
                             return redirect(url_for("accueil_expire"))
@@ -629,9 +629,13 @@ def accueil_expire():
     try:
         from datetime import datetime
         conn = get_conn()
-        rows = conn.run("SELECT date_fin FROM members WHERE code=:c", c=code)
+        rows = conn.run("SELECT date_fin, actif FROM members WHERE code=:c", c=code)
         conn.close()
-        if rows and rows[0][0] and (rows[0][0] - datetime.now()).days >= 0:
+        if rows:
+            date_fin, actif = rows[0]
+        else:
+            date_fin, actif = None, False
+        if actif and date_fin and (date_fin - datetime.now()).days >= 0:
             return redirect(url_for("accueil"))
     except: pass
     return render_template("expire.html", member=member)
@@ -773,22 +777,38 @@ def admin_api_membre_update():
     if key != ADMIN_KEY: return jsonify({"ok":False}), 403
     try:
         data = request.json
-        code = data.get("code")
+        code = (data.get("code") or "").strip()
+        if not code:
+            return jsonify({"ok":False,"error":"Code membre manquant"}), 400
         conn = get_conn()
+        membre = conn.run("SELECT date_fin, actif FROM members WHERE code=:c", c=code)
+        if not membre:
+            conn.close()
+            return jsonify({"ok":False,"error":"Membre introuvable"}), 404
         if "capital" in data:
             conn.run("UPDATE members SET capital=:v WHERE code=:c", v=data["capital"], c=code)
         if "actif" in data:
+            if not isinstance(data["actif"], bool):
+                conn.close()
+                return jsonify({"ok":False,"error":"Statut invalide"}), 400
             conn.run("UPDATE members SET actif=:v WHERE code=:c", v=data["actif"], c=code)
         if "copy_actif" in data:
             conn.run("UPDATE members SET copy_actif=:v WHERE code=:c", v=data["copy_actif"], c=code)
         if "jours" in data:
             from datetime import datetime, timedelta
-            rows = conn.run("SELECT date_fin FROM members WHERE code=:c", c=code)
-            date_fin = rows[0][0] if rows else datetime.now()
+            try:
+                jours = int(data["jours"])
+            except (TypeError, ValueError):
+                conn.close()
+                return jsonify({"ok":False,"error":"Nombre de jours invalide"}), 400
+            if jours == 0 or abs(jours) > 3650:
+                conn.close()
+                return jsonify({"ok":False,"error":"Indique un ajustement entre -3650 et +3650 jours"}), 400
+            date_fin = membre[0][0] if membre else datetime.now()
             if date_fin and date_fin > datetime.now():
-                nouvelle = date_fin + timedelta(days=int(data["jours"]))
+                nouvelle = date_fin + timedelta(days=jours)
             else:
-                nouvelle = datetime.now() + timedelta(days=int(data["jours"]))
+                nouvelle = datetime.now() + timedelta(days=jours)
             conn.run("UPDATE members SET date_fin=:df WHERE code=:c", df=nouvelle, c=code)
         conn.close()
         return jsonify({"ok":True})
@@ -1206,7 +1226,8 @@ def login():
         if not member:
             error = "Code invalide. Vérifie ton code et réessaie."
         elif not member.get("actif", True):
-            error = "Accès désactivé. Contacte le support Bectanse."
+            session["member_code"] = member["code"]
+            return redirect(url_for("accueil_expire"))
         else:
             session["member_code"] = member["code"]
             try:
