@@ -670,6 +670,9 @@ def accueil():
     notif_lue     = member.get("notif_lue", True)
     afficher_notif = bool(notif_type and notif_message and not notif_lue)
     demo_mode = (code == "BCT-DEMO2026")
+    # Direction artistique fintech validée : la logique et les données restent
+    # identiques, seule la présentation de l'espace membre est modernisée.
+    modern_preview = True
     return render_template("accueil.html",
         member=member, params=params,
         copy_actif=copy_actif,
@@ -680,7 +683,39 @@ def accueil():
         notif_type=notif_type,
         notif_message=notif_message,
         afficher_notif=afficher_notif,
-        demo_mode=demo_mode
+        demo_mode=demo_mode,
+        modern_preview=modern_preview
+    )
+
+
+@app.route("/preview-espace-membre")
+def preview_espace_membre():
+    """Aperçu isolé disponible uniquement depuis la machine locale."""
+    if request.host.split(":", 1)[0] not in {"127.0.0.1", "localhost"}:
+        return "Aperçu local uniquement", 404
+    member = {
+        "code": "BCT-PREVIEW",
+        "nom": "Malcom Dides",
+        "capital": "200",
+        "copy_actif": True,
+        "notif_type": "message",
+        "notif_message": "Tes paramètres sont synchronisés avec Bectanse AUTO.",
+        "notif_lue": False,
+    }
+    return render_template(
+        "accueil.html",
+        member=member,
+        params=default_params(),
+        copy_actif=True,
+        date_souscription=datetime.now(),
+        date_fin=datetime.now() + timedelta(days=25),
+        jours_restants=25,
+        statut_abo="actif",
+        notif_type="message",
+        notif_message=member["notif_message"],
+        afficher_notif=True,
+        demo_mode=True,
+        modern_preview=True,
     )
 
 
@@ -2946,7 +2981,10 @@ def _startup():
     except Exception as e:
         app.logger.error(f"startup: {e}")
 
-threading.Thread(target=_startup, daemon=True).start()
+# Les aperçus locaux peuvent désactiver les services externes (DB, webhooks,
+# planificateurs) sans modifier le comportement de production.
+if os.environ.get("BECTANSE_SKIP_STARTUP") != "1":
+    threading.Thread(target=_startup, daemon=True).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
