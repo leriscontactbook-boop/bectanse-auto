@@ -231,8 +231,289 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+{% if modern_preview %}
+<style>
+/* ================================================================
+   BECTANSE AUTO — TRADING OS / PREVIEW VISUELLE
+   Cette couche est active uniquement avec /accueil?preview=future.
+   ================================================================ */
+:root{
+  --purple:#f45a00;
+  --gold:#ff6a00;
+  --dark:#050608;
+  --dark-2:#0b0e12;
+  --dark-3:#151a21;
+  --border:rgba(255,106,0,.18);
+  --signal:#ff6a00;
+  --signal-soft:rgba(255,106,0,.12);
+  --steel:#8f9aa8;
+}
+html,body{background:#050608}
+body.future-preview{
+  background:
+    radial-gradient(ellipse 70% 50% at 82% 0%,rgba(255,106,0,.08),transparent 62%),
+    linear-gradient(180deg,#050608 0%,#080a0d 100%);
+}
+.future-preview .bg-glow{
+  opacity:.9;
+  background:
+    linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px),
+    radial-gradient(circle at 70% 12%,rgba(255,106,0,.11),transparent 28%);
+  background-size:48px 48px,48px 48px,auto;
+  mask-image:linear-gradient(to bottom,#000,transparent 82%);
+}
+.future-preview .app{grid-template-columns:226px minmax(0,1fr)}
+.future-preview .sidebar{
+  background:#090a0c;
+  border-right:1px solid rgba(255,255,255,.07);
+  box-shadow:none;
+}
+.future-preview .sidebar-brand{padding:22px 18px 17px;border-color:rgba(255,255,255,.06)}
+.future-preview .sidebar-logo{font-size:20px;color:#fff;text-shadow:none}
+.future-preview .sidebar-logo::after{content:'  / AUTO';color:var(--signal);font-size:10px;letter-spacing:.14em}
+.future-preview .sidebar-tagline{color:rgba(255,255,255,.33);margin-top:6px}
+.future-preview .member-card{
+  margin:14px 12px 6px;
+  background:#111214;
+  border-color:rgba(255,255,255,.08);
+  border-radius:12px;
+}
+.future-preview .member-card::before{background:linear-gradient(90deg,transparent,var(--signal),transparent)}
+.future-preview .nav{padding-top:12px}
+.future-preview .nav-item{margin:2px 8px;padding:10px 11px;border:1px solid transparent;border-left:0;border-radius:8px;font-size:12px}
+.future-preview .nav-item:hover{background:rgba(255,106,0,.06);border-color:rgba(255,106,0,.12)}
+.future-preview .nav-item.active{background:linear-gradient(90deg,rgba(255,106,0,.14),rgba(255,106,0,.025));border-color:rgba(255,106,0,.2);box-shadow:inset 3px 0 0 var(--signal)}
+.future-preview .content{max-width:1440px;width:100%;padding:24px 30px 58px}
+.future-command-bar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.future-command-title{font:700 18px 'Barlow',sans-serif;color:#fff;letter-spacing:-.02em}
+.future-command-sub{font-size:10px;color:rgba(255,255,255,.3);margin-top:4px}
+.future-command-actions{display:flex;align-items:center;gap:8px}
+.future-command-btn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 12px;border:1px solid rgba(255,255,255,.09);border-radius:8px;background:#111315;color:rgba(255,255,255,.72);font-size:11px;font-weight:600;text-decoration:none;transition:.18s ease}
+.future-command-btn:hover{color:#fff;border-color:rgba(255,106,0,.35);background:#171411}
+.future-command-btn.primary{background:var(--signal);border-color:var(--signal);color:#fff;box-shadow:0 8px 22px rgba(255,106,0,.14)}
+.future-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#ff7b27,#c84400);color:#fff;font:700 13px 'Barlow',sans-serif;border:2px solid rgba(255,255,255,.12)}
+.future-preview .hero{display:block;margin-bottom:16px}
+.future-preview .hero-date{color:rgba(255,106,0,.75)}
+.future-preview .hero-greeting{font-size:34px;letter-spacing:.015em;line-height:1.04}
+.future-preview .hero-greeting span{color:var(--signal)}
+.future-preview .hero-sub{color:rgba(255,255,255,.42);margin-top:7px}
+.future-system-rail{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:18px;
+}
+.future-system-segment{
+  min-height:68px;
+  padding:12px 14px;
+  background:#111315;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;
+  display:flex;align-items:center;gap:11px;
+}
+.future-status-orb{width:10px;height:10px;border-radius:50%;background:#2ddd9d;box-shadow:0 0 0 5px rgba(45,221,157,.08),0 0 18px rgba(45,221,157,.65);animation:futurePulse 2s ease-in-out infinite}
+.future-segment-kicker{font:700 9px 'Barlow Condensed',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.32)}
+.future-segment-value{font:700 15px 'Barlow Condensed',sans-serif;color:#fff;margin-top:3px;letter-spacing:.035em}
+.future-segment-value strong{color:var(--signal)}
+@keyframes futurePulse{50%{transform:scale(.72);opacity:.7}}
+.future-preview .dashboard-grid{gap:12px;margin-bottom:12px;align-items:stretch}
+.future-preview .dashboard-grid.primary-row{grid-template-columns:minmax(0,1.55fr) minmax(310px,.72fr)}
+.future-preview .dashboard-grid.activity-row{grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr)}
+.future-preview .dashboard-grid.actions-row{grid-template-columns:1fr 1fr}
+.future-preview .dashboard-grid>.card{height:100%}
+.future-preview .card{
+  background:#111315;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:18px;
+  box-shadow:none;
+}
+.future-preview .card:hover{border-color:rgba(255,106,0,.28);transform:none}
+.future-preview .card::before{height:1px;background:linear-gradient(90deg,transparent,var(--signal),transparent)!important;opacity:.8}
+.future-preview .card-label{color:rgba(255,255,255,.42)}
+.future-preview #market-card{min-height:0;background:#101214;display:flex;flex-direction:column}
+.future-preview #market-card::after{content:'LIVE MARKET FEED';position:absolute;right:20px;top:19px;font:700 9px 'Barlow Condensed',sans-serif;letter-spacing:.18em;color:rgba(255,255,255,.22)}
+.future-preview .market-tv-divider{border-color:rgba(255,255,255,.08);margin-top:20px}
+.future-preview .market-tv-label{color:rgba(255,106,0,.8)}
+.future-preview .tradingview-widget-container{height:340px!important;min-height:340px;margin-top:auto!important;border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden;background:#080a0d}
+.future-preview #tradingview_gold,.future-preview #tradingview_gold>div,.future-preview #tradingview_gold iframe{width:100%!important;height:340px!important;display:block}
+.future-preview .card.purple{background:#111315}
+.future-preview .primary-row>.card.purple{display:flex;flex-direction:column}
+.future-preview .primary-row>.card.purple>div:last-child{margin-top:auto!important;padding-top:14px}
+.future-robot-core{display:flex;align-items:center;gap:13px;padding:12px;margin:-1px 0 13px;border-radius:11px;background:#17191c;border:1px solid rgba(255,255,255,.07)}
+.future-chip{position:relative;width:46px;height:46px;border:1px solid rgba(255,106,0,.42);border-radius:12px;display:grid;place-items:center;background:rgba(255,106,0,.08);box-shadow:none}
+.future-chip::before,.future-chip::after{content:'';position:absolute;inset:8px;border:1px solid rgba(255,106,0,.28);border-radius:9px;animation:futureScan 2.8s linear infinite}
+.future-chip::after{inset:16px;border-radius:5px;animation-direction:reverse}
+.future-chip-mark{font:700 12px 'Barlow Condensed',sans-serif;color:#fff;z-index:1;letter-spacing:.08em}
+@keyframes futureScan{to{transform:rotate(360deg)}}
+.future-core-title{font:700 16px 'Barlow Condensed',sans-serif;color:#fff}
+.future-core-meta{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px}
+.future-core-live{color:#54e6b3}
+.future-preview .params-btn{background:linear-gradient(90deg,#d94b00,#ff6a00);box-shadow:0 10px 30px rgba(255,106,0,.18)}
+.future-preview .params-btn:hover{background:#ff6a00}
+.future-preview .quick-grid{gap:12px}
+.future-preview .quick-item{background:#111315;border-color:rgba(255,255,255,.08);border-radius:12px;padding:13px 10px}
+.future-preview .quick-item:hover{border-color:rgba(255,106,0,.35);background:rgba(255,106,0,.06)}
+.future-preview .quick-icon{font-size:0;filter:none;opacity:.86}
+.future-preview .quick-icon::before{display:grid;place-items:center;width:30px;height:30px;border:1px solid rgba(255,106,0,.24);border-radius:8px;color:var(--signal);font:700 14px 'Barlow',sans-serif;background:rgba(255,106,0,.05)}
+.future-preview .quick-item:nth-child(1) .quick-icon::before{content:'◎'}
+.future-preview .quick-item:nth-child(2) .quick-icon::before{content:'▤'}
+.future-preview .quick-item:nth-child(3) .quick-icon::before{content:'◇'}
+.future-preview .quick-item:nth-child(4) .quick-icon::before{content:'↗'}
+.future-preview .quick-item:nth-child(5) .quick-icon::before{content:'?'}
+.future-preview .canal-voir-tout{color:rgba(255,106,0,.75)}
+.future-preview .m-topbar,.future-preview .m-univ-nav{background:rgba(5,7,9,.96);border-color:rgba(255,106,0,.18)}
+.future-preview .m-univ-nav-item.active{border-top-color:var(--signal)}
+@media(max-width:768px){
+  .future-preview .app{display:block}
+  .future-preview .content{padding:68px 12px 94px}
+  .future-command-bar{align-items:flex-start;margin-bottom:16px;padding-bottom:12px}
+  .future-command-sub{display:none}
+  .future-command-actions{gap:6px}
+  .future-command-btn{padding:0 9px;font-size:10px}
+  .future-command-btn.secondary{display:none}
+  .future-avatar{width:32px;height:32px}
+  .future-preview .hero{display:block}
+  .future-preview .hero-greeting{font-size:31px}
+  .future-system-rail{grid-template-columns:1fr;margin-top:16px;gap:8px}
+  .future-system-segment{min-height:58px;padding:11px 14px}
+  .future-preview .dashboard-grid.primary-row,.future-preview .dashboard-grid.activity-row,.future-preview .dashboard-grid.actions-row{grid-template-columns:1fr}
+  .future-preview #market-card{min-height:0}
+  .future-preview .tradingview-widget-container{height:278px!important;min-height:278px}
+  .future-preview #tradingview_gold,.future-preview #tradingview_gold>div,.future-preview #tradingview_gold iframe{height:278px!important}
+  .future-preview .card{padding:16px;border-radius:13px}
+  .future-preview .quick-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+{% endif %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260803os3">
 </head>
-<body>
+<body class="member-fintech {% if modern_preview %}future-preview{% endif %}">
+{% if modern_preview %}
+<div class="os-app">
+  <aside class="os-sidebar">
+    <a class="os-brand" href="/accueil" aria-label="Bectanse Auto — Accueil">
+      <span class="os-brand-mark" aria-hidden="true"></span>
+      <span>BECTANSE <strong>AUTO</strong></span>
+    </a>
+
+    <div class="os-nav-group">
+      <div class="os-nav-title">Navigation</div>
+      <nav class="os-nav">
+        <a class="os-nav-item active" href="/accueil"><span>01</span>Accueil</a>
+        <a class="os-nav-item" href="/dashboard"><span>02</span>Mes paramètres</a>
+        <a class="os-nav-item" href="/canal"><span>03</span>Canal VIP</a>
+        <a class="os-nav-item" href="/offres"><span>04</span>Renouveler / Upgrader</a>
+        {%- if not demo_mode %}<a class="os-nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span>05</span>Discuter avec un agent</a>{%- endif %}
+      </nav>
+    </div>
+
+    <div class="os-nav-group">
+      <div class="os-nav-title">Académie</div>
+      <nav class="os-nav">
+        <a class="os-nav-item" href="/calculateur"><span>06</span>Calculateur</a>
+        <a class="os-nav-item" href="/formation"><span>07</span>Formation</a>
+        <a class="os-nav-item" href="/parrainage"><span>08</span>Parrainage VIP</a>
+        <a class="os-nav-item" href="/faq"><span>09</span>FAQ &amp; Guide</a>
+      </nav>
+    </div>
+
+    <div class="os-member-access">
+      <div class="os-access-kicker">Accès membre actif</div>
+      <div class="os-access-name">{{ member.nom }}</div>
+      <div class="os-access-meta">Copy Trading synchronisé</div>
+      <div class="os-access-progress"><span></span></div>
+      <div class="os-access-days"><span>{% if statut_abo == 'expiré' %}Accès expiré{% else %}{{ jours_restants }} jours restants{% endif %}</span><strong>{% if copy_actif %}Actif{% else %}Inactif{% endif %}</strong></div>
+    </div>
+    <a class="os-logout" href="/logout">Déconnexion</a>
+  </aside>
+
+  <main class="os-main">
+    <section class="os-overview" aria-labelledby="os-overview-title">
+      <div class="os-overview-head">
+        <h1 id="os-overview-title">Accueil</h1>
+        <div class="os-overview-actions">
+          <a class="os-overview-action" href="/formation">Formation</a>
+          <a class="os-overview-action primary" href="/dashboard">Gérer Bectanse Auto</a>
+          <span class="os-overview-avatar" aria-label="Profil de {{ member.nom }}">{{ member.nom[0] }}</span>
+        </div>
+      </div>
+
+      <div class="os-overview-grid">
+        <article class="os-overview-card">
+          <div class="os-overview-card-top">
+            <span class="os-overview-label">Capital configuré</span>
+            <span class="os-overview-pill">Compte réel</span>
+          </div>
+          <div class="os-overview-value">{{ member.capital }} €</div>
+          <div class="os-overview-meta is-live">Synchronisé avec ton compte</div>
+        </article>
+
+        <article class="os-overview-card">
+          <div class="os-overview-card-top">
+            <span class="os-overview-label">Bectanse Auto</span>
+            <span class="os-overview-pill">MT5</span>
+          </div>
+          <div class="os-overview-value">{% if copy_actif %}Actif{% else %}Inactif{% endif %}</div>
+          <div class="os-overview-meta {% if copy_actif %}is-live{% endif %}">{% if copy_actif %}Robot connecté en temps réel{% else %}Robot actuellement désactivé{% endif %}</div>
+        </article>
+
+        <article class="os-overview-card">
+          <div class="os-overview-card-top">
+            <span class="os-overview-label">Accès membre</span>
+            <span class="os-overview-pill">{% if statut_abo == 'expiré' %}Expiré{% else %}Actif{% endif %}</span>
+          </div>
+          <div class="os-overview-value">{% if statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</div>
+          {% if date_fin %}<div class="os-overview-meta">Expiration le {{ date_fin.strftime('%d/%m/%Y') }}</div>{% endif %}
+        </article>
+      </div>
+    </section>
+
+    <section class="os-market-panel" id="market-card">
+      <div class="os-market-heading">
+        <div>
+          <div class="os-kicker">État du marché</div>
+          <div class="os-market-state"><span class="market-dot" id="market-dot"></span><strong id="market-text">Chargement...</strong></div>
+          <div class="market-detail" id="market-detail"></div>
+          <div class="market-countdown" id="market-countdown"></div>
+        </div>
+        <div class="sessions" id="sessions-pills" aria-label="Sessions de marché"></div>
+      </div>
+      <div class="os-chart-shell">
+        <div id="tradingview_gold"></div>
+      </div>
+    </section>
+
+    <div class="os-lower-grid">
+      <section class="os-panel os-account-panel">
+        <div class="os-panel-heading">
+          <div class="os-engine-mark">AUTO</div>
+          <div><h2>Mon compte</h2><p><span>●</span> SYSTÈME {% if copy_actif %}ACTIF{% else %}INACTIF{% endif %} · synchronisation en temps réel</p></div>
+        </div>
+        <div class="os-account-row"><span>Copy Trading</span><strong class="os-good">{% if copy_actif %}Actif{% else %}Inactif{% endif %}</strong></div>
+        <div class="os-account-row"><span>Capital</span><strong>{{ member.capital }} €</strong></div>
+        {% if date_fin %}<div class="os-account-row"><span>Expiration</span><strong>{{ date_fin.strftime('%d/%m/%Y') }}</strong></div>{% endif %}
+        <div class="os-account-row"><span>Jours restants</span><strong class="os-good">{% if statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</strong></div>
+        {% if afficher_notif or notif_message %}<div class="os-personal-message" id="notif-inline"><b>Message personnel</b>{{ notif_message }}<button onclick="dismissNotif()">Marquer comme lu</button></div>{% endif %}
+        <a class="os-action" href="/dashboard">Configurer mes paramètres →</a>
+      </section>
+
+      <section class="os-panel os-channel-panel">
+        <div class="os-panel-title-row"><div><h2>Canal VIP</h2><p>Aperçu des derniers messages</p></div><strong>LIVE</strong></div>
+        <div id="canal-preview-list"><div class="os-loading">Chargement...</div></div>
+        <a class="os-feed-link" href="/canal">Voir tout le canal →</a>
+      </section>
+    </div>
+
+    <section class="os-panel os-eco-panel">
+      <div class="os-panel-title-row"><div><h2>Actualité économique du jour</h2><p>Événements importants susceptibles d'influencer le marché</p></div><a href="/faq">Voir le guide →</a></div>
+      <div class="eco-list" id="eco-list"><div class="eco-loading">Chargement des annonces...</div></div>
+    </section>
+  </main>
+</div>
+<script src="https://s3.tradingview.com/tv.js"></script>
+{% else %}
 {% if demo_mode %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
   <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
@@ -281,15 +562,43 @@ document.addEventListener('DOMContentLoaded', function() {
   <!-- CONTENT -->
   <div class="content">
 
+    {% if modern_preview %}
+    <div class="future-command-bar fade-up">
+      <div>
+        <div class="future-command-title">Dashboard</div>
+        <div class="future-command-sub">Pilotage de ton espace Bectanse Auto</div>
+      </div>
+      <div class="future-command-actions">
+        <a class="future-command-btn secondary" href="/formation">Formation</a>
+        <a class="future-command-btn primary" href="/dashboard">Gérer le robot</a>
+        <div class="future-avatar" aria-label="Profil">{{ member.nom[0] }}</div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- HERO -->
     <div class="hero fade-up">
       <div class="hero-date" id="hero-date">Chargement...</div>
       <div class="hero-greeting">Bonjour, <span>{{ member.nom.split()[0] }}</span></div>
       <div class="hero-sub" id="hero-sub">Bienvenue sur ton espace membre Bectanse AUTO</div>
+      {% if modern_preview %}
+      <div class="future-system-rail" aria-label="État du système automatique">
+        <div class="future-system-segment">
+          <span class="future-status-orb"></span>
+          <div><div class="future-segment-kicker">Système automatique</div><div class="future-segment-value">Robot <strong>connecté</strong></div></div>
+        </div>
+        <div class="future-system-segment">
+          <div><div class="future-segment-kicker">Synchronisation</div><div class="future-segment-value">MT4 / MT5 · Temps réel</div></div>
+        </div>
+        <div class="future-system-segment">
+          <div><div class="future-segment-kicker">Protection active</div><div class="future-segment-value">Gestion du risque <strong>24/7</strong></div></div>
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     <!-- ROW 1 : Marché (avec Gold live intégré) + Statut compte -->
-    <div class="dashboard-grid fade-up delay-1">
+    <div class="dashboard-grid primary-row fade-up delay-1">
 
       <!-- MARCHÉ + GOLD LIVE (bloc unifié) -->
       <div class="card green" id="market-card">
@@ -305,13 +614,13 @@ document.addEventListener('DOMContentLoaded', function() {
         <!-- SÉPARATEUR + WIDGET GOLD -->
         <hr class="market-tv-divider">
         <div class="market-tv-label">XAU/USD — Prix en direct</div>
-        <div class="tradingview-widget-container" style="height:130px;margin:0 -4px;">
+        <div class="tradingview-widget-container" style="height:{% if modern_preview %}340{% else %}130{% endif %}px;margin:0 -4px;">
           <div id="tradingview_gold"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
           <script type="text/javascript">
           new TradingView.widget({
             "width": "100%",
-            "height": 130,
+            "height": {% if modern_preview %}340{% else %}130{% endif %},
             "symbol": "OANDA:XAUUSD",
             "interval": "15",
             "timezone": "Europe/Paris",
@@ -321,7 +630,10 @@ document.addEventListener('DOMContentLoaded', function() {
             "toolbar_bg": "#0d0d1a",
             "enable_publishing": false,
             "hide_top_toolbar": true,
+            "hide_side_toolbar": true,
             "hide_legend": false,
+            "allow_symbol_change": false,
+            "withdateranges": false,
             "save_image": false,
             "container_id": "tradingview_gold",
             "backgroundColor": "rgba(0,0,0,0)",
@@ -333,6 +645,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <!-- STATUT COMPTE -->
       <div class="card purple">
+        {% if modern_preview %}
+        <div class="future-robot-core">
+          <div class="future-chip"><span class="future-chip-mark">AUTO</span></div>
+          <div><div class="future-core-title">Bectanse Auto Engine</div><div class="future-core-meta"><span class="future-core-live">● EN LIGNE</span> · exécution synchronisée</div></div>
+        </div>
+        {% endif %}
         <div class="card-label">Mon compte</div>
         <div class="stat-row">
           <span class="stat-label">Copy Trading</span>
@@ -375,7 +693,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <!-- ROW 2 : Notification + Actu éco -->
-    <div class="dashboard-grid fade-up delay-2">
+    <div class="dashboard-grid activity-row fade-up delay-2">
 
       <!-- APERÇU CANAL VIP -->
       <div class="card" style="background:linear-gradient(135deg,rgba(91,33,182,0.1),rgba(59,7,100,0.06));border:1px solid rgba(91,33,182,0.25);">
@@ -407,7 +725,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <!-- ROW 3 : Canal Telegram + Paramétrer -->
-    <div class="dashboard-grid fade-up delay-3">
+    <div class="dashboard-grid actions-row fade-up delay-3">
 
       <!-- CANAL TELEGRAM -->
       <div class="card" style="background:linear-gradient(135deg,rgba(0,136,204,0.08),rgba(0,100,160,0.04));border-color:rgba(0,136,204,0.2);">
@@ -471,6 +789,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
 </a>{%- endif %}
+{% endif %}
 
 <script>
 // ── JOURS / MOIS FR
@@ -565,7 +884,8 @@ function updateMarket() {
     dot.className   = 'market-dot open';
     text.className  = 'market-text open';
     text.textContent = 'MARCHÉ OUVERT';
-    card.className  = 'card green';
+    card.classList.remove('red');
+    card.classList.add('green');
 
     // Temps avant fermeture
     const now = getNowParis();
@@ -596,7 +916,8 @@ function updateMarket() {
     dot.className   = 'market-dot closed';
     text.className  = 'market-text closed';
     text.textContent = 'MARCHÉ FERMÉ';
-    card.className  = 'card red';
+    card.classList.remove('green');
+    card.classList.add('red');
 
     if (status.type === 'weekend') {
       const mins = getMinsUntilMonday();
@@ -619,14 +940,48 @@ function updateMarket() {
 // ── UPDATE DATE
 function updateDate() {
   const now = getNowParis();
-  document.getElementById('hero-date').textContent = formatDate(now);
+  const dateEl = document.getElementById('hero-date');
+  if (dateEl) dateEl.textContent = formatDate(now);
   const h = now.getHours();
   let greeting = 'Bonjour';
   if (h >= 18) greeting = 'Bonsoir';
   if (h < 5) greeting = 'Bonne nuit';
   const heroGreeting = document.querySelector('.hero-greeting');
+  if (!heroGreeting) return;
   const name = heroGreeting.querySelector('span').textContent;
   heroGreeting.innerHTML = `${greeting}, <span>${name}</span>`;
+}
+
+// ── GRAPHIQUE TRADINGVIEW — aperçu moderne intégré
+function initModernTradingView() {
+  if (!document.body.classList.contains('future-preview')) return;
+  const holder = document.getElementById('tradingview_gold');
+  if (!holder || holder.dataset.initialized === '1') return;
+  if (!window.TradingView) {
+    window.setTimeout(initModernTradingView, 120);
+    return;
+  }
+  holder.dataset.initialized = '1';
+  new TradingView.widget({
+    autosize: true,
+    symbol: 'OANDA:XAUUSD',
+    interval: '15',
+    timezone: 'Europe/Paris',
+    theme: 'dark',
+    style: '1',
+    locale: 'fr',
+    toolbar_bg: '#080a08',
+    enable_publishing: false,
+    hide_top_toolbar: false,
+    hide_side_toolbar: true,
+    hide_legend: false,
+    allow_symbol_change: false,
+    withdateranges: true,
+    save_image: false,
+    container_id: 'tradingview_gold',
+    backgroundColor: '#050706',
+    gridColor: 'rgba(255,255,255,0.035)'
+  });
 }
 
 // ── APERÇU CANAL VIP
@@ -717,6 +1072,7 @@ document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
 // ── INIT
 updateDate();
 updateMarket();
+initModernTradingView();
 loadEcoActu();
 loadCanalPreview();
 setInterval(updateMarket, 30000);
