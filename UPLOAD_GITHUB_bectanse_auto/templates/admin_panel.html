@@ -415,6 +415,7 @@ function showSection(id) {
   if (id === 'membres') loadMembres();
   if (id === 'annonces') loadAnnonces();
   if (id === 'pdfs') loadPDFs();
+  if (id === 'canal') loadCanalMessages();
 }
 
 // ── STATS
@@ -658,9 +659,15 @@ async function supprimerPDF(id, titre) {
 async function loadCanalMessages() {
   const el = document.getElementById('canal-messages-list');
   el.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.25);padding:24px">Chargement...</div>';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
   try {
-    const r = await fetch('/api/canal/messages');
+    const r = await fetch(API('/admin/api/canal/messages'), {
+      credentials: 'same-origin',
+      signal: controller.signal
+    });
     const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'Erreur de chargement');
     if (!d.messages || !d.messages.length) {
       el.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.25);padding:24px">Aucun message</div>';
       return;
@@ -685,7 +692,10 @@ async function loadCanalMessages() {
       </div>
     `).join('');
   } catch(e) {
-    el.innerHTML = '<div style="text-align:center;color:#FCA5A5;padding:24px">Erreur de chargement</div>';
+    console.error('Chargement du canal VIP impossible :', e);
+    el.innerHTML = '<div style="text-align:center;color:#FCA5A5;padding:24px">Impossible de charger les messages.<br><button class="btn btn-sm" style="margin-top:12px" onclick="loadCanalMessages()">Réessayer</button></div>';
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
