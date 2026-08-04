@@ -2640,8 +2640,46 @@ def api_canal_messages():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/admin/api/canal/messages")
+def admin_api_canal_messages():
+    """Retourne les derniers messages du canal, y compris ceux masqués, pour l'admin."""
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "non autorisé"}), 403
+
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, tg_msg_id, text_content, msg_type, photo_url, audio_url, edited,
+                      COALESCE(deleted, FALSE), sent_at::text
+               FROM canal_messages
+               ORDER BY id DESC
+               LIMIT 100"""
+        )
+        messages = [
+            {
+                "id": row[0],
+                "tg_msg_id": row[1],
+                "text_content": row[2],
+                "msg_type": row[3],
+                "photo_url": row[4],
+                "audio_url": row[5],
+                "edited": row[6],
+                "deleted": row[7],
+                "sent_at": row[8],
+            }
+            for row in rows
+        ]
+        return jsonify({"ok": True, "messages": messages})
+    except Exception as e:
+        app.logger.error("admin_api_canal_messages: %s", e)
+        return jsonify({"ok": False, "error": "chargement impossible"}), 500
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 @app.route("/api/canal/restaurer/<int:msg_id>", methods=["POST"])
-@login_required
 def api_canal_restaurer(msg_id):
     key = request.args.get("key","") or (request.json.get("key","") if request.is_json else "")
     is_admin_key = (key == ADMIN_KEY)
