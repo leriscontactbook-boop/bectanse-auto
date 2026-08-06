@@ -4,328 +4,690 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bectanse AUTO — Connexion</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --purple:       #5B21B6;
-  --purple-dark:  #3B0764;
-  --purple-mid:   #4C1D95;
-  --purple-light: #EDE9FE;
-  --gold:         #F59E0B;
-  --gold-light:   #FEF3C7;
-  --dark:         #0A0A0F;
-  --dark-2:       #111827;
-  --white:        #FFFFFF;
-  --grey:         #6B7280;
-  --grey-light:   #F3F4F6;
-  --green:        #059669;
-  --red:          #DC2626;
-  --border:       rgba(91,33,182,0.25);
+  --bg: #070807;
+  --panel: #10120f;
+  --panel-strong: #151714;
+  --line: rgba(255,255,255,.09);
+  --line-strong: rgba(255,255,255,.16);
+  --white: #f6f7f3;
+  --muted: #8d9289;
+  --muted-soft: #686d65;
+  --orange: #ff5a12;
+  --orange-light: #ff8a50;
+  --orange-dark: #8f2c08;
+  --green: #63dc82;
+  --red: #ff6262;
 }
 
-html, body {
-  height: 100%;
-  font-family: 'Barlow', sans-serif;
-  background: var(--dark);
+html { min-height: 100%; background: var(--bg); }
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
   color: var(--white);
-  overflow: hidden;
+  background: var(--bg);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* ── BACKGROUND ── */
-.bg {
+button, input { font: inherit; }
+
+.page-bg {
   position: fixed;
   inset: 0;
-  background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(91,33,182,0.45) 0%, transparent 70%),
-              radial-gradient(ellipse 50% 40% at 80% 80%, rgba(59,7,100,0.3) 0%, transparent 60%),
-              var(--dark);
   z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 58% 54% at 79% 13%, rgba(255,90,18,.105), transparent 66%),
+    radial-gradient(ellipse 42% 36% at 13% 92%, rgba(255,90,18,.045), transparent 68%),
+    #070807;
 }
 
-/* Grille subtile */
-.bg::after {
+.page-bg::before {
   content: '';
   position: absolute;
   inset: 0;
+  opacity: .36;
   background-image:
-    linear-gradient(rgba(91,33,182,0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(91,33,182,0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 52px 52px;
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 88%);
+  mask-image: linear-gradient(to bottom, #000, transparent 88%);
 }
 
-/* ── LAYOUT ── */
-.login-wrap {
+.topbar {
   position: relative;
-  z-index: 1;
-  min-height: 100vh;
+  z-index: 2;
+  width: min(1180px, calc(100% - 40px));
+  min-height: 88px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 24px;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
 }
 
-.login-card {
-  width: 100%;
-  max-width: 420px;
-  background: rgba(17, 24, 39, 0.85);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 48px 40px 44px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(91,33,182,0.1) inset;
-}
-
-/* ── BRAND ── */
 .brand {
-  text-align: center;
-  margin-bottom: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--white);
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .035em;
 }
 
-.brand-logo {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 36px;
-  letter-spacing: 0.08em;
-  color: var(--gold);
-  text-shadow: 0 0 40px rgba(245,158,11,0.4);
-  line-height: 1;
-  margin-bottom: 4px;
+.brand strong { color: var(--orange); }
+
+.brand-mark {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ff742d, #df4305);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 10px 30px rgba(255,90,18,.18);
 }
 
-.brand-sub {
-  font-family: 'Barlow Condensed', sans-serif;
+.brand-mark::before,
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.brand-mark::before { width: 16px; height: 5px; left: 9px; top: 11px; }
+.brand-mark::after { width: 5px; height: 16px; right: 8px; bottom: 7px; }
+
+.topbar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #b8bcb5;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.22em;
-  color: rgba(255,255,255,0.35);
-  text-transform: uppercase;
 }
 
-/* ── DIVIDER ── */
-.divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border), transparent);
-  margin-bottom: 32px;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 5px rgba(99,220,130,.08), 0 0 18px rgba(99,220,130,.42);
+  animation: pulse 2.3s ease-in-out infinite;
 }
 
-/* ── HEADING ── */
-.login-title {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--white);
-  margin-bottom: 6px;
-  letter-spacing: 0.02em;
+.login-shell {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, calc(100% - 40px));
+  min-height: calc(100vh - 88px);
+  margin: 0 auto;
+  padding: 46px 0 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(380px, .85fr);
+  align-items: center;
+  gap: 28px;
 }
 
-.login-desc {
-  font-size: 13px;
-  color: rgba(255,255,255,0.4);
-  margin-bottom: 28px;
-  line-height: 1.5;
+.member-intro,
+.access-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgba(15,17,15,.92);
+  box-shadow: 0 28px 80px rgba(0,0,0,.34);
 }
 
-/* ── FORM ── */
-.field {
-  margin-bottom: 16px;
+.member-intro {
+  min-height: 594px;
+  padding: 54px;
+  border-radius: 26px 8px 8px 26px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.025), transparent 42%),
+    rgba(12,14,12,.92);
 }
 
-.field label {
-  display: block;
-  font-family: 'Barlow Condensed', sans-serif;
+.member-intro::after {
+  content: '';
+  position: absolute;
+  width: 330px;
+  height: 330px;
+  right: -150px;
+  bottom: -170px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,90,18,.18);
+  box-shadow: 0 0 80px rgba(255,90,18,.08), inset 0 0 70px rgba(255,90,18,.05);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--orange-light);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-weight: 800;
+  letter-spacing: .19em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.45);
-  margin-bottom: 8px;
 }
 
-.field input {
-  width: 100%;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(91,33,182,0.3);
-  border-radius: 10px;
-  padding: 14px 16px;
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+.eyebrow::before {
+  content: '';
+  width: 26px;
+  height: 1px;
+  background: var(--orange);
+  box-shadow: 0 0 12px rgba(255,90,18,.55);
+}
+
+.member-intro h1 {
+  max-width: 560px;
+  margin-top: 26px;
   color: var(--white);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  outline: none;
+  font-size: clamp(42px, 5vw, 68px);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+.member-intro h1 span { color: var(--orange); }
+
+.intro-copy {
+  max-width: 540px;
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.system-grid {
+  margin-top: 42px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+}
+
+.system-card {
+  min-height: 108px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255,255,255,.018);
+}
+
+.system-label {
+  color: var(--muted-soft);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .16em;
   text-transform: uppercase;
 }
 
-.field input::placeholder {
-  color: rgba(255,255,255,0.18);
-  font-size: 15px;
-  letter-spacing: 0.1em;
+.system-value {
+  margin-top: 12px;
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
 }
 
-.field input:focus {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 3px rgba(91,33,182,0.2);
+.system-detail {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
-/* ── ERROR ── */
-.error-box {
-  background: rgba(220,38,38,0.1);
-  border: 1px solid rgba(220,38,38,0.3);
-  border-radius: 10px;
-  padding: 12px 16px;
-  font-size: 13px;
-  color: #FCA5A5;
-  margin-bottom: 18px;
+.system-value.live {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* ── BUTTON ── */
-.btn-login {
-  width: 100%;
-  background: var(--purple);
-  color: var(--white);
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  border: none;
-  border-radius: 10px;
-  padding: 15px 20px;
-  cursor: pointer;
+.system-value.live::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(99,220,130,.5);
+}
+
+.signal-line {
   position: relative;
+  margin-top: 20px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid rgba(255,90,18,.28);
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(255,90,18,.08), rgba(255,90,18,.015));
+}
+
+.signal-line strong { font-size: 12px; }
+.signal-line span { color: var(--muted); font-size: 11px; }
+
+.signal-track {
+  width: 86px;
+  height: 4px;
   overflow: hidden;
-  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
-  box-shadow: 0 4px 20px rgba(91,33,182,0.4);
-  margin-top: 8px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.08);
+}
+
+.signal-track::after {
+  content: '';
+  display: block;
+  width: 44%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--orange), var(--orange-light));
+  animation: sync 2.8s ease-in-out infinite;
+}
+
+.access-panel {
+  min-height: 594px;
+  padding: 42px;
+  border-radius: 8px 26px 26px 8px;
+  border-color: rgba(255,90,18,.34);
+  background:
+    linear-gradient(160deg, rgba(255,90,18,.07), transparent 28%),
+    rgba(17,19,16,.96);
+}
+
+.access-number {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  border: 1px solid var(--orange-dark);
+  border-radius: 9px;
+  color: var(--orange);
+  background: rgba(255,90,18,.05);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.access-panel h2 {
+  margin-top: 34px;
+  color: var(--white);
+  font-size: 31px;
+  letter-spacing: -.035em;
+}
+
+.login-desc {
+  margin-top: 10px;
+  margin-bottom: 34px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.error-box {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255,98,98,.34);
+  border-radius: 11px;
+  color: #ffaaaa;
+  background: rgba(255,98,98,.075);
+  font-size: 12px;
+}
+
+.error-icon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  border: 1px solid rgba(255,98,98,.45);
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.field { margin-bottom: 14px; }
+
+.field label {
+  display: block;
+  margin-bottom: 9px;
+  color: #9ca198;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.input-shell { position: relative; }
+
+.input-prefix {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  color: var(--orange);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  pointer-events: none;
+}
+
+.field input {
+  width: 100%;
+  height: 56px;
+  padding: 0 16px 0 54px;
+  outline: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  color: var(--white);
+  background: #0c0e0c;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.field input::placeholder { color: #50544e; }
+
+.field input:hover { border-color: rgba(255,255,255,.23); }
+
+.field input:focus {
+  border-color: var(--orange);
+  background: #10120f;
+  box-shadow: 0 0 0 4px rgba(255,90,18,.1), 0 14px 40px rgba(0,0,0,.22);
+}
+
+.btn-login {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 7px;
+  overflow: hidden;
+  border: 1px solid #ff7b3d;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(110deg, #e94706, #ff681f 58%, #f04b08);
+  box-shadow: 0 14px 34px rgba(255,90,18,.18), inset 0 1px 0 rgba(255,255,255,.25);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.btn-login::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent 25%, rgba(255,255,255,.22) 50%, transparent 75%);
+  animation: shine 3.6s ease-in-out infinite;
 }
 
 .btn-login:hover {
-  background: var(--purple-mid);
-  box-shadow: 0 6px 28px rgba(91,33,182,0.55);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+  box-shadow: 0 18px 44px rgba(255,90,18,.26), inset 0 1px 0 rgba(255,255,255,.28);
 }
 
 .btn-login:active { transform: translateY(0); }
 
-.btn-login::before {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 60%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
-  animation: shimmer 2.5s ease-in-out infinite;
-}
-@keyframes shimmer { 0%{left:-100%} 60%,100%{left:160%} }
-
-/* ── FOOTER ── */
-.login-footer {
-  text-align: center;
-  margin-top: 28px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.2);
-  line-height: 1.6;
-}
-
-.login-footer a {
-  color: rgba(91,33,182,0.7);
-  text-decoration: none;
-}
-
-/* ── PULSE DOTS ── */
-.pulse-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  display: inline-block;
-  margin-right: 6px;
-  animation: pulse 2s ease-in-out infinite;
-  vertical-align: middle;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
 .status-line {
+  margin-top: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  color: var(--muted-soft);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .08em;
+}
+
+.support-row {
+  margin-top: 24px;
+  padding-top: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted-soft);
   font-size: 11px;
-  color: rgba(255,255,255,0.3);
-  margin-top: 20px;
-  font-family: 'Barlow Condensed', sans-serif;
-  letter-spacing: 0.08em;
+}
+
+.support-row a {
+  color: #c9ccc6;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.support-row a:hover { color: var(--orange-light); }
+
+.join-panel {
+  margin-top: 12px;
+  padding: 15px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.018);
+}
+
+.join-copy span {
+  display: block;
+  color: var(--muted-soft);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.join-copy strong {
+  display: block;
+  margin-top: 4px;
+  color: #dfe1dc;
+  font-size: 12px;
+}
+
+.join-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 13px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,90,18,.4);
+  border-radius: 9px;
+  color: var(--orange-light);
+  background: rgba(255,90,18,.06);
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.join-link:hover {
+  color: #fff;
+  border-color: var(--orange);
+  background: rgba(255,90,18,.14);
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .42; } }
+@keyframes sync { 0%, 100% { transform: translateX(-10%); } 50% { transform: translateX(128%); } }
+@keyframes shine { 0%, 62% { transform: translateX(-120%); } 86%, 100% { transform: translateX(120%); } }
+
+@media (max-width: 900px) {
+  .login-shell {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+    padding-top: 28px;
+    gap: 14px;
+  }
+
+  .member-intro,
+  .access-panel { min-height: 0; }
+
+  .member-intro {
+    padding: 38px;
+    border-radius: 22px 22px 8px 8px;
+  }
+
+  .member-intro h1 { font-size: clamp(38px, 9vw, 56px); }
+
+  .access-panel {
+    padding: 38px;
+    border-radius: 8px 8px 22px 22px;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar { width: calc(100% - 28px); min-height: 72px; }
+  .brand { gap: 10px; font-size: 15px; }
+  .brand-mark { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; }
+  .brand-mark::before { width: 14px; left: 8px; top: 9px; }
+  .brand-mark::after { height: 14px; right: 7px; bottom: 6px; }
+  .topbar-status { font-size: 10px; }
+  .login-shell { width: calc(100% - 28px); min-height: calc(100vh - 72px); padding: 18px 0 34px; }
+  .member-intro { padding: 28px 24px; }
+  .member-intro h1 { margin-top: 20px; font-size: 40px; }
+  .intro-copy { margin-top: 17px; font-size: 13px; }
+  .system-grid { margin-top: 28px; grid-template-columns: 1fr; }
+  .system-card { min-height: 0; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .system-value { margin-top: 0; text-align: right; font-size: 12px; }
+  .signal-line { margin-top: 10px; }
+  .signal-line span, .signal-track { display: none; }
+  .access-panel { padding: 29px 24px; }
+  .access-panel h2 { margin-top: 26px; font-size: 27px; }
+  .login-desc { margin-bottom: 26px; }
+  .support-row { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .join-panel { align-items: flex-start; flex-direction: column; }
+  .join-link { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
 </style>
-  <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#5B21B6">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
-  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#070807">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
 <body>
-<div class="bg"></div>
-<div class="login-wrap">
-  <div class="login-card">
+<div class="page-bg" aria-hidden="true"></div>
 
-    <div class="brand">
-      <div class="brand-logo">B€CTAN$€ AUTO</div>
-      <div class="brand-sub">Espace Membre — Copy Trading</div>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Bectanse Auto — Accueil">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span>BECTANSE <strong>AUTO</strong></span>
+  </a>
+  <div class="topbar-status"><span class="status-dot" aria-hidden="true"></span>Espace sécurisé</div>
+</header>
+
+<main class="login-shell">
+  <section class="member-intro" aria-labelledby="member-intro-title">
+    <div class="eyebrow">Espace membre</div>
+    <h1 id="member-intro-title">Ton espace de <span>pilotage.</span></h1>
+    <p class="intro-copy">Accède à ton espace personnel pour gérer ton compte.</p>
+
+    <div class="system-grid" aria-label="État des services Bectanse Auto">
+      <article class="system-card">
+        <div class="system-label">Système automatique</div>
+        <div class="system-value live">Robot connecté</div>
+      </article>
+      <article class="system-card">
+        <div class="system-label">Synchronisation</div>
+        <div class="system-value">MT4 / MT5</div>
+      </article>
+      <article class="system-card">
+        <div class="system-label">Gestion</div>
+        <div class="system-value">Tous tes services</div>
+        <div class="system-detail">Formation · Calculateur de lot · Canal VIP</div>
+      </article>
     </div>
 
-    <div class="divider"></div>
-
-    <div class="login-title">Connexion</div>
-    <div class="login-desc">Accède à ton espace pour gérer tes paramètres de copy trading.</div>
-
-    {% if error %}
-    <div class="error-box">
-      <span>⚠️</span> {{ error }}
+    <div class="signal-line" aria-hidden="true">
+      <strong>Bectanse Auto Engine</strong>
+      <span>Connexion en temps réel</span>
+      <i class="signal-track"></i>
     </div>
-    {% endif %}
+  </section>
+
+  <section class="access-panel" aria-labelledby="login-title">
+    <div class="access-number" aria-hidden="true">01</div>
+    <h2 id="login-title">Connexion</h2>
+    <p class="login-desc">Entre ton code d'accès membre pour ouvrir ton espace.</p>
+
+    <div class="error-box" role="alert" style="display:none;{% if error %}display:flex;{% endif %}">
+      <span class="error-icon" aria-hidden="true">!</span>
+      <span>{{ error }}</span>
+    </div>
 
     <form method="POST">
       <div class="field">
-        <label>Code d'accès membre</label>
-        <input
-          type="text"
-          name="code"
-          placeholder="BCT-XXXXXXXX"
-          autocomplete="off"
-          autocorrect="off"
-          spellcheck="false"
-          autofocus
-          required
-        >
+        <label for="member-code">Code d'accès membre</label>
+        <div class="input-shell">
+          <span class="input-prefix" aria-hidden="true">ID</span>
+          <input
+            id="member-code"
+            type="text"
+            name="code"
+            placeholder="BCT-XXXXXXXX"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            autofocus
+            required
+          >
+        </div>
       </div>
-      <button type="submit" class="btn-login">Accéder à mon espace →</button>
+      <button type="submit" class="btn-login">Accéder à mon espace&nbsp; →</button>
     </form>
 
-    <div class="status-line">
-      <span class="pulse-dot"></span>
-      Système actif
+    <div class="status-line"><span class="status-dot" aria-hidden="true"></span>Système actif</div>
+
+    <div class="support-row">
+      <span>Code perdu ?</span>
+      <a href="https://t.me/lerisluketobot" target="_blank" rel="noopener noreferrer">Contacter le support →</a>
     </div>
 
-    <div class="login-footer">
-      Code perdu ? <a href="https://t.me/lerisluketobot" target="_blank">Contacte le support</a>
+    <div class="join-panel">
+      <div class="join-copy">
+        <span>Pas encore membre ?</span>
+        <strong>Découvrir Bectanse Académie</strong>
+      </div>
+      <a class="join-link" href="https://acces.bectanse-academie.com/vip" target="_blank" rel="noopener noreferrer">Obtenir mon accès</a>
     </div>
+  </section>
+</main>
 
-    <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);text-align:center">
-      <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-bottom:10px">Pas encore membre ?</div>
-      <a href="https://acces.bectanse-academie.com/vip" target="_blank"
-        style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(91,33,182,0.15));border:1px solid rgba(245,158,11,0.35);border-radius:12px;padding:10px 20px;text-decoration:none;transition:all 0.2s"
-        onmouseover="this.style.background='linear-gradient(135deg,rgba(245,158,11,0.25),rgba(91,33,182,0.25))'"
-        onmouseout="this.style.background='linear-gradient(135deg,rgba(245,158,11,0.15),rgba(91,33,182,0.15))'">
-        <span style="font-size:16px">🚀</span>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#F59E0B">Obtenir mon accès</span>
-      </a>
-    </div>
-
-  </div>
-</div>
 <script>
 // Pré-remplir le code si présent dans l'URL (?code=BCT-XXXXXXXX)
 window.addEventListener('DOMContentLoaded', function() {
@@ -338,10 +700,11 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-  <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }
-  </script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+<script src="/static/source-guard.js" defer></script>
 </body>
 </html>
