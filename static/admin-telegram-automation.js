@@ -9,6 +9,7 @@ let posts = [];
 let channels = [];
 let currentImageUrl = '';
 let visualTemplates = [];
+let visualLibraryFilter = 'all';
 let toastTimer = null;
 let selectedCsvFile = null;
 let previewHistory = [
@@ -262,30 +263,62 @@ function updateVisualLibraryState() {
 
 function renderVisualLibrary() {
   const grid = $('visual-template-grid');
-  if (!visualTemplates.length) {
+  const query = $('visual-library-search').value.trim().toLowerCase();
+  const filtered = visualTemplates.filter(template => {
+    const category = template.category || 'market';
+    const matchesFilter = visualLibraryFilter === 'all' || category === visualLibraryFilter;
+    const searchable = `${template.title || ''} ${template.ctaText || ''} ${template.caption || ''}`.toLowerCase();
+    return matchesFilter && (!query || searchable.includes(query));
+  });
+  const customCount = visualTemplates.filter(template => template.sourceType === 'custom').length;
+  $('visual-library-count').textContent = `${visualTemplates.length} modèles · ${customCount} personnel${customCount > 1 ? 's' : ''}`;
+  if (!filtered.length) {
     grid.innerHTML = '<div class="visual-library-loading">Bibliothèque indisponible. Tu peux toujours importer ton propre visuel.</div>';
     return;
   }
-  grid.innerHTML = visualTemplates.map(template => {
-    const previewUrl = publicAssetUrl(template.webp || template.png);
-    return `<button class="visual-template-card" type="button" data-template-id="${escapeHtml(template.id)}" aria-label="Utiliser ${escapeHtml(template.title)}">
-      <img src="${escapeHtml(previewUrl)}" alt="" loading="lazy">
-      <span><strong>${escapeHtml(template.title)}</strong><small>${escapeHtml(template.ctaText || 'Visuel teaser')}</small></span>
-      <i>Utiliser</i>
-    </button>`;
+  grid.innerHTML = filtered.map(template => {
+    const previewUrl = publicAssetUrl(template.webp || template.png || template.image_url);
+    const sourceLabel = template.sourceType === 'custom' ? 'Mon visuel' : template.category === 'conversion' ? 'Conversion' : 'Bectanse';
+    return `<article class="visual-template-card ${escapeHtml(template.category || 'market')}" data-template-id="${escapeHtml(template.id)}">
+      <button class="visual-template-apply" type="button" aria-label="Utiliser ${escapeHtml(template.title)}">
+        <img src="${escapeHtml(previewUrl)}" alt="" loading="lazy">
+        <span><em>${escapeHtml(sourceLabel)}</em><strong>${escapeHtml(template.title)}</strong><small>${escapeHtml(template.ctaText || 'Visuel sans CTA par défaut')}</small></span>
+        <i>Utiliser</i>
+      </button>
+      ${template.sourceType === 'custom' ? `<button class="visual-template-delete" type="button" data-custom-id="${Number(template.customId)}" aria-label="Supprimer ${escapeHtml(template.title)}">×</button>` : ''}
+    </article>`;
   }).join('');
   updateVisualLibraryState();
 }
 
 async function loadVisualLibrary() {
+  let brandTemplates = [];
+  let customTemplates = [];
   try {
     const response = await fetch(VISUAL_MANIFEST_URL, {cache:'no-store'});
     if (!response.ok) throw new Error('Bibliothèque visuelle introuvable');
     const manifest = await response.json();
-    visualTemplates = Array.isArray(manifest.templates) ? manifest.templates : [];
+    brandTemplates = (Array.isArray(manifest.templates) ? manifest.templates : []).map(template => ({
+      ...template, sourceType:'brand', category:template.category || 'market'
+    }));
   } catch (error) {
-    visualTemplates = [];
+    brandTemplates = [];
   }
+  if (!PREVIEW_MODE) {
+    try {
+      const response = await fetch(`/admin/api/telegram/media-library?key=${encodeURIComponent(KEY)}`);
+      const data = await readJson(response);
+      customTemplates = (data.media || []).map(item => ({
+        id:`custom-${item.id}`, customId:item.id, title:item.title,
+        webp:item.image_url, image_url:item.image_url, category:item.category || 'personal',
+        caption:item.caption || '', ctaText:item.cta_text || '', ctaUrl:item.cta_url || '',
+        sourceType:'custom'
+      }));
+    } catch (error) {
+      customTemplates = [];
+    }
+  }
+  visualTemplates = [...brandTemplates, ...customTemplates];
   renderVisualLibrary();
 }
 
@@ -297,6 +330,7 @@ function useVisualTemplate(templateId) {
     return;
   }
   setImage(publicAssetUrl(template.webp || template.png));
+  if (template.caption && !$('post-message').value.trim()) $('post-message').value = template.caption;
   if (template.ctaText && template.ctaUrl) {
     $('button-text').value = template.ctaText;
     $('button-url').value = template.ctaUrl;
@@ -304,6 +338,77 @@ function useVisualTemplate(templateId) {
   updateVisualLibraryState();
   updatePreview();
   showToast(`Modèle « ${template.title} » appliqué avec son bouton CTA.`);
+}
+
+function resetLibraryUpload() {
+  $('library-image-title').value = '';
+  $('library-image-category').value = 'personal';
+  $('library-image-file').value = '';
+  $('library-image-cta').value = '';
+  $('library-image-url').value = 'https://acces.bectanse-academie.com/';
+  $('library-image-caption').value = '';
+  $('visual-catalog-upload').hidden = true;
+  $('save-library-upload').disabled = false;
+  $('save-library-upload').textContent = 'Enregistrer dans le catalogue →';
+}
+
+async function saveLibraryUpload() {
+  const title = $('library-image-title').value.trim();
+  const category = $('library-image-category').value;
+  const file = $('library-image-file').files[0];
+  const ctaText = $('library-image-cta').value.trim();
+  const ctaUrl = $('library-image-url').value.trim();
+  const caption = $('library-image-caption').value.trim();
+  if (!title) return showToast('Donne un nom à ton visuel.', 'error');
+  if (!file) return showToast('Choisis l’image à enregistrer.', 'error');
+  if ((ctaText && !ctaUrl) || (!ctaText && ctaUrl && ctaUrl !== 'https://acces.bectanse-academie.com/')) {
+    return showToast('Renseigne le texte et le lien du CTA ensemble.', 'error');
+  }
+  const button = $('save-library-upload');
+  button.disabled = true;
+  button.textContent = 'Enregistrement…';
+  try {
+    const imageUrl = await uploadMediaFile(file);
+    const normalizedUrl = ctaText ? ctaUrl : '';
+    if (PREVIEW_MODE) {
+      visualTemplates.unshift({
+        id:`custom-preview-${Date.now()}`,customId:Date.now(),title,category,caption,
+        ctaText,ctaUrl:normalizedUrl,webp:imageUrl,image_url:imageUrl,sourceType:'custom'
+      });
+    } else {
+      const response = await fetch('/admin/api/telegram/media-library/save', {
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          key:KEY,title,image_url:imageUrl,category,caption,cta_text:ctaText,cta_url:normalizedUrl
+        })
+      });
+      await readJson(response);
+      await loadVisualLibrary();
+    }
+    resetLibraryUpload();
+    renderVisualLibrary();
+    showToast('Visuel enregistré dans ton catalogue permanent.');
+  } catch (error) {
+    showToast(error.message, 'error');
+    button.disabled = false;
+    button.textContent = 'Enregistrer dans le catalogue →';
+  }
+}
+
+async function deleteLibraryVisual(mediaId) {
+  const template = visualTemplates.find(item => Number(item.customId) === Number(mediaId));
+  if (!template || !window.confirm(`Supprimer « ${template.title} » du catalogue ?`)) return;
+  try {
+    if (PREVIEW_MODE) visualTemplates = visualTemplates.filter(item => Number(item.customId) !== Number(mediaId));
+    else {
+      const response = await fetch(`/admin/api/telegram/media-library/${mediaId}/delete`, {
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY})
+      });
+      await readJson(response);
+      await loadVisualLibrary();
+    }
+    renderVisualLibrary();
+    showToast('Visuel retiré du catalogue.');
+  } catch (error) { showToast(error.message, 'error'); }
 }
 
 function selectedWeekdays() {
@@ -493,25 +598,27 @@ async function savePost(event) {
   }
 }
 
-async function uploadImage(file) {
-  if (!file) return;
+async function uploadMediaFile(file) {
+  if (!file) throw new Error('Choisis une image.');
   const allowed = ['image/jpeg','image/png','image/webp','image/gif'];
-  if (!allowed.includes(file.type)) return showToast('Utilise une image JPG, PNG, WebP ou GIF.', 'error');
-  if (file.size > 8 * 1024 * 1024) return showToast('L’image dépasse 8 Mo.', 'error');
-  if (PREVIEW_MODE) {
-    setImage(URL.createObjectURL(file));
-    showToast('Image ajoutée à l’aperçu.');
-    return;
-  }
+  if (!allowed.includes(file.type)) throw new Error('Utilise une image JPG, PNG, WebP ou GIF.');
+  if (file.size > 8 * 1024 * 1024) throw new Error('L’image dépasse 8 Mo.');
+  if (PREVIEW_MODE) return URL.createObjectURL(file);
   const form = new FormData();
   form.append('key', KEY);
   form.append('image', file);
+  const response = await fetch('/admin/api/telegram/upload', {method:'POST', body:form});
+  const data = await readJson(response);
+  return data.url;
+}
+
+async function uploadImage(file) {
+  if (!file) return;
   $('upload-zone').querySelector('strong').textContent = 'Import en cours…';
   try {
-    const response = await fetch('/admin/api/telegram/upload', {method:'POST', body:form});
-    const data = await readJson(response);
-    setImage(data.url);
-    showToast('Image ajoutée au post.');
+    const imageUrl = await uploadMediaFile(file);
+    setImage(imageUrl);
+    showToast(PREVIEW_MODE ? 'Image ajoutée à l’aperçu.' : 'Image ajoutée au post.');
   } catch (error) {
     showToast(error.message, 'error');
   } finally {
@@ -870,9 +977,25 @@ $('scheduled-for').addEventListener('input', updatePreview);
 $('post-image').addEventListener('change', event => uploadImage(event.target.files[0]));
 $('remove-image').addEventListener('click', () => setImage(''));
 $('visual-template-grid').addEventListener('click', event => {
+  const deleteButton = event.target.closest('.visual-template-delete[data-custom-id]');
+  if (deleteButton) return deleteLibraryVisual(Number(deleteButton.dataset.customId));
   const card = event.target.closest('.visual-template-card[data-template-id]');
   if (card) useVisualTemplate(card.dataset.templateId);
 });
+$('visual-library-search').addEventListener('input', renderVisualLibrary);
+$('visual-filter-chips').addEventListener('click', event => {
+  const button = event.target.closest('button[data-visual-filter]');
+  if (!button) return;
+  visualLibraryFilter = button.dataset.visualFilter;
+  document.querySelectorAll('#visual-filter-chips button').forEach(item => item.classList.toggle('active', item === button));
+  renderVisualLibrary();
+});
+$('open-library-upload').addEventListener('click', () => {
+  $('visual-catalog-upload').hidden = false;
+  $('library-image-title').focus();
+});
+$('cancel-library-upload').addEventListener('click', resetLibraryUpload);
+$('save-library-upload').addEventListener('click', saveLibraryUpload);
 $('post-search').addEventListener('input', renderPosts);
 $('post-filter').addEventListener('change', renderPosts);
 $('refresh-posts').addEventListener('click', loadPosts);
