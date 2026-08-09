@@ -1,0 +1,363 @@
+﻿nom;type;date;heure;rythme;jours;semaine_rotation;canal;message;image_url;texte_bouton;lien_bouton;question;reponses;bonnes_reponses;explication;anonyme;choix_multiples;silencieux;actif;tous_les_canaux;canaux
+La semaine commence maintenant;message;10/08/2026;00:00;unique;;;@BECTANSE_ACADEMIE;"🌙 *LA SEMAINE COMMENCE MAINTENANT*
+
+Les écrans peuvent attendre quelques heures. Ton plan, lui, ne doit pas attendre lundi matin.
+
+Fixe ton risque. Note tes priorités. Repose-toi.
+
+À 09:00, on se retrouve avec une seule mission : exécuter avec discipline.
+
+Bonne nuit l’équipe. 🔥";;;;;;;;oui;non;oui;oui;oui;
+Ouverture Londres — cap sur le plan;message;10/08/2026;09:00;unique;;;@BECTANSE_ACADEMIE;"🇬🇧 *LONDRES EST LANCÉE*
+
+Nouvelle semaine. Nouveau terrain de jeu. Même règle : pas d’entrée sans scénario.
+
+Observe d’abord. Décide ensuite.
+
+Qui est déjà devant ses graphiques ? 🔥";;;;;;;;oui;non;non;oui;oui;
+Quiz discipline du lundi;quiz;10/08/2026;10:00;unique;;;@BECTANSE_ACADEMIE;;;;;Qu’est-ce qui construit le plus une performance durable en trading ?;La chance|Une discipline répétée|Le signal parfait|Trader plus souvent;2;La discipline permet d’appliquer le même processus, de mesurer ses décisions et de protéger le capital.;oui;non;non;oui;oui;
+Le point d’analyse du lundi;message;10/08/2026;11:00;unique;;;@BECTANSE_ACADEMIE;"📊 *TON ANALYSE DOIT RÉPONDRE À 3 QUESTIONS*
+
+1. Où le scénario devient-il intéressant ?
+2. Où devient-il invalide ?
+3. Quel risque es-tu prêt à accepter ?
+
+Retrouve les mises à jour disponibles dans ton espace et prépare ton plan avant d’agir.
+
+_Le trading comporte un risque de perte. Aucun résultat n’est garanti._";;VOIR L’ANALYSE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Fenêtre des premiers signaux;message;10/08/2026;12:00;unique;;;@BECTANSE_ACADEMIE;"🚨 *LA FENÊTRE DE SURVEILLANCE APPROCHE*
+
+Les premiers scénarios de la journée sont étudiés.
+
+S’il n’y a pas de configuration propre, on ne force rien. S’il y en a une, les membres en place la verront au bon moment.
+
+Prépare ton risque avant l’alerte, pas après.";;REJOINDRE LA SESSION;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Pré-session US du lundi;message;10/08/2026;14:00;unique;;;@BECTANSE_ACADEMIE;"🇺🇸 *LE DESK US SE PRÉPARE*
+
+La deuxième partie de journée peut changer le rythme du marché.
+
+Pas besoin d’anticiper chaque mouvement : prépare deux scénarios et accepte aussi celui où tu ne trades pas.
+
+Rendez-vous à 15:00. 🔥";;;;;;;;oui;non;non;oui;oui;
+Session US Bectanse — lundi;message;10/08/2026;15:00;unique;;;@BECTANSE_ACADEMIE;"🇺🇸 *SESSION US BECTANSE OUVERTE*
+
+Le plan est posé. Le risque est défini. Maintenant, on laisse le marché confirmer — ou invalider.
+
+Ne cours pas après le prix.
+
+L’équipe est en place. 🎯";;;;;;;;oui;non;non;oui;oui;
+Vérification des alertes — lundi;message;10/08/2026;16:00;unique;;;@BECTANSE_ACADEMIE;"🔔 *POINT ALERTES*
+
+Une configuration propre respecte le plan, le niveau d’invalidation et le risque prévu.
+
+Consulte ton espace pour vérifier si une nouvelle alerte répond aujourd’hui à ces critères.
+
+Pas d’alerte ? Pas de trade forcé.";;VÉRIFIER LES ALERTES;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Le choix du lundi soir;message;10/08/2026;20:30;unique;;;@BECTANSE_ACADEMIE;"🌙 *TA SEMAINE NE SE DÉCIDE PAS VENDREDI*
+
+Elle se décide dans les habitudes que tu poses maintenant.
+
+Si tu veux une structure, des analyses et un espace pour suivre les alertes, tu peux commencer ce soir.
+
+Demain, on continue. Mais ton premier pas peut être maintenant.
+
+_Le trading comporte un risque de perte. Aucun gain n’est garanti._";;COMMENCER MAINTENANT;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Clôture du lundi, préparation du mardi;message;11/08/2026;00:00;unique;;;@BECTANSE_ACADEMIE;"🌙 *LE MARCHÉ S’ARRÊTE, L’APPRENTISSAGE RESTE*
+
+Avant de fermer : note une décision correcte et une erreur à ne pas répéter.
+
+Demain, on travaille la gestion du risque — le sujet que beaucoup ignorent jusqu’au jour où il est trop tard.
+
+Rendez-vous à 09:00. Bonne nuit l’équipe.";;;;;;;;oui;non;oui;oui;oui;
+Londres — mardi pédagogique;message;11/08/2026;09:00;unique;;;@BECTANSE_ACADEMIE;"🇬🇧 *SESSION LONDRES*
+
+Question avant toute entrée : combien peux-tu perdre sans modifier ton comportement ?
+
+Si tu ne connais pas la réponse, la taille de ta position n’est pas encore définie correctement.
+
+On observe. On calcule. Puis seulement, on décide.";;;;;;;;oui;non;non;oui;oui;
+Quiz ratio risque/rendement;quiz;11/08/2026;10:00;unique;;;@BECTANSE_ACADEMIE;;;;;Tu risques 50 € pour viser un gain potentiel de 100 €. Quel est le ratio risque/rendement ?;1:1|1:2|2:1|1:3;2;Tu risques une unité pour un gain potentiel de deux unités : le ratio est 1:2. Cela ne garantit pas le résultat.;oui;non;non;oui;oui;
+Analyse — risque avant direction;message;11/08/2026;11:00;unique;;;@BECTANSE_ACADEMIE;"📐 *L’ENTRÉE N’EST PAS LA PREMIÈRE QUESTION*
+
+Commence par le niveau qui invalide ton idée. Il détermine ton risque, ta taille et parfois la décision de ne pas intervenir.
+
+Les éléments disponibles aujourd’hui sont regroupés dans ton espace.
+
+_Contenu éducatif. Le trading comporte un risque de perte._";;ACCÉDER À L’ANALYSE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Préparation des scénarios — mardi;message;11/08/2026;12:00;unique;;;@BECTANSE_ACADEMIE;"⏱ *AVANT LES PREMIERS SCÉNARIOS*
+
+Vérifie trois choses : ton risque maximal, ton niveau d’invalidation et le nombre de positions déjà ouvertes.
+
+Une alerte n’efface jamais les règles de gestion du risque.
+
+Les membres peuvent rejoindre l’espace avant la prochaine mise à jour.";;PRÉPARER LA SESSION;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Pré-session US — mardi;message;11/08/2026;14:00;unique;;;@BECTANSE_ACADEMIE;"🇺🇸 *LA PÉRIODE US APPROCHE*
+
+Plus de mouvement ne signifie pas automatiquement plus de qualité.
+
+Attends ton contexte. Refuse les entrées improvisées. Garde la même taille de risque.
+
+On se retrouve à 15:00.";;;;;;;;oui;non;non;oui;oui;
+Session US Bectanse — mardi;message;11/08/2026;15:00;unique;;;@BECTANSE_ACADEMIE;"🇺🇸 *LE DESK US EST EN PLACE*
+
+Lecture du contexte.
+Attente de la confirmation.
+Risque défini.
+
+Trois étapes simples. Le plus difficile est de ne pas les raccourcir.
+
+Reste concentré. 🔥";;;;;;;;oui;non;non;oui;oui;
+Alertes et taille de position;message;11/08/2026;16:00;unique;;;@BECTANSE_ACADEMIE;"🚨 *UNE ALERTE N’EST PAS UNE TAILLE DE POSITION*
+
+Deux traders peuvent observer le même scénario et prendre un risque différent selon leur capital et leur plan.
+
+Vérifie les dernières mises à jour, puis applique ta propre limite de risque.";;VOIR LES MISES À JOUR;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+L’information ne suffit pas;message;11/08/2026;20:30;unique;;;@BECTANSE_ACADEMIE;"🧠 *TU NE MANQUES PEUT-ÊTRE PAS D’INFORMATIONS*
+
+Tu manques peut-être d’un processus assez simple pour être répété quand l’émotion monte.
+
+Une structure utile t’aide à préparer, filtrer et revoir tes décisions.
+
+Si c’est ce qu’il te manque, découvre l’écosystème Bectanse.
+
+_Aucun résultat financier n’est garanti._";;DÉCOUVRIR L’ESPACE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Mercredi sous contrôle;message;12/08/2026;00:00;unique;;;@BECTANSE_ACADEMIE;"🌙 *DEMAIN, LA PATIENCE SERA UN AVANTAGE*
+
+Une statistique d’inflation américaine est programmée à 14:30, heure de Paris.
+
+Ne prépare pas une prédiction. Prépare ta réaction : risque réduit, scénario clair, aucune poursuite impulsive.
+
+Repose-toi. On se retrouve à 09:00.";;;;;;;;oui;non;oui;oui;oui;
+Londres — mercredi de patience;message;12/08/2026;09:00;unique;;;@BECTANSE_ACADEMIE;"🇬🇧 *LONDRES EST OUVERTE*
+
+Le vrai défi aujourd’hui ne sera peut-être pas de trouver une entrée.
+
+Ce sera d’attendre quand les conditions ne sont pas encore réunies.
+
+L’IPC américain est attendu à 14:30. Garde du capital mental pour l’après-midi.";;;;;;;;oui;non;non;oui;oui;
+Quiz anti-FOMO;quiz;12/08/2026;10:00;unique;;;@BECTANSE_ACADEMIE;;;;;Le prix part sans toi et l’envie de courir après le mouvement monte. Quelle est la meilleure première action ?;Entrer immédiatement|Revenir au plan et attendre un nouveau scénario|Doubler la taille|Supprimer le stop;2;Revenir au plan évite une décision dictée par le FOMO. Un mouvement raté n’oblige jamais à improviser.;oui;non;non;oui;oui;
+Analyse avant l’IPC;message;12/08/2026;11:00;unique;;;@BECTANSE_ACADEMIE;"📊 *AVANT 14:30 : CARTOGRAPHIE, PAS PRÉDICTION*
+
+Identifie les niveaux où la liquidité peut se concentrer. Prépare un scénario haussier, un scénario baissier et une zone où tu refuses d’agir.
+
+Retrouve les éléments de préparation disponibles dans ton espace.
+
+_Le trading comporte un risque de perte._";;VOIR LA PRÉPARATION;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Avant l’annonce, protéger le capital;message;12/08/2026;12:00;unique;;;@BECTANSE_ACADEMIE;"⚠️ *AVANT LA VOLATILITÉ*
+
+L’IPC américain est programmé à 14:30, heure de Paris.
+
+Évite les positions prises par impatience. Vérifie ton exposition et décide maintenant de ton risque maximal.
+
+La prochaine mise à jour sera visible dans l’espace membres.";;REJOINDRE LA SESSION;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Compte à rebours IPC;message;12/08/2026;14:00;unique;;;@BECTANSE_ACADEMIE;"⏳ *IPC US DANS 30 MINUTES*
+
+À 14:30, la publication de l’inflation américaine peut accélérer plusieurs marchés.
+
+Ne confonds pas vitesse et opportunité.
+
+Attends la donnée, observe la réaction et refuse de poursuivre une bougie sans scénario.";;;;;;;;oui;non;non;oui;oui;
+Après l’IPC — revenir au plan;message;12/08/2026;15:00;unique;;;@BECTANSE_ACADEMIE;"🇺🇸 *SESSION US BECTANSE*
+
+La statistique est sortie. Maintenant, oublie l’envie d’avoir raison.
+
+Observe ce que le prix confirme réellement. Si ton niveau est déjà loin, laisse partir le mouvement.
+
+Protéger son capital, c’est aussi savoir ne pas poursuivre.";;;;;;;;oui;non;non;oui;oui;
+Alertes après volatilité;message;12/08/2026;16:00;unique;;;@BECTANSE_ACADEMIE;"🔔 *LE MARCHÉ A BOUGÉ. LE PLAN A-T-IL CONFIRMÉ ?*
+
+Une accélération ne suffit pas. Il faut encore un contexte, une invalidation et un risque cohérent.
+
+Consulte l’espace pour vérifier si une alerte exploitable a été publiée après la réaction.";;CONSULTER LES ALERTES;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Le calme est une compétence;message;12/08/2026;20:30;unique;;;@BECTANSE_ACADEMIE;"🌙 *LE CALME N’EST PAS UN TRAIT DE CARACTÈRE*
+
+C’est une compétence qui se construit avec des règles préparées avant la volatilité.
+
+Si tu veux arrêter d’improviser seul quand le marché accélère, rejoins une structure pensée pour préparer et suivre les scénarios.
+
+_Aucun gain n’est garanti. Le risque de perte existe._";;REJOINDRE L’ÉQUIPE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Transition vers le jeudi technique;message;13/08/2026;00:00;unique;;;@BECTANSE_ACADEMIE;"🌙 *DEMAIN, ON MONTE D’UN NIVEAU*
+
+Le marché ne récompense pas le vocabulaire compliqué. Il récompense les décisions cohérentes.
+
+Jeudi, on travaille la confirmation, le rejet et l’invalidation.
+
+Une nouvelle statistique de prix américaine est attendue à 14:30. Repose-toi et arrive avec un plan.";;;;;;;;oui;non;oui;oui;oui;
+Londres — jeudi expertise;message;13/08/2026;09:00;unique;;;@BECTANSE_ACADEMIE;"🇬🇧 *LONDRES EST EN MOUVEMENT*
+
+Aujourd’hui, observe la manière dont le prix quitte un niveau — puis surtout la manière dont il y revient.
+
+Une cassure sans acceptation peut devenir un piège.
+
+Lis la clôture, le contexte et l’invalidation. Pas seulement la mèche.";;;;;;;;oui;non;non;oui;oui;
+Quiz lecture de cassure;quiz;13/08/2026;10:00;unique;;;@BECTANSE_ACADEMIE;;;;;Le prix dépasse une résistance puis clôture rapidement sous le niveau. Quelle lecture est la plus rigoureuse ?;Cassure confirmée|Achat automatique|Rejet possible à confirmer|Le niveau n’a plus aucune importance;3;Le retour sous le niveau suggère un rejet possible, mais le contexte et une confirmation restent nécessaires avant toute décision.;oui;non;non;oui;oui;
+Analyse — confirmation et invalidation;message;13/08/2026;11:00;unique;;;@BECTANSE_ACADEMIE;"📊 *UN BON SCÉNARIO PEUT ÊTRE INVALIDÉ*
+
+S’il n’existe aucun niveau précis qui te prouve que ton idée est fausse, ce n’est pas encore un scénario exploitable.
+
+Travaille aujourd’hui la confirmation, l’invalidation et le rapport risque/rendement.
+
+Les mises à jour sont disponibles dans ton espace.";;OUVRIR L’ANALYSE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Préparation PPI et scénarios;message;13/08/2026;12:00;unique;;;@BECTANSE_ACADEMIE;"🚨 *PRÉPARE, NE DEVINE PAS*
+
+Le PPI américain est programmé à 14:30, heure de Paris.
+
+Prépare les niveaux qui comptent, puis laisse la donnée et le prix révéler le scénario.
+
+Les membres peuvent rejoindre la session avant la prochaine mise à jour.";;ACCÉDER À LA SESSION;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Compte à rebours PPI;message;13/08/2026;14:00;unique;;;@BECTANSE_ACADEMIE;"⏳ *PPI US DANS 30 MINUTES*
+
+La publication des prix à la production peut modifier rapidement le rythme du marché.
+
+Pas de prédiction. Pas de position surdimensionnée. Pas de poursuite aveugle.
+
+Observe la réaction avant d’interpréter.";;;;;;;;oui;non;non;oui;oui;
+Session US Bectanse — jeudi;message;13/08/2026;15:00;unique;;;@BECTANSE_ACADEMIE;"🇺🇸 *LE DESK US EST OUVERT*
+
+La première impulsion est passée. Le travail commence maintenant : le prix accepte-t-il les nouveaux niveaux ou les rejette-t-il ?
+
+Ne transforme pas une réaction en certitude.
+
+On reste méthodiques. 🎯";;;;;;;;oui;non;non;oui;oui;
+Vérification des opportunités — jeudi;message;13/08/2026;16:00;unique;;;@BECTANSE_ACADEMIE;"🔎 *MOUVEMENT OU OPPORTUNITÉ ?*
+
+La différence se trouve dans la confirmation, l’invalidation et le risque acceptable.
+
+Vérifie dans l’espace si une configuration répond à ces trois conditions aujourd’hui.";;VOIR LES OPPORTUNITÉS;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Monter en compétence;message;13/08/2026;20:30;unique;;;@BECTANSE_ACADEMIE;"🌙 *TU N’AS PAS BESOIN DE TOUT PRÉDIRE*
+
+Tu as besoin d’un processus qui te dit quoi observer, quand attendre et où ton scénario devient invalide.
+
+Si tu veux travailler avec davantage de structure et suivre les analyses de l’équipe, l’accès est ouvert.
+
+_Le trading comporte un risque de perte._";;ACCÉDER À BECTANSE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Dernière session, même exigence;message;14/08/2026;00:00;unique;;;@BECTANSE_ACADEMIE;"🌙 *DERNIÈRE JOURNÉE, MÊME EXIGENCE*
+
+Le vendredi pousse parfois à forcer un dernier trade pour « finir la semaine ».
+
+Ton objectif demain n’est pas de fabriquer un résultat. C’est de respecter ton plan une dernière fois.
+
+Rendez-vous à 09:00.";;;;;;;;oui;non;oui;oui;oui;
+Londres — vendredi de maîtrise;message;14/08/2026;09:00;unique;;;@BECTANSE_ACADEMIE;"🇬🇧 *LONDRES EST OUVERTE*
+
+Dernière session de la semaine.
+
+Si ton scénario n’est pas clair, ton meilleur résultat peut être de conserver ton capital et ta discipline.
+
+On ne force pas une conclusion. On exécute le plan.";;;;;;;;oui;non;non;oui;oui;
+Sondage bilan de la semaine;sondage;14/08/2026;10:00;unique;;;@BECTANSE_ACADEMIE;;;;;Cette semaine, quel comportement t’a le plus freiné ?;Entrer trop tôt|Sortir trop tôt|Surtrader|Manquer de discipline;;;oui;non;non;oui;oui;
+Analyse — finir proprement;message;14/08/2026;11:00;unique;;;@BECTANSE_ACADEMIE;"📊 *FINIR PROPREMENT VAUT PLUS QUE FINIR EN FORCE*
+
+Avant la session US, vérifie ton exposition, ton risque cumulé et les décisions déjà prises cette semaine.
+
+L’analyse du jour doit servir ton plan — pas ton envie de te refaire.
+
+Retrouve les éléments disponibles dans ton espace.";;VOIR L’ANALYSE DU JOUR;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Avant les ventes au détail US;message;14/08/2026;12:00;unique;;;@BECTANSE_ACADEMIE;"⚠️ *LE RENDEZ-VOUS MACRO DE L’APRÈS-MIDI*
+
+Les ventes au détail américaines sont programmées à 14:30, heure de Paris.
+
+La donnée peut influencer les anticipations sur l’activité, mais elle ne donne jamais à elle seule une direction certaine.
+
+Prépare ton risque avant la publication.";;PRÉPARER LA SESSION;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Compte à rebours ventes au détail;message;14/08/2026;14:00;unique;;;@BECTANSE_ACADEMIE;"⏳ *VENTES AU DÉTAIL US DANS 30 MINUTES*
+
+Dernière statistique majeure de notre semaine éditoriale.
+
+Ne laisse pas trente secondes de volatilité effacer cinq jours de discipline.
+
+Réduis l’impulsivité. Observe d’abord.";;;;;;;;oui;non;non;oui;oui;
+Session US Bectanse — vendredi;message;14/08/2026;15:00;unique;;;@BECTANSE_ACADEMIE;"🇺🇸 *DERNIÈRE SESSION US DE LA SEMAINE*
+
+Le marché a reçu sa donnée. Toi, garde tes règles.
+
+Une configuration propre mérite une analyse. Une configuration moyenne mérite d’être ignorée.
+
+Finissons la semaine avec maîtrise. 🔥";;;;;;;;oui;non;non;oui;oui;
+Dernier point alertes;message;14/08/2026;16:00;unique;;;@BECTANSE_ACADEMIE;"🔔 *DERNIER POINT ALERTES*
+
+Vérifie les mises à jour disponibles et assure-toi que toute décision reste compatible avec ton risque de fin de semaine.
+
+S’il n’y a rien de propre, terminer sans nouveau trade est aussi une décision professionnelle.";;VÉRIFIER L’ESPACE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Le vrai résultat de la semaine;message;14/08/2026;20:30;unique;;;@BECTANSE_ACADEMIE;"📝 *TON VRAI BILAN NE TIENT PAS EN UN CHIFFRE*
+
+As-tu respecté ton risque ?
+As-tu évité un trade impulsif ?
+As-tu documenté tes erreurs ?
+
+Ce sont ces réponses qui préparent la prochaine progression.
+
+Si tu veux construire ce processus avec l’équipe, découvre l’espace Bectanse.
+
+_Aucun résultat n’est garanti._";;REJOINDRE L’ÉQUIPE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Sondage respect du plan;sondage;15/08/2026;10:00;unique;;;@BECTANSE_ACADEMIE;;;;;Sur combien de jours as-tu réellement respecté ton plan cette semaine ?;0 à 1 jour|2 à 3 jours|4 jours|Les 5 jours;;;oui;non;non;oui;oui;
+La revue en quatre questions;message;15/08/2026;12:00;unique;;;@BECTANSE_ACADEMIE;"📓 *TA REVUE EN 4 QUESTIONS*
+
+1. Quelle décision était parfaitement conforme au plan ?
+2. Quelle erreur s’est répétée ?
+3. À quel moment l’émotion a pris le dessus ?
+4. Quelle règle sera non négociable lundi ?
+
+Écris les réponses. Une semaine non revue risque de devenir une semaine répétée.";;;;;;;;oui;non;non;oui;oui;
+Ne compare pas ton chapitre;message;15/08/2026;17:00;unique;;;@BECTANSE_ACADEMIE;"🧠 *LES CAPTURES DES AUTRES NE RACONTENT PAS LEUR HISTOIRE COMPLÈTE*
+
+Tu ne vois ni leur risque, ni leurs pertes, ni leurs erreurs.
+
+Compare ton exécution à ton propre plan. C’est la seule comparaison qui peut réellement améliorer ta prochaine semaine.
+
+Aujourd’hui, prends du recul.";;;;;;;;oui;non;non;oui;oui;
+Demain, on prépare;message;15/08/2026;20:30;unique;;;@BECTANSE_ACADEMIE;"🌙 *CE SOIR, ON COUPE. DEMAIN, ON PRÉPARE.*
+
+Profite du recul du week-end.
+
+Dimanche, on construira la checklist, les rendez-vous économiques et le plan mental de la nouvelle semaine.
+
+Reviens avec une page blanche et l’envie d’être plus précis.";;;;;;;;oui;non;oui;oui;oui;
+Bon dimanche — récupération active;message;16/08/2026;09:30;unique;;;@BECTANSE_ACADEMIE;"☀️ *BON DIMANCHE L’ÉQUIPE*
+
+Profite de la matinée. Respire. Prends du recul.
+
+Puis rappelle-toi : une nouvelle semaine ne devient pas différente par hasard.
+
+Elle devient différente quand les règles sont plus claires, le risque mieux défini et les erreurs réellement étudiées.
+
+Aujourd’hui, on prépare la suite ensemble.";;;;;;;;oui;non;non;oui;oui;
+Combien de semaines vas-tu repousser ?;message;16/08/2026;12:00;unique;;;@BECTANSE_ACADEMIE;"⏳ *COMBIEN DE SEMAINES VAS-TU ENCORE REPOUSSER ?*
+
+Tu connais probablement déjà les mots : patience, risque, discipline, journal.
+
+La vraie question est plus inconfortable : lesquels appliques-tu quand personne ne te regarde ?
+
+Tu ne manques peut-être pas d’une nouvelle stratégie.
+Tu manques peut-être d’un système que tu acceptes enfin de suivre.";;;;;;;;oui;non;non;oui;oui;
+Checklist et rendez-vous vérifiés;message;16/08/2026;16:00;unique;;;@BECTANSE_ACADEMIE;"📅 *3 RENDEZ-VOUS À NOTER CETTE SEMAINE*
+
+🇺🇸 Mercredi 14:30 — IPC américain de juillet
+🇺🇸 Jeudi 14:30 — Prix à la production de juillet
+🇺🇸 Vendredi 14:30 — Ventes au détail de juillet
+
+Heures de Paris, d’après les calendriers officiels BLS et U.S. Census consultés.
+
+Prépare des scénarios, réduis l’exposition si nécessaire et ne prédis jamais un chiffre avant sa publication.
+
+_Le calendrier indique un timing, pas la direction future du marché._";;;;;;;;oui;non;non;oui;oui;
+Demain, tout recommence;message;16/08/2026;20:30;unique;;;@BECTANSE_ACADEMIE;"🔥 *DEMAIN, TOUT RECOMMENCE*
+
+À 08:30 : l’agenda économique vérifié.
+À 09:00 : la session Londres.
+Puis les quiz, les analyses, les scénarios et les alertes de l’équipe.
+
+Tu peux encore regarder la semaine commencer de l’extérieur.
+
+Ou entrer ce soir avec un plan, un espace et une équipe à retrouver chaque jour.
+
+_Le trading comporte un risque de perte. Aucun gain n’est garanti._";;PRÉPARER MA SEMAINE;https://acces.bectanse-academie.com/;;;;;oui;non;non;oui;oui;
+Compte à rebours nouvelle semaine;message;16/08/2026;23:30;unique;;;@BECTANSE_ACADEMIE;"⏳ *PLUS QUE 30 MINUTES*
+
+Dans 30 minutes, une nouvelle semaine commence.
+
+La question n’est pas de savoir si le marché offrira du mouvement.
+
+La question est de savoir si tu arriveras avec des règles assez claires pour ne pas agir au hasard.
+
+À minuit, on repart. Rendez-vous demain à 09:00. 🔥";;;;;;;;oui;non;oui;oui;oui;
