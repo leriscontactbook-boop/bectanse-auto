@@ -250,12 +250,19 @@ function publicAssetUrl(path='') {
   return `${window.location.origin}/${String(path).replace(/^\/+/, '')}`;
 }
 
+function templateTelegramImage(template={}) {
+  const path = template.sourceType === 'brand'
+    ? (template.png || template.webp || template.image_url)
+    : (template.image_url || template.webp || template.png);
+  return publicAssetUrl(path);
+}
+
 function updateVisualLibraryState() {
   const isMessage = currentPostType() === 'message';
   document.querySelectorAll('.visual-template-card').forEach(card => {
     card.classList.toggle('disabled', !isMessage);
     const template = visualTemplates.find(item => item.id === card.dataset.templateId);
-    const templateUrl = publicAssetUrl(template?.webp || template?.png || '');
+    const templateUrl = templateTelegramImage(template);
     card.classList.toggle('selected', isMessage && Boolean(templateUrl) && currentImageUrl === templateUrl);
     card.setAttribute('aria-disabled', String(!isMessage));
   });
@@ -329,7 +336,7 @@ function useVisualTemplate(templateId) {
     showToast('Un quiz ou sondage natif ne peut pas recevoir de photo. Crée un message teaser séparé pour utiliser ce visuel.', 'error');
     return;
   }
-  setImage(publicAssetUrl(template.webp || template.png));
+  setImage(templateTelegramImage(template));
   if (template.caption && !$('post-message').value.trim()) $('post-message').value = template.caption;
   if (template.ctaText && template.ctaUrl) {
     $('button-text').value = template.ctaText;
