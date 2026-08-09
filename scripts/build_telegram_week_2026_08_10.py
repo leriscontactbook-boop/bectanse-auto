@@ -9,6 +9,16 @@ CSV_PATH = ROOT / "content" / "planning_telegram_2026-08-10_au_2026-08-16.csv"
 PLAN_PATH = ROOT / "content" / "planning_telegram_2026-08-10_au_2026-08-16.md"
 SITE = "https://acces.bectanse-academie.com/"
 CHANNEL = "@BECTANSE_ACADEMIE"
+VISUAL_BASE = f"{SITE.rstrip('/')}/static/telegram-visuals"
+VISUALS = {
+    "london": f"{VISUAL_BASE}/01-session-londres-ouverte-v2.webp",
+    "us": f"{VISUAL_BASE}/02-session-americaine-t30-v2.webp",
+    "economic": f"{VISUAL_BASE}/03-annonce-economique-majeure-v2.webp",
+    "result": f"{VISUAL_BASE}/04-resultat-de-la-journee-v2.webp",
+    "quiz": f"{VISUAL_BASE}/05-quiz-du-marche-v2.webp",
+    "testimonial": f"{VISUAL_BASE}/06-nouveau-temoignage-v2.webp",
+    "alert": f"{VISUAL_BASE}/07-derniere-alerte-disponible-v2.webp",
+}
 
 CSV_COLUMNS = [
     "nom", "type", "date", "heure", "rythme", "jours", "semaine_rotation",
@@ -31,6 +41,7 @@ def add(day, date, time, name, objective, angle, message="", *, post_type="messa
         "objective": objective,
         "angle": angle,
         "message": message.strip(),
+        "image_url": "",
         "post_type": post_type,
         "button_text": button_text,
         "question": question.strip(),
@@ -652,6 +663,214 @@ La question est de savoir si tu arriveras avec des règles assez claires pour ne
 À minuit, on repart. Rendez-vous demain à 09:00. 🔥""", silent=True)
 
 
+# Direction artistique et éditoriale V2.
+# Les quiz et sondages restent des formats Telegram natifs : Telegram ne permet
+# pas de joindre une photo au même envoi. Leur bannière demeure disponible dans
+# la bibliothèque pour créer un teaser séparé lorsque c'est utile.
+VISUAL_GROUPS = {
+    "london": {
+        "Ouverture Londres — cap sur le plan", "Londres — mardi pédagogique",
+        "Londres — mercredi de patience", "Londres — jeudi expertise",
+        "Londres — vendredi de maîtrise",
+    },
+    "us": {"Pré-session US du lundi", "Pré-session US — mardi"},
+    "economic": {
+        "Analyse avant l’IPC", "Avant l’annonce, protéger le capital",
+        "Compte à rebours IPC", "Préparation PPI et scénarios",
+        "Compte à rebours PPI", "Avant les ventes au détail US",
+        "Compte à rebours ventes au détail", "Checklist et rendez-vous vérifiés",
+    },
+    "alert": {
+        "Fenêtre des premiers signaux", "Vérification des alertes — lundi",
+        "Préparation des scénarios — mardi", "Alertes et taille de position",
+        "Alertes après volatilité", "Vérification des opportunités — jeudi",
+        "Dernier point alertes",
+    },
+    "result": {"Le vrai résultat de la semaine", "La revue en quatre questions"},
+}
+
+CTA_BY_GROUP = {
+    "london": "VOIR LE PLAN LONDRES",
+    "us": "PRÉPARER LA SESSION US",
+    "economic": "VOIR LE CALENDRIER",
+    "alert": "OUVRIR LES ALERTES",
+    "result": "FAIRE MON BILAN",
+}
+
+CTA_OVERRIDES = {
+    "La semaine commence maintenant": "PRÉPARER MON PLAN",
+    "Quiz discipline du lundi": "APPROFONDIR AVEC BECTANSE",
+    "Le point d’analyse du lundi": "VOIR L’ANALYSE DU JOUR",
+    "Session US Bectanse — lundi": "REJOINDRE LE DESK US",
+    "Le choix du lundi soir": "COMMENCER AVEC L’ÉQUIPE",
+    "Clôture du lundi, préparation du mardi": "PRÉPARER MA JOURNÉE",
+    "Quiz ratio risque/rendement": "APPROFONDIR AVEC BECTANSE",
+    "Analyse — risque avant direction": "ACCÉDER À L’ANALYSE",
+    "Session US Bectanse — mardi": "REJOINDRE LE DESK US",
+    "L’information ne suffit pas": "DÉCOUVRIR L’ACCOMPAGNEMENT",
+    "Mercredi sous contrôle": "PRÉPARER LA JOURNÉE MACRO",
+    "Quiz anti-FOMO": "APPROFONDIR AVEC BECTANSE",
+    "Après l’IPC — revenir au plan": "REJOINDRE LE DESK US",
+    "Le calme est une compétence": "TRAVAILLER AVEC L’ÉQUIPE",
+    "Transition vers le jeudi technique": "PRÉPARER MON PLAN",
+    "Quiz lecture de cassure": "APPROFONDIR AVEC BECTANSE",
+    "Analyse — confirmation et invalidation": "OUVRIR L’ANALYSE",
+    "Session US Bectanse — jeudi": "REJOINDRE LE DESK US",
+    "Monter en compétence": "MONTER EN COMPÉTENCE",
+    "Dernière session, même exigence": "PRÉPARER MA SESSION",
+    "Sondage bilan de la semaine": "PROGRESSER AVEC BECTANSE",
+    "Analyse — finir proprement": "VOIR L’ANALYSE DU JOUR",
+    "Session US Bectanse — vendredi": "REJOINDRE LE DESK US",
+    "Sondage respect du plan": "PROGRESSER AVEC BECTANSE",
+    "Ne compare pas ton chapitre": "REVENIR À L’ESSENTIEL",
+    "Demain, on prépare": "PRÉPARER LA PROCHAINE SEMAINE",
+    "Bon dimanche — récupération active": "PRÉPARER LA SEMAINE AVEC NOUS",
+    "Combien de semaines vas-tu repousser ?": "PASSER À L’ACTION",
+    "Demain, tout recommence": "REJOINDRE BECTANSE",
+    "Compte à rebours nouvelle semaine": "ÊTRE PRÊT POUR DEMAIN",
+}
+
+MENTOR_REWRITES = {
+    "La semaine commence maintenant": """🌙 *LA SEMAINE COMMENCE MAINTENANT*
+
+Avant de dormir, prends dix minutes pour toi. Pas pour chercher un trade : pour écrire ton risque maximal, tes priorités et la règle que tu refuses de négocier cette semaine.
+
+Demain à 09:00, je veux te retrouver devant les graphiques avec un plan — pas avec l’envie de te rattraper.
+
+Repose-toi bien l’équipe. On attaque proprement. 🔥""",
+    "Ouverture Londres — cap sur le plan": """🇬🇧 *LONDRES EST OUVERTE*
+
+Ce matin, je veux que tu fasses simple : repère tes niveaux, écris ton invalidation et attends que le prix vienne à toi.
+
+Un trader solide n’a pas besoin d’être le premier dans le mouvement. Il a besoin de savoir pourquoi il y entre.
+
+On observe. On confirme. Puis seulement, on agit. 🔥""",
+    "Pré-session US du lundi": """🇺🇸 *SESSION US DANS 30 MINUTES*
+
+Avant que le rythme accélère, pose deux scénarios sur papier : ce qui valide ton idée et ce qui l’annule.
+
+Si rien n’est propre, tu ne dois rien au marché. Savoir rester en dehors fait partie du métier.
+
+À 15:00, on se retrouve concentrés et prêts. 🎯""",
+    "Le choix du lundi soir": """🌙 *JE VAIS ÊTRE DIRECT AVEC TOI*
+
+Ta semaine ne se transforme pas vendredi soir. Elle se transforme dans les décisions que tu répètes dès maintenant.
+
+Si tu veux arrêter d’avancer seul, retrouve nos analyses, nos alertes et le cadre de travail de l’équipe Bectanse.
+
+Demain, on continue. Ton premier pas peut commencer ce soir.""",
+    "Clôture du lundi, préparation du mardi": """🌙 *AVANT DE FERMER LES ÉCRANS*
+
+Note une décision dont tu es fier et une erreur que tu ne veux pas revoir demain. C’est ce travail discret qui fait progresser un trader.
+
+Mardi, on attaque la gestion du risque avec du concret.
+
+Bonne nuit l’équipe. Rendez-vous à 09:00.""",
+    "Londres — mardi pédagogique": """🇬🇧 *SESSION LONDRES*
+
+Ce matin, pose-toi cette question avant chaque entrée : combien suis-je réellement prêt à perdre sans changer de comportement ?
+
+Si tu n’as pas la réponse, ta taille de position n’est pas encore maîtrisée.
+
+On observe. On calcule. Puis seulement, on décide.""",
+    "Pré-session US — mardi": """🇺🇸 *SESSION US DANS 30 MINUTES*
+
+Le marché va peut-être accélérer. Toi, tu n’as pas besoin d’accélérer avec lui.
+
+Garde ton risque fixe, attends ton contexte et refuse toute entrée que tu ne saurais pas expliquer en une phrase.
+
+On se retrouve à 15:00, lucides et préparés.""",
+    "L’information ne suffit pas": """🧠 *JE VAIS TE DIRE CE QUI BLOQUE BEAUCOUP DE TRADERS*
+
+Ce n’est pas le manque d’informations. C’est l’absence d’un processus assez clair pour être appliqué quand l’émotion monte.
+
+Préparer, filtrer, exécuter, revoir : c’est ce cadre que nous travaillons chaque jour chez Bectanse.
+
+Si tu veux avancer avec une méthode et une équipe, l’espace est ouvert.""",
+    "Le calme est une compétence": """🌙 *LE CALME SE TRAVAILLE*
+
+Je ne te demande pas de ne rien ressentir. Je te demande de préparer des règles assez claires pour ne pas laisser l’émotion décider à ta place.
+
+Quand le marché accélère, ton plan doit parler plus fort que ton envie d’agir.
+
+Si tu veux construire ce réflexe avec nous, rejoins l’équipe.""",
+    "Dernière session, même exigence": """🌙 *ÉCOUTE BIEN AVANT VENDREDI*
+
+Tu n’as rien à prouver au marché. Ne force pas un dernier trade pour sauver ou embellir ta semaine.
+
+Demain, ton seul objectif est de respecter ton plan une fois de plus. Si aucun scénario n’est propre, ne pas trader sera une exécution parfaite.
+
+Rendez-vous à 09:00.""",
+    "Le vrai résultat de la semaine": """📝 *JE NE VEUX PAS SEULEMENT VOIR TON P&L*
+
+Dis-moi plutôt : as-tu respecté ton risque ? Évité un trade impulsif ? Documenté une erreur au lieu de la cacher ?
+
+C’est là que se construit la progression durable : dans la qualité des décisions répétées.
+
+Si tu veux installer ce processus avec l’équipe, viens faire ton bilan avec nous.""",
+    "Ne compare pas ton chapitre": """🧠 *JE VEUX TE RAPPELER UNE CHOSE IMPORTANTE*
+
+Les captures des autres ne montrent ni leur risque, ni leurs pertes, ni les erreurs commises avant le résultat.
+
+Compare ton exécution à ton propre plan. C’est la seule comparaison capable d’améliorer ta prochaine semaine.
+
+Aujourd’hui, prends du recul et reviens à l’essentiel.""",
+    "Bon dimanche — récupération active": """☀️ *BON DIMANCHE L’ÉQUIPE*
+
+Profite de ta matinée. Coupe un peu, respire et prends du recul : le repos fait aussi partie du métier.
+
+Puis reviens avec une question simple : quelle règle rendra ma prochaine semaine plus propre que la précédente ?
+
+Cet après-midi, on prépare la suite ensemble.""",
+    "Combien de semaines vas-tu repousser ?": """⏳ *JE VAIS ÊTRE FRANC AVEC TOI*
+
+Tu connais déjà les mots : patience, risque, discipline, journal. Mais lesquels appliques-tu vraiment quand personne ne te regarde ?
+
+Tu n’as peut-être pas besoin d’une stratégie de plus. Tu as peut-être besoin d’un cadre, d’un suivi et d’une équipe qui t’aide à rester constant.
+
+Si tu es prêt à arrêter de repousser, commence aujourd’hui.""",
+    "Demain, tout recommence": """🔥 *DEMAIN, JE VEUX TE RETROUVER PRÊT*
+
+À 08:30, l’agenda économique vérifié. À 09:00, la session Londres. Puis les quiz, les analyses, les scénarios et les alertes de l’équipe.
+
+Tu peux encore regarder la semaine commencer de l’extérieur.
+
+Ou entrer ce soir avec un plan clair et une équipe à retrouver chaque jour.""",
+}
+
+
+def apply_editorial_direction():
+    """Applique les visuels, les CTA et la voix mentor à toute la semaine."""
+    visual_by_name = {
+        name: group for group, names in VISUAL_GROUPS.items() for name in names
+    }
+    for post in posts:
+        group = visual_by_name.get(post["name"])
+        if post["post_type"] == "message" and group:
+            post["image_url"] = VISUALS[group]
+        if post["name"] in MENTOR_REWRITES:
+            post["message"] = MENTOR_REWRITES[post["name"]].strip()
+        # Les mentions réglementaires figurent déjà sur le site et ne sont pas
+        # répétées mécaniquement sous chaque message Telegram.
+        paragraphs = [
+            paragraph for paragraph in post["message"].split("\n\n")
+            if not (
+                paragraph.startswith("_Le trading comporte")
+                or paragraph.startswith("_Aucun résultat")
+                or paragraph.startswith("_Aucun gain")
+                or paragraph.startswith("_Contenu éducatif")
+            )
+        ]
+        post["message"] = "\n\n".join(paragraphs).strip()
+        post["button_text"] = (
+            CTA_OVERRIDES.get(post["name"])
+            or (CTA_BY_GROUP.get(group) if group else "DÉCOUVRIR BECTANSE")
+        )
+
+
+apply_editorial_direction()
+
+
 def csv_row(post):
     post_type = "sondage" if post["post_type"] == "poll" else post["post_type"]
     return {
@@ -664,7 +883,7 @@ def csv_row(post):
         "semaine_rotation": "",
         "canal": CHANNEL,
         "message": post["message"] if post["post_type"] == "message" else "",
-        "image_url": "",
+        "image_url": post["image_url"],
         "texte_bouton": post["button_text"],
         "lien_bouton": SITE if post["button_text"] else "",
         "question": post["question"],
@@ -687,15 +906,17 @@ def validate():
     assert len({(post["date"], post["time"]) for post in posts}) == len(posts)
     for post in csv_posts:
         if post["post_type"] == "message":
-            assert post["message"] and len(post["message"]) <= 4096
+            caption_limit = 1024 if post["image_url"] else 4096
+            assert post["message"] and len(post["message"]) <= caption_limit
         else:
+            assert not post["image_url"], "Un quiz natif ne peut pas recevoir d’image"
             assert 2 <= len(post["options"]) <= 12
             assert len(post["question"]) <= 300
             assert all(1 <= index <= len(post["options"]) for index in post["correct"])
             if post["post_type"] == "quiz":
                 assert post["correct"]
             assert len(post["explanation"]) <= 200
-        assert len(post["button_text"]) <= 64
+        assert post["button_text"] and len(post["button_text"]) <= 64
     return csv_posts
 
 
@@ -706,9 +927,9 @@ def build_markdown():
         "## Stratégie globale",
         "",
         "La semaine suit la progression : attention → engagement → confiance → clic → conversion. "
-        "Les CTA sont concentrés après une séquence de valeur. Les messages liés aux analyses, "
-        "signaux et alertes ne prétendent jamais qu’une opportunité existe : ils invitent à vérifier "
-        "les mises à jour réellement disponibles.",
+        "Chaque publication possède un CTA contextuel vers Bectanse, sans inventer une opportunité. "
+        "Les messages liés aux analyses, signaux et alertes invitent à vérifier uniquement les mises "
+        "à jour réellement disponibles.",
         "",
         "L’agenda de 08:30 est volontairement généré en direct par le robot économique et n’est pas "
         "dupliqué dans le CSV. Si sa source est indisponible, aucun message public n’est envoyé.",
