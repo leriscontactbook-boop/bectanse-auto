@@ -1,13 +1,13 @@
 {
-  "version": 2,
-  "system": "Bectanse Market Signal V2",
+  "version": 3,
+  "system": "Bectanse Visual Catalog V3",
   "timezone": "Europe/Paris",
   "dimensions": {
     "width": 1200,
     "height": 600
   },
   "masterBackground": "static/telegram-visuals/bectanse-market-signal-master.png",
-  "contactSheet": "static/telegram-visuals/bectanse-market-signal-contact-sheet-v2.png",
+  "contactSheet": "static/telegram-visuals/bectanse-visual-catalog-contact-sheet-v3.png",
   "templates": [
     {
       "id": "session-londres",
@@ -15,6 +15,8 @@
       "png": "static/telegram-visuals/01-session-londres-ouverte-v2.png",
       "webp": "static/telegram-visuals/01-session-londres-ouverte-v2.webp",
       "accent": "#38BDF8",
+      "category": "market",
+      "sourceType": "brand",
       "caption": "La session de Londres est ouverte. Les niveaux et scénarios du jour sont disponibles dans ton espace.",
       "ctaText": "VOIR LE PLAN LONDRES",
       "ctaUrl": "https://acces.bectanse-academie.com/"
@@ -25,6 +27,8 @@
       "png": "static/telegram-visuals/02-session-americaine-t30-v2.png",
       "webp": "static/telegram-visuals/02-session-americaine-t30-v2.webp",
       "accent": "#F06A16",
+      "category": "market",
+      "sourceType": "brand",
       "caption": "La session américaine approche. Vérifie ton plan, ton risque et les zones que tu souhaites observer.",
       "ctaText": "PRÉPARER LA SESSION US",
       "ctaUrl": "https://acces.bectanse-academie.com/"
@@ -35,6 +39,8 @@
       "png": "static/telegram-visuals/03-annonce-economique-majeure-v2.png",
       "webp": "static/telegram-visuals/03-annonce-economique-majeure-v2.webp",
       "accent": "#FFB020",
+      "category": "market",
+      "sourceType": "brand",
       "caption": "Une annonce économique majeure est attendue. Consulte l’horaire et les informations disponibles avant la publication.",
       "ctaText": "VOIR LE CALENDRIER",
       "ctaUrl": "https://acces.bectanse-academie.com/"
@@ -45,6 +51,8 @@
       "png": "static/telegram-visuals/04-resultat-de-la-journee-v2.png",
       "webp": "static/telegram-visuals/04-resultat-de-la-journee-v2.webp",
       "accent": "#32D583",
+      "category": "market",
+      "sourceType": "brand",
       "caption": "Le bilan de la journée est disponible. Retrouve les résultats et les éléments partagés avec la communauté.",
       "ctaText": "VOIR LES RÉSULTATS",
       "ctaUrl": "https://acces.bectanse-academie.com/"
@@ -55,6 +63,8 @@
       "png": "static/telegram-visuals/05-quiz-du-marche-v2.png",
       "webp": "static/telegram-visuals/05-quiz-du-marche-v2.webp",
       "accent": "#9B6DFF",
+      "category": "market",
+      "sourceType": "brand",
       "caption": "Observe le marché, choisis ta réponse et vérifie ton raisonnement avec le quiz du jour.",
       "ctaText": "APPROFONDIR AVEC BECTANSE",
       "ctaUrl": "https://acces.bectanse-academie.com/"
@@ -65,6 +75,8 @@
       "png": "static/telegram-visuals/06-nouveau-temoignage-v2.png",
       "webp": "static/telegram-visuals/06-nouveau-temoignage-v2.webp",
       "accent": "#E8B866",
+      "category": "community",
+      "sourceType": "brand",
       "caption": "Un nouveau témoignage vient d’être partagé par la communauté Bectanse.",
       "ctaText": "VOIR LES TÉMOIGNAGES",
       "ctaUrl": "https://acces.bectanse-academie.com/"
@@ -75,8 +87,46 @@
       "png": "static/telegram-visuals/07-derniere-alerte-disponible-v2.png",
       "webp": "static/telegram-visuals/07-derniere-alerte-disponible-v2.webp",
       "accent": "#FF4D67",
+      "category": "market",
+      "sourceType": "brand",
       "caption": "Une nouvelle alerte est disponible dans ton espace Bectanse.",
       "ctaText": "OUVRIR L’ESPACE MEMBRE",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "cta-systeme",
+      "title": "UN SIGNAL NE CHANGE PAS TON PROCESSUS, SI.",
+      "png": "static/telegram-visuals/08-cta-systeme-bectanse-v3.png",
+      "webp": "static/telegram-visuals/08-cta-systeme-bectanse-v3.webp",
+      "accent": "#F06A16",
+      "category": "conversion",
+      "sourceType": "brand",
+      "caption": "Un signal isolé ne remplace pas un processus. Découvre le cadre Bectanse pour analyser, filtrer et exécuter avec davantage de structure.",
+      "ctaText": "DÉCOUVRIR BECTANSE",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "cta-methode",
+      "title": "LE PROCHAIN DÉCLIC, C’EST TA MÉTHODE.",
+      "png": "static/telegram-visuals/09-cta-methode-repetable-v3.png",
+      "webp": "static/telegram-visuals/09-cta-methode-repetable-v3.webp",
+      "accent": "#9B6DFF",
+      "category": "conversion",
+      "sourceType": "brand",
+      "caption": "Le prochain déclic ne vient pas forcément d’une nouvelle entrée. Il peut venir d’une méthode assez claire pour être répétée.",
+      "ctaText": "VOIR L’ACCOMPAGNEMENT",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "cta-equipe",
+      "title": "NE TRADE PLUS SEUL FACE À TES DOUTES.",
+      "png": "static/telegram-visuals/10-cta-avancer-avec-cadre-v3.png",
+      "webp": "static/telegram-visuals/10-cta-avancer-avec-cadre-v3.webp",
+      "accent": "#32D583",
+      "category": "conversion",
+      "sourceType": "brand",
+      "caption": "Tu n’as pas besoin de rester seul face à chaque décision. Découvre un cadre de travail, des analyses et une équipe à retrouver chaque jour.",
+      "ctaText": "REJOINDRE L’ÉQUIPE",
       "ctaUrl": "https://acces.bectanse-academie.com/"
     }
   ]
