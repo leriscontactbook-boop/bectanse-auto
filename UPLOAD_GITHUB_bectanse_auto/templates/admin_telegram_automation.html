@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/admin-telegram-automation.css?v=20260809-v2">
+  <link rel="stylesheet" href="/static/css/admin-telegram-automation.css?v=20260809-v3">
 </head>
 <body data-admin-key="{{ admin_key|e }}" data-preview-mode="{{ 'true' if preview_mode else 'false' }}">
   <div class="ambient" aria-hidden="true"></div>
@@ -112,15 +112,45 @@
         <section class="visual-library" aria-labelledby="visual-library-title">
           <div class="visual-library-head">
             <div>
-              <span class="panel-kicker">Bibliothèque permanente</span>
-              <h3 id="visual-library-title">Bectanse Market Signal</h3>
+              <span class="panel-kicker">Catalogue visuel permanent</span>
+              <h3 id="visual-library-title">Bectanse Visual Catalog</h3>
             </div>
-            <span class="visual-library-badge">7 modèles V2</span>
+            <span class="visual-library-badge" id="visual-library-count">Chargement…</span>
           </div>
-          <p>Choisis un modèle : le visuel et son CTA sont appliqués au post. Les quiz et sondages restent natifs et cliquables dans Telegram ; leur visuel peut servir dans un post teaser séparé.</p>
+          <p>Choisis un modèle Bectanse ou enregistre tes propres créations. Le visuel, sa légende et son CTA peuvent être appliqués au post en un clic.</p>
+
+          <div class="visual-catalog-toolbar">
+            <input id="visual-library-search" type="search" placeholder="Rechercher un visuel…" aria-label="Rechercher dans le catalogue">
+            <div class="visual-filter-chips" id="visual-filter-chips" aria-label="Filtrer les visuels">
+              <button type="button" class="active" data-visual-filter="all">Tous</button>
+              <button type="button" data-visual-filter="market">Marché</button>
+              <button type="button" data-visual-filter="conversion">Conversion</button>
+              <button type="button" data-visual-filter="community">Communauté</button>
+              <button type="button" data-visual-filter="personal">Mes visuels</button>
+            </div>
+            <button class="button button-primary visual-add-button" type="button" id="open-library-upload">＋ Ajouter mon visuel</button>
+          </div>
+
+          <div class="visual-catalog-upload" id="visual-catalog-upload" hidden>
+            <div class="visual-upload-title"><strong>Enregistrer un visuel réutilisable</strong><small>Il restera disponible dans « Mes visuels ».</small></div>
+            <div class="visual-upload-grid">
+              <div class="field"><label for="library-image-title">Nom du visuel</label><input id="library-image-title" maxlength="100" placeholder="Ex. Invitation coaching du dimanche"></div>
+              <div class="field"><label for="library-image-category">Catégorie</label><select id="library-image-category"><option value="personal">Mes visuels</option><option value="conversion">Conversion</option><option value="market">Marché</option><option value="community">Communauté</option></select></div>
+              <div class="field visual-file-field"><label for="library-image-file">Fichier image</label><input id="library-image-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+              <div class="field"><label for="library-image-cta">CTA par défaut</label><input id="library-image-cta" maxlength="64" placeholder="Ex. Découvrir Bectanse"></div>
+              <div class="field"><label for="library-image-url">Lien du CTA</label><input id="library-image-url" type="url" value="https://acces.bectanse-academie.com/"></div>
+              <div class="field visual-caption-field"><label for="library-image-caption">Légende par défaut</label><textarea id="library-image-caption" rows="3" maxlength="1024" placeholder="Facultatif : texte proposé quand tu utilises ce visuel…"></textarea></div>
+            </div>
+            <div class="visual-upload-actions">
+              <button class="button button-ghost" type="button" id="cancel-library-upload">Annuler</button>
+              <button class="button button-primary" type="button" id="save-library-upload">Enregistrer dans le catalogue →</button>
+            </div>
+          </div>
+
           <div class="visual-template-grid" id="visual-template-grid">
             <div class="visual-library-loading">Chargement de la bibliothèque…</div>
           </div>
+          <div class="visual-native-note">Les quiz et sondages restent natifs et cliquables dans Telegram. Utilise leur bannière dans un message teaser séparé.</div>
         </section>
 
         <div id="poll-fields" hidden>
@@ -296,7 +326,7 @@
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/static/admin-telegram-automation.js?v=20260809-v2" defer></script>
+  <script src="/static/admin-telegram-automation.js?v=20260809-v3" defer></script>
   <script src="/static/source-guard.js" defer></script>
 </body>
 </html>
