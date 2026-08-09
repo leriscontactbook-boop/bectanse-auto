@@ -100,7 +100,7 @@ const templates = [
     detail: 'answers',
     titleSize: 72,
     metricWidth: 340,
-    ctaText: '',
+    ctaText: 'APPROFONDIR AVEC BECTANSE',
     caption: 'Observe le marché, choisis ta réponse et vérifie ton raisonnement avec le quiz du jour.'
   },
   {
@@ -136,6 +136,63 @@ const templates = [
     metricWidth: 325,
     ctaText: 'OUVRIR L’ESPACE MEMBRE',
     caption: 'Une nouvelle alerte est disponible dans ton espace Bectanse.'
+  },
+  {
+    id: 'cta-systeme',
+    filename: '08-cta-systeme-bectanse-v3',
+    eyebrow: 'DÉCISION BECTANSE',
+    title: ['UN SIGNAL NE CHANGE PAS', 'TON PROCESSUS, SI.'],
+    metric: 'STRUCTURER MON TRADING',
+    status: 'ANALYSER • FILTRER • EXÉCUTER',
+    accent: '#F06A16',
+    accentSoft: '#9B6DFF',
+    icon: 'system',
+    topBadge: 'SYSTÈME • DISCIPLINE',
+    detail: 'framework',
+    titleSize: 58,
+    titleColor2: '#FF8A34',
+    metricWidth: 430,
+    ctaText: 'DÉCOUVRIR BECTANSE',
+    caption: 'Un signal isolé ne remplace pas un processus. Découvre le cadre Bectanse pour analyser, filtrer et exécuter avec davantage de structure.',
+    category: 'conversion'
+  },
+  {
+    id: 'cta-methode',
+    filename: '09-cta-methode-repetable-v3',
+    eyebrow: 'PROGRESSION DURABLE',
+    title: ['LE PROCHAIN DÉCLIC,', 'C’EST TA MÉTHODE.'],
+    metric: 'CONSTRUIRE UNE MÉTHODE',
+    status: 'UN CADRE QUE TU PEUX RÉPÉTER',
+    accent: '#9B6DFF',
+    accentSoft: '#38BDF8',
+    icon: 'method',
+    topBadge: 'MÉTHODE • RÉPÉTITION',
+    detail: 'repeat',
+    titleSize: 61,
+    titleColor2: '#B994FF',
+    metricWidth: 455,
+    ctaText: 'VOIR L’ACCOMPAGNEMENT',
+    caption: 'Le prochain déclic ne vient pas forcément d’une nouvelle entrée. Il peut venir d’une méthode assez claire pour être répétée.',
+    category: 'conversion'
+  },
+  {
+    id: 'cta-equipe',
+    filename: '10-cta-avancer-avec-cadre-v3',
+    eyebrow: 'ACCOMPAGNEMENT BECTANSE',
+    title: ['NE TRADE PLUS SEUL', 'FACE À TES DOUTES.'],
+    metric: 'AVANCER AVEC UN CADRE',
+    status: 'ANALYSES • ALERTES • ACCOMPAGNEMENT',
+    accent: '#32D583',
+    accentSoft: '#F06A16',
+    icon: 'team',
+    topBadge: 'ÉQUIPE • STRUCTURE',
+    detail: 'community',
+    titleSize: 62,
+    titleColor2: '#5BE3A1',
+    metricWidth: 445,
+    ctaText: 'REJOINDRE L’ÉQUIPE',
+    caption: 'Tu n’as pas besoin de rester seul face à chaque décision. Découvre un cadre de travail, des analyses et une équipe à retrouver chaque jour.',
+    category: 'conversion'
   }
 ];
 
@@ -240,6 +297,28 @@ function detailMarkup(template) {
       <path d="M861 342c0-18 11-29 31-31v16c-9 2-13 7-13 15h14v30h-32zm45 0c0-18 11-29 31-31v16c-9 2-13 7-13 15h14v30h-32z" fill="${accent}" stroke="none" opacity=".7"/>
     </g>`;
   }
+  if (template.detail === 'framework') {
+    return `<g opacity=".58" ${stroke} stroke-width="2.5">
+      <rect x="852" y="342" width="76" height="54" rx="12"/><rect x="957" y="342" width="76" height="54" rx="12"/><rect x="1062" y="342" width="76" height="54" rx="12"/>
+      <path d="M928 369h29M1033 369h29" stroke-dasharray="5 7"/>
+      <path d="M876 369l10 10 20-24M981 369l10 10 20-24M1086 369l10 10 20-24" stroke-width="4"/>
+      <path d="M862 486h264" opacity=".45"/><circle cx="898" cy="486" r="6" fill="${accent}"/><circle cx="995" cy="486" r="6" fill="${accent}"/><circle cx="1092" cy="486" r="6" fill="${accent}"/>
+    </g>`;
+  }
+  if (template.detail === 'repeat') {
+    return `<g opacity=".56" ${stroke} stroke-width="3">
+      <path d="M888 365c28-38 83-54 132-34 21 9 39 24 52 42"/><path d="M1060 347l14 27-31 5" stroke-width="5"/>
+      <path d="M1102 458c-28 38-83 54-132 34-21-9-39-24-52-42"/><path d="M930 476l-14-27 31-5" stroke-width="5"/>
+      <circle cx="995" cy="413" r="42" stroke-dasharray="6 9"/><path d="M975 413l14 14 28-34" stroke-width="6"/>
+    </g>`;
+  }
+  if (template.detail === 'community') {
+    return `<g opacity=".56" ${stroke} stroke-width="2.5">
+      <circle cx="995" cy="365" r="28"/><circle cx="908" cy="446" r="22"/><circle cx="1082" cy="446" r="22"/>
+      <path d="M975 385l-49 44M1015 385l49 44M935 446h120" stroke-dasharray="7 8"/>
+      <circle cx="995" cy="365" r="7" fill="${accent}"/><circle cx="908" cy="446" r="6" fill="${accent}"/><circle cx="1082" cy="446" r="6" fill="${accent}"/>
+    </g>`;
+  }
   return `<g opacity=".52" ${stroke} stroke-width="2">
     <circle cx="995" cy="413" r="102" stroke-dasharray="4 11"/>
     <circle cx="995" cy="413" r="132" stroke-dasharray="2 15"/>
@@ -266,6 +345,15 @@ function iconMarkup(type, accent) {
   }
   if (type === 'testimonial') {
     return `<g ${stroke}><path d="M913 448h30l20-72 31 111 29-93 22 54h37"/><path d="M920 331h150a24 24 0 0 1 24 24v116a24 24 0 0 1-24 24H958l-38 32v-32a24 24 0 0 1-24-24V355a24 24 0 0 1 24-24z" opacity=".75"/></g>`;
+  }
+  if (type === 'system') {
+    return `<g ${stroke}><path d="M912 346h166a22 22 0 0 1 22 22v92a22 22 0 0 1-22 22H912a22 22 0 0 1-22-22v-92a22 22 0 0 1 22-22z"/><path d="M928 414h34l20-42 31 82 22-40h31"/><circle cx="995" cy="414" r="79" opacity=".3"/></g>`;
+  }
+  if (type === 'method') {
+    return `<g ${stroke}><path d="M922 355h146M922 413h146M922 471h146"/><circle cx="895" cy="355" r="11"/><circle cx="895" cy="413" r="11"/><circle cx="895" cy="471" r="11"/><path d="M1089 340l23 15-23 15M1089 398l23 15-23 15M1089 456l23 15-23 15"/></g>`;
+  }
+  if (type === 'team') {
+    return `<g ${stroke}><circle cx="995" cy="364" r="34"/><circle cx="909" cy="448" r="27"/><circle cx="1081" cy="448" r="27"/><path d="M970 389l-42 40M1020 389l42 40M936 448h118"/><path d="M955 493c8-35 27-53 40-53s32 18 40 53"/></g>`;
   }
   return `<g ${stroke}><circle cx="995" cy="413" r="74"/><circle cx="995" cy="413" r="35"/><path d="M995 305v-34M995 555v-34M887 413h-34M1137 413h-34"/><path d="M995 413l50-62"/></g>`;
 }
@@ -315,7 +403,7 @@ function templateSvg(template) {
       </g>
 
       <text x="62" y="239" fill="#FFFFFF" font-family="DIN Condensed, Arial Narrow" font-size="${titleSize}" font-weight="700" letter-spacing=".7">${line1}</text>
-      <text x="62" y="309" fill="#FFFFFF" font-family="DIN Condensed, Arial Narrow" font-size="${titleSize}" font-weight="700" letter-spacing=".7">${line2}</text>
+      <text x="62" y="309" fill="${template.titleColor2 || '#FFFFFF'}" font-family="DIN Condensed, Arial Narrow" font-size="${titleSize}" font-weight="700" letter-spacing=".7">${line2}</text>
       <rect x="62" y="328" width="92" height="5" rx="2.5" fill="${template.accent}"/>
       <rect x="160" y="328" width="34" height="5" rx="2.5" fill="${template.accent}" opacity=".32"/>
 
@@ -375,12 +463,12 @@ async function renderContactSheet(rendered) {
   const header = Buffer.from(`
     <svg width="${sheetWidth}" height="${sheetHeight}" xmlns="http://www.w3.org/2000/svg">
       <rect width="100%" height="100%" fill="#08080C"/>
-      <text x="${outer}" y="66" fill="#FFFFFF" font-family="DIN Condensed, Arial Narrow" font-size="40" font-weight="700" letter-spacing="1.5">BECTANSE MARKET SIGNAL — V2</text>
-      <text x="${outer}" y="97" fill="#8F8F9B" font-family="Avenir Next Condensed, Arial Narrow" font-size="15" font-weight="700" letter-spacing="3">DIRECTION ARTISTIQUE FINALE • 7 MODÈLES TELEGRAM • 1200 × 600</text>
+      <text x="${outer}" y="66" fill="#FFFFFF" font-family="DIN Condensed, Arial Narrow" font-size="40" font-weight="700" letter-spacing="1.5">BECTANSE VISUAL CATALOG — V3</text>
+      <text x="${outer}" y="97" fill="#8F8F9B" font-family="Avenir Next Condensed, Arial Narrow" font-size="15" font-weight="700" letter-spacing="3">MARKET SIGNAL + CONVERSION • ${rendered.length} MODÈLES TELEGRAM • 1200 × 600</text>
     </svg>
   `);
 
-  const contactSheetPath = path.join(outputDir, 'bectanse-market-signal-contact-sheet-v2.png');
+  const contactSheetPath = path.join(outputDir, 'bectanse-visual-catalog-contact-sheet-v3.png');
   await sharp({ create: { width: sheetWidth, height: sheetHeight, channels: 4, background: '#08080C' } })
     .composite([{ input: header, left: 0, top: 0 }, ...composites])
     .png({ compressionLevel: 9 })
@@ -394,8 +482,8 @@ for (const template of templates) rendered.push(await renderTemplate(template));
 const contactSheetPath = await renderContactSheet(rendered);
 
 const manifest = {
-  version: 2,
-  system: 'Bectanse Market Signal V2',
+  version: 3,
+  system: 'Bectanse Visual Catalog V3',
   timezone: 'Europe/Paris',
   dimensions: { width: WIDTH, height: HEIGHT },
   masterBackground: path.relative(projectDir, masterPath),
@@ -406,6 +494,8 @@ const manifest = {
     png: path.relative(projectDir, item.pngPath),
     webp: path.relative(projectDir, item.webpPath),
     accent: item.accent,
+    category: item.category || (item.id.includes('temoignage') ? 'community' : 'market'),
+    sourceType: 'brand',
     caption: item.caption,
     ctaText: item.ctaText,
     ctaUrl: item.ctaText ? ACCESS_URL : ''
