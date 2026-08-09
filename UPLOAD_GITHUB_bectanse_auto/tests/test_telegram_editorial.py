@@ -132,9 +132,14 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         finish_conn = Mock()
         response = Mock(status_code=200)
         response.json.return_value = {"ok": True, "result": {"message_id": 678}}
+        image_response = Mock()
+        image_response.headers = {"Content-Type": "image/jpeg", "Content-Length": "12"}
+        image_response.content = b"jpeg-content"
+        image_response.raise_for_status.return_value = None
 
         with patch.object(app, "ECO_BOT_TOKEN", "test-token"), \
              patch.object(app, "get_conn", side_effect=[claim_conn, finish_conn]), \
+             patch.object(app.requests, "get", return_value=image_response) as get, \
              patch.object(app.requests, "post", return_value=response) as post:
             sent = app._send_scheduled_telegram(
                 "Légende de test", "telegram-post-1-20260810-1830", "custom-editorial",
@@ -144,9 +149,31 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
             )
 
         self.assertTrue(sent)
+        get.assert_called_once()
         self.assertIn("sendPhoto", post.call_args.args[0])
-        self.assertEqual(post.call_args.kwargs["json"]["caption"], "Légende de test")
-        self.assertEqual(post.call_args.kwargs["json"]["reply_markup"]["inline_keyboard"][0][0]["text"], "Découvrir")
+        self.assertEqual(post.call_args.kwargs["data"]["caption"], "Légende de test")
+        reply_markup = json.loads(post.call_args.kwargs["data"]["reply_markup"])
+        self.assertEqual(reply_markup["inline_keyboard"][0][0]["text"], "Découvrir")
+        self.assertEqual(post.call_args.kwargs["files"]["photo"][1], b"jpeg-content")
+
+    def test_photo_download_rejects_a_web_page(self):
+        response = Mock()
+        response.headers = {"Content-Type": "text/html"}
+        response.content = b"<html></html>"
+        response.raise_for_status.return_value = None
+        with patch.object(app.requests, "get", return_value=response):
+            with self.assertRaisesRegex(ValueError, "JPEG ou PNG"):
+                app._download_telegram_photo("https://example.com/photo")
+
+    def test_bectanse_photo_is_read_locally_without_an_http_loop(self):
+        with patch.object(app.requests, "get") as get:
+            filename, image_bytes, content_type = app._download_telegram_photo(
+                "https://bectanse-auto.up.railway.app/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.png"
+            )
+        get.assert_not_called()
+        self.assertEqual(filename, "10-cta-avancer-avec-cadre-v3.png")
+        self.assertEqual(content_type, "image/png")
+        self.assertTrue(image_bytes.startswith(b"\x89PNG"))
 
     def test_quiz_payload_creates_a_native_clickable_telegram_quiz(self):
         claim_conn = Mock()
@@ -252,7 +279,21 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         })
         self.assertEqual(
             payload["image_url"],
-            "https://acces.bectanse-academie.com/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.webp",
+            "https://acces.bectanse-academie.com/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.png",
+        )
+
+    def test_telegram_photo_delivery_url_uses_supported_formats(self):
+        self.assertEqual(
+            app._telegram_photo_delivery_url(
+                "https://bectanse-auto.up.railway.app/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.webp"
+            ),
+            "https://bectanse-auto.up.railway.app/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.png",
+        )
+        self.assertEqual(
+            app._telegram_photo_delivery_url(
+                "https://res.cloudinary.com/dqgd441is/image/upload/v1/catalogue.webp"
+            ),
+            "https://res.cloudinary.com/dqgd441is/image/upload/f_jpg,q_auto/v1/catalogue.jpg",
         )
 
     def test_custom_visual_catalog_payload_requires_a_real_cta_pair(self):
@@ -289,6 +330,7 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
     def test_admin_image_upload_returns_a_permanent_https_url(self):
         client = app.app.test_client()
         secure_url = "https://res.cloudinary.com/bectanse/image/upload/catalogue-test.png"
+        telegram_url = "https://res.cloudinary.com/bectanse/image/upload/f_jpg,q_auto/catalogue-test.jpg"
         with patch.object(app, "upload_to_cloudinary", return_value=secure_url) as uploader:
             response = client.post(
                 "/admin/api/telegram/upload",
@@ -299,7 +341,7 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
                 content_type="multipart/form-data",
             )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json()["url"], secure_url)
+        self.assertEqual(response.get_json()["url"], telegram_url)
         uploader.assert_called_once()
 
     def test_targeted_post_requires_at_least_one_channel(self):
