@@ -110,6 +110,20 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         self.assertEqual(payload["weekdays"], "0,3")
         self.assertEqual(payload["button_text"], "Découvrir")
 
+    def test_once_payload_keeps_the_paris_wall_clock_time_when_edited(self):
+        payload = app._validate_telegram_post_payload({
+            "name": "Bon dimanche",
+            "message": "Bon dimanche l’équipe",
+            "schedule_type": "once",
+            "scheduled_for": "2026-08-09T12:00:00+02:00",
+            "publish_time": "12:00",
+            "channel": "@BECTANSE_ACADEMIE",
+            "enabled": True
+        })
+
+        self.assertEqual(payload["scheduled_for"], datetime(2026, 8, 9, 12, 0))
+        self.assertIsNone(payload["scheduled_for"].tzinfo)
+
     def test_scheduled_send_supports_photo_and_button(self):
         claim_conn = Mock()
         claim_conn.run.return_value = [["telegram-post-1-20260810-1830"]]
