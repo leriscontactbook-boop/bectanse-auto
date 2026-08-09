@@ -12,6 +12,25 @@ import app
 
 
 class TelegramEditorialCalendarTests(unittest.TestCase):
+    def test_public_base_url_is_available_to_reminder_jobs(self):
+        self.assertTrue(app.BASE_URL.startswith("https://"))
+        self.assertFalse(app.BASE_URL.endswith("/"))
+
+    def test_daily_reminder_job_builds_working_admin_links(self):
+        conn = Mock()
+        conn.run.return_value = [[
+            "BCT-TEST123", "Membre Test", "",
+            datetime.now() + timedelta(days=7, hours=1), "1000",
+        ]]
+        with patch.object(app, "get_conn", return_value=conn), \
+             patch.object(app, "send_telegram") as send:
+            app.job_relances_quotidiennes()
+        send.assert_called_once()
+        markup = send.call_args.kwargs["reply_markup"]
+        urls = [button["url"] for row in markup["inline_keyboard"] for button in row]
+        self.assertTrue(any(url.startswith(f"{app.BASE_URL}/admin-panel") for url in urls))
+
+
     def test_calendar_contains_four_complete_weeks(self):
         calendar = app.load_telegram_editorial_calendar()
         self.assertEqual(len(calendar["weeks"]), 4)
