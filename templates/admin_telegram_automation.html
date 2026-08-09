@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/admin-telegram-automation.css">
+  <link rel="stylesheet" href="/static/css/admin-telegram-automation.css?v=20260809-v2">
 </head>
 <body data-admin-key="{{ admin_key|e }}" data-preview-mode="{{ 'true' if preview_mode else 'false' }}">
   <div class="ambient" aria-hidden="true"></div>
@@ -108,6 +108,20 @@
             </div>
           </div>
         </div>
+
+        <section class="visual-library" aria-labelledby="visual-library-title">
+          <div class="visual-library-head">
+            <div>
+              <span class="panel-kicker">Bibliothèque permanente</span>
+              <h3 id="visual-library-title">Bectanse Market Signal</h3>
+            </div>
+            <span class="visual-library-badge">7 modèles V2</span>
+          </div>
+          <p>Choisis un modèle : le visuel et son CTA sont appliqués au post. Les quiz et sondages restent natifs et cliquables dans Telegram ; leur visuel peut servir dans un post teaser séparé.</p>
+          <div class="visual-template-grid" id="visual-template-grid">
+            <div class="visual-library-loading">Chargement de la bibliothèque…</div>
+          </div>
+        </section>
 
         <div id="poll-fields" hidden>
           <div class="field">
@@ -282,7 +296,7 @@
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/static/admin-telegram-automation.js" defer></script>
+  <script src="/static/admin-telegram-automation.js?v=20260809-v2" defer></script>
   <script src="/static/source-guard.js" defer></script>
 </body>
 </html>
