@@ -227,16 +227,35 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
             for item in values if item["post_type"] == "message"
         ))
 
-    def test_market_signal_library_contains_seven_v2_templates(self):
+    def test_visual_catalog_contains_market_and_conversion_templates(self):
         manifest_path = os.path.join(
             app.APP_DIR, "static", "telegram-visuals",
             "bectanse-market-signal-manifest-v2.json"
         )
         with open(manifest_path, encoding="utf-8") as source:
             manifest = json.load(source)
-        self.assertEqual(len(manifest["templates"]), 7)
-        self.assertTrue(all(template["webp"].endswith("-v2.webp") for template in manifest["templates"]))
+        self.assertEqual(manifest["version"], 3)
+        self.assertEqual(len(manifest["templates"]), 10)
+        self.assertEqual(sum(template["category"] == "conversion" for template in manifest["templates"]), 3)
         self.assertTrue(all(template["ctaText"] and template["ctaUrl"] for template in manifest["templates"]))
+
+    def test_custom_visual_catalog_payload_requires_a_real_cta_pair(self):
+        payload = app._validate_telegram_media_payload({
+            "title": "Mon visuel coaching",
+            "image_url": "https://res.cloudinary.com/demo/image.webp",
+            "category": "conversion",
+            "caption": "Un message mentor.",
+            "cta_text": "Découvrir Bectanse",
+            "cta_url": "https://acces.bectanse-academie.com/",
+        })
+        self.assertEqual(payload["category"], "conversion")
+        with self.assertRaisesRegex(ValueError, "ensemble"):
+            app._validate_telegram_media_payload({
+                "title": "CTA incomplet",
+                "image_url": "https://example.com/image.webp",
+                "cta_text": "Cliquer",
+                "cta_url": "",
+            })
 
     def test_targeted_post_requires_at_least_one_channel(self):
         with self.assertRaisesRegex(ValueError, "Choisis au moins un canal"):
@@ -322,7 +341,10 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         client = app.app.test_client()
         response = client.get(f"/admin/telegram-automation?key={app.ADMIN_KEY}")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Centre de commande", response.get_data(as_text=True))
+        page = response.get_data(as_text=True)
+        self.assertIn("Centre de commande", page)
+        self.assertIn("Bectanse Visual Catalog", page)
+        self.assertIn("save-library-upload", page)
 
     def test_local_preview_renders_with_styles_and_demo_mode(self):
         client = app.app.test_client()
