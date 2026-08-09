@@ -1,7 +1,9 @@
-import os, json, secrets, string, requests, time, threading
+import os, json, secrets, string, requests, time, threading, csv, io, hashlib, unicodedata
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify
+from zoneinfo import ZoneInfo
+from flask import send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from werkzeug.utils import secure_filename
 import pg8000.native
 
 app = Flask(__name__)
@@ -22,6 +24,28 @@ CLOUDINARY_SECRET = os.environ.get("CLOUDINARY_SECRET", "GqmAD-4OOtkLGhu6boCcnwU
 ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "8565312655:AAFyfFQvKEiFtFJYA0yDQE1bLdH8N50UX4c")
 ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
 GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+PARIS_TZ = ZoneInfo("Europe/Paris")
+TELEGRAM_EDITORIAL_PATH = os.environ.get(
+    "TELEGRAM_EDITORIAL_PATH",
+    os.path.join(APP_DIR, "content", "telegram_posts.json")
+)
+TELEGRAM_CSV_TEMPLATE_PATH = os.path.join(
+    APP_DIR, "content", "modele_planning_telegram_semaine.csv"
+)
+
+
+def _format_editorial_entry(calendar, post):
+    parts = [f"🔥 *{post['title'].strip()}*", "", "\n".join(post["body"]).strip()]
+    if post.get("cta"):
+        parts.extend(["", f"💬 {post['cta'].strip()}"])
+    parts.extend([
+        "",
+        "━━━━━━━━━━━━━━━",
+        calendar["footer"].strip(),
+        f"_{calendar['disclaimer'].strip()}_"
+    ])
+    return "\n".join(parts)
 
 # ── DB ────────────────────────────────────────────────────────────────────────
 
@@ -125,6 +149,104 @@ def init_db():
                 actif BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT NOW()
             )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS scheduled_publications (
+                slot_key            TEXT PRIMARY KEY,
+                post_kind           TEXT NOT NULL,
+                status              TEXT NOT NULL DEFAULT 'sending',
+                content             TEXT NOT NULL DEFAULT '',
+                telegram_message_id BIGINT,
+                attempts            INTEGER NOT NULL DEFAULT 1,
+                error               TEXT NOT NULL DEFAULT '',
+                created_at          TIMESTAMP DEFAULT NOW(),
+                sent_at             TIMESTAMP
+            )""")
+            conn.run("ALTER TABLE scheduled_publications ADD COLUMN IF NOT EXISTS post_id INTEGER")
+            conn.run("ALTER TABLE scheduled_publications ADD COLUMN IF NOT EXISTS target_channel TEXT NOT NULL DEFAULT ''")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_scheduled_posts (
+                id                   SERIAL PRIMARY KEY,
+                name                 TEXT NOT NULL,
+                message              TEXT NOT NULL,
+                image_url            TEXT NOT NULL DEFAULT '',
+                schedule_type        TEXT NOT NULL DEFAULT 'weekly',
+                weekdays             TEXT NOT NULL DEFAULT '0',
+                rotation_week        INTEGER,
+                publish_time         TEXT NOT NULL DEFAULT '18:30',
+                scheduled_for        TIMESTAMP,
+                timezone             TEXT NOT NULL DEFAULT 'Europe/Paris',
+                channel              TEXT NOT NULL DEFAULT '@BECTANSE_ACADEMIE',
+                button_text          TEXT NOT NULL DEFAULT '',
+                button_url           TEXT NOT NULL DEFAULT '',
+                disable_notification BOOLEAN NOT NULL DEFAULT FALSE,
+                enabled              BOOLEAN NOT NULL DEFAULT TRUE,
+                source_key           TEXT UNIQUE,
+                deleted              BOOLEAN NOT NULL DEFAULT FALSE,
+                last_sent_at         TIMESTAMP,
+                created_at           TIMESTAMP DEFAULT NOW(),
+                updated_at           TIMESTAMP DEFAULT NOW()
+            )""")
+            for column, definition in [
+                ("post_type", "TEXT NOT NULL DEFAULT 'message'"),
+                ("poll_question", "TEXT NOT NULL DEFAULT ''"),
+                ("poll_options", "TEXT NOT NULL DEFAULT '[]'"),
+                ("poll_correct_option_ids", "TEXT NOT NULL DEFAULT '[]'"),
+                ("poll_explanation", "TEXT NOT NULL DEFAULT ''"),
+                ("poll_anonymous", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                ("poll_multiple", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                ("publish_all_channels", "BOOLEAN NOT NULL DEFAULT TRUE"),
+            ]:
+                conn.run(
+                    f"ALTER TABLE telegram_scheduled_posts "
+                    f"ADD COLUMN IF NOT EXISTS {column} {definition}"
+                )
+            conn.run("""CREATE INDEX IF NOT EXISTS telegram_scheduled_posts_due_idx
+                         ON telegram_scheduled_posts (enabled, deleted, publish_time)""")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_channels (
+                id                   SERIAL PRIMARY KEY,
+                name                 TEXT NOT NULL,
+                chat_id              TEXT UNIQUE NOT NULL,
+                active               BOOLEAN NOT NULL DEFAULT TRUE,
+                deleted              BOOLEAN NOT NULL DEFAULT FALSE,
+                last_check_status    TEXT NOT NULL DEFAULT '',
+                last_check_at        TIMESTAMP,
+                created_at           TIMESTAMP DEFAULT NOW(),
+                updated_at           TIMESTAMP DEFAULT NOW()
+            )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_post_channels (
+                post_id              INTEGER NOT NULL REFERENCES telegram_scheduled_posts(id) ON DELETE CASCADE,
+                channel_id           INTEGER NOT NULL REFERENCES telegram_channels(id) ON DELETE CASCADE,
+                PRIMARY KEY (post_id, channel_id)
+            )""")
+            if ECO_CANAL:
+                conn.run(
+                    """INSERT INTO telegram_channels (name, chat_id, active, deleted)
+                       VALUES ('Bectanse Académie', :chat_id, TRUE, FALSE)
+                       ON CONFLICT (chat_id) DO UPDATE SET deleted=FALSE""",
+                    chat_id=ECO_CANAL
+                )
+
+            # Import initial des 28 publications éditoriales. source_key et le
+            # soft-delete empêchent toute recréation après une suppression admin.
+            try:
+                with open(TELEGRAM_EDITORIAL_PATH, "r", encoding="utf-8") as content_file:
+                    editorial_calendar = json.load(content_file)
+                default_time = editorial_calendar.get("publish_time", "18:30")
+                for week_index, week in enumerate(editorial_calendar.get("weeks", [])):
+                    for weekday_index, post in enumerate(week):
+                        conn.run(
+                            """INSERT INTO telegram_scheduled_posts
+                               (name, message, schedule_type, weekdays, rotation_week,
+                                publish_time, channel, enabled, source_key)
+                               VALUES (:name, :message, 'rotation', :weekday, :rotation,
+                                       :publish_time, :channel, TRUE, :source_key)
+                               ON CONFLICT (source_key) DO NOTHING""",
+                            name=f"{post.get('weekday', '').capitalize()} — {post.get('title', '')}",
+                            message=_format_editorial_entry(editorial_calendar, post),
+                            weekday=str(weekday_index), rotation=week_index,
+                            publish_time=default_time, channel=ECO_CANAL,
+                            source_key=f"editorial-v1-{week_index}-{weekday_index}"
+                        )
+            except Exception as seed_error:
+                app.logger.warning(f"telegram editorial seed: {seed_error}")
             # Migration robuste — ajouter toutes les colonnes une par une
             cols_to_add = [
                 ("parrain_code", "TEXT", "''"),
@@ -781,6 +903,30 @@ def admin_panel_login():
         return redirect(f"/admin-panel?key={ADMIN_KEY}")
     return render_template("admin_login.html", error="Clé incorrecte")
 
+
+@app.route("/admin/telegram-automation")
+def admin_telegram_automation():
+    key = request.args.get("key", "")
+    if key != ADMIN_KEY:
+        return redirect("/admin-panel")
+    return render_template(
+        "admin_telegram_automation.html",
+        admin_key=ADMIN_KEY,
+        preview_mode=False
+    )
+
+
+@app.route("/preview-admin-telegram")
+def preview_admin_telegram():
+    """Aperçu visuel local, sans base de données ni envoi Telegram."""
+    if request.host.split(":", 1)[0] not in {"127.0.0.1", "localhost"}:
+        return "Aperçu local uniquement", 404
+    return render_template(
+        "admin_telegram_automation.html",
+        admin_key="preview",
+        preview_mode=True
+    )
+
 # ── MEMBRES ──
 @app.route("/admin/api/membres", methods=["GET"])
 def admin_api_membres():
@@ -1054,11 +1200,1041 @@ def admin_api_telegram_envoyer():
     if key != ADMIN_KEY: return jsonify({"ok":False}), 403
     try:
         canal = request.json.get("canal", "@BECTANSE_ACADEMIE")
-        message = request.json.get("message","")
-        send_telegram(message, chat_id=canal)
+        message = request.json.get("message","").strip()
+        sent = _send_scheduled_telegram(
+            message,
+            slot_key=f"telegram-quick-{_paris_now().strftime('%Y%m%d-%H%M%S-%f')}",
+            post_kind="manual-editorial",
+            channel=canal
+        )
+        if not sent:
+            return jsonify({"ok":False,"error":"Telegram n’a pas confirmé l’envoi"}), 502
         return jsonify({"ok":True})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
+
+
+def _serialize_telegram_post(post):
+    serialized = dict(post)
+    if serialized.get("scheduled_for"):
+        serialized["scheduled_for"] = _parse_scheduled_datetime(
+            serialized["scheduled_for"]
+        ).isoformat()
+    for field in ("last_sent_at", "created_at", "updated_at"):
+        value = serialized.get(field)
+        if value and hasattr(value, "isoformat"):
+            serialized[field] = value.isoformat()
+    serialized["weekdays"] = [
+        int(day) for day in str(serialized.get("weekdays") or "").split(",") if day != ""
+    ]
+    for field in ("poll_options", "poll_correct_option_ids"):
+        value = serialized.get(field)
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (TypeError, ValueError):
+                value = []
+        serialized[field] = value if isinstance(value, list) else []
+    serialized["next_run"] = next_run_for_telegram_post(post)
+    return serialized
+
+
+def _payload_list(value, separator="|"):
+    if isinstance(value, list):
+        return value
+    if value is None:
+        return []
+    text = str(value).strip()
+    if not text:
+        return []
+    if text.startswith("["):
+        try:
+            parsed = json.loads(text)
+            return parsed if isinstance(parsed, list) else []
+        except ValueError:
+            pass
+    return [item.strip() for item in text.split(separator) if item.strip()]
+
+
+def _validate_telegram_post_payload(data):
+    name = str(data.get("name") or "").strip()
+    message = str(data.get("message") or "").strip()
+    image_url = str(data.get("image_url") or "").strip()
+    post_type = str(data.get("post_type") or "message").strip().lower()
+    schedule_type = str(data.get("schedule_type") or "weekly").strip()
+    publish_time = str(data.get("publish_time") or "18:30").strip()
+    channel = str(data.get("channel") or ECO_CANAL).strip()
+    button_text = str(data.get("button_text") or "").strip()
+    button_url = str(data.get("button_url") or "").strip()
+    poll_question = str(data.get("poll_question") or "").strip()
+    poll_options = [str(option).strip() for option in _payload_list(data.get("poll_options"))]
+    poll_explanation = str(data.get("poll_explanation") or "").strip()
+    publish_all_channels = bool(data.get("publish_all_channels", True))
+    raw_channel_ids = data.get("channel_ids") or []
+    channel_targets = [str(target).strip() for target in _payload_list(data.get("channel_targets"))]
+    if isinstance(raw_channel_ids, str):
+        raw_channel_ids = _payload_list(raw_channel_ids)
+    try:
+        channel_ids = sorted({int(channel_id) for channel_id in raw_channel_ids})
+    except (TypeError, ValueError):
+        raise ValueError("Sélection de canaux invalide")
+    if any(channel_id <= 0 for channel_id in channel_ids):
+        raise ValueError("Sélection de canaux invalide")
+    if not publish_all_channels and not channel_ids and not channel_targets:
+        raise ValueError("Choisis au moins un canal ou active la diffusion sur tous les canaux")
+
+    if not name or len(name) > 120:
+        raise ValueError("Le nom interne est obligatoire et limité à 120 caractères")
+    if post_type not in {"message", "quiz", "poll"}:
+        raise ValueError("Le format doit être message, quiz ou sondage")
+    if post_type == "message":
+        if not message:
+            raise ValueError("Le message Telegram est obligatoire")
+        if image_url and not image_url.startswith("https://"):
+            raise ValueError("L’image doit utiliser une adresse HTTPS")
+        max_length = 1024 if image_url else 4096
+        if len(message) > max_length:
+            raise ValueError(f"Le message est limité à {max_length} caractères dans ce format")
+        poll_question, poll_options, poll_explanation = "", [], ""
+        poll_correct_option_ids = []
+        poll_anonymous = True
+        poll_multiple = False
+    else:
+        if image_url:
+            raise ValueError("Une image séparée n’est pas compatible avec un quiz ou sondage natif")
+        if not poll_question or len(poll_question) > 300:
+            raise ValueError("La question est obligatoire et limitée à 300 caractères")
+        if not 2 <= len(poll_options) <= 12:
+            raise ValueError("Ajoute entre 2 et 12 réponses")
+        if any(not option or len(option) > 100 for option in poll_options):
+            raise ValueError("Chaque réponse est obligatoire et limitée à 100 caractères")
+        if len(poll_explanation) > 200 or poll_explanation.count("\n") > 2:
+            raise ValueError("L’explication est limitée à 200 caractères et 2 retours à la ligne")
+        raw_correct_ids = _payload_list(data.get("poll_correct_option_ids"))
+        try:
+            poll_correct_option_ids = sorted({int(index) for index in raw_correct_ids})
+        except (TypeError, ValueError):
+            raise ValueError("Les bonnes réponses du quiz sont invalides")
+        if post_type == "quiz" and not poll_correct_option_ids:
+            raise ValueError("Choisis au moins une bonne réponse pour le quiz")
+        if any(index < 0 or index >= len(poll_options) for index in poll_correct_option_ids):
+            raise ValueError("Une bonne réponse ne correspond à aucune option")
+        if post_type == "poll":
+            poll_correct_option_ids = []
+            poll_explanation = ""
+        poll_anonymous = bool(data.get("poll_anonymous", True))
+        poll_multiple = bool(data.get("poll_multiple", False))
+        if len(poll_correct_option_ids) > 1:
+            poll_multiple = True
+        message = message or poll_question
+    if schedule_type not in {"weekly", "rotation", "once"}:
+        raise ValueError("Type de programmation invalide")
+    if not channel or any(char.isspace() for char in channel):
+        raise ValueError("Destination Telegram invalide")
+    if bool(button_text) != bool(button_url):
+        raise ValueError("Le texte et le lien du bouton doivent être renseignés ensemble")
+    if button_url and not button_url.startswith(("https://", "http://")):
+        raise ValueError("Le lien du bouton doit commencer par https:// ou http://")
+
+    weekdays_raw = data.get("weekdays", [])
+    if isinstance(weekdays_raw, str):
+        weekdays_raw = [day for day in weekdays_raw.split(",") if day != ""]
+    try:
+        weekdays = sorted({int(day) for day in weekdays_raw})
+    except (TypeError, ValueError):
+        raise ValueError("Jours de publication invalides")
+    if any(day < 0 or day > 6 for day in weekdays):
+        raise ValueError("Jours de publication invalides")
+
+    rotation_week = data.get("rotation_week")
+    scheduled_for = None
+    if schedule_type in {"weekly", "rotation"}:
+        if not _parse_publish_time(publish_time):
+            raise ValueError("Heure de publication invalide")
+        if not weekdays:
+            raise ValueError("Choisis au moins un jour de publication")
+        if schedule_type == "rotation":
+            try:
+                rotation_week = int(rotation_week)
+            except (TypeError, ValueError):
+                raise ValueError("Semaine de rotation invalide")
+            if rotation_week not in range(4):
+                raise ValueError("La semaine de rotation doit être comprise entre 1 et 4")
+    else:
+        try:
+            scheduled_for = datetime.fromisoformat(str(data.get("scheduled_for") or ""))
+        except ValueError:
+            raise ValueError("Date et heure de l’envoi unique invalides")
+        weekdays = []
+        rotation_week = None
+
+    return {
+        "name": name,
+        "message": message,
+        "image_url": image_url,
+        "post_type": post_type,
+        "poll_question": poll_question,
+        "poll_options": json.dumps(poll_options, ensure_ascii=False),
+        "poll_correct_option_ids": json.dumps(poll_correct_option_ids),
+        "poll_explanation": poll_explanation,
+        "poll_anonymous": poll_anonymous,
+        "poll_multiple": poll_multiple,
+        "publish_all_channels": publish_all_channels,
+        "channel_ids": channel_ids,
+        "channel_targets": channel_targets,
+        "schedule_type": schedule_type,
+        "weekdays": ",".join(str(day) for day in weekdays),
+        "rotation_week": rotation_week,
+        "publish_time": publish_time,
+        "scheduled_for": scheduled_for,
+        "timezone": "Europe/Paris",
+        "channel": channel,
+        "button_text": button_text,
+        "button_url": button_url,
+        "disable_notification": bool(data.get("disable_notification", False)),
+        "enabled": bool(data.get("enabled", True))
+    }
+
+
+TELEGRAM_CSV_COLUMNS = [
+    "nom", "type", "date", "heure", "rythme", "jours", "semaine_rotation",
+    "canal", "message", "image_url", "texte_bouton", "lien_bouton",
+    "question", "reponses", "bonnes_reponses", "explication", "anonyme",
+    "choix_multiples", "silencieux", "actif", "tous_les_canaux", "canaux"
+]
+
+
+def _normalize_csv_label(value):
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return text.strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _csv_boolean(value, default=False):
+    text = _normalize_csv_label(value)
+    if not text:
+        return default
+    if text in {"1", "oui", "o", "true", "vrai", "yes", "actif"}:
+        return True
+    if text in {"0", "non", "n", "false", "faux", "no", "inactif"}:
+        return False
+    raise ValueError(f"valeur oui/non invalide : {value}")
+
+
+def _csv_date(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    for date_format in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(text, date_format).date()
+        except ValueError:
+            continue
+    raise ValueError("date invalide, utilise JJ/MM/AAAA")
+
+
+def _csv_weekdays(value):
+    aliases = {
+        "0": 0, "lun": 0, "lundi": 0,
+        "1": 1, "mar": 1, "mardi": 1,
+        "2": 2, "mer": 2, "mercredi": 2,
+        "3": 3, "jeu": 3, "jeudi": 3,
+        "4": 4, "ven": 4, "vendredi": 4,
+        "5": 5, "sam": 5, "samedi": 5,
+        "6": 6, "dim": 6, "dimanche": 6,
+    }
+    tokens = str(value or "").replace(",", "|").split("|")
+    days = []
+    for token in tokens:
+        normalized = _normalize_csv_label(token)
+        if not normalized:
+            continue
+        if normalized not in aliases:
+            raise ValueError(f"jour inconnu : {token.strip()}")
+        days.append(aliases[normalized])
+    return sorted(set(days))
+
+
+def _csv_row_to_telegram_payload(row, line_number):
+    normalized = {_normalize_csv_label(key): value for key, value in row.items() if key}
+    post_type = _normalize_csv_label(normalized.get("type") or "message")
+    post_type = {"photo": "message", "texte": "message", "sondage": "poll"}.get(
+        post_type, post_type
+    )
+    rhythm = _normalize_csv_label(normalized.get("rythme") or "")
+    rhythm = {
+        "unique": "once", "ponctuel": "once", "once": "once",
+        "hebdomadaire": "weekly", "semaine": "weekly", "weekly": "weekly",
+        "rotation": "rotation", "rotation_4_semaines": "rotation"
+    }.get(rhythm, rhythm)
+    target_date = _csv_date(normalized.get("date"))
+    if target_date:
+        rhythm = "once"
+    rhythm = rhythm or "weekly"
+    publish_time = str(normalized.get("heure") or "18:30").strip()
+    scheduled_for = ""
+    weekdays = []
+    rotation_week = 0
+    if rhythm == "once":
+        if not target_date:
+            raise ValueError("une date est obligatoire pour un envoi unique")
+        if not _parse_publish_time(publish_time):
+            raise ValueError("heure invalide, utilise HH:MM")
+        scheduled_for = datetime.combine(target_date, _parse_publish_time(publish_time)).isoformat()
+    else:
+        weekdays = _csv_weekdays(normalized.get("jours"))
+        if rhythm == "rotation":
+            try:
+                rotation_value = int(str(normalized.get("semaine_rotation") or "1").strip())
+            except ValueError:
+                raise ValueError("semaine de rotation invalide")
+            rotation_week = rotation_value - 1 if 1 <= rotation_value <= 4 else rotation_value
+
+    options = _payload_list(normalized.get("reponses"))
+    correct_values = _payload_list(
+        str(normalized.get("bonnes_reponses") or "").replace(",", "|")
+    )
+    try:
+        correct_ids = [int(value) - 1 for value in correct_values]
+    except ValueError:
+        raise ValueError("bonnes réponses invalides, utilise leurs numéros")
+
+    payload = {
+        "name": str(normalized.get("nom") or f"Publication ligne {line_number}").strip(),
+        "post_type": post_type,
+        "message": str(normalized.get("message") or "").strip(),
+        "image_url": str(normalized.get("image_url") or "").strip(),
+        "poll_question": str(normalized.get("question") or "").strip(),
+        "poll_options": options,
+        "poll_correct_option_ids": correct_ids,
+        "poll_explanation": str(normalized.get("explication") or "").strip(),
+        "poll_anonymous": _csv_boolean(normalized.get("anonyme"), True),
+        "poll_multiple": _csv_boolean(normalized.get("choix_multiples"), False),
+        "schedule_type": rhythm,
+        "weekdays": weekdays,
+        "rotation_week": rotation_week,
+        "publish_time": publish_time,
+        "scheduled_for": scheduled_for,
+        "channel": str(normalized.get("canal") or ECO_CANAL).strip(),
+        "button_text": str(normalized.get("texte_bouton") or "").strip(),
+        "button_url": str(normalized.get("lien_bouton") or "").strip(),
+        "disable_notification": _csv_boolean(normalized.get("silencieux"), False),
+        "enabled": _csv_boolean(normalized.get("actif"), True),
+        "publish_all_channels": _csv_boolean(normalized.get("tous_les_canaux"), True),
+        "channel_targets": _payload_list(normalized.get("canaux")),
+    }
+    return _validate_telegram_post_payload(payload)
+
+
+def _telegram_csv_source_key(values):
+    canonical = json.dumps(values, ensure_ascii=False, sort_keys=True, default=str)
+    return f"csv-{hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:32]}"
+
+
+def _csv_download(rows, filename):
+    stream = io.StringIO()
+    writer = csv.DictWriter(stream, fieldnames=TELEGRAM_CSV_COLUMNS, delimiter=";")
+    writer.writeheader()
+    writer.writerows(rows)
+    return Response(
+        "\ufeff" + stream.getvalue(),
+        content_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+def _telegram_post_to_csv_row(post):
+    serialized = _serialize_telegram_post(post)
+    scheduled_for = _parse_scheduled_datetime(post.get("scheduled_for"))
+    type_labels = {"message": "message", "quiz": "quiz", "poll": "sondage"}
+    rhythm_labels = {"weekly": "hebdomadaire", "rotation": "rotation", "once": "unique"}
+    day_labels = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
+    correct_ids = serialized.get("poll_correct_option_ids") or []
+    return {
+        "nom": post.get("name") or "",
+        "type": type_labels.get(post.get("post_type") or "message", "message"),
+        "date": scheduled_for.strftime("%d/%m/%Y") if scheduled_for else "",
+        "heure": scheduled_for.strftime("%H:%M") if scheduled_for else post.get("publish_time") or "",
+        "rythme": rhythm_labels.get(post.get("schedule_type"), post.get("schedule_type") or ""),
+        "jours": "|".join(day_labels[day] for day in serialized.get("weekdays", [])),
+        "semaine_rotation": (int(post.get("rotation_week")) + 1) if post.get("rotation_week") is not None else "",
+        "canal": post.get("channel") or "",
+        "message": post.get("message") if (post.get("post_type") or "message") == "message" else "",
+        "image_url": post.get("image_url") or "",
+        "texte_bouton": post.get("button_text") or "",
+        "lien_bouton": post.get("button_url") or "",
+        "question": post.get("poll_question") or "",
+        "reponses": "|".join(serialized.get("poll_options") or []),
+        "bonnes_reponses": "|".join(str(index + 1) for index in correct_ids),
+        "explication": post.get("poll_explanation") or "",
+        "anonyme": "oui" if post.get("poll_anonymous", True) else "non",
+        "choix_multiples": "oui" if post.get("poll_multiple", False) else "non",
+        "silencieux": "oui" if post.get("disable_notification") else "non",
+        "actif": "oui" if post.get("enabled") else "non",
+        "tous_les_canaux": "oui" if post.get("publish_all_channels", True) else "non",
+        "canaux": "|".join(post.get("channel_targets") or []),
+    }
+
+
+def _telegram_csv_request_allowed(key):
+    local_preview = (
+        key == "preview" and request.host.split(":", 1)[0] in {"127.0.0.1", "localhost"}
+    )
+    return key == ADMIN_KEY or local_preview
+
+
+@app.route("/admin/api/telegram/csv/template", methods=["GET"])
+def admin_api_telegram_csv_template():
+    if not _telegram_csv_request_allowed(request.args.get("key", "")):
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    try:
+        with open(TELEGRAM_CSV_TEMPLATE_PATH, "r", encoding="utf-8-sig", newline="") as template:
+            content = template.read()
+        return Response(
+            "\ufeff" + content,
+            content_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="modele-planning-telegram-semaine.csv"'}
+        )
+    except OSError as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+
+
+@app.route("/admin/api/telegram/csv/export", methods=["GET"])
+def admin_api_telegram_csv_export():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts
+               WHERE deleted=FALSE ORDER BY id"""
+        )
+        posts = [_telegram_post_from_row(row) for row in rows]
+        target_rows = conn.run(
+            """SELECT targets.post_id, channels.chat_id
+               FROM telegram_post_channels AS targets
+               JOIN telegram_channels AS channels ON channels.id=targets.channel_id
+               WHERE channels.deleted=FALSE ORDER BY targets.post_id, channels.id"""
+        )
+        target_names_by_post = {}
+        for post_id, chat_id in target_rows:
+            target_names_by_post.setdefault(int(post_id), []).append(chat_id)
+        for post in posts:
+            post["channel_targets"] = target_names_by_post.get(int(post["id"]), [])
+        return _csv_download(
+            [_telegram_post_to_csv_row(post) for post in posts],
+            f"planning-telegram-{_paris_now().strftime('%Y-%m-%d')}.csv"
+        )
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/csv/import", methods=["POST"])
+def admin_api_telegram_csv_import():
+    key = request.form.get("key", "")
+    if not _telegram_csv_request_allowed(key):
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    csv_file = request.files.get("file")
+    if not csv_file or not csv_file.filename:
+        return jsonify({"ok": False, "error": "Choisis un fichier CSV"}), 400
+    raw = csv_file.read(2 * 1024 * 1024 + 1)
+    if len(raw) > 2 * 1024 * 1024:
+        return jsonify({"ok": False, "error": "Le fichier CSV est limité à 2 Mo"}), 400
+    try:
+        decoded = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return jsonify({"ok": False, "error": "Enregistre le CSV au format UTF-8"}), 400
+    try:
+        delimiter = csv.Sniffer().sniff(decoded[:4096], delimiters=";,\t").delimiter
+    except csv.Error:
+        delimiter = ";"
+    reader = csv.DictReader(io.StringIO(decoded), delimiter=delimiter)
+    if not reader.fieldnames:
+        return jsonify({"ok": False, "error": "Le CSV ne contient pas d’en-têtes"}), 400
+
+    values_to_import = []
+    errors = []
+    for line_number, row in enumerate(reader, start=2):
+        if not any(str(value or "").strip() for value in row.values()):
+            continue
+        try:
+            values = _csv_row_to_telegram_payload(row, line_number)
+            values_to_import.append((line_number, values))
+        except (TypeError, ValueError) as error:
+            errors.append({"line": line_number, "error": str(error)})
+    if not values_to_import and not errors:
+        errors.append({"line": 1, "error": "Le CSV ne contient aucune publication"})
+    if errors:
+        return jsonify({
+            "ok": False,
+            "error": f"{len(errors)} ligne(s) à corriger",
+            "errors": errors[:50]
+        }), 400
+
+    summary = {
+        "total": len(values_to_import),
+        "messages": sum(1 for _, values in values_to_import if values["post_type"] == "message"),
+        "quizzes": sum(1 for _, values in values_to_import if values["post_type"] == "quiz"),
+        "polls": sum(1 for _, values in values_to_import if values["post_type"] == "poll"),
+    }
+    dry_run = _csv_boolean(request.form.get("dry_run"), True)
+    preview_mode = key == "preview"
+    if dry_run or preview_mode:
+        return jsonify({"ok": True, "summary": summary, "preview_mode": preview_mode})
+
+    conn = None
+    imported = 0
+    duplicates = 0
+    try:
+        conn = get_conn()
+        for _, values in values_to_import:
+            source_key = _telegram_csv_source_key(values)
+            db_values = dict(values)
+            channel_ids = db_values.pop("channel_ids", [])
+            channel_targets = db_values.pop("channel_targets", [])
+            if not db_values["publish_all_channels"] and not channel_ids:
+                for target in channel_targets:
+                    target_rows = conn.run(
+                        """SELECT id FROM telegram_channels
+                           WHERE LOWER(chat_id)=LOWER(:chat_id) AND deleted=FALSE""",
+                        chat_id=target
+                    )
+                    if not target_rows:
+                        raise ValueError(f"Canal CSV introuvable dans l’admin : {target}")
+                    channel_ids.append(int(target_rows[0][0]))
+            rows = conn.run(
+                """INSERT INTO telegram_scheduled_posts
+                   (name, message, image_url, post_type, poll_question, poll_options,
+                    poll_correct_option_ids, poll_explanation, poll_anonymous,
+                    poll_multiple, schedule_type, weekdays, rotation_week,
+                    publish_time, scheduled_for, timezone, channel, button_text,
+                    button_url, disable_notification, enabled, source_key,
+                    publish_all_channels)
+                   VALUES (:name, :message, :image_url, :post_type, :poll_question,
+                           :poll_options, :poll_correct_option_ids, :poll_explanation,
+                           :poll_anonymous, :poll_multiple, :schedule_type, :weekdays,
+                           :rotation_week, :publish_time, :scheduled_for, :timezone,
+                           :channel, :button_text, :button_url,
+                           :disable_notification, :enabled, :source_key,
+                           :publish_all_channels)
+                   ON CONFLICT (source_key) DO NOTHING RETURNING id""",
+                source_key=source_key, **db_values
+            )
+            if rows:
+                imported += 1
+                post_id = int(rows[0][0])
+                for channel_id in channel_ids:
+                    conn.run(
+                        """INSERT INTO telegram_post_channels (post_id, channel_id)
+                           SELECT :post_id, id FROM telegram_channels
+                           WHERE id=:channel_id AND deleted=FALSE
+                           ON CONFLICT DO NOTHING""",
+                        post_id=post_id, channel_id=channel_id
+                    )
+            else:
+                duplicates += 1
+        return jsonify({
+            "ok": True, "summary": summary,
+            "imported": imported, "duplicates": duplicates
+        })
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _validate_telegram_channel_payload(data):
+    name = str(data.get("name") or "").strip()
+    chat_id = str(data.get("chat_id") or "").strip()
+    if not name or len(name) > 80:
+        raise ValueError("Le nom du canal est obligatoire et limité à 80 caractères")
+    if not chat_id or any(char.isspace() for char in chat_id):
+        raise ValueError("L’identifiant Telegram du canal est invalide")
+    if not chat_id.startswith("@"):
+        try:
+            int(chat_id)
+        except ValueError:
+            raise ValueError("Utilise @nom_du_canal ou son identifiant numérique")
+    return {"name": name, "chat_id": chat_id, "active": bool(data.get("active", True))}
+
+
+@app.route("/admin/api/telegram/channels", methods=["GET"])
+def admin_api_telegram_channels():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, chat_id, active, last_check_status,
+                      last_check_at, created_at, updated_at
+               FROM telegram_channels WHERE deleted=FALSE
+               ORDER BY active DESC, id"""
+        )
+        channels = []
+        for row in rows:
+            channel = dict(zip([
+                "id", "name", "chat_id", "active", "last_check_status",
+                "last_check_at", "created_at", "updated_at"
+            ], row))
+            for field in ("last_check_at", "created_at", "updated_at"):
+                if channel.get(field) and hasattr(channel[field], "isoformat"):
+                    channel[field] = channel[field].isoformat()
+            channels.append(channel)
+        return jsonify({"ok": True, "channels": channels})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/save", methods=["POST"])
+def admin_api_telegram_channel_save():
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        values = _validate_telegram_channel_payload(data)
+        channel_id = data.get("id")
+        conn = get_conn()
+        if channel_id:
+            conn.run(
+                """UPDATE telegram_channels SET name=:name, chat_id=:chat_id,
+                          active=:active, deleted=FALSE, updated_at=NOW()
+                   WHERE id=:id AND deleted=FALSE""",
+                id=int(channel_id), **values
+            )
+        else:
+            rows = conn.run(
+                """INSERT INTO telegram_channels (name, chat_id, active, deleted)
+                   VALUES (:name, :chat_id, :active, FALSE)
+                   ON CONFLICT (chat_id) DO UPDATE SET
+                       name=:name, active=:active, deleted=FALSE, updated_at=NOW()
+                   RETURNING id""",
+                **values
+            )
+            channel_id = rows[0][0]
+        return jsonify({"ok": True, "id": int(channel_id)})
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/<int:channel_id>/toggle", methods=["POST"])
+def admin_api_telegram_channel_toggle(channel_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_channels SET active=:active, updated_at=NOW()
+               WHERE id=:id AND deleted=FALSE""",
+            id=channel_id, active=bool(data.get("active"))
+        )
+        return jsonify({"ok": True})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/<int:channel_id>/delete", methods=["POST"])
+def admin_api_telegram_channel_delete(channel_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_channels SET active=FALSE, deleted=TRUE, updated_at=NOW()
+               WHERE id=:id""",
+            id=channel_id
+        )
+        return jsonify({"ok": True})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/<int:channel_id>/test", methods=["POST"])
+def admin_api_telegram_channel_test(channel_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    status = "error"
+    detail = "Test impossible"
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            "SELECT chat_id FROM telegram_channels WHERE id=:id AND deleted=FALSE",
+            id=channel_id
+        )
+        if not rows:
+            return jsonify({"ok": False, "error": "Canal introuvable"}), 404
+        chat_id = rows[0][0]
+        me_response = requests.get(
+            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/getMe", timeout=15
+        ).json()
+        if not me_response.get("ok"):
+            raise ValueError(me_response.get("description", "Bot Telegram indisponible"))
+        bot_id = me_response["result"]["id"]
+        member_response = requests.get(
+            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/getChatMember",
+            params={"chat_id": chat_id, "user_id": bot_id}, timeout=15
+        ).json()
+        if not member_response.get("ok"):
+            raise ValueError(member_response.get("description", "Canal inaccessible"))
+        member = member_response.get("result", {})
+        role = member.get("status")
+        can_publish = role == "creator" or (
+            role == "administrator" and member.get("can_post_messages", True)
+        )
+        status = "ready" if can_publish else "permission_missing"
+        detail = "Robot prêt à publier" if can_publish else "Autorisation de publication manquante"
+        conn.run(
+            """UPDATE telegram_channels SET last_check_status=:status,
+                      last_check_at=NOW(), updated_at=NOW() WHERE id=:id""",
+            id=channel_id, status=status
+        )
+        return jsonify({"ok": True, "status": status, "detail": detail})
+    except (ValueError, requests.RequestException) as error:
+        detail = str(error)
+        if conn:
+            try:
+                conn.run(
+                    """UPDATE telegram_channels SET last_check_status='error',
+                              last_check_at=NOW(), updated_at=NOW() WHERE id=:id""",
+                    id=channel_id
+                )
+            except Exception:
+                pass
+        return jsonify({"ok": False, "error": detail}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts", methods=["GET"])
+def admin_api_telegram_posts():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts
+               WHERE deleted=FALSE ORDER BY enabled DESC, id DESC"""
+        )
+        posts = [_serialize_telegram_post(_telegram_post_from_row(row)) for row in rows]
+        target_rows = conn.run(
+            """SELECT targets.post_id, targets.channel_id
+               FROM telegram_post_channels AS targets
+               JOIN telegram_scheduled_posts AS posts ON posts.id=targets.post_id
+               WHERE posts.deleted=FALSE"""
+        )
+        channel_ids_by_post = {}
+        for post_id, channel_id in target_rows:
+            channel_ids_by_post.setdefault(int(post_id), []).append(int(channel_id))
+        for post in posts:
+            post["channel_ids"] = channel_ids_by_post.get(int(post["id"]), [])
+        return jsonify({
+            "ok": True,
+            "posts": posts,
+            "stats": {
+                "total": len(posts),
+                "active": sum(1 for post in posts if post["enabled"]),
+                "with_image": sum(1 for post in posts if post.get("image_url")),
+                "interactive": sum(
+                    1 for post in posts if post.get("post_type") in {"quiz", "poll"}
+                ),
+                "scheduled": sum(1 for post in posts if post.get("next_run"))
+            }
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/save", methods=["POST"])
+def admin_api_telegram_posts_save():
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        values = _validate_telegram_post_payload(data)
+        channel_ids = values.pop("channel_ids", [])
+        values.pop("channel_targets", None)
+        post_id = data.get("id")
+        conn = get_conn()
+        for channel_id in channel_ids:
+            if not conn.run(
+                "SELECT id FROM telegram_channels WHERE id=:id AND deleted=FALSE",
+                id=channel_id
+            ):
+                raise ValueError("Un canal sélectionné n’existe plus")
+        if post_id:
+            rows = conn.run(
+                "SELECT id FROM telegram_scheduled_posts WHERE id=:id AND deleted=FALSE",
+                id=int(post_id)
+            )
+            if not rows:
+                return jsonify({"ok": False, "error": "Publication introuvable"}), 404
+            conn.run(
+                """UPDATE telegram_scheduled_posts SET
+                   name=:name, message=:message, image_url=:image_url,
+                   post_type=:post_type, poll_question=:poll_question,
+                   poll_options=:poll_options,
+                   poll_correct_option_ids=:poll_correct_option_ids,
+                   poll_explanation=:poll_explanation,
+                   poll_anonymous=:poll_anonymous, poll_multiple=:poll_multiple,
+                   publish_all_channels=:publish_all_channels,
+                   schedule_type=:schedule_type, weekdays=:weekdays,
+                   rotation_week=:rotation_week, publish_time=:publish_time,
+                   scheduled_for=:scheduled_for, timezone=:timezone, channel=:channel,
+                   button_text=:button_text, button_url=:button_url,
+                   disable_notification=:disable_notification, enabled=:enabled,
+                   updated_at=NOW() WHERE id=:id""",
+                id=int(post_id), **values
+            )
+        else:
+            rows = conn.run(
+                """INSERT INTO telegram_scheduled_posts
+                   (name, message, image_url, post_type, poll_question, poll_options,
+                    poll_correct_option_ids, poll_explanation, poll_anonymous,
+                    poll_multiple, publish_all_channels, schedule_type, weekdays, rotation_week,
+                    publish_time, scheduled_for, timezone, channel, button_text,
+                    button_url, disable_notification, enabled)
+                   VALUES (:name, :message, :image_url, :post_type, :poll_question,
+                           :poll_options, :poll_correct_option_ids, :poll_explanation,
+                           :poll_anonymous, :poll_multiple, :publish_all_channels,
+                           :schedule_type, :weekdays,
+                           :rotation_week, :publish_time, :scheduled_for, :timezone,
+                           :channel, :button_text, :button_url,
+                           :disable_notification, :enabled)
+                   RETURNING id""",
+                **values
+            )
+            post_id = rows[0][0]
+        conn.run("DELETE FROM telegram_post_channels WHERE post_id=:post_id", post_id=int(post_id))
+        if not values["publish_all_channels"]:
+            for channel_id in channel_ids:
+                conn.run(
+                    """INSERT INTO telegram_post_channels (post_id, channel_id)
+                       VALUES (:post_id, :channel_id) ON CONFLICT DO NOTHING""",
+                    post_id=int(post_id), channel_id=channel_id
+                )
+        return jsonify({"ok": True, "id": int(post_id)})
+    except (TypeError, ValueError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/<int:post_id>/toggle", methods=["POST"])
+def admin_api_telegram_post_toggle(post_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_scheduled_posts
+               SET enabled=:enabled, updated_at=NOW()
+               WHERE id=:id AND deleted=FALSE""",
+            enabled=bool(data.get("enabled")), id=post_id
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/<int:post_id>/delete", methods=["POST"])
+def admin_api_telegram_post_delete(post_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_scheduled_posts
+               SET deleted=TRUE, enabled=FALSE, updated_at=NOW()
+               WHERE id=:id""",
+            id=post_id
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/<int:post_id>/send-now", methods=["POST"])
+def admin_api_telegram_post_send_now(post_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts WHERE id=:id AND deleted=FALSE""",
+            id=post_id
+        )
+        if not rows:
+            return jsonify({"ok": False, "error": "Publication introuvable"}), 404
+        post = _telegram_post_from_row(rows[0])
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+    slot_key = f"telegram-manual-{post_id}-{_paris_now().strftime('%Y%m%d-%H%M%S-%f')}"
+    delivery = _send_saved_post_to_channels(post, slot_key, "manual-editorial")
+    if not delivery["sent"]:
+        return jsonify({
+            "ok": False,
+            "error": "Aucun canal n’a confirmé l’envoi",
+            "delivery": delivery
+        }), 502
+    update_conn = None
+    try:
+        update_conn = get_conn()
+        update_conn.run(
+            "UPDATE telegram_scheduled_posts SET last_sent_at=NOW(), updated_at=NOW() WHERE id=:id",
+            id=post_id
+        )
+    except Exception as e:
+        app.logger.error(f"manual Telegram post update {post_id}: {e}")
+    finally:
+        if update_conn:
+            try: update_conn.close()
+            except: pass
+    return jsonify({"ok": True, "delivery": delivery})
+
+
+@app.route("/admin/api/telegram/upload", methods=["POST"])
+def admin_api_telegram_upload():
+    if request.form.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    image = request.files.get("image")
+    if not image or not image.filename:
+        return jsonify({"ok": False, "error": "Choisis une image"}), 400
+    allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if image.mimetype not in allowed_types:
+        return jsonify({"ok": False, "error": "Format accepté : JPG, PNG, WebP ou GIF"}), 400
+    file_bytes = image.read(8 * 1024 * 1024 + 1)
+    if len(file_bytes) > 8 * 1024 * 1024:
+        return jsonify({"ok": False, "error": "L’image ne doit pas dépasser 8 Mo"}), 400
+    image_url = upload_to_cloudinary(file_bytes, "image", secure_filename(image.filename))
+    if not image_url:
+        return jsonify({"ok": False, "error": "L’image n’a pas pu être enregistrée"}), 502
+    return jsonify({"ok": True, "url": image_url})
+
+
+@app.route("/admin/api/telegram/history", methods=["GET"])
+def admin_api_telegram_history():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT publications.slot_key, publications.post_kind,
+                      publications.target_channel,
+                      publications.status, publications.content,
+                      publications.telegram_message_id, publications.attempts,
+                      publications.error, publications.created_at,
+                      publications.sent_at, posts.name
+               FROM scheduled_publications AS publications
+               LEFT JOIN telegram_scheduled_posts AS posts
+                 ON posts.id=publications.post_id
+               ORDER BY publications.created_at DESC LIMIT 60"""
+        )
+        history = []
+        for row in rows:
+            item = dict(zip([
+                "slot_key", "post_kind", "target_channel", "status", "content", "message_id",
+                "attempts", "error", "created_at", "sent_at", "name"
+            ], row))
+            for field in ("created_at", "sent_at"):
+                if item.get(field) and hasattr(item[field], "isoformat"):
+                    item[field] = item[field].isoformat()
+            history.append(item)
+        return jsonify({"ok": True, "history": history})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
 
 # ── STATS ──
 @app.route("/admin/api/stats", methods=["GET"])
@@ -2315,91 +3491,583 @@ def job_relances_quotidiennes():
         send_telegram(f"❌ *ERREUR job_relances*\n`{e}`")
 
 
-def get_eco_calendar():
+JOURS_FR = {
+    "Monday": "lundi", "Tuesday": "mardi", "Wednesday": "mercredi",
+    "Thursday": "jeudi", "Friday": "vendredi", "Saturday": "samedi",
+    "Sunday": "dimanche"
+}
+MOIS_FR = {
+    "January": "janvier", "February": "février", "March": "mars",
+    "April": "avril", "May": "mai", "June": "juin", "July": "juillet",
+    "August": "août", "September": "septembre", "October": "octobre",
+    "November": "novembre", "December": "décembre"
+}
+FLAG_MAP = {
+    "USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵",
+    "CHF": "🇨🇭", "CAD": "🇨🇦", "AUD": "🇦🇺", "NZD": "🇳🇿",
+    "CNY": "🇨🇳"
+}
+IMPACT_ICONS = {"High": "🔴", "Medium": "🟡", "Low": "⚪"}
+
+
+def _paris_now():
+    return datetime.now(PARIS_TZ)
+
+
+def _claim_scheduled_publication(slot_key, post_kind, content, post_id=None, target_channel=""):
+    """Réserve un créneau en base pour empêcher les doublons multi-workers."""
+    conn = None
     try:
+        conn = get_conn()
+        rows = conn.run(
+            """INSERT INTO scheduled_publications
+               (slot_key, post_kind, status, content, attempts, post_id, target_channel)
+               VALUES (:slot, :kind, 'sending', :content, 1, :post_id, :target_channel)
+               ON CONFLICT (slot_key) DO UPDATE SET
+                   status='sending', content=:content,
+                   post_id=COALESCE(:post_id, scheduled_publications.post_id),
+                   target_channel=:target_channel,
+                   attempts=scheduled_publications.attempts + 1,
+                   error='', created_at=NOW()
+               WHERE scheduled_publications.status='failed'
+               RETURNING slot_key""",
+            slot=slot_key, kind=post_kind, content=content, post_id=post_id,
+            target_channel=target_channel
+        )
+        return bool(rows)
+    except Exception as e:
+        # Échec fermé : sans verrou DB, ne pas risquer une double publication.
+        app.logger.error(f"publication claim {slot_key}: {e}")
+        return False
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _finish_scheduled_publication(slot_key, status, message_id=None, error=""):
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE scheduled_publications
+               SET status=:status, telegram_message_id=:message_id, error=:error,
+                   sent_at=CASE WHEN :status='sent' THEN NOW() ELSE sent_at END
+               WHERE slot_key=:slot""",
+            status=status, message_id=message_id, error=(error or "")[:1000], slot=slot_key
+        )
+    except Exception as e:
+        app.logger.error(f"publication finish {slot_key}: {e}")
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _scheduled_publication_status(slot_key):
+    """Relit l'état d'un créneau pour distinguer un doublon d'un échec."""
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            "SELECT status FROM scheduled_publications WHERE slot_key=:slot",
+            slot=slot_key
+        )
+        return str(rows[0][0]) if rows else ""
+    except Exception as error:
+        app.logger.error(f"publication status {slot_key}: {error}")
+        return ""
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _send_scheduled_telegram(
+    text, slot_key, post_kind, image_url="", channel=None,
+    button_text="", button_url="", disable_notification=False, post_id=None,
+    post_type="message", poll_question="", poll_options=None,
+    poll_correct_option_ids=None, poll_explanation="", poll_anonymous=True,
+    poll_multiple=False
+):
+    target_channel = (channel or ECO_CANAL or "").strip()
+    if not ECO_BOT_TOKEN or not target_channel:
+        app.logger.error("Publication Telegram annulée : ECO_BOT_TOKEN ou canal absent")
+        return False
+    post_type = post_type if post_type in {"message", "quiz", "poll"} else "message"
+    if post_type == "message":
+        max_length = 1024 if image_url else 4096
+        if not text or len(text) > max_length:
+            app.logger.error(f"Publication Telegram invalide : limite {max_length} caractères")
+            return False
+        claim_content = text
+    else:
+        poll_options = _payload_list(poll_options)
+        poll_correct_option_ids = [
+            int(index) for index in _payload_list(poll_correct_option_ids)
+        ]
+        if not poll_question or not 2 <= len(poll_options) <= 12:
+            app.logger.error("Quiz ou sondage Telegram invalide")
+            return False
+        claim_content = poll_question
+    if not _claim_scheduled_publication(
+        slot_key, post_kind, claim_content, post_id=post_id,
+        target_channel=target_channel
+    ):
+        app.logger.info(f"Publication déjà traitée ou verrouillée : {slot_key}")
+        return False
+
+    last_error = "erreur Telegram inconnue"
+    for attempt in range(3):
+        try:
+            if attempt:
+                time.sleep(2)
+            payload = {"chat_id": target_channel, "disable_notification": bool(disable_notification)}
+            if button_text and button_url:
+                payload["reply_markup"] = {
+                    "inline_keyboard": [[{"text": button_text, "url": button_url}]]
+                }
+            if post_type in {"quiz", "poll"}:
+                endpoint = "sendPoll"
+                payload.update({
+                    "question": poll_question,
+                    "options": [{"text": str(option)} for option in poll_options],
+                    "type": "quiz" if post_type == "quiz" else "regular",
+                    "is_anonymous": bool(poll_anonymous),
+                    "allows_multiple_answers": bool(poll_multiple),
+                })
+                if post_type == "quiz":
+                    payload["correct_option_ids"] = poll_correct_option_ids
+                    if poll_explanation:
+                        payload.update({
+                            "explanation": poll_explanation,
+                            "explanation_parse_mode": "Markdown"
+                        })
+            else:
+                payload["parse_mode"] = "Markdown"
+                if image_url:
+                    endpoint = "sendPhoto"
+                    payload.update({"photo": image_url, "caption": text})
+                else:
+                    endpoint = "sendMessage"
+                    payload.update({"text": text, "disable_web_page_preview": True})
+            response = requests.post(
+                f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}",
+                json=payload,
+                timeout=20
+            )
+            result = response.json()
+            if result.get("ok"):
+                message_id = result.get("result", {}).get("message_id")
+                _finish_scheduled_publication(slot_key, "sent", message_id=message_id)
+                app.logger.info(f"Publication Telegram envoyée : {slot_key}")
+                return True
+            last_error = result.get("description", f"HTTP {response.status_code}")
+        except Exception as e:
+            last_error = str(e)
+        app.logger.warning(f"Telegram {slot_key}, tentative {attempt + 1}: {last_error}")
+
+    _finish_scheduled_publication(slot_key, "failed", error=last_error)
+    send_telegram(f"❌ *Publication Telegram échouée*\n`{slot_key}`\n{last_error[:300]}")
+    return False
+
+
+def _resolve_telegram_targets(post=None, publish_all_channels=False, fallback_channel=None):
+    post = post or {}
+    use_all = bool(post.get("publish_all_channels", publish_all_channels))
+    fallback = (fallback_channel or post.get("channel") or ECO_CANAL or "").strip()
+    conn = None
+    targets = []
+    registry_checked = False
+    try:
+        conn = get_conn()
+        if use_all:
+            rows = conn.run(
+                """SELECT id, name, chat_id FROM telegram_channels
+                   WHERE active=TRUE AND deleted=FALSE ORDER BY id"""
+            )
+        elif post.get("id"):
+            rows = conn.run(
+                """SELECT channels.id, channels.name, channels.chat_id
+                   FROM telegram_post_channels AS targets
+                   JOIN telegram_channels AS channels ON channels.id=targets.channel_id
+                   WHERE targets.post_id=:post_id
+                     AND channels.active=TRUE AND channels.deleted=FALSE
+                   ORDER BY channels.id""",
+                post_id=int(post["id"])
+            )
+        else:
+            rows = []
+        registry_checked = use_all or bool(post.get("id"))
+        targets = [
+            {"id": int(channel_id), "name": name, "chat_id": chat_id}
+            for channel_id, name, chat_id in rows
+        ]
+    except Exception as error:
+        app.logger.error(f"telegram target resolution: {error}")
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+    if not targets and fallback and not registry_checked:
+        targets = [{"id": None, "name": "Canal historique", "chat_id": fallback}]
+    unique_targets = []
+    seen = set()
+    for target in targets:
+        key = str(target["chat_id"]).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_targets.append(target)
+    return unique_targets
+
+
+def _broadcast_scheduled_telegram(
+    text, base_slot_key, post_kind, post=None, publish_all_channels=False,
+    fallback_channel=None, **send_options
+):
+    targets = _resolve_telegram_targets(
+        post=post, publish_all_channels=publish_all_channels,
+        fallback_channel=fallback_channel
+    )
+    results = []
+    for target in targets:
+        target_hash = hashlib.sha256(
+            str(target["chat_id"]).lower().encode("utf-8")
+        ).hexdigest()[:12]
+        slot_key = f"{base_slot_key}-{target_hash}"
+        sent_now = _send_scheduled_telegram(
+            text,
+            slot_key=slot_key,
+            post_kind=post_kind,
+            channel=target["chat_id"],
+            **send_options
+        )
+        status = "sent" if sent_now else _scheduled_publication_status(slot_key)
+        results.append({
+            **target,
+            "sent": status == "sent",
+            "sent_now": bool(sent_now),
+            "status": status or "failed",
+        })
+    return {
+        "total": len(results),
+        "sent": sum(1 for result in results if result["sent"]),
+        "sent_now": sum(1 for result in results if result["sent_now"]),
+        "failed": sum(1 for result in results if not result["sent"]),
+        "channels": results,
+    }
+
+
+def _send_saved_post_to_channels(post, base_slot_key, post_kind):
+    return _broadcast_scheduled_telegram(
+        post["message"], base_slot_key=base_slot_key, post_kind=post_kind,
+        post=post, fallback_channel=post.get("channel"),
+        image_url=post.get("image_url") or "",
+        button_text=post.get("button_text") or "",
+        button_url=post.get("button_url") or "",
+        disable_notification=post.get("disable_notification", False),
+        post_id=post.get("id"), post_type=post.get("post_type") or "message",
+        poll_question=post.get("poll_question") or "",
+        poll_options=post.get("poll_options") or "[]",
+        poll_correct_option_ids=post.get("poll_correct_option_ids") or "[]",
+        poll_explanation=post.get("poll_explanation") or "",
+        poll_anonymous=post.get("poll_anonymous", True),
+        poll_multiple=post.get("poll_multiple", False)
+    )
+
+
+def load_telegram_editorial_calendar():
+    with open(TELEGRAM_EDITORIAL_PATH, "r", encoding="utf-8") as content_file:
+        calendar = json.load(content_file)
+    weeks = calendar.get("weeks") or []
+    if not weeks or any(len(week) != 7 for week in weeks):
+        raise ValueError("Le calendrier Telegram doit contenir des semaines de 7 publications")
+    return calendar
+
+
+def build_daily_editorial_post(target_date=None):
+    target_date = target_date or _paris_now().date()
+    calendar = load_telegram_editorial_calendar()
+    weeks = calendar["weeks"]
+    week_index = (target_date.isocalendar().week - 1) % len(weeks)
+    post = weeks[week_index][target_date.weekday()]
+    message = _format_editorial_entry(calendar, post)
+    if len(message) > 4096:
+        raise ValueError("La publication Telegram dépasse la limite de 4 096 caractères")
+    return message
+
+
+def send_daily_editorial_post(target_date=None):
+    target_date = target_date or _paris_now().date()
+    try:
+        message = build_daily_editorial_post(target_date)
+        delivery = _broadcast_scheduled_telegram(
+            message,
+            base_slot_key=f"editorial-{target_date.isoformat()}",
+            post_kind="editorial", publish_all_channels=True,
+            fallback_channel=ECO_CANAL
+        )
+        return delivery["sent"] > 0
+    except Exception as e:
+        app.logger.error(f"send_daily_editorial_post: {e}")
+        send_telegram(f"❌ *Erreur calendrier éditorial*\n`{str(e)[:300]}`")
+        return False
+
+
+TELEGRAM_POST_COLUMNS = [
+    "id", "name", "message", "image_url", "schedule_type", "weekdays",
+    "rotation_week", "publish_time", "scheduled_for", "timezone", "channel",
+    "button_text", "button_url", "disable_notification", "enabled", "source_key",
+    "deleted", "last_sent_at", "created_at", "updated_at", "post_type",
+    "poll_question", "poll_options", "poll_correct_option_ids",
+    "poll_explanation", "poll_anonymous", "poll_multiple", "publish_all_channels"
+]
+
+
+def _telegram_post_from_row(row):
+    return dict(zip(TELEGRAM_POST_COLUMNS, row))
+
+
+def _parse_scheduled_datetime(value):
+    if not value:
+        return None
+    parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=PARIS_TZ)
+    return parsed.astimezone(PARIS_TZ)
+
+
+def _parse_publish_time(value):
+    try:
+        return datetime.strptime(str(value), "%H:%M").time()
+    except (TypeError, ValueError):
+        return None
+
+
+def _post_matches_day(post, target_date):
+    schedule_type = post.get("schedule_type")
+    if schedule_type == "once":
+        scheduled_for = _parse_scheduled_datetime(post.get("scheduled_for"))
+        return bool(scheduled_for and scheduled_for.date() == target_date)
+    try:
+        weekdays = {int(day) for day in str(post.get("weekdays") or "").split(",") if day != ""}
+    except ValueError:
+        return False
+    if target_date.weekday() not in weekdays:
+        return False
+    if schedule_type == "rotation":
+        return ((target_date.isocalendar().week - 1) % 4) == int(post.get("rotation_week") or 0)
+    return schedule_type == "weekly"
+
+
+def scheduled_telegram_post_is_due(post, now=None, grace_minutes=10):
+    now = now or _paris_now()
+    if not post.get("enabled") or post.get("deleted"):
+        return False
+    if post.get("schedule_type") == "once":
+        scheduled_at = _parse_scheduled_datetime(post.get("scheduled_for"))
+    else:
+        publish_time = _parse_publish_time(post.get("publish_time"))
+        if not publish_time or not _post_matches_day(post, now.date()):
+            return False
+        scheduled_at = datetime.combine(now.date(), publish_time, tzinfo=PARIS_TZ)
+    if not scheduled_at:
+        return False
+    delay = (now - scheduled_at).total_seconds()
+    return 0 <= delay < grace_minutes * 60
+
+
+def next_run_for_telegram_post(post, now=None):
+    now = now or _paris_now()
+    if not post.get("enabled") or post.get("deleted"):
+        return None
+    if post.get("schedule_type") == "once":
+        scheduled_at = _parse_scheduled_datetime(post.get("scheduled_for"))
+        return scheduled_at.isoformat() if scheduled_at and scheduled_at >= now else None
+    publish_time = _parse_publish_time(post.get("publish_time"))
+    if not publish_time:
+        return None
+    for offset in range(36):
+        target_date = now.date() + timedelta(days=offset)
+        if not _post_matches_day(post, target_date):
+            continue
+        candidate = datetime.combine(target_date, publish_time, tzinfo=PARIS_TZ)
+        if candidate >= now:
+            return candidate.isoformat()
+    return None
+
+
+def process_scheduled_telegram_posts(now=None):
+    """Vérifie les posts dus. Le verrou DB évite les doubles envois workers."""
+    now = now or _paris_now()
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts
+               WHERE enabled=TRUE AND deleted=FALSE
+               ORDER BY id"""
+        )
+    except Exception as e:
+        app.logger.error(f"process scheduled Telegram: {e}")
+        return 0
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+    sent_count = 0
+    for row in rows:
+        post = _telegram_post_from_row(row)
+        if not scheduled_telegram_post_is_due(post, now=now):
+            continue
+        if post["schedule_type"] == "once":
+            scheduled_at = _parse_scheduled_datetime(post.get("scheduled_for"))
+        else:
+            scheduled_at = datetime.combine(
+                now.date(), _parse_publish_time(post.get("publish_time")), tzinfo=PARIS_TZ
+            )
+        slot_key = f"telegram-post-{post['id']}-{scheduled_at.strftime('%Y%m%d-%H%M')}"
+        delivery = _send_saved_post_to_channels(post, slot_key, "custom-editorial")
+        if not delivery["sent"]:
+            continue
+        sent_now = delivery.get("sent_now", delivery["sent"])
+        complete = delivery["total"] > 0 and delivery["failed"] == 0
+        if sent_now:
+            sent_count += 1
+        if not sent_now and not (post["schedule_type"] == "once" and complete):
+            continue
+        update_conn = None
+        try:
+            update_conn = get_conn()
+            update_conn.run(
+                """UPDATE telegram_scheduled_posts
+                   SET last_sent_at=CASE WHEN :sent_now THEN NOW() ELSE last_sent_at END,
+                       enabled=CASE
+                           WHEN schedule_type='once' AND :complete THEN FALSE
+                           ELSE enabled
+                       END,
+                       updated_at=NOW()
+                   WHERE id=:id""",
+                id=post["id"], sent_now=bool(sent_now), complete=complete
+            )
+        except Exception as e:
+            app.logger.error(f"scheduled Telegram post update {post['id']}: {e}")
+        finally:
+            if update_conn:
+                try: update_conn.close()
+                except: pass
+    return sent_count
+
+
+def get_eco_calendar(target_date=None):
+    try:
+        target_date = target_date or _paris_now().date()
         url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
         r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         if r.status_code != 200:
-            return []
-        data = r.json()
-        today_str = datetime.now().strftime("%Y-%m-%d")
+            app.logger.error(f"eco_calendar: source indisponible (HTTP {r.status_code})")
+            return None
         events = []
-        for event in data:
+        for event in r.json():
             try:
-                event_date = event.get("date","")[:10]
-                if event_date == today_str and event.get("impact") in ["High","Medium"]:
-                    events.append(event)
-            except: pass
-        return sorted(events, key=lambda x: x.get("date",""))
+                date_str = event.get("date", "")
+                event_dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S%z").astimezone(PARIS_TZ)
+                if event_dt.date() == target_date and event.get("impact") in ("High", "Medium"):
+                    enriched = dict(event)
+                    enriched["paris_time"] = event_dt.strftime("%H:%M")
+                    events.append(enriched)
+            except Exception:
+                pass
+        return sorted(events, key=lambda item: item.get("date", ""))
     except Exception as e:
         app.logger.error(f"eco_calendar: {e}")
-        return []
+        return None
 
-def send_eco_message():
+
+def send_eco_message(target_date=None):
     try:
-        events = get_eco_calendar()
-        now = datetime.now()
-        date_fr = now.strftime("%A %d %B %Y")
-        for en, fr in JOURS_FR.items(): date_fr = date_fr.replace(en, fr)
-        for en, fr in MOIS_FR.items(): date_fr = date_fr.replace(en, fr)
+        target_date = target_date or _paris_now().date()
+        events = get_eco_calendar(target_date)
+        if events is None:
+            app.logger.error("Calendrier économique non publié : données non vérifiables")
+            send_telegram(
+                "❌ *Calendrier économique non publié*\n"
+                "La source de données est indisponible. Aucun agenda public n’a été envoyé."
+            )
+            return False
+        date_fr = target_date.strftime("%A %d %B %Y")
+        for en, fr in JOURS_FR.items():
+            date_fr = date_fr.replace(en, fr)
+        for en, fr in MOIS_FR.items():
+            date_fr = date_fr.replace(en, fr)
         date_fr = date_fr.capitalize()
 
         if not events:
             msg = (
                 f"📅 *CALENDRIER ÉCONOMIQUE — {date_fr}*\n\n"
-                f"✅ Aucune annonce majeure aujourd\'hui.\n"
-                f"Journée calme — trading normal.\n\n"
-                f"━━━━━━━━━━━━━━━\n"
-                f"🔥 *Bectanse AUTO — Copy Trading Automatique*\n📲 bectanse-academie.com/lerisluketoVIP"
+                "✅ Aucune annonce à impact fort ou moyen repérée dans le calendrier utilisé.\n"
+                "Reste vigilant : d’autres événements et mouvements de marché restent possibles.\n\n"
+                "━━━━━━━━━━━━━━━\n"
+                "🔥 *Bectanse AUTO — Copy Trading Automatique*"
             )
         else:
-            high_count = sum(1 for e in events if e.get("impact") == "High")
+            high_count = sum(1 for event in events if event.get("impact") == "High")
             msg = f"📅 *CALENDRIER ÉCONOMIQUE — {date_fr}*\n\n"
-            if high_count > 0:
+            if high_count:
                 msg += f"⚠️ *{high_count} annonce(s) à fort impact*\n\n"
             for event in events:
-                try:
-                    currency = event.get("currency","")
-                    title = event.get("title","")
-                    impact = event.get("impact","Low")
-                    forecast = event.get("forecast","—") or "—"
-                    previous = event.get("previous","—") or "—"
-                    date_str = event.get("date","")
-                    try:
-                        from datetime import timezone
-                        dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S%z")
-                        heure = dt.strftime("%H:%M")
-                    except:
-                        heure = "—"
-                    flag = FLAG_MAP.get(currency, "🌐")
-                    icon = IMPACT_ICONS.get(impact,"⚪")
-                    msg += f"{icon} *{heure}* {flag} {title}\n"
-                    if forecast != "—":
-                        msg += f"   Prévision: `{forecast}` | Précédent: `{previous}`\n"
-                    msg += "\n"
-                except: pass
+                currency = event.get("currency", "")
+                title = event.get("title", "")
+                impact = event.get("impact", "Low")
+                forecast = event.get("forecast", "—") or "—"
+                previous = event.get("previous", "—") or "—"
+                flag = FLAG_MAP.get(currency, "🌐")
+                icon = IMPACT_ICONS.get(impact, "⚪")
+                msg += f"{icon} *{event.get('paris_time', '—')}* {flag} {title}\n"
+                if forecast != "—":
+                    msg += f"   Prévision: `{forecast}` | Précédent: `{previous}`\n"
+                msg += "\n"
             msg += "━━━━━━━━━━━━━━━\n"
             msg += "🔴 Fort impact  🟡 Moyen impact\n\n"
-            msg += "🔥 *Bectanse AUTO — Copy Trading Automatique*\n"
-            msg += "📲 bectanse-auto.up.railway.app"
+            msg += "_Un calendrier économique informe sur le timing, pas sur la direction future du marché._\n\n"
+            msg += "🔥 *Bectanse AUTO — Copy Trading Automatique*"
 
-        requests.post(
-            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/sendMessage",
-            json={"chat_id": ECO_CANAL, "text": msg, "parse_mode": "Markdown"},
-            timeout=10
+        delivery = _broadcast_scheduled_telegram(
+            msg,
+            base_slot_key=f"economic-calendar-{target_date.isoformat()}",
+            post_kind="economic-calendar", publish_all_channels=True,
+            fallback_channel=ECO_CANAL,
+            button_text="ACCÉDER À L’ESPACE",
+            button_url="https://acces.bectanse-academie.com/"
         )
-        app.logger.info("Calendrier économique envoyé")
-        # Push Firebase calendrier
-        nb_high = sum(1 for e in events if e.get("impact") == "High") if events else 0
-        if nb_high > 0:
-            push_title = "📅 Calendrier Économique"
-            push_body = f"{nb_high} annonce(s) à fort impact aujourd'hui — Soyez prudents"
+        if not delivery["sent"]:
+            return False
+
+        nb_high = sum(1 for event in events if event.get("impact") == "High")
+        push_title = "📅 Calendrier économique"
+        if nb_high:
+            push_body = f"{nb_high} annonce(s) à fort impact aujourd’hui — prudence renforcée"
         else:
-            push_title = "📅 Calendrier Économique"
-            push_body = "Aucune annonce majeure aujourd'hui — Trading normal"
-        threading.Thread(target=send_push_to_all_fcm, args=(push_title, push_body, "/accueil"), daemon=True).start()
+            push_body = "Aucune annonce à fort impact repérée dans le calendrier utilisé"
+        threading.Thread(
+            target=send_push_to_all_fcm,
+            args=(push_title, push_body, "/accueil"),
+            daemon=True
+        ).start()
+        return True
     except Exception as e:
         app.logger.error(f"send_eco_message: {e}")
+        return False
 
 
 
@@ -3008,14 +4676,30 @@ def _startup():
         app.logger.info("Webhook enregistré")
         register_canal_webhook()
         app.logger.info("Canal webhook enregistré")
-        # Scheduler calendrier économique 08:00
+        # Publications Telegram et relances — heure de Paris.
         from apscheduler.schedulers.background import BackgroundScheduler
         scheduler = BackgroundScheduler(timezone='Europe/Paris')
-        scheduler.add_job(send_eco_message, 'cron', hour=8, minute=0)
-        scheduler.add_job(job_relances_quotidiennes, 'cron', hour=9, minute=0)
+        scheduler.add_job(
+            send_eco_message, 'cron', hour=8, minute=30,
+            id='telegram_economic_calendar', replace_existing=True,
+            coalesce=True, max_instances=1, misfire_grace_time=3600
+        )
+        scheduler.add_job(
+            job_relances_quotidiennes, 'cron', hour=9, minute=0,
+            id='member_daily_reminders', replace_existing=True,
+            coalesce=True, max_instances=1, misfire_grace_time=3600
+        )
+        scheduler.add_job(
+            process_scheduled_telegram_posts, 'interval', minutes=1,
+            id='telegram_scheduled_posts', replace_existing=True,
+            next_run_time=_paris_now(), coalesce=True, max_instances=1,
+            misfire_grace_time=120
+        )
         init_demo_account()
         scheduler.start()
-        app.logger.info("✅ Schedulers: calendrier 8h + relances 9h (J-7/J-2/J=0 Telegram + emails)")
+        app.logger.info(
+            "✅ Schedulers: calendrier 8h30 + relances 9h + centre Telegram chaque minute (Europe/Paris)"
+        )
     except Exception as e:
         app.logger.error(f"startup: {e}")
 
