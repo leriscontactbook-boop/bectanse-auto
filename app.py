@@ -211,6 +211,19 @@ def init_db():
                 created_at           TIMESTAMP DEFAULT NOW(),
                 updated_at           TIMESTAMP DEFAULT NOW()
             )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_media_library (
+                id                   SERIAL PRIMARY KEY,
+                title                TEXT NOT NULL,
+                image_url            TEXT UNIQUE NOT NULL,
+                category             TEXT NOT NULL DEFAULT 'personal',
+                caption              TEXT NOT NULL DEFAULT '',
+                cta_text             TEXT NOT NULL DEFAULT '',
+                cta_url              TEXT NOT NULL DEFAULT '',
+                source_type          TEXT NOT NULL DEFAULT 'custom',
+                deleted              BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at           TIMESTAMP DEFAULT NOW(),
+                updated_at           TIMESTAMP DEFAULT NOW()
+            )""")
             conn.run("""CREATE TABLE IF NOT EXISTS telegram_post_channels (
                 post_id              INTEGER NOT NULL REFERENCES telegram_scheduled_posts(id) ON DELETE CASCADE,
                 channel_id           INTEGER NOT NULL REFERENCES telegram_channels(id) ON DELETE CASCADE,
@@ -1776,6 +1789,128 @@ def _validate_telegram_channel_payload(data):
         except ValueError:
             raise ValueError("Utilise @nom_du_canal ou son identifiant numérique")
     return {"name": name, "chat_id": chat_id, "active": bool(data.get("active", True))}
+
+
+def _validate_telegram_media_payload(data):
+    title = str(data.get("title") or "").strip()
+    image_url = str(data.get("image_url") or "").strip()
+    category = str(data.get("category") or "personal").strip().lower()
+    caption = str(data.get("caption") or "").strip()
+    cta_text = str(data.get("cta_text") or "").strip()
+    cta_url = str(data.get("cta_url") or "").strip()
+    if not title or len(title) > 100:
+        raise ValueError("Le nom du visuel est obligatoire et limité à 100 caractères")
+    if not image_url.startswith(("https://", "http://")):
+        raise ValueError("L’adresse du visuel doit commencer par https:// ou http://")
+    if category not in {"personal", "conversion", "market", "community"}:
+        raise ValueError("Catégorie de visuel invalide")
+    if len(caption) > 1024:
+        raise ValueError("La légende du visuel est limitée à 1 024 caractères")
+    if len(cta_text) > 64:
+        raise ValueError("Le texte du CTA est limité à 64 caractères")
+    if bool(cta_text) != bool(cta_url):
+        raise ValueError("Le texte et le lien du CTA doivent être renseignés ensemble")
+    if cta_url and not cta_url.startswith(("https://", "http://")):
+        raise ValueError("Le lien du CTA doit commencer par https:// ou http://")
+    return {
+        "title": title, "image_url": image_url, "category": category,
+        "caption": caption, "cta_text": cta_text, "cta_url": cta_url,
+    }
+
+
+@app.route("/admin/api/telegram/media-library", methods=["GET"])
+def admin_api_telegram_media_library():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, title, image_url, category, caption, cta_text,
+                      cta_url, source_type, created_at, updated_at
+               FROM telegram_media_library WHERE deleted=FALSE
+               ORDER BY updated_at DESC, id DESC"""
+        )
+        media = []
+        for row in rows:
+            item = dict(zip([
+                "id", "title", "image_url", "category", "caption", "cta_text",
+                "cta_url", "source_type", "created_at", "updated_at"
+            ], row))
+            for field in ("created_at", "updated_at"):
+                if item.get(field) and hasattr(item[field], "isoformat"):
+                    item[field] = item[field].isoformat()
+            media.append(item)
+        return jsonify({"ok": True, "media": media})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/media-library/save", methods=["POST"])
+def admin_api_telegram_media_library_save():
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        values = _validate_telegram_media_payload(data)
+        media_id = data.get("id")
+        conn = get_conn()
+        if media_id:
+            conn.run(
+                """UPDATE telegram_media_library SET title=:title,
+                          image_url=:image_url, category=:category, caption=:caption,
+                          cta_text=:cta_text, cta_url=:cta_url, deleted=FALSE,
+                          updated_at=NOW() WHERE id=:id""",
+                id=int(media_id), **values
+            )
+        else:
+            rows = conn.run(
+                """INSERT INTO telegram_media_library
+                   (title, image_url, category, caption, cta_text, cta_url, source_type, deleted)
+                   VALUES (:title, :image_url, :category, :caption, :cta_text, :cta_url, 'custom', FALSE)
+                   ON CONFLICT (image_url) DO UPDATE SET
+                     title=:title, category=:category, caption=:caption,
+                     cta_text=:cta_text, cta_url=:cta_url, deleted=FALSE, updated_at=NOW()
+                   RETURNING id""",
+                **values
+            )
+            media_id = rows[0][0]
+        return jsonify({"ok": True, "id": int(media_id)})
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/media-library/<int:media_id>/delete", methods=["POST"])
+def admin_api_telegram_media_library_delete(media_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_media_library SET deleted=TRUE, updated_at=NOW()
+               WHERE id=:id AND source_type='custom'""",
+            id=media_id
+        )
+        return jsonify({"ok": True})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
 
 
 @app.route("/admin/api/telegram/channels", methods=["GET"])
