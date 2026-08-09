@@ -475,6 +475,10 @@ function renderPosts() {
     const matchesQuery = !query || searchable.includes(query);
     const matchesFilter = filter === 'all' || (filter === 'active' ? post.enabled : !post.enabled);
     return matchesQuery && matchesFilter;
+  }).sort((firstPost, secondPost) => {
+    const firstRun = firstPost.next_run ? new Date(firstPost.next_run).getTime() : Number.MAX_SAFE_INTEGER;
+    const secondRun = secondPost.next_run ? new Date(secondPost.next_run).getTime() : Number.MAX_SAFE_INTEGER;
+    return firstRun - secondRun || Number(firstPost.id) - Number(secondPost.id);
   });
   if (!filtered.length) {
     $('posts-list').innerHTML = '<div class="empty-state">Aucune publication ne correspond à ce filtre.</div>';
