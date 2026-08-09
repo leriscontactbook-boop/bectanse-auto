@@ -1,0 +1,83 @@
+{
+  "version": 2,
+  "system": "Bectanse Market Signal V2",
+  "timezone": "Europe/Paris",
+  "dimensions": {
+    "width": 1200,
+    "height": 600
+  },
+  "masterBackground": "static/telegram-visuals/bectanse-market-signal-master.png",
+  "contactSheet": "static/telegram-visuals/bectanse-market-signal-contact-sheet-v2.png",
+  "templates": [
+    {
+      "id": "session-londres",
+      "title": "SESSION LONDRES OUVERTE",
+      "png": "static/telegram-visuals/01-session-londres-ouverte-v2.png",
+      "webp": "static/telegram-visuals/01-session-londres-ouverte-v2.webp",
+      "accent": "#38BDF8",
+      "caption": "La session de Londres est ouverte. Les niveaux et scénarios du jour sont disponibles dans ton espace.",
+      "ctaText": "VOIR LE PLAN LONDRES",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "session-us",
+      "title": "SESSION US DANS 30 MINUTES",
+      "png": "static/telegram-visuals/02-session-americaine-t30-v2.png",
+      "webp": "static/telegram-visuals/02-session-americaine-t30-v2.webp",
+      "accent": "#F06A16",
+      "caption": "La session américaine approche. Vérifie ton plan, ton risque et les zones que tu souhaites observer.",
+      "ctaText": "PRÉPARER LA SESSION US",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "annonce-economique",
+      "title": "ANNONCE ÉCONOMIQUE MAJEURE",
+      "png": "static/telegram-visuals/03-annonce-economique-majeure-v2.png",
+      "webp": "static/telegram-visuals/03-annonce-economique-majeure-v2.webp",
+      "accent": "#FFB020",
+      "caption": "Une annonce économique majeure est attendue. Consulte l’horaire et les informations disponibles avant la publication.",
+      "ctaText": "VOIR LE CALENDRIER",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "resultat-journee",
+      "title": "RÉSULTAT DE LA JOURNÉE",
+      "png": "static/telegram-visuals/04-resultat-de-la-journee-v2.png",
+      "webp": "static/telegram-visuals/04-resultat-de-la-journee-v2.webp",
+      "accent": "#32D583",
+      "caption": "Le bilan de la journée est disponible. Retrouve les résultats et les éléments partagés avec la communauté.",
+      "ctaText": "VOIR LES RÉSULTATS",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "quiz-marche",
+      "title": "QUIZ DU MARCHÉ",
+      "png": "static/telegram-visuals/05-quiz-du-marche-v2.png",
+      "webp": "static/telegram-visuals/05-quiz-du-marche-v2.webp",
+      "accent": "#9B6DFF",
+      "caption": "Observe le marché, choisis ta réponse et vérifie ton raisonnement avec le quiz du jour.",
+      "ctaText": "APPROFONDIR AVEC BECTANSE",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "nouveau-temoignage",
+      "title": "NOUVEAU TÉMOIGNAGE",
+      "png": "static/telegram-visuals/06-nouveau-temoignage-v2.png",
+      "webp": "static/telegram-visuals/06-nouveau-temoignage-v2.webp",
+      "accent": "#E8B866",
+      "caption": "Un nouveau témoignage vient d’être partagé par la communauté Bectanse.",
+      "ctaText": "VOIR LES TÉMOIGNAGES",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    },
+    {
+      "id": "derniere-alerte",
+      "title": "DERNIÈRE ALERTE DISPONIBLE",
+      "png": "static/telegram-visuals/07-derniere-alerte-disponible-v2.png",
+      "webp": "static/telegram-visuals/07-derniere-alerte-disponible-v2.webp",
+      "accent": "#FF4D67",
+      "caption": "Une nouvelle alerte est disponible dans ton espace Bectanse.",
+      "ctaText": "OUVRIR L’ESPACE MEMBRE",
+      "ctaUrl": "https://acces.bectanse-academie.com/"
+    }
+  ]
+}
