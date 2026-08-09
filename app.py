@@ -1283,10 +1283,65 @@ def _normalize_telegram_image_url(value):
     return image_url
 
 
+def _telegram_photo_delivery_url(value):
+    image_url = _normalize_telegram_image_url(value)
+    if not image_url:
+        return ""
+    clean_url, separator, query = image_url.partition("?")
+    if "/static/telegram-visuals/" in clean_url and clean_url.lower().endswith(".webp"):
+        clean_url = f"{clean_url[:-5]}.png"
+    elif "res.cloudinary.com/" in clean_url and "/image/upload/" in clean_url:
+        prefix, suffix = clean_url.split("/image/upload/", 1)
+        if not suffix.startswith("f_jpg"):
+            suffix = f"f_jpg,q_auto/{suffix}"
+        if "." in suffix.rsplit("/", 1)[-1]:
+            suffix = f"{suffix.rsplit('.', 1)[0]}.jpg"
+        clean_url = f"{prefix}/image/upload/{suffix}"
+    return f"{clean_url}{separator}{query}" if separator else clean_url
+
+
+def _download_telegram_photo(image_url, max_bytes=10 * 1024 * 1024):
+    clean_url = image_url.split("?", 1)[0]
+    static_marker = "/static/telegram-visuals/"
+    if static_marker in clean_url:
+        filename = secure_filename(clean_url.split(static_marker, 1)[1])
+        file_path = os.path.join(APP_DIR, "static", "telegram-visuals", filename)
+        if filename.lower().endswith((".jpg", ".jpeg")):
+            content_type = "image/jpeg"
+        elif filename.lower().endswith(".png"):
+            content_type = "image/png"
+        else:
+            content_type = ""
+        if not os.path.isfile(file_path) or not content_type:
+            raise ValueError("Le visuel Bectanse est introuvable ou incompatible avec Telegram")
+        with open(file_path, "rb") as source:
+            image_bytes = source.read(max_bytes + 1)
+        if not image_bytes or len(image_bytes) > max_bytes:
+            raise ValueError("Le visuel est vide ou dépasse la limite Telegram de 10 Mo")
+        return filename, image_bytes, content_type
+
+    response = requests.get(image_url, timeout=20)
+    response.raise_for_status()
+    content_type = str(response.headers.get("Content-Type") or "").split(";", 1)[0].lower()
+    if content_type not in {"image/jpeg", "image/png"}:
+        raise ValueError("Le visuel doit être une image JPEG ou PNG compatible Telegram")
+    content_length = int(response.headers.get("Content-Length") or 0)
+    if content_length > max_bytes:
+        raise ValueError("Le visuel dépasse la limite Telegram de 10 Mo")
+    image_bytes = response.content
+    if not image_bytes or len(image_bytes) > max_bytes:
+        raise ValueError("Le visuel est vide ou dépasse la limite Telegram de 10 Mo")
+    extension = "jpg" if content_type == "image/jpeg" else "png"
+    filename = secure_filename(image_url.split("?", 1)[0].rsplit("/", 1)[-1])
+    if not filename.lower().endswith((".jpg", ".jpeg", ".png")):
+        filename = f"bectanse-telegram.{extension}"
+    return filename, image_bytes, content_type
+
+
 def _validate_telegram_post_payload(data):
     name = str(data.get("name") or "").strip()
     message = str(data.get("message") or "").strip()
-    image_url = _normalize_telegram_image_url(data.get("image_url"))
+    image_url = _telegram_photo_delivery_url(data.get("image_url"))
     post_type = str(data.get("post_type") or "message").strip().lower()
     schedule_type = str(data.get("schedule_type") or "weekly").strip()
     publish_time = str(data.get("publish_time") or "18:30").strip()
@@ -2346,7 +2401,9 @@ def admin_api_telegram_upload():
     file_bytes = image.read(8 * 1024 * 1024 + 1)
     if len(file_bytes) > 8 * 1024 * 1024:
         return jsonify({"ok": False, "error": "L’image ne doit pas dépasser 8 Mo"}), 400
-    image_url = upload_to_cloudinary(file_bytes, "image", secure_filename(image.filename))
+    image_url = _telegram_photo_delivery_url(
+        upload_to_cloudinary(file_bytes, "image", secure_filename(image.filename))
+    )
     if not image_url:
         return jsonify({"ok": False, "error": "L’image n’a pas pu être enregistrée"}), 502
     return jsonify({"ok": True, "url": image_url})
@@ -3744,6 +3801,7 @@ def _send_scheduled_telegram(
     poll_multiple=False
 ):
     target_channel = (channel or ECO_CANAL or "").strip()
+    image_url = _telegram_photo_delivery_url(image_url)
     if not ECO_BOT_TOKEN or not target_channel:
         app.logger.error("Publication Telegram annulée : ECO_BOT_TOKEN ou canal absent")
         return False
@@ -3771,6 +3829,7 @@ def _send_scheduled_telegram(
         return False
 
     last_error = "erreur Telegram inconnue"
+    photo_file = None
     for attempt in range(3):
         try:
             if attempt:
@@ -3804,11 +3863,23 @@ def _send_scheduled_telegram(
                 else:
                     endpoint = "sendMessage"
                     payload.update({"text": text, "disable_web_page_preview": True})
-            response = requests.post(
-                f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}",
-                json=payload,
-                timeout=20
-            )
+            telegram_url = f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}"
+            if endpoint == "sendPhoto":
+                if photo_file is None:
+                    photo_file = _download_telegram_photo(image_url)
+                payload.pop("photo", None)
+                multipart_payload = {
+                    key: json.dumps(value) if isinstance(value, (dict, list, bool)) else value
+                    for key, value in payload.items()
+                }
+                response = requests.post(
+                    telegram_url,
+                    data=multipart_payload,
+                    files={"photo": photo_file},
+                    timeout=20
+                )
+            else:
+                response = requests.post(telegram_url, json=payload, timeout=20)
             result = response.json()
             if result.get("ok"):
                 message_id = result.get("result", {}).get("message_id")
