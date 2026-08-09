@@ -33,6 +33,9 @@ TELEGRAM_EDITORIAL_PATH = os.environ.get(
 TELEGRAM_CSV_TEMPLATE_PATH = os.path.join(
     APP_DIR, "content", "modele_planning_telegram_semaine.csv"
 )
+PUBLIC_APP_URL = os.environ.get(
+    "PUBLIC_APP_URL", "https://acces.bectanse-academie.com"
+).rstrip("/")
 
 
 def _format_editorial_entry(calendar, post):
@@ -1269,10 +1272,21 @@ def _payload_list(value, separator="|"):
     return [item.strip() for item in text.split(separator) if item.strip()]
 
 
+def _normalize_telegram_image_url(value):
+    image_url = str(value or "").strip()
+    if image_url.startswith("//"):
+        return f"https:{image_url}"
+    if image_url.startswith("/static/"):
+        return f"{PUBLIC_APP_URL}{image_url}"
+    if image_url.startswith("static/"):
+        return f"{PUBLIC_APP_URL}/{image_url}"
+    return image_url
+
+
 def _validate_telegram_post_payload(data):
     name = str(data.get("name") or "").strip()
     message = str(data.get("message") or "").strip()
-    image_url = str(data.get("image_url") or "").strip()
+    image_url = _normalize_telegram_image_url(data.get("image_url"))
     post_type = str(data.get("post_type") or "message").strip().lower()
     schedule_type = str(data.get("schedule_type") or "weekly").strip()
     publish_time = str(data.get("publish_time") or "18:30").strip()
@@ -1793,15 +1807,15 @@ def _validate_telegram_channel_payload(data):
 
 def _validate_telegram_media_payload(data):
     title = str(data.get("title") or "").strip()
-    image_url = str(data.get("image_url") or "").strip()
+    image_url = _normalize_telegram_image_url(data.get("image_url"))
     category = str(data.get("category") or "personal").strip().lower()
     caption = str(data.get("caption") or "").strip()
     cta_text = str(data.get("cta_text") or "").strip()
     cta_url = str(data.get("cta_url") or "").strip()
     if not title or len(title) > 100:
         raise ValueError("Le nom du visuel est obligatoire et limité à 100 caractères")
-    if not image_url.startswith(("https://", "http://")):
-        raise ValueError("L’adresse du visuel doit commencer par https:// ou http://")
+    if not image_url.startswith("https://"):
+        raise ValueError("L’adresse du visuel doit utiliser HTTPS")
     if category not in {"personal", "conversion", "market", "community"}:
         raise ValueError("Catégorie de visuel invalide")
     if len(caption) > 1024:
