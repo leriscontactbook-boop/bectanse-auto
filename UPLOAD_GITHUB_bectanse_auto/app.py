@@ -1365,6 +1365,10 @@ def _validate_telegram_post_payload(data):
             scheduled_for = datetime.fromisoformat(str(data.get("scheduled_for") or ""))
         except ValueError:
             raise ValueError("Date et heure de l’envoi unique invalides")
+        # La colonne PostgreSQL est un TIMESTAMP sans fuseau : on y conserve
+        # donc l'heure murale de Paris. Sans cette normalisation, rééditer un
+        # post renvoyé par l'API avec son décalage +02:00 le reculait de 2 h.
+        scheduled_for = _parse_scheduled_datetime(scheduled_for).replace(tzinfo=None)
         weekdays = []
         rotation_week = None
 
