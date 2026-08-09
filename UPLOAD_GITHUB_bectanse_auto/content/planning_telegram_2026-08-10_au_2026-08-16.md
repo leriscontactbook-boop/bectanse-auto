@@ -2,7 +2,7 @@
 
 ## Stratégie globale
 
-La semaine suit la progression : attention → engagement → confiance → clic → conversion. Les CTA sont concentrés après une séquence de valeur. Les messages liés aux analyses, signaux et alertes ne prétendent jamais qu’une opportunité existe : ils invitent à vérifier les mises à jour réellement disponibles.
+La semaine suit la progression : attention → engagement → confiance → clic → conversion. Chaque publication possède un CTA contextuel vers Bectanse, sans inventer une opportunité. Les messages liés aux analyses, signaux et alertes invitent à vérifier uniquement les mises à jour réellement disponibles.
 
 L’agenda de 08:30 est volontairement généré en direct par le robot économique et n’est pas dupliqué dans le CSV. Si sa source est indisponible, aucun message public n’est envoyé.
 
@@ -18,15 +18,13 @@ L’agenda de 08:30 est volontairement généré en direct par le robot économi
 
 🌙 *LA SEMAINE COMMENCE MAINTENANT*
 
-Les écrans peuvent attendre quelques heures. Ton plan, lui, ne doit pas attendre lundi matin.
+Avant de dormir, prends dix minutes pour toi. Pas pour chercher un trade : pour écrire ton risque maximal, tes priorités et la règle que tu refuses de négocier cette semaine.
 
-Fixe ton risque. Note tes priorités. Repose-toi.
+Demain à 09:00, je veux te retrouver devant les graphiques avec un plan — pas avec l’envie de te rattraper.
 
-À 09:00, on se retrouve avec une seule mission : exécuter avec discipline.
+Repose-toi bien l’équipe. On attaque proprement. 🔥
 
-Bonne nuit l’équipe. 🔥
-
-**CTA :** aucun.
+**CTA :** PRÉPARER MON PLAN → https://acces.bectanse-academie.com/
 
 ---
 
@@ -46,7 +44,7 @@ Repère vérifié pour la stratégie : aucune statistique américaine majeure du
 
 _Le calendrier informe sur le timing, jamais sur la direction future du marché._
 
-**CTA :** aucun — publication informative automatique.
+**CTA :** DÉCOUVRIR BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -58,15 +56,15 @@ _Le calendrier informe sur le timing, jamais sur la direction future du marché.
 
 **Message :**
 
-🇬🇧 *LONDRES EST LANCÉE*
+🇬🇧 *LONDRES EST OUVERTE*
 
-Nouvelle semaine. Nouveau terrain de jeu. Même règle : pas d’entrée sans scénario.
+Ce matin, je veux que tu fasses simple : repère tes niveaux, écris ton invalidation et attends que le prix vienne à toi.
 
-Observe d’abord. Décide ensuite.
+Un trader solide n’a pas besoin d’être le premier dans le mouvement. Il a besoin de savoir pourquoi il y entre.
 
-Qui est déjà devant ses graphiques ? 🔥
+On observe. On confirme. Puis seulement, on agit. 🔥
 
-**CTA :** aucun.
+**CTA :** VOIR LE PLAN LONDRES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -88,7 +86,7 @@ Qu’est-ce qui construit le plus une performance durable en trading ?
 
 **Explication :** La discipline permet d’appliquer le même processus, de mesurer ses décisions et de protéger le capital.
 
-**CTA :** aucun.
+**CTA :** APPROFONDIR AVEC BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -108,9 +106,7 @@ Qu’est-ce qui construit le plus une performance durable en trading ?
 
 Retrouve les mises à jour disponibles dans ton espace et prépare ton plan avant d’agir.
 
-_Le trading comporte un risque de perte. Aucun résultat n’est garanti._
-
-**CTA :** VOIR L’ANALYSE → https://acces.bectanse-academie.com/
+**CTA :** VOIR L’ANALYSE DU JOUR → https://acces.bectanse-academie.com/
 
 ---
 
@@ -130,7 +126,7 @@ S’il n’y a pas de configuration propre, on ne force rien. S’il y en a une,
 
 Prépare ton risque avant l’alerte, pas après.
 
-**CTA :** REJOINDRE LA SESSION → https://acces.bectanse-academie.com/
+**CTA :** OUVRIR LES ALERTES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -142,15 +138,15 @@ Prépare ton risque avant l’alerte, pas après.
 
 **Message :**
 
-🇺🇸 *LE DESK US SE PRÉPARE*
+🇺🇸 *SESSION US DANS 30 MINUTES*
 
-La deuxième partie de journée peut changer le rythme du marché.
+Avant que le rythme accélère, pose deux scénarios sur papier : ce qui valide ton idée et ce qui l’annule.
 
-Pas besoin d’anticiper chaque mouvement : prépare deux scénarios et accepte aussi celui où tu ne trades pas.
+Si rien n’est propre, tu ne dois rien au marché. Savoir rester en dehors fait partie du métier.
 
-Rendez-vous à 15:00. 🔥
+À 15:00, on se retrouve concentrés et prêts. 🎯
 
-**CTA :** aucun.
+**CTA :** PRÉPARER LA SESSION US → https://acces.bectanse-academie.com/
 
 ---
 
@@ -170,7 +166,7 @@ Ne cours pas après le prix.
 
 L’équipe est en place. 🎯
 
-**CTA :** aucun.
+**CTA :** REJOINDRE LE DESK US → https://acces.bectanse-academie.com/
 
 ---
 
@@ -190,7 +186,7 @@ Consulte ton espace pour vérifier si une nouvelle alerte répond aujourd’hui 
 
 Pas d’alerte ? Pas de trade forcé.
 
-**CTA :** VÉRIFIER LES ALERTES → https://acces.bectanse-academie.com/
+**CTA :** OUVRIR LES ALERTES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -202,17 +198,15 @@ Pas d’alerte ? Pas de trade forcé.
 
 **Message :**
 
-🌙 *TA SEMAINE NE SE DÉCIDE PAS VENDREDI*
+🌙 *JE VAIS ÊTRE DIRECT AVEC TOI*
 
-Elle se décide dans les habitudes que tu poses maintenant.
+Ta semaine ne se transforme pas vendredi soir. Elle se transforme dans les décisions que tu répètes dès maintenant.
 
-Si tu veux une structure, des analyses et un espace pour suivre les alertes, tu peux commencer ce soir.
+Si tu veux arrêter d’avancer seul, retrouve nos analyses, nos alertes et le cadre de travail de l’équipe Bectanse.
 
-Demain, on continue. Mais ton premier pas peut être maintenant.
+Demain, on continue. Ton premier pas peut commencer ce soir.
 
-_Le trading comporte un risque de perte. Aucun gain n’est garanti._
-
-**CTA :** COMMENCER MAINTENANT → https://acces.bectanse-academie.com/
+**CTA :** COMMENCER AVEC L’ÉQUIPE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -226,15 +220,15 @@ _Le trading comporte un risque de perte. Aucun gain n’est garanti._
 
 **Message :**
 
-🌙 *LE MARCHÉ S’ARRÊTE, L’APPRENTISSAGE RESTE*
+🌙 *AVANT DE FERMER LES ÉCRANS*
 
-Avant de fermer : note une décision correcte et une erreur à ne pas répéter.
+Note une décision dont tu es fier et une erreur que tu ne veux pas revoir demain. C’est ce travail discret qui fait progresser un trader.
 
-Demain, on travaille la gestion du risque — le sujet que beaucoup ignorent jusqu’au jour où il est trop tard.
+Mardi, on attaque la gestion du risque avec du concret.
 
-Rendez-vous à 09:00. Bonne nuit l’équipe.
+Bonne nuit l’équipe. Rendez-vous à 09:00.
 
-**CTA :** aucun.
+**CTA :** PRÉPARER MA JOURNÉE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -254,7 +248,7 @@ Repère vérifié pour la stratégie : le robot vérifiera le calendrier complet
 
 _Le calendrier informe sur le timing, jamais sur la direction future du marché._
 
-**CTA :** aucun — publication informative automatique.
+**CTA :** DÉCOUVRIR BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -268,13 +262,13 @@ _Le calendrier informe sur le timing, jamais sur la direction future du marché.
 
 🇬🇧 *SESSION LONDRES*
 
-Question avant toute entrée : combien peux-tu perdre sans modifier ton comportement ?
+Ce matin, pose-toi cette question avant chaque entrée : combien suis-je réellement prêt à perdre sans changer de comportement ?
 
-Si tu ne connais pas la réponse, la taille de ta position n’est pas encore définie correctement.
+Si tu n’as pas la réponse, ta taille de position n’est pas encore maîtrisée.
 
 On observe. On calcule. Puis seulement, on décide.
 
-**CTA :** aucun.
+**CTA :** VOIR LE PLAN LONDRES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -296,7 +290,7 @@ Tu risques 50 € pour viser un gain potentiel de 100 €. Quel est le ratio ris
 
 **Explication :** Tu risques une unité pour un gain potentiel de deux unités : le ratio est 1:2. Cela ne garantit pas le résultat.
 
-**CTA :** aucun.
+**CTA :** APPROFONDIR AVEC BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -313,8 +307,6 @@ Tu risques 50 € pour viser un gain potentiel de 100 €. Quel est le ratio ris
 Commence par le niveau qui invalide ton idée. Il détermine ton risque, ta taille et parfois la décision de ne pas intervenir.
 
 Les éléments disponibles aujourd’hui sont regroupés dans ton espace.
-
-_Contenu éducatif. Le trading comporte un risque de perte._
 
 **CTA :** ACCÉDER À L’ANALYSE → https://acces.bectanse-academie.com/
 
@@ -336,7 +328,7 @@ Une alerte n’efface jamais les règles de gestion du risque.
 
 Les membres peuvent rejoindre l’espace avant la prochaine mise à jour.
 
-**CTA :** PRÉPARER LA SESSION → https://acces.bectanse-academie.com/
+**CTA :** OUVRIR LES ALERTES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -348,15 +340,15 @@ Les membres peuvent rejoindre l’espace avant la prochaine mise à jour.
 
 **Message :**
 
-🇺🇸 *LA PÉRIODE US APPROCHE*
+🇺🇸 *SESSION US DANS 30 MINUTES*
 
-Plus de mouvement ne signifie pas automatiquement plus de qualité.
+Le marché va peut-être accélérer. Toi, tu n’as pas besoin d’accélérer avec lui.
 
-Attends ton contexte. Refuse les entrées improvisées. Garde la même taille de risque.
+Garde ton risque fixe, attends ton contexte et refuse toute entrée que tu ne saurais pas expliquer en une phrase.
 
-On se retrouve à 15:00.
+On se retrouve à 15:00, lucides et préparés.
 
-**CTA :** aucun.
+**CTA :** PRÉPARER LA SESSION US → https://acces.bectanse-academie.com/
 
 ---
 
@@ -378,7 +370,7 @@ Trois étapes simples. Le plus difficile est de ne pas les raccourcir.
 
 Reste concentré. 🔥
 
-**CTA :** aucun.
+**CTA :** REJOINDRE LE DESK US → https://acces.bectanse-academie.com/
 
 ---
 
@@ -396,7 +388,7 @@ Deux traders peuvent observer le même scénario et prendre un risque différent
 
 Vérifie les dernières mises à jour, puis applique ta propre limite de risque.
 
-**CTA :** VOIR LES MISES À JOUR → https://acces.bectanse-academie.com/
+**CTA :** OUVRIR LES ALERTES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -408,17 +400,15 @@ Vérifie les dernières mises à jour, puis applique ta propre limite de risque.
 
 **Message :**
 
-🧠 *TU NE MANQUES PEUT-ÊTRE PAS D’INFORMATIONS*
+🧠 *JE VAIS TE DIRE CE QUI BLOQUE BEAUCOUP DE TRADERS*
 
-Tu manques peut-être d’un processus assez simple pour être répété quand l’émotion monte.
+Ce n’est pas le manque d’informations. C’est l’absence d’un processus assez clair pour être appliqué quand l’émotion monte.
 
-Une structure utile t’aide à préparer, filtrer et revoir tes décisions.
+Préparer, filtrer, exécuter, revoir : c’est ce cadre que nous travaillons chaque jour chez Bectanse.
 
-Si c’est ce qu’il te manque, découvre l’écosystème Bectanse.
+Si tu veux avancer avec une méthode et une équipe, l’espace est ouvert.
 
-_Aucun résultat financier n’est garanti._
-
-**CTA :** DÉCOUVRIR L’ESPACE → https://acces.bectanse-academie.com/
+**CTA :** DÉCOUVRIR L’ACCOMPAGNEMENT → https://acces.bectanse-academie.com/
 
 ---
 
@@ -440,7 +430,7 @@ Ne prépare pas une prédiction. Prépare ta réaction : risque réduit, scénar
 
 Repose-toi. On se retrouve à 09:00.
 
-**CTA :** aucun.
+**CTA :** PRÉPARER LA JOURNÉE MACRO → https://acces.bectanse-academie.com/
 
 ---
 
@@ -460,7 +450,7 @@ Repère vérifié pour la stratégie : 14:30 — IPC américain de juillet et sa
 
 _Le calendrier informe sur le timing, jamais sur la direction future du marché._
 
-**CTA :** aucun — publication informative automatique.
+**CTA :** DÉCOUVRIR BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -480,7 +470,7 @@ Ce sera d’attendre quand les conditions ne sont pas encore réunies.
 
 L’IPC américain est attendu à 14:30. Garde du capital mental pour l’après-midi.
 
-**CTA :** aucun.
+**CTA :** VOIR LE PLAN LONDRES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -502,7 +492,7 @@ Le prix part sans toi et l’envie de courir après le mouvement monte. Quelle e
 
 **Explication :** Revenir au plan évite une décision dictée par le FOMO. Un mouvement raté n’oblige jamais à improviser.
 
-**CTA :** aucun.
+**CTA :** APPROFONDIR AVEC BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -520,9 +510,7 @@ Identifie les niveaux où la liquidité peut se concentrer. Prépare un scénari
 
 Retrouve les éléments de préparation disponibles dans ton espace.
 
-_Le trading comporte un risque de perte._
-
-**CTA :** VOIR LA PRÉPARATION → https://acces.bectanse-academie.com/
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -542,7 +530,7 @@ L’IPC américain est programmé à 14:30, heure de Paris.
 
 La prochaine mise à jour sera visible dans l’espace membres.
 
-**CTA :** REJOINDRE LA SESSION → https://acces.bectanse-academie.com/
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -562,7 +550,7 @@ Ne confonds pas vitesse et opportunité.
 
 Attends la donnée, observe la réaction et refuse de poursuivre une bougie sans scénario.
 
-**CTA :** aucun.
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -582,7 +570,7 @@ Observe ce que le prix confirme réellement. Si ton niveau est déjà loin, lais
 
 Protéger son capital, c’est aussi savoir ne pas poursuivre.
 
-**CTA :** aucun.
+**CTA :** REJOINDRE LE DESK US → https://acces.bectanse-academie.com/
 
 ---
 
@@ -600,7 +588,7 @@ Une accélération ne suffit pas. Il faut encore un contexte, une invalidation e
 
 Consulte l’espace pour vérifier si une alerte exploitable a été publiée après la réaction.
 
-**CTA :** CONSULTER LES ALERTES → https://acces.bectanse-academie.com/
+**CTA :** OUVRIR LES ALERTES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -612,15 +600,15 @@ Consulte l’espace pour vérifier si une alerte exploitable a été publiée ap
 
 **Message :**
 
-🌙 *LE CALME N’EST PAS UN TRAIT DE CARACTÈRE*
+🌙 *LE CALME SE TRAVAILLE*
 
-C’est une compétence qui se construit avec des règles préparées avant la volatilité.
+Je ne te demande pas de ne rien ressentir. Je te demande de préparer des règles assez claires pour ne pas laisser l’émotion décider à ta place.
 
-Si tu veux arrêter d’improviser seul quand le marché accélère, rejoins une structure pensée pour préparer et suivre les scénarios.
+Quand le marché accélère, ton plan doit parler plus fort que ton envie d’agir.
 
-_Aucun gain n’est garanti. Le risque de perte existe._
+Si tu veux construire ce réflexe avec nous, rejoins l’équipe.
 
-**CTA :** REJOINDRE L’ÉQUIPE → https://acces.bectanse-academie.com/
+**CTA :** TRAVAILLER AVEC L’ÉQUIPE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -642,7 +630,7 @@ Jeudi, on travaille la confirmation, le rejet et l’invalidation.
 
 Une nouvelle statistique de prix américaine est attendue à 14:30. Repose-toi et arrive avec un plan.
 
-**CTA :** aucun.
+**CTA :** PRÉPARER MON PLAN → https://acces.bectanse-academie.com/
 
 ---
 
@@ -662,7 +650,7 @@ Repère vérifié pour la stratégie : 14:30 — indice américain des prix à l
 
 _Le calendrier informe sur le timing, jamais sur la direction future du marché._
 
-**CTA :** aucun — publication informative automatique.
+**CTA :** DÉCOUVRIR BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -682,7 +670,7 @@ Une cassure sans acceptation peut devenir un piège.
 
 Lis la clôture, le contexte et l’invalidation. Pas seulement la mèche.
 
-**CTA :** aucun.
+**CTA :** VOIR LE PLAN LONDRES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -704,7 +692,7 @@ Le prix dépasse une résistance puis clôture rapidement sous le niveau. Quelle
 
 **Explication :** Le retour sous le niveau suggère un rejet possible, mais le contexte et une confirmation restent nécessaires avant toute décision.
 
-**CTA :** aucun.
+**CTA :** APPROFONDIR AVEC BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -744,7 +732,7 @@ Prépare les niveaux qui comptent, puis laisse la donnée et le prix révéler l
 
 Les membres peuvent rejoindre la session avant la prochaine mise à jour.
 
-**CTA :** ACCÉDER À LA SESSION → https://acces.bectanse-academie.com/
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -764,7 +752,7 @@ Pas de prédiction. Pas de position surdimensionnée. Pas de poursuite aveugle.
 
 Observe la réaction avant d’interpréter.
 
-**CTA :** aucun.
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -784,7 +772,7 @@ Ne transforme pas une réaction en certitude.
 
 On reste méthodiques. 🎯
 
-**CTA :** aucun.
+**CTA :** REJOINDRE LE DESK US → https://acces.bectanse-academie.com/
 
 ---
 
@@ -802,7 +790,7 @@ La différence se trouve dans la confirmation, l’invalidation et le risque acc
 
 Vérifie dans l’espace si une configuration répond à ces trois conditions aujourd’hui.
 
-**CTA :** VOIR LES OPPORTUNITÉS → https://acces.bectanse-academie.com/
+**CTA :** OUVRIR LES ALERTES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -820,9 +808,7 @@ Tu as besoin d’un processus qui te dit quoi observer, quand attendre et où to
 
 Si tu veux travailler avec davantage de structure et suivre les analyses de l’équipe, l’accès est ouvert.
 
-_Le trading comporte un risque de perte._
-
-**CTA :** ACCÉDER À BECTANSE → https://acces.bectanse-academie.com/
+**CTA :** MONTER EN COMPÉTENCE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -836,15 +822,15 @@ _Le trading comporte un risque de perte._
 
 **Message :**
 
-🌙 *DERNIÈRE JOURNÉE, MÊME EXIGENCE*
+🌙 *ÉCOUTE BIEN AVANT VENDREDI*
 
-Le vendredi pousse parfois à forcer un dernier trade pour « finir la semaine ».
+Tu n’as rien à prouver au marché. Ne force pas un dernier trade pour sauver ou embellir ta semaine.
 
-Ton objectif demain n’est pas de fabriquer un résultat. C’est de respecter ton plan une dernière fois.
+Demain, ton seul objectif est de respecter ton plan une fois de plus. Si aucun scénario n’est propre, ne pas trader sera une exécution parfaite.
 
 Rendez-vous à 09:00.
 
-**CTA :** aucun.
+**CTA :** PRÉPARER MA SESSION → https://acces.bectanse-academie.com/
 
 ---
 
@@ -864,7 +850,7 @@ Repère vérifié pour la stratégie : 14:30 — ventes au détail américaines 
 
 _Le calendrier informe sur le timing, jamais sur la direction future du marché._
 
-**CTA :** aucun — publication informative automatique.
+**CTA :** DÉCOUVRIR BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -884,7 +870,7 @@ Si ton scénario n’est pas clair, ton meilleur résultat peut être de conserv
 
 On ne force pas une conclusion. On exécute le plan.
 
-**CTA :** aucun.
+**CTA :** VOIR LE PLAN LONDRES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -904,7 +890,7 @@ Cette semaine, quel comportement t’a le plus freiné ?
 - 3. Surtrader
 - 4. Manquer de discipline
 
-**CTA :** aucun.
+**CTA :** PROGRESSER AVEC BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -944,7 +930,7 @@ La donnée peut influencer les anticipations sur l’activité, mais elle ne don
 
 Prépare ton risque avant la publication.
 
-**CTA :** PRÉPARER LA SESSION → https://acces.bectanse-academie.com/
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -964,7 +950,7 @@ Ne laisse pas trente secondes de volatilité effacer cinq jours de discipline.
 
 Réduis l’impulsivité. Observe d’abord.
 
-**CTA :** aucun.
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -984,7 +970,7 @@ Une configuration propre mérite une analyse. Une configuration moyenne mérite 
 
 Finissons la semaine avec maîtrise. 🔥
 
-**CTA :** aucun.
+**CTA :** REJOINDRE LE DESK US → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1002,7 +988,7 @@ Vérifie les mises à jour disponibles et assure-toi que toute décision reste c
 
 S’il n’y a rien de propre, terminer sans nouveau trade est aussi une décision professionnelle.
 
-**CTA :** VÉRIFIER L’ESPACE → https://acces.bectanse-academie.com/
+**CTA :** OUVRIR LES ALERTES → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1014,19 +1000,15 @@ S’il n’y a rien de propre, terminer sans nouveau trade est aussi une décisi
 
 **Message :**
 
-📝 *TON VRAI BILAN NE TIENT PAS EN UN CHIFFRE*
+📝 *JE NE VEUX PAS SEULEMENT VOIR TON P&L*
 
-As-tu respecté ton risque ?
-As-tu évité un trade impulsif ?
-As-tu documenté tes erreurs ?
+Dis-moi plutôt : as-tu respecté ton risque ? Évité un trade impulsif ? Documenté une erreur au lieu de la cacher ?
 
-Ce sont ces réponses qui préparent la prochaine progression.
+C’est là que se construit la progression durable : dans la qualité des décisions répétées.
 
-Si tu veux construire ce processus avec l’équipe, découvre l’espace Bectanse.
+Si tu veux installer ce processus avec l’équipe, viens faire ton bilan avec nous.
 
-_Aucun résultat n’est garanti._
-
-**CTA :** REJOINDRE L’ÉQUIPE → https://acces.bectanse-academie.com/
+**CTA :** FAIRE MON BILAN → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1048,7 +1030,7 @@ Sur combien de jours as-tu réellement respecté ton plan cette semaine ?
 - 3. 4 jours
 - 4. Les 5 jours
 
-**CTA :** aucun.
+**CTA :** PROGRESSER AVEC BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1069,7 +1051,7 @@ Sur combien de jours as-tu réellement respecté ton plan cette semaine ?
 
 Écris les réponses. Une semaine non revue risque de devenir une semaine répétée.
 
-**CTA :** aucun.
+**CTA :** FAIRE MON BILAN → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1081,15 +1063,15 @@ Sur combien de jours as-tu réellement respecté ton plan cette semaine ?
 
 **Message :**
 
-🧠 *LES CAPTURES DES AUTRES NE RACONTENT PAS LEUR HISTOIRE COMPLÈTE*
+🧠 *JE VEUX TE RAPPELER UNE CHOSE IMPORTANTE*
 
-Tu ne vois ni leur risque, ni leurs pertes, ni leurs erreurs.
+Les captures des autres ne montrent ni leur risque, ni leurs pertes, ni les erreurs commises avant le résultat.
 
-Compare ton exécution à ton propre plan. C’est la seule comparaison qui peut réellement améliorer ta prochaine semaine.
+Compare ton exécution à ton propre plan. C’est la seule comparaison capable d’améliorer ta prochaine semaine.
 
-Aujourd’hui, prends du recul.
+Aujourd’hui, prends du recul et reviens à l’essentiel.
 
-**CTA :** aucun.
+**CTA :** REVENIR À L’ESSENTIEL → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1109,7 +1091,7 @@ Dimanche, on construira la checklist, les rendez-vous économiques et le plan me
 
 Reviens avec une page blanche et l’envie d’être plus précis.
 
-**CTA :** aucun.
+**CTA :** PRÉPARER LA PROCHAINE SEMAINE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1125,15 +1107,13 @@ Reviens avec une page blanche et l’envie d’être plus précis.
 
 ☀️ *BON DIMANCHE L’ÉQUIPE*
 
-Profite de la matinée. Respire. Prends du recul.
+Profite de ta matinée. Coupe un peu, respire et prends du recul : le repos fait aussi partie du métier.
 
-Puis rappelle-toi : une nouvelle semaine ne devient pas différente par hasard.
+Puis reviens avec une question simple : quelle règle rendra ma prochaine semaine plus propre que la précédente ?
 
-Elle devient différente quand les règles sont plus claires, le risque mieux défini et les erreurs réellement étudiées.
+Cet après-midi, on prépare la suite ensemble.
 
-Aujourd’hui, on prépare la suite ensemble.
-
-**CTA :** aucun.
+**CTA :** PRÉPARER LA SEMAINE AVEC NOUS → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1145,16 +1125,15 @@ Aujourd’hui, on prépare la suite ensemble.
 
 **Message :**
 
-⏳ *COMBIEN DE SEMAINES VAS-TU ENCORE REPOUSSER ?*
+⏳ *JE VAIS ÊTRE FRANC AVEC TOI*
 
-Tu connais probablement déjà les mots : patience, risque, discipline, journal.
+Tu connais déjà les mots : patience, risque, discipline, journal. Mais lesquels appliques-tu vraiment quand personne ne te regarde ?
 
-La vraie question est plus inconfortable : lesquels appliques-tu quand personne ne te regarde ?
+Tu n’as peut-être pas besoin d’une stratégie de plus. Tu as peut-être besoin d’un cadre, d’un suivi et d’une équipe qui t’aide à rester constant.
 
-Tu ne manques peut-être pas d’une nouvelle stratégie.
-Tu manques peut-être d’un système que tu acceptes enfin de suivre.
+Si tu es prêt à arrêter de repousser, commence aujourd’hui.
 
-**CTA :** aucun.
+**CTA :** PASSER À L’ACTION → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1178,7 +1157,7 @@ Prépare des scénarios, réduis l’exposition si nécessaire et ne prédis jam
 
 _Le calendrier indique un timing, pas la direction future du marché._
 
-**CTA :** aucun.
+**CTA :** VOIR LE CALENDRIER → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1190,19 +1169,15 @@ _Le calendrier indique un timing, pas la direction future du marché._
 
 **Message :**
 
-🔥 *DEMAIN, TOUT RECOMMENCE*
+🔥 *DEMAIN, JE VEUX TE RETROUVER PRÊT*
 
-À 08:30 : l’agenda économique vérifié.
-À 09:00 : la session Londres.
-Puis les quiz, les analyses, les scénarios et les alertes de l’équipe.
+À 08:30, l’agenda économique vérifié. À 09:00, la session Londres. Puis les quiz, les analyses, les scénarios et les alertes de l’équipe.
 
 Tu peux encore regarder la semaine commencer de l’extérieur.
 
-Ou entrer ce soir avec un plan, un espace et une équipe à retrouver chaque jour.
+Ou entrer ce soir avec un plan clair et une équipe à retrouver chaque jour.
 
-_Le trading comporte un risque de perte. Aucun gain n’est garanti._
-
-**CTA :** PRÉPARER MA SEMAINE → https://acces.bectanse-academie.com/
+**CTA :** REJOINDRE BECTANSE → https://acces.bectanse-academie.com/
 
 ---
 
@@ -1224,7 +1199,7 @@ La question est de savoir si tu arriveras avec des règles assez claires pour ne
 
 À minuit, on repart. Rendez-vous demain à 09:00. 🔥
 
-**CTA :** aucun.
+**CTA :** ÊTRE PRÊT POUR DEMAIN → https://acces.bectanse-academie.com/
 
 ---
 
