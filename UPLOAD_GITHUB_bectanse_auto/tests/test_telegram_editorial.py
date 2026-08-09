@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import unittest
 from datetime import date, datetime, timedelta
 from unittest.mock import Mock, patch
@@ -215,6 +216,27 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         self.assertEqual(sum(item["post_type"] == "poll" for item in values), 2)
         self.assertTrue(all(item["enabled"] for item in values))
         self.assertTrue(all(item["publish_all_channels"] for item in values))
+        self.assertTrue(all(item["button_text"] and item["button_url"] for item in values))
+        self.assertEqual(sum(bool(item["image_url"]) for item in values), 24)
+        self.assertTrue(all(
+            not item["image_url"] for item in values
+            if item["post_type"] in {"quiz", "poll"}
+        ))
+        self.assertTrue(all(
+            len(item["message"]) <= (1024 if item["image_url"] else 4096)
+            for item in values if item["post_type"] == "message"
+        ))
+
+    def test_market_signal_library_contains_seven_v2_templates(self):
+        manifest_path = os.path.join(
+            app.APP_DIR, "static", "telegram-visuals",
+            "bectanse-market-signal-manifest-v2.json"
+        )
+        with open(manifest_path, encoding="utf-8") as source:
+            manifest = json.load(source)
+        self.assertEqual(len(manifest["templates"]), 7)
+        self.assertTrue(all(template["webp"].endswith("-v2.webp") for template in manifest["templates"]))
+        self.assertTrue(all(template["ctaText"] and template["ctaUrl"] for template in manifest["templates"]))
 
     def test_targeted_post_requires_at_least_one_channel(self):
         with self.assertRaisesRegex(ValueError, "Choisis au moins un canal"):
