@@ -3,10 +3,12 @@ const PREVIEW_MODE = document.body.dataset.previewMode === 'true';
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const TYPE_NAMES = {weekly:'Hebdomadaire', rotation:'Rotation 4 semaines', once:'Envoi unique'};
 const POST_TYPE_NAMES = {message:'Message / Photo', quiz:'Quiz', poll:'Sondage'};
+const VISUAL_MANIFEST_URL = '/static/telegram-visuals/bectanse-market-signal-manifest-v2.json';
 
 let posts = [];
 let channels = [];
 let currentImageUrl = '';
+let visualTemplates = [];
 let toastTimer = null;
 let selectedCsvFile = null;
 let previewHistory = [
@@ -237,7 +239,71 @@ function setImage(url='') {
     $('telegram-preview-image').removeAttribute('src');
     $('post-image').value = '';
   }
+  updateVisualLibraryState();
   updatePreview();
+}
+
+function publicAssetUrl(path='') {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  return `/${String(path).replace(/^\/+/, '')}`;
+}
+
+function updateVisualLibraryState() {
+  const isMessage = currentPostType() === 'message';
+  document.querySelectorAll('.visual-template-card').forEach(card => {
+    card.classList.toggle('disabled', !isMessage);
+    const template = visualTemplates.find(item => item.id === card.dataset.templateId);
+    const templateUrl = publicAssetUrl(template?.webp || template?.png || '');
+    card.classList.toggle('selected', isMessage && Boolean(templateUrl) && currentImageUrl === templateUrl);
+    card.setAttribute('aria-disabled', String(!isMessage));
+  });
+}
+
+function renderVisualLibrary() {
+  const grid = $('visual-template-grid');
+  if (!visualTemplates.length) {
+    grid.innerHTML = '<div class="visual-library-loading">Bibliothèque indisponible. Tu peux toujours importer ton propre visuel.</div>';
+    return;
+  }
+  grid.innerHTML = visualTemplates.map(template => {
+    const previewUrl = publicAssetUrl(template.webp || template.png);
+    return `<button class="visual-template-card" type="button" data-template-id="${escapeHtml(template.id)}" aria-label="Utiliser ${escapeHtml(template.title)}">
+      <img src="${escapeHtml(previewUrl)}" alt="" loading="lazy">
+      <span><strong>${escapeHtml(template.title)}</strong><small>${escapeHtml(template.ctaText || 'Visuel teaser')}</small></span>
+      <i>Utiliser</i>
+    </button>`;
+  }).join('');
+  updateVisualLibraryState();
+}
+
+async function loadVisualLibrary() {
+  try {
+    const response = await fetch(VISUAL_MANIFEST_URL, {cache:'no-store'});
+    if (!response.ok) throw new Error('Bibliothèque visuelle introuvable');
+    const manifest = await response.json();
+    visualTemplates = Array.isArray(manifest.templates) ? manifest.templates : [];
+  } catch (error) {
+    visualTemplates = [];
+  }
+  renderVisualLibrary();
+}
+
+function useVisualTemplate(templateId) {
+  const template = visualTemplates.find(item => item.id === templateId);
+  if (!template) return;
+  if (currentPostType() !== 'message') {
+    showToast('Un quiz ou sondage natif ne peut pas recevoir de photo. Crée un message teaser séparé pour utiliser ce visuel.', 'error');
+    return;
+  }
+  setImage(publicAssetUrl(template.webp || template.png));
+  if (template.ctaText && template.ctaUrl) {
+    $('button-text').value = template.ctaText;
+    $('button-url').value = template.ctaUrl;
+  }
+  updateVisualLibraryState();
+  updatePreview();
+  showToast(`Modèle « ${template.title} » appliqué avec son bouton CTA.`);
 }
 
 function selectedWeekdays() {
@@ -257,6 +323,7 @@ function setPostTypeVisibility() {
   $('message-fields').hidden = !isMessage;
   $('poll-fields').hidden = isMessage;
   updatePollEditorMode();
+  updateVisualLibraryState();
   updatePreview();
 }
 
@@ -802,6 +869,10 @@ $('publish-time').addEventListener('input', updatePreview);
 $('scheduled-for').addEventListener('input', updatePreview);
 $('post-image').addEventListener('change', event => uploadImage(event.target.files[0]));
 $('remove-image').addEventListener('click', () => setImage(''));
+$('visual-template-grid').addEventListener('click', event => {
+  const card = event.target.closest('.visual-template-card[data-template-id]');
+  if (card) useVisualTemplate(card.dataset.templateId);
+});
 $('post-search').addEventListener('input', renderPosts);
 $('post-filter').addEventListener('change', renderPosts);
 $('refresh-posts').addEventListener('click', loadPosts);
@@ -834,7 +905,7 @@ csvDropzone.addEventListener('drop', event => {
 
 async function initializeStudio() {
   resetForm();
-  await loadChannels();
+  await Promise.all([loadChannels(), loadVisualLibrary()]);
   await Promise.all([loadPosts(), loadHistory()]);
 }
 initializeStudio();
