@@ -247,7 +247,7 @@ function setImage(url='') {
 function publicAssetUrl(path='') {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
-  return `/${String(path).replace(/^\/+/, '')}`;
+  return `${window.location.origin}/${String(path).replace(/^\/+/, '')}`;
 }
 
 function updateVisualLibraryState() {
@@ -523,7 +523,7 @@ function formPayload() {
     ...(id ? {id} : {}),
     name: $('post-name').value.trim(),
     message: $('post-message').value.trim(),
-    image_url: postType === 'message' ? currentImageUrl : '',
+    image_url: postType === 'message' ? publicAssetUrl(currentImageUrl) : '',
     post_type: postType,
     poll_question: $('poll-question').value.trim(),
     poll_options: pollOptions(),
