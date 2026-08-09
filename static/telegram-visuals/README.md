@@ -1,4 +1,4 @@
-# Bectanse Market Signal V2
+# Bectanse Visual Catalog V3
 
 Système visuel Telegram au format 1200 × 600 px, conçu pour conserver une
 identité trading forte et un logo Bectanse constant sur chaque publication.
@@ -6,6 +6,10 @@ identité trading forte et un logo Bectanse constant sur chaque publication.
 La V2 ajoute des boîtes dimensionnées selon leur contenu, le drapeau du
 Royaume-Uni pour Londres, le drapeau américain pour New York et des détails
 graphiques propres à chaque catégorie de publication.
+
+La V3 ajoute un vrai catalogue filtrable dans l’admin, la conservation des
+visuels personnels sur Cloudinary et trois directions de conversion sans
+fausse urgence ni rareté artificielle.
 
 ## Règles de publication
 
@@ -26,6 +30,13 @@ graphiques propres à chaque catégorie de publication.
 5. Quiz du marché — violet interactif.
 6. Nouveau témoignage — or communauté.
 7. Dernière alerte disponible — rouge signal.
+8. CTA système — orange décision et processus.
+9. CTA méthode répétable — violet progression.
+10. CTA accompagnement — vert équipe et structure.
+
+L’admin permet aussi d’ajouter un visuel personnel avec son nom, sa catégorie,
+sa légende et son bouton CTA par défaut. Ces médias restent disponibles dans
+le filtre « Mes visuels » et peuvent être réutilisés sur les futurs posts.
 
 Le quiz natif Telegram ne peut pas recevoir une image dans le même message.
 La bannière Quiz sert donc uniquement de teaser éventuel ; le quiz reste une
@@ -34,5 +45,5 @@ publication Telegram native et cliquable.
 ## Régénération
 
 Le script `scripts/render_telegram_visual_templates.mjs` produit les PNG et
-WebP V2, la planche de contrôle V2 et le manifeste JSON à partir du master
-visuel. Les exports V1 sont conservés pour permettre la comparaison.
+WebP, la planche de contrôle V3 et le manifeste JSON à partir du master visuel.
+Les exports précédents sont conservés pour permettre la comparaison.
