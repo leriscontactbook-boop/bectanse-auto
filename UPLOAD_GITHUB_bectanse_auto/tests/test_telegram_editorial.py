@@ -1,5 +1,6 @@
 import os
 import csv
+import io
 import json
 import unittest
 from datetime import date, datetime, timedelta
@@ -239,6 +240,21 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         self.assertEqual(sum(template["category"] == "conversion" for template in manifest["templates"]), 3)
         self.assertTrue(all(template["ctaText"] and template["ctaUrl"] for template in manifest["templates"]))
 
+    def test_catalog_image_is_normalized_to_public_https_before_save(self):
+        payload = app._validate_telegram_post_payload({
+            "name": "CTA catalogue",
+            "message": "Un message mentor.",
+            "image_url": "/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.webp",
+            "schedule_type": "weekly",
+            "weekdays": [0],
+            "publish_time": "18:30",
+            "publish_all_channels": True,
+        })
+        self.assertEqual(
+            payload["image_url"],
+            "https://acces.bectanse-academie.com/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.webp",
+        )
+
     def test_custom_visual_catalog_payload_requires_a_real_cta_pair(self):
         payload = app._validate_telegram_media_payload({
             "title": "Mon visuel coaching",
@@ -249,6 +265,19 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
             "cta_url": "https://acces.bectanse-academie.com/",
         })
         self.assertEqual(payload["category"], "conversion")
+        internal_payload = app._validate_telegram_media_payload({
+            "title": "Visuel Bectanse interne",
+            "image_url": "static/telegram-visuals/08-cta-systeme-bectanse-v3.webp",
+        })
+        self.assertEqual(
+            internal_payload["image_url"],
+            "https://acces.bectanse-academie.com/static/telegram-visuals/08-cta-systeme-bectanse-v3.webp",
+        )
+        with self.assertRaisesRegex(ValueError, "HTTPS"):
+            app._validate_telegram_media_payload({
+                "title": "Visuel non sécurisé",
+                "image_url": "http://example.com/image.webp",
+            })
         with self.assertRaisesRegex(ValueError, "ensemble"):
             app._validate_telegram_media_payload({
                 "title": "CTA incomplet",
@@ -256,6 +285,22 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
                 "cta_text": "Cliquer",
                 "cta_url": "",
             })
+
+    def test_admin_image_upload_returns_a_permanent_https_url(self):
+        client = app.app.test_client()
+        secure_url = "https://res.cloudinary.com/bectanse/image/upload/catalogue-test.png"
+        with patch.object(app, "upload_to_cloudinary", return_value=secure_url) as uploader:
+            response = client.post(
+                "/admin/api/telegram/upload",
+                data={
+                    "key": app.ADMIN_KEY,
+                    "image": (io.BytesIO(b"test-image"), "catalogue-test.png"),
+                },
+                content_type="multipart/form-data",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["url"], secure_url)
+        uploader.assert_called_once()
 
     def test_targeted_post_requires_at_least_one_channel(self):
         with self.assertRaisesRegex(ValueError, "Choisis au moins un canal"):
