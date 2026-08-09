@@ -143,6 +143,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <a class="s-item" onclick="showSection('notifications')"><span class="s-icon">🔔</span> Notifications</a>
     <a class="s-item" onclick="showSection('annonces')"><span class="s-icon">📢</span> Annonces</a>
     <a class="s-item" onclick="showSection('telegram')"><span class="s-icon">✈️</span> Telegram</a>
+    <a class="s-item" href="/admin/telegram-automation?key={{ admin_key }}"><span class="s-icon">🤖</span> Centre Telegram</a>
     <div class="s-section">Formation</div>
     <a class="s-item" onclick="showSection('videos')"><span class="s-icon">🎬</span> Vidéos</a>
     <a class="s-item" onclick="showSection('pdfs')"><span class="s-icon">📚</span> PDFs</a>
@@ -291,6 +292,11 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 <!-- TELEGRAM -->
 <div class="section" id="section-telegram">
   <div class="section-title">Envoyer sur Telegram</div>
+  <div class="card-form" style="border-color:rgba(245,158,11,0.28);background:linear-gradient(135deg,rgba(245,158,11,0.08),var(--d2))">
+    <div class="card-form-title" style="color:#FCD34D">Centre de commande éditorial</div>
+    <p style="font-size:13px;line-height:1.65;color:rgba(255,255,255,0.55);margin-bottom:14px">Programme les jours, les heures, les images, les boutons et tous les messages envoyés automatiquement par les robots.</p>
+    <a class="btn btn-gold" href="/admin/telegram-automation?key={{ admin_key }}">🤖 Ouvrir le Centre Telegram →</a>
+  </div>
   <div class="card-form">
     <div class="card-form-title">Message sur le canal public @BECTANSE_ACADEMIE</div>
     <div class="field" style="margin-bottom:16px">
