@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "timezone": "Europe/Paris",
+  "publish_time": "18:30",
+  "weeks": [
+    [
+      {
+        "weekday": "lundi",
+        "theme": "planification",
+        "title": "LE RITUEL DU LUNDI",
+        "body": [
+          "Une semaine de trading ne commence pas par un bouton Acheter ou Vendre.",
+          "",
+          "Avant toute décision :",
+          "1️⃣ repère les annonces économiques importantes ;",
+          "2️⃣ fixe ton risque maximal par position ;",
+          "3️⃣ écris les scénarios qui invalideraient ton idée ;",
+          "4️⃣ accepte qu’une journée sans trade peut être une bonne journée.",
+          "",
+          "La discipline se décide avant l’ouverture du marché."
+        ],
+        "cta": "Quel point vas-tu appliquer cette semaine ?"
+      },
+      {
+        "weekday": "mardi",
+        "theme": "stop-loss",
+        "title": "UN STOP N’EST PAS UNE PUNITION",
+        "body": [
+          "Le stop-loss sert à définir où ton scénario n’est plus valable. Il ne doit pas être placé au hasard ni déplacé uniquement pour éviter d’accepter une perte.",
+          "",
+          "Une petite perte prévue protège ton capital. Une perte laissée sans limite peut détruire plusieurs bonnes décisions."
+        ],
+        "cta": "Sauvegarde ce rappel avant ta prochaine session."
+      },
+      {
+        "weekday": "mercredi",
+        "theme": "gestion-du-risque",
+        "title": "LE RISQUE AVANT LE RENDEMENT",
+        "body": [
+          "Avant de penser au gain potentiel, pose-toi trois questions :",
+          "",
+          "• combien puis-je perdre sur cette position ?",
+          "• cette perte est-elle acceptable pour mon capital ?",
+          "• mon exposition totale reste-t-elle maîtrisée ?",
+          "",
+          "La taille de position vient du risque accepté, pas de l’envie de gagner vite."
+        ]
+      },
+      {
+        "weekday": "jeudi",
+        "theme": "ratio-risque-rendement",
+        "title": "COMPRENDRE LE RATIO RISQUE / RENDEMENT",
+        "body": [
+          "Un ratio de 1:2 signifie que tu acceptes de risquer 1 unité pour viser 2 unités. Ce ratio ne garantit jamais que l’objectif sera atteint.",
+          "",
+          "Il sert surtout à vérifier qu’une idée reste cohérente avant l’entrée. Le taux de réussite et les frais comptent également."
+        ]
+      },
+      {
+        "weekday": "vendredi",
+        "theme": "debrief",
+        "title": "LE DÉBRIEF DU VENDREDI",
+        "body": [
+          "Avant de fermer la semaine, note :",
+          "",
+          "✅ la décision la plus disciplinée ;",
+          "⚠️ l’erreur à ne pas répéter ;",
+          "📊 le respect de ton risque ;",
+          "🧠 ton état émotionnel pendant les trades.",
+          "",
+          "Évalue d’abord ton processus. Le résultat d’une seule semaine ne raconte pas toute l’histoire."
+        ],
+        "cta": "Réponds avec une leçon retenue cette semaine."
+      },
+      {
+        "weekday": "samedi",
+        "theme": "glossaire",
+        "title": "LE MOT DU SAMEDI : DRAWDOWN",
+        "body": [
+          "Le drawdown mesure la baisse entre un sommet du capital et le creux qui suit.",
+          "",
+          "Exemple : un compte passe de 1 000 € à 900 €. Le drawdown est de 10 %.",
+          "",
+          "Plus la baisse est forte, plus l’effort nécessaire pour revenir au point de départ augmente. Voilà pourquoi la protection du capital reste prioritaire."
+        ]
+      },
+      {
+        "weekday": "dimanche",
+        "theme": "preparation",
+        "title": "PRÉPARE TA SEMAINE EN 10 MINUTES",
+        "body": [
+          "Ce soir, prépare simplement :",
+          "",
+          "📅 les annonces macro importantes ;",
+          "📈 les actifs que tu suivras vraiment ;",
+          "🛡️ ton risque maximal ;",
+          "📝 une règle personnelle à respecter.",
+          "",
+          "Moins d’improvisation demain, plus de clarté."
+        ]
+      }
+    ],
+    [
+      {
+        "weekday": "lundi",
+        "theme": "processus",
+        "title": "TON OBJECTIF DE LA SEMAINE",
+        "body": [
+          "Choisis un objectif que tu contrôles : respecter tes stops, limiter le nombre de positions ou tenir ton journal.",
+          "",
+          "« Faire +10 % » n’est pas entièrement sous ton contrôle. « Respecter mon plan sur chaque décision » l’est beaucoup plus."
+        ],
+        "cta": "Écris ton objectif de processus pour cette semaine."
+      },
+      {
+        "weekday": "mardi",
+        "theme": "frais",
+        "title": "SPREAD ET SLIPPAGE : LES COÛTS INVISIBLES",
+        "body": [
+          "Le spread est l’écart entre le prix d’achat et le prix de vente. Le slippage est la différence entre le prix demandé et le prix réellement exécuté.",
+          "",
+          "En période volatile, ces écarts peuvent augmenter. Ils doivent faire partie de ton calcul de risque, surtout autour des annonces majeures."
+        ]
+      },
+      {
+        "weekday": "mercredi",
+        "theme": "psychologie",
+        "title": "APRÈS UNE PERTE, FAIS UNE PAUSE",
+        "body": [
+          "Le cerveau veut souvent récupérer immédiatement ce qui vient d’être perdu. C’est le terrain du revenge trading.",
+          "",
+          "Ferme le graphique quelques minutes, relis ton plan et vérifie si une nouvelle position est réellement justifiée. Une émotion forte n’est pas un signal."
+        ]
+      },
+      {
+        "weekday": "jeudi",
+        "theme": "correlation",
+        "title": "TROIS POSITIONS PEUVENT CACHER UN SEUL RISQUE",
+        "body": [
+          "Des actifs corrélés peuvent évoluer ensemble. Ouvrir plusieurs positions similaires ne signifie donc pas toujours diversifier.",
+          "",
+          "Avant d’ajouter un trade, regarde ton exposition globale : devise, indice, secteur et direction."
+        ]
+      },
+      {
+        "weekday": "vendredi",
+        "theme": "surtrading",
+        "title": "TU N’AS RIEN À RATTRAPER",
+        "body": [
+          "Le marché sera encore là la semaine prochaine. Forcer un dernier trade le vendredi pour finir positif peut transformer une petite baisse en grosse erreur.",
+          "",
+          "Savoir s’arrêter fait partie de la stratégie."
+        ]
+      },
+      {
+        "weekday": "samedi",
+        "theme": "copy-trading",
+        "title": "COPY TRADING : GARDE LE CONTRÔLE",
+        "body": [
+          "L’automatisation ne supprime ni le risque ni ta responsabilité.",
+          "",
+          "Vérifie régulièrement ton capital, ton niveau de risque, les limites de drawdown et l’état de la connexion. Comprends les paramètres avant de les modifier."
+        ],
+        "cta": "Dans l’espace membre, utilise le calculateur de risque avant tout changement important."
+      },
+      {
+        "weekday": "dimanche",
+        "theme": "quiz",
+        "title": "QUIZ EXPRESS",
+        "body": [
+          "Ton capital est de 1 000 € et ton risque maximal est de 1 % par trade. Quel montant maximal acceptes-tu de perdre si le stop est touché ?",
+          "",
+          "A — 1 €",
+          "B — 10 €",
+          "C — 100 €",
+          "",
+          "Réponse : B. Le calcul du lot vient ensuite selon la distance du stop et les caractéristiques de l’actif."
+        ]
+      }
+    ],
+    [
+      {
+        "weekday": "lundi",
+        "theme": "macro",
+        "title": "REGARDE LE CALENDRIER AVANT LE GRAPHIQUE",
+        "body": [
+          "Inflation, décisions de banques centrales et emploi peuvent provoquer une forte volatilité.",
+          "",
+          "Le calendrier économique ne prédit pas la direction du marché. Il t’aide à savoir quand le risque d’exécution et de mouvement brutal peut augmenter."
+        ]
+      },
+      {
+        "weekday": "mardi",
+        "theme": "ordres",
+        "title": "ORDRE AU MARCHÉ OU ORDRE LIMITE ?",
+        "body": [
+          "Un ordre au marché privilégie l’exécution, mais le prix final peut varier. Un ordre limite contrôle le prix maximal ou minimal accepté, sans garantir l’exécution.",
+          "",
+          "Le bon choix dépend du contexte, de la liquidité et de ton plan — pas de l’impatience."
+        ]
+      },
+      {
+        "weekday": "mercredi",
+        "theme": "taille-de-position",
+        "title": "LE LOT N’EST PAS UN OBJECTIF",
+        "body": [
+          "Deux traders peuvent utiliser des lots différents pour un même risque, car leur capital et la distance du stop ne sont pas identiques.",
+          "",
+          "Calcule d’abord le montant risqué. Déduis ensuite la taille de position adaptée."
+        ]
+      },
+      {
+        "weekday": "jeudi",
+        "theme": "volatilite",
+        "title": "VOLATILITÉ ≠ OPPORTUNITÉ OBLIGATOIRE",
+        "body": [
+          "Un marché qui bouge vite attire l’attention, mais amplifie aussi le slippage, les erreurs et les mouvements imprévisibles.",
+          "",
+          "Si les conditions sortent de ton plan, rester à l’écart est une décision professionnelle."
+        ]
+      },
+      {
+        "weekday": "vendredi",
+        "theme": "evaluation",
+        "title": "BON TRADE, MAUVAIS RÉSULTAT ?",
+        "body": [
+          "Un trade peut respecter parfaitement le plan et finir en perte. Un autre peut être mal préparé et finir en gain.",
+          "",
+          "Ne confonds pas la qualité de la décision avec le résultat isolé. Évalue une série de décisions cohérentes."
+        ]
+      },
+      {
+        "weekday": "samedi",
+        "theme": "mythes",
+        "title": "3 MYTHES À LAISSER DE CÔTÉ",
+        "body": [
+          "❌ Il faut trader chaque jour.",
+          "❌ Un taux de réussite élevé suffit à être rentable.",
+          "❌ L’automatisation supprime le risque.",
+          "",
+          "La réalité : sélectivité, gestion du risque et compréhension du système restent essentielles."
+        ]
+      },
+      {
+        "weekday": "dimanche",
+        "theme": "checklist",
+        "title": "TA CHECK-LIST AVANT CHAQUE POSITION",
+        "body": [
+          "☐ scénario clairement identifié ;",
+          "☐ niveau d’invalidation défini ;",
+          "☐ taille de position calculée ;",
+          "☐ annonce économique vérifiée ;",
+          "☐ risque global du portefeuille contrôlé.",
+          "",
+          "Si une case manque, ralentis."
+        ]
+      }
+    ],
+    [
+      {
+        "weekday": "lundi",
+        "theme": "routine",
+        "title": "UNE ROUTINE BAT L’IMPROVISATION",
+        "body": [
+          "Même heure d’analyse, même check-list, même règle de risque : une routine simple réduit les décisions impulsives.",
+          "",
+          "Cette semaine, cherche la répétabilité plutôt que l’excitation."
+        ]
+      },
+      {
+        "weekday": "mardi",
+        "theme": "invalidation",
+        "title": "OÙ TON IDÉE DEVIENT-ELLE FAUSSE ?",
+        "body": [
+          "Avant l’entrée, tu dois pouvoir expliquer ce qui invalide ton scénario. Si la réponse est floue, le stop le sera souvent aussi.",
+          "",
+          "Une entrée précise commence par une sortie prévue."
+        ]
+      },
+      {
+        "weekday": "mercredi",
+        "theme": "capital",
+        "title": "TON CAPITAL EST TON OUTIL DE TRAVAIL",
+        "body": [
+          "Sans capital, aucune stratégie ne peut continuer. La priorité n’est donc pas de maximiser chaque occasion, mais de rester capable d’appliquer ton plan demain.",
+          "",
+          "Protège d’abord la continuité."
+        ]
+      },
+      {
+        "weekday": "jeudi",
+        "theme": "overtrading",
+        "title": "PLUS DE TRADES NE VEUT PAS DIRE PLUS DE QUALITÉ",
+        "body": [
+          "Multiplier les positions augmente les frais, la fatigue et l’exposition. Fixer une limite quotidienne peut protéger ton plan contre l’ennui et l’impulsivité.",
+          "",
+          "La sélectivité est une compétence."
+        ]
+      },
+      {
+        "weekday": "vendredi",
+        "theme": "journal",
+        "title": "LE JOURNAL REND TES ERREURS VISIBLES",
+        "body": [
+          "Pour chaque trade, conserve le scénario, le risque, une capture, ton émotion et le résultat.",
+          "",
+          "Après plusieurs semaines, tu pourras repérer les erreurs répétées et les conditions où ton processus est le plus solide."
+        ]
+      },
+      {
+        "weekday": "samedi",
+        "theme": "vigilance",
+        "title": "MÉFIE-TOI DES PROMESSES TROP BELLES",
+        "body": [
+          "Rendement garanti, aucune perte, urgence artificielle ou captures sans contexte : ce sont des signaux d’alerte.",
+          "",
+          "Demande toujours comment le risque est géré, quels frais existent et si les pertes sont clairement présentées."
+        ],
+        "cta": "Chez Bectanse Académie, notre priorité est de rendre le système et ses risques compréhensibles."
+      },
+      {
+        "weekday": "dimanche",
+        "theme": "reset",
+        "title": "RESET DU DIMANCHE",
+        "body": [
+          "Nettoie tes graphiques, relis ton journal et prépare tes alertes. Garde seulement les niveaux et les scénarios utiles.",
+          "",
+          "Commence demain avec un espace clair et un risque défini — pas avec les émotions de la semaine passée."
+        ],
+        "cta": "Nouvelle semaine, même règle : le plan avant l’action."
+      }
+    ]
+  ],
+  "footer": "Bectanse Académie — Comprendre, structurer, progresser.",
+  "disclaimer": "Contenu éducatif. Le trading comporte un risque de perte. Les performances passées ne garantissent pas les résultats futurs."
+}
