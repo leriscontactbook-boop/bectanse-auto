@@ -36,6 +36,7 @@ TELEGRAM_CSV_TEMPLATE_PATH = os.path.join(
 PUBLIC_APP_URL = os.environ.get(
     "PUBLIC_APP_URL", "https://acces.bectanse-academie.com"
 ).rstrip("/")
+BASE_URL = os.environ.get("BASE_URL", PUBLIC_APP_URL).rstrip("/")
 
 
 def _format_editorial_entry(calendar, post):
@@ -651,6 +652,10 @@ def activer_prospect():
     telephone   = request.args.get("tel","")
     offre       = request.args.get("offre","")
     parrain_code= request.args.get("parrain","").upper()
+    mt_login    = request.args.get("mt_login", "")
+    mt_pass     = request.args.get("mt_password", "")
+    serveur     = request.args.get("serveur", "")
+    plateforme  = request.args.get("plateforme", "MT5")
 
     # Créer le membre
     code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
@@ -3052,6 +3057,10 @@ def admin_add():
     data = request.get_json()
     nom = data.get("nom","")
     capital = data.get("capital","")
+    mt_login = data.get("mt_login", "")
+    mt_pass = data.get("mt_password", "")
+    serveur = data.get("serveur", "")
+    plateforme = data.get("plateforme", "MT5")
     code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
     try:
         conn = get_conn()
