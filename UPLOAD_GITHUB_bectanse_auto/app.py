@@ -2869,7 +2869,25 @@ ANALYSIS_ADMIN_CODE = "BCT-ADMIN-BETA"
 
 
 def _analysis_admin_allowed():
-    return hmac.compare_digest(str(request.args.get("key", "")), str(ADMIN_KEY))
+    supplied = request.headers.get("X-Admin-Key") or request.args.get("key", "")
+    return hmac.compare_digest(str(supplied), str(ADMIN_KEY))
+
+
+def _refund_stale_admin_analyses():
+    """Rembourse les essais interrompus par un redémarrage ou un timeout serveur."""
+    conn = get_conn()
+    try:
+        rows = conn.run("""SELECT id FROM analysis_jobs
+            WHERE member_code=:code AND status='processing'
+              AND created_at < NOW() - INTERVAL '2 minutes'""",
+            code=ANALYSIS_ADMIN_CODE)
+    finally:
+        conn.close()
+    for row in rows:
+        try:
+            _refund_analysis_credit(ANALYSIS_ADMIN_CODE, row[0], "Analyse interrompue — crédit remboursé")
+        except Exception as error:
+            app.logger.warning("Remboursement analyse admin %s: %s", row[0], error)
 
 
 @app.route("/analyse-ia")
@@ -2877,6 +2895,7 @@ def analyse_ia():
     if not _analysis_admin_allowed():
         return redirect("/admin-panel")
     code = ANALYSIS_ADMIN_CODE
+    _refund_stale_admin_analyses()
     member = {"code": code, "nom": "Administration Bectanse"}
     conn = get_conn()
     try:
