@@ -1,7 +1,9 @@
-import os, json, secrets, string, requests, time, threading
+import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify
+from zoneinfo import ZoneInfo
+from flask import send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from werkzeug.utils import secure_filename
 import pg8000.native
 
 app = Flask(__name__)
@@ -13,15 +15,48 @@ ADMIN_ID   = os.environ.get("ADMIN_ID",   "6164373751")
 ADMIN_KEY  = os.environ.get("ADMIN_KEY",  "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
-VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY",  "BP3k0fJd97TMN7N9I37KkkXkUTTIzJFVHhZLGqg-0VrsFFPaKgQb15zPw-DIgS2lBst8QOSlMGLLA04uMpzCyEg")
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "-BH9Fk2jRo9Wms-svtp4s-AJZPZ6Iv1s2JedOJWNrWY")
+VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY", "BI5TQpefuRvs_HIPgRzXnBQqcQ5V9puh2hteQmdRp8pQFMEh-XyvgPGpYrO5ioPak9Z7ml6laSl2WnNh96RFrv8")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmeZdDREE6AdkScXLD0GeI65NwMQ3C7kBzmRN49e-XTqhRANCAASOU0KXn7kb7PxyD4Ec15wUKnEOVfabodobXkJnUafKUBTBIfl8r4DxqWKzuYqD2pPWe5pepWkpdlpzYfekRa7_")
 VAPID_CLAIMS      = {"sub": "mailto:bectanseacademie@gmail.com"}
 CLOUDINARY_CLOUD  = os.environ.get("CLOUDINARY_CLOUD", "dqgd441is")
 CLOUDINARY_KEY    = os.environ.get("CLOUDINARY_KEY", "631288474842446")
 CLOUDINARY_SECRET = os.environ.get("CLOUDINARY_SECRET", "GqmAD-4OOtkLGhu6boCcnwUXXUE")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_ANALYSIS_MODEL = os.environ.get("OPENAI_ANALYSIS_MODEL", "gpt-5.6-terra")
+ANALYSIS_INITIAL_CREDITS = int(os.environ.get("ANALYSIS_INITIAL_CREDITS", "5"))
+ANALYSIS_MAX_IMAGE_BYTES = 6 * 1024 * 1024
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+ANALYSIS_PACKS = {
+    "10": {"credits": 10, "amount_cents": 990, "label": "Pack Découverte"},
+    "30": {"credits": 30, "amount_cents": 2490, "label": "Pack Trader"},
+    "100": {"credits": 100, "amount_cents": 5990, "label": "Pack Pro"},
+}
 ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "8565312655:AAFyfFQvKEiFtFJYA0yDQE1bLdH8N50UX4c")
 ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
 GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+PARIS_TZ = ZoneInfo("Europe/Paris")
+TELEGRAM_EDITORIAL_PATH = os.environ.get(
+    "TELEGRAM_EDITORIAL_PATH",
+    os.path.join(APP_DIR, "content", "telegram_posts.json")
+)
+TELEGRAM_CSV_TEMPLATE_PATH = os.path.join(
+    APP_DIR, "content", "modele_planning_telegram_semaine.csv"
+)
+
+
+def _format_editorial_entry(calendar, post):
+    parts = [f"🔥 *{post['title'].strip()}*", "", "\n".join(post["body"]).strip()]
+    if post.get("cta"):
+        parts.extend(["", f"💬 {post['cta'].strip()}"])
+    parts.extend([
+        "",
+        "━━━━━━━━━━━━━━━",
+        calendar["footer"].strip(),
+        f"_{calendar['disclaimer'].strip()}_"
+    ])
+    return "\n".join(parts)
 
 # ── DB ────────────────────────────────────────────────────────────────────────
 
@@ -82,6 +117,97 @@ def init_db():
                     created_at  TIMESTAMP DEFAULT NOW()
                 )
             """)
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS renewal_email_log (
+                    member_code         TEXT NOT NULL,
+                    expiry_date         DATE NOT NULL,
+                    stage               TEXT NOT NULL,
+                    recipient_email     TEXT NOT NULL,
+                    status              TEXT NOT NULL DEFAULT 'pending',
+                    provider_message_id TEXT NOT NULL DEFAULT '',
+                    error               TEXT NOT NULL DEFAULT '',
+                    created_at          TIMESTAMP DEFAULT NOW(),
+                    sent_at             TIMESTAMP,
+                    PRIMARY KEY (member_code, expiry_date, stage)
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS renewal_email_log_status_idx
+                         ON renewal_email_log (status, created_at)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS prospect_email_verifications (
+                    email       TEXT PRIMARY KEY,
+                    prenom      TEXT NOT NULL DEFAULT '',
+                    token_hash  TEXT UNIQUE NOT NULL,
+                    source      TEXT NOT NULL DEFAULT 'explorer',
+                    status      TEXT NOT NULL DEFAULT 'pending',
+                    created_at  TIMESTAMP DEFAULT NOW(),
+                    expires_at  TIMESTAMP NOT NULL,
+                    verified_at TIMESTAMP
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS prospect_verification_status_idx
+                         ON prospect_email_verifications (status, expires_at)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_wallets (
+                    member_code      TEXT PRIMARY KEY,
+                    balance          INTEGER NOT NULL DEFAULT 5 CHECK (balance >= 0),
+                    lifetime_granted INTEGER NOT NULL DEFAULT 5,
+                    lifetime_spent   INTEGER NOT NULL DEFAULT 0,
+                    created_at       TIMESTAMP DEFAULT NOW(),
+                    updated_at       TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_jobs (
+                    id               TEXT PRIMARY KEY,
+                    member_code      TEXT NOT NULL,
+                    status           TEXT NOT NULL DEFAULT 'processing',
+                    timeframe        TEXT NOT NULL,
+                    session_name     TEXT NOT NULL,
+                    trading_style    TEXT NOT NULL,
+                    market           TEXT NOT NULL DEFAULT 'XAU/USD',
+                    image_mime       TEXT NOT NULL,
+                    result_json      TEXT NOT NULL DEFAULT '',
+                    error            TEXT NOT NULL DEFAULT '',
+                    model            TEXT NOT NULL DEFAULT '',
+                    input_tokens     INTEGER NOT NULL DEFAULT 0,
+                    output_tokens    INTEGER NOT NULL DEFAULT 0,
+                    search_calls     INTEGER NOT NULL DEFAULT 0,
+                    created_at       TIMESTAMP DEFAULT NOW(),
+                    completed_at     TIMESTAMP
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS analysis_jobs_member_idx
+                         ON analysis_jobs (member_code, created_at DESC)""")
+            try:
+                conn.run("ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS market TEXT NOT NULL DEFAULT 'XAU/USD'")
+            except Exception:
+                pass
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_credit_ledger (
+                    id            SERIAL PRIMARY KEY,
+                    member_code   TEXT NOT NULL,
+                    delta         INTEGER NOT NULL,
+                    balance_after INTEGER NOT NULL,
+                    reason        TEXT NOT NULL,
+                    reference     TEXT UNIQUE NOT NULL,
+                    created_at    TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS analysis_ledger_member_idx
+                         ON analysis_credit_ledger (member_code, created_at DESC)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_purchases (
+                    id                SERIAL PRIMARY KEY,
+                    stripe_session_id TEXT UNIQUE NOT NULL,
+                    member_code       TEXT NOT NULL,
+                    credits           INTEGER NOT NULL,
+                    amount_cents      INTEGER NOT NULL,
+                    currency          TEXT NOT NULL DEFAULT 'eur',
+                    status            TEXT NOT NULL DEFAULT 'paid',
+                    created_at        TIMESTAMP DEFAULT NOW()
+                )
+            """)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -125,6 +251,117 @@ def init_db():
                 actif BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT NOW()
             )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS scheduled_publications (
+                slot_key            TEXT PRIMARY KEY,
+                post_kind           TEXT NOT NULL,
+                status              TEXT NOT NULL DEFAULT 'sending',
+                content             TEXT NOT NULL DEFAULT '',
+                telegram_message_id BIGINT,
+                attempts            INTEGER NOT NULL DEFAULT 1,
+                error               TEXT NOT NULL DEFAULT '',
+                created_at          TIMESTAMP DEFAULT NOW(),
+                sent_at             TIMESTAMP
+            )""")
+            conn.run("ALTER TABLE scheduled_publications ADD COLUMN IF NOT EXISTS post_id INTEGER")
+            conn.run("ALTER TABLE scheduled_publications ADD COLUMN IF NOT EXISTS target_channel TEXT NOT NULL DEFAULT ''")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_scheduled_posts (
+                id                   SERIAL PRIMARY KEY,
+                name                 TEXT NOT NULL,
+                message              TEXT NOT NULL,
+                image_url            TEXT NOT NULL DEFAULT '',
+                schedule_type        TEXT NOT NULL DEFAULT 'weekly',
+                weekdays             TEXT NOT NULL DEFAULT '0',
+                rotation_week        INTEGER,
+                publish_time         TEXT NOT NULL DEFAULT '18:30',
+                scheduled_for        TIMESTAMP,
+                timezone             TEXT NOT NULL DEFAULT 'Europe/Paris',
+                channel              TEXT NOT NULL DEFAULT '@BECTANSE_ACADEMIE',
+                button_text          TEXT NOT NULL DEFAULT '',
+                button_url           TEXT NOT NULL DEFAULT '',
+                disable_notification BOOLEAN NOT NULL DEFAULT FALSE,
+                enabled              BOOLEAN NOT NULL DEFAULT TRUE,
+                source_key           TEXT UNIQUE,
+                deleted              BOOLEAN NOT NULL DEFAULT FALSE,
+                last_sent_at         TIMESTAMP,
+                created_at           TIMESTAMP DEFAULT NOW(),
+                updated_at           TIMESTAMP DEFAULT NOW()
+            )""")
+            for column, definition in [
+                ("post_type", "TEXT NOT NULL DEFAULT 'message'"),
+                ("poll_question", "TEXT NOT NULL DEFAULT ''"),
+                ("poll_options", "TEXT NOT NULL DEFAULT '[]'"),
+                ("poll_correct_option_ids", "TEXT NOT NULL DEFAULT '[]'"),
+                ("poll_explanation", "TEXT NOT NULL DEFAULT ''"),
+                ("poll_anonymous", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                ("poll_multiple", "BOOLEAN NOT NULL DEFAULT FALSE"),
+                ("publish_all_channels", "BOOLEAN NOT NULL DEFAULT TRUE"),
+            ]:
+                conn.run(
+                    f"ALTER TABLE telegram_scheduled_posts "
+                    f"ADD COLUMN IF NOT EXISTS {column} {definition}"
+                )
+            conn.run("""CREATE INDEX IF NOT EXISTS telegram_scheduled_posts_due_idx
+                         ON telegram_scheduled_posts (enabled, deleted, publish_time)""")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_channels (
+                id                   SERIAL PRIMARY KEY,
+                name                 TEXT NOT NULL,
+                chat_id              TEXT UNIQUE NOT NULL,
+                active               BOOLEAN NOT NULL DEFAULT TRUE,
+                deleted              BOOLEAN NOT NULL DEFAULT FALSE,
+                last_check_status    TEXT NOT NULL DEFAULT '',
+                last_check_at        TIMESTAMP,
+                created_at           TIMESTAMP DEFAULT NOW(),
+                updated_at           TIMESTAMP DEFAULT NOW()
+            )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_media_library (
+                id                   SERIAL PRIMARY KEY,
+                title                TEXT NOT NULL,
+                image_url            TEXT UNIQUE NOT NULL,
+                category             TEXT NOT NULL DEFAULT 'personal',
+                caption              TEXT NOT NULL DEFAULT '',
+                cta_text             TEXT NOT NULL DEFAULT '',
+                cta_url              TEXT NOT NULL DEFAULT '',
+                source_type          TEXT NOT NULL DEFAULT 'custom',
+                deleted              BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at           TIMESTAMP DEFAULT NOW(),
+                updated_at           TIMESTAMP DEFAULT NOW()
+            )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_post_channels (
+                post_id              INTEGER NOT NULL REFERENCES telegram_scheduled_posts(id) ON DELETE CASCADE,
+                channel_id           INTEGER NOT NULL REFERENCES telegram_channels(id) ON DELETE CASCADE,
+                PRIMARY KEY (post_id, channel_id)
+            )""")
+            if ECO_CANAL:
+                conn.run(
+                    """INSERT INTO telegram_channels (name, chat_id, active, deleted)
+                       VALUES ('Bectanse Académie', :chat_id, TRUE, FALSE)
+                       ON CONFLICT (chat_id) DO UPDATE SET deleted=FALSE""",
+                    chat_id=ECO_CANAL
+                )
+
+            # Import initial des 28 publications éditoriales. source_key et le
+            # soft-delete empêchent toute recréation après une suppression admin.
+            try:
+                with open(TELEGRAM_EDITORIAL_PATH, "r", encoding="utf-8") as content_file:
+                    editorial_calendar = json.load(content_file)
+                default_time = editorial_calendar.get("publish_time", "18:30")
+                for week_index, week in enumerate(editorial_calendar.get("weeks", [])):
+                    for weekday_index, post in enumerate(week):
+                        conn.run(
+                            """INSERT INTO telegram_scheduled_posts
+                               (name, message, schedule_type, weekdays, rotation_week,
+                                publish_time, channel, enabled, source_key)
+                               VALUES (:name, :message, 'rotation', :weekday, :rotation,
+                                       :publish_time, :channel, TRUE, :source_key)
+                               ON CONFLICT (source_key) DO NOTHING""",
+                            name=f"{post.get('weekday', '').capitalize()} — {post.get('title', '')}",
+                            message=_format_editorial_entry(editorial_calendar, post),
+                            weekday=str(weekday_index), rotation=week_index,
+                            publish_time=default_time, channel=ECO_CANAL,
+                            source_key=f"editorial-v1-{week_index}-{weekday_index}"
+                        )
+            except Exception as seed_error:
+                app.logger.warning(f"telegram editorial seed: {seed_error}")
             # Migration robuste — ajouter toutes les colonnes une par une
             cols_to_add = [
                 ("parrain_code", "TEXT", "''"),
@@ -244,8 +481,10 @@ def send_webpush_notification(subscription_info, title, body, url="/accueil"):
             vapid_claims=VAPID_CLAIMS,
             timeout=10
         )
+        return True
     except Exception as e:
         app.logger.debug(f"webpush: {e}")
+        return False
 
 def send_fcm_push(tokens, title, body, url="/accueil"):
     """Alias — envoie via Web Push à une liste de tokens (subscriptions JSON)."""
@@ -781,6 +1020,30 @@ def admin_panel_login():
         return redirect(f"/admin-panel?key={ADMIN_KEY}")
     return render_template("admin_login.html", error="Clé incorrecte")
 
+
+@app.route("/admin/telegram-automation")
+def admin_telegram_automation():
+    key = request.args.get("key", "")
+    if key != ADMIN_KEY:
+        return redirect("/admin-panel")
+    return render_template(
+        "admin_telegram_automation.html",
+        admin_key=ADMIN_KEY,
+        preview_mode=False
+    )
+
+
+@app.route("/preview-admin-telegram")
+def preview_admin_telegram():
+    """Aperçu visuel local, sans base de données ni envoi Telegram."""
+    if request.host.split(":", 1)[0] not in {"127.0.0.1", "localhost"}:
+        return "Aperçu local uniquement", 404
+    return render_template(
+        "admin_telegram_automation.html",
+        admin_key="preview",
+        preview_mode=True
+    )
+
 # ── MEMBRES ──
 @app.route("/admin/api/membres", methods=["GET"])
 def admin_api_membres():
@@ -1054,11 +1317,1167 @@ def admin_api_telegram_envoyer():
     if key != ADMIN_KEY: return jsonify({"ok":False}), 403
     try:
         canal = request.json.get("canal", "@BECTANSE_ACADEMIE")
-        message = request.json.get("message","")
-        send_telegram(message, chat_id=canal)
+        message = request.json.get("message","").strip()
+        sent = _send_scheduled_telegram(
+            message,
+            slot_key=f"telegram-quick-{_paris_now().strftime('%Y%m%d-%H%M%S-%f')}",
+            post_kind="manual-editorial",
+            channel=canal
+        )
+        if not sent:
+            return jsonify({"ok":False,"error":"Telegram n’a pas confirmé l’envoi"}), 502
         return jsonify({"ok":True})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
+
+
+def _serialize_telegram_post(post):
+    serialized = dict(post)
+    if serialized.get("scheduled_for"):
+        serialized["scheduled_for"] = _parse_scheduled_datetime(
+            serialized["scheduled_for"]
+        ).isoformat()
+    for field in ("last_sent_at", "created_at", "updated_at"):
+        value = serialized.get(field)
+        if value and hasattr(value, "isoformat"):
+            serialized[field] = value.isoformat()
+    serialized["weekdays"] = [
+        int(day) for day in str(serialized.get("weekdays") or "").split(",") if day != ""
+    ]
+    for field in ("poll_options", "poll_correct_option_ids"):
+        value = serialized.get(field)
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (TypeError, ValueError):
+                value = []
+        serialized[field] = value if isinstance(value, list) else []
+    serialized["next_run"] = next_run_for_telegram_post(post)
+    return serialized
+
+
+def _payload_list(value, separator="|"):
+    if isinstance(value, list):
+        return value
+    if value is None:
+        return []
+    text = str(value).strip()
+    if not text:
+        return []
+    if text.startswith("["):
+        try:
+            parsed = json.loads(text)
+            return parsed if isinstance(parsed, list) else []
+        except ValueError:
+            pass
+    return [item.strip() for item in text.split(separator) if item.strip()]
+
+
+def _validate_telegram_post_payload(data):
+    name = str(data.get("name") or "").strip()
+    message = str(data.get("message") or "").strip()
+    image_url = str(data.get("image_url") or "").strip()
+    post_type = str(data.get("post_type") or "message").strip().lower()
+    schedule_type = str(data.get("schedule_type") or "weekly").strip()
+    publish_time = str(data.get("publish_time") or "18:30").strip()
+    channel = str(data.get("channel") or ECO_CANAL).strip()
+    button_text = str(data.get("button_text") or "").strip()
+    button_url = str(data.get("button_url") or "").strip()
+    poll_question = str(data.get("poll_question") or "").strip()
+    poll_options = [str(option).strip() for option in _payload_list(data.get("poll_options"))]
+    poll_explanation = str(data.get("poll_explanation") or "").strip()
+    publish_all_channels = bool(data.get("publish_all_channels", True))
+    raw_channel_ids = data.get("channel_ids") or []
+    channel_targets = [str(target).strip() for target in _payload_list(data.get("channel_targets"))]
+    if isinstance(raw_channel_ids, str):
+        raw_channel_ids = _payload_list(raw_channel_ids)
+    try:
+        channel_ids = sorted({int(channel_id) for channel_id in raw_channel_ids})
+    except (TypeError, ValueError):
+        raise ValueError("Sélection de canaux invalide")
+    if any(channel_id <= 0 for channel_id in channel_ids):
+        raise ValueError("Sélection de canaux invalide")
+    if not publish_all_channels and not channel_ids and not channel_targets:
+        raise ValueError("Choisis au moins un canal ou active la diffusion sur tous les canaux")
+
+    if not name or len(name) > 120:
+        raise ValueError("Le nom interne est obligatoire et limité à 120 caractères")
+    if post_type not in {"message", "quiz", "poll"}:
+        raise ValueError("Le format doit être message, quiz ou sondage")
+    if post_type == "message":
+        if not message:
+            raise ValueError("Le message Telegram est obligatoire")
+        if image_url and not image_url.startswith("https://"):
+            raise ValueError("L’image doit utiliser une adresse HTTPS")
+        max_length = 1024 if image_url else 4096
+        if len(message) > max_length:
+            raise ValueError(f"Le message est limité à {max_length} caractères dans ce format")
+        poll_question, poll_options, poll_explanation = "", [], ""
+        poll_correct_option_ids = []
+        poll_anonymous = True
+        poll_multiple = False
+    else:
+        if image_url:
+            raise ValueError("Une image séparée n’est pas compatible avec un quiz ou sondage natif")
+        if not poll_question or len(poll_question) > 300:
+            raise ValueError("La question est obligatoire et limitée à 300 caractères")
+        if not 2 <= len(poll_options) <= 12:
+            raise ValueError("Ajoute entre 2 et 12 réponses")
+        if any(not option or len(option) > 100 for option in poll_options):
+            raise ValueError("Chaque réponse est obligatoire et limitée à 100 caractères")
+        if len(poll_explanation) > 200 or poll_explanation.count("\n") > 2:
+            raise ValueError("L’explication est limitée à 200 caractères et 2 retours à la ligne")
+        raw_correct_ids = _payload_list(data.get("poll_correct_option_ids"))
+        try:
+            poll_correct_option_ids = sorted({int(index) for index in raw_correct_ids})
+        except (TypeError, ValueError):
+            raise ValueError("Les bonnes réponses du quiz sont invalides")
+        if post_type == "quiz" and not poll_correct_option_ids:
+            raise ValueError("Choisis au moins une bonne réponse pour le quiz")
+        if any(index < 0 or index >= len(poll_options) for index in poll_correct_option_ids):
+            raise ValueError("Une bonne réponse ne correspond à aucune option")
+        if post_type == "poll":
+            poll_correct_option_ids = []
+            poll_explanation = ""
+        poll_anonymous = bool(data.get("poll_anonymous", True))
+        poll_multiple = bool(data.get("poll_multiple", False))
+        if len(poll_correct_option_ids) > 1:
+            poll_multiple = True
+        message = message or poll_question
+    if schedule_type not in {"weekly", "rotation", "once"}:
+        raise ValueError("Type de programmation invalide")
+    if not channel or any(char.isspace() for char in channel):
+        raise ValueError("Destination Telegram invalide")
+    if bool(button_text) != bool(button_url):
+        raise ValueError("Le texte et le lien du bouton doivent être renseignés ensemble")
+    if button_url and not button_url.startswith(("https://", "http://")):
+        raise ValueError("Le lien du bouton doit commencer par https:// ou http://")
+
+    weekdays_raw = data.get("weekdays", [])
+    if isinstance(weekdays_raw, str):
+        weekdays_raw = [day for day in weekdays_raw.split(",") if day != ""]
+    try:
+        weekdays = sorted({int(day) for day in weekdays_raw})
+    except (TypeError, ValueError):
+        raise ValueError("Jours de publication invalides")
+    if any(day < 0 or day > 6 for day in weekdays):
+        raise ValueError("Jours de publication invalides")
+
+    rotation_week = data.get("rotation_week")
+    scheduled_for = None
+    if schedule_type in {"weekly", "rotation"}:
+        if not _parse_publish_time(publish_time):
+            raise ValueError("Heure de publication invalide")
+        if not weekdays:
+            raise ValueError("Choisis au moins un jour de publication")
+        if schedule_type == "rotation":
+            try:
+                rotation_week = int(rotation_week)
+            except (TypeError, ValueError):
+                raise ValueError("Semaine de rotation invalide")
+            if rotation_week not in range(4):
+                raise ValueError("La semaine de rotation doit être comprise entre 1 et 4")
+    else:
+        try:
+            scheduled_for = datetime.fromisoformat(str(data.get("scheduled_for") or ""))
+        except ValueError:
+            raise ValueError("Date et heure de l’envoi unique invalides")
+        # La colonne PostgreSQL est un TIMESTAMP sans fuseau : on y conserve
+        # donc l'heure murale de Paris. Sans cette normalisation, rééditer un
+        # post renvoyé par l'API avec son décalage +02:00 le reculait de 2 h.
+        scheduled_for = _parse_scheduled_datetime(scheduled_for).replace(tzinfo=None)
+        weekdays = []
+        rotation_week = None
+
+    return {
+        "name": name,
+        "message": message,
+        "image_url": image_url,
+        "post_type": post_type,
+        "poll_question": poll_question,
+        "poll_options": json.dumps(poll_options, ensure_ascii=False),
+        "poll_correct_option_ids": json.dumps(poll_correct_option_ids),
+        "poll_explanation": poll_explanation,
+        "poll_anonymous": poll_anonymous,
+        "poll_multiple": poll_multiple,
+        "publish_all_channels": publish_all_channels,
+        "channel_ids": channel_ids,
+        "channel_targets": channel_targets,
+        "schedule_type": schedule_type,
+        "weekdays": ",".join(str(day) for day in weekdays),
+        "rotation_week": rotation_week,
+        "publish_time": publish_time,
+        "scheduled_for": scheduled_for,
+        "timezone": "Europe/Paris",
+        "channel": channel,
+        "button_text": button_text,
+        "button_url": button_url,
+        "disable_notification": bool(data.get("disable_notification", False)),
+        "enabled": bool(data.get("enabled", True))
+    }
+
+
+TELEGRAM_CSV_COLUMNS = [
+    "nom", "type", "date", "heure", "rythme", "jours", "semaine_rotation",
+    "canal", "message", "image_url", "texte_bouton", "lien_bouton",
+    "question", "reponses", "bonnes_reponses", "explication", "anonyme",
+    "choix_multiples", "silencieux", "actif", "tous_les_canaux", "canaux"
+]
+
+
+def _normalize_csv_label(value):
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return text.strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _csv_boolean(value, default=False):
+    text = _normalize_csv_label(value)
+    if not text:
+        return default
+    if text in {"1", "oui", "o", "true", "vrai", "yes", "actif"}:
+        return True
+    if text in {"0", "non", "n", "false", "faux", "no", "inactif"}:
+        return False
+    raise ValueError(f"valeur oui/non invalide : {value}")
+
+
+def _csv_date(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    for date_format in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(text, date_format).date()
+        except ValueError:
+            continue
+    raise ValueError("date invalide, utilise JJ/MM/AAAA")
+
+
+def _csv_weekdays(value):
+    aliases = {
+        "0": 0, "lun": 0, "lundi": 0,
+        "1": 1, "mar": 1, "mardi": 1,
+        "2": 2, "mer": 2, "mercredi": 2,
+        "3": 3, "jeu": 3, "jeudi": 3,
+        "4": 4, "ven": 4, "vendredi": 4,
+        "5": 5, "sam": 5, "samedi": 5,
+        "6": 6, "dim": 6, "dimanche": 6,
+    }
+    tokens = str(value or "").replace(",", "|").split("|")
+    days = []
+    for token in tokens:
+        normalized = _normalize_csv_label(token)
+        if not normalized:
+            continue
+        if normalized not in aliases:
+            raise ValueError(f"jour inconnu : {token.strip()}")
+        days.append(aliases[normalized])
+    return sorted(set(days))
+
+
+def _csv_row_to_telegram_payload(row, line_number):
+    normalized = {_normalize_csv_label(key): value for key, value in row.items() if key}
+    post_type = _normalize_csv_label(normalized.get("type") or "message")
+    post_type = {"photo": "message", "texte": "message", "sondage": "poll"}.get(
+        post_type, post_type
+    )
+    rhythm = _normalize_csv_label(normalized.get("rythme") or "")
+    rhythm = {
+        "unique": "once", "ponctuel": "once", "once": "once",
+        "hebdomadaire": "weekly", "semaine": "weekly", "weekly": "weekly",
+        "rotation": "rotation", "rotation_4_semaines": "rotation"
+    }.get(rhythm, rhythm)
+    target_date = _csv_date(normalized.get("date"))
+    if target_date:
+        rhythm = "once"
+    rhythm = rhythm or "weekly"
+    publish_time = str(normalized.get("heure") or "18:30").strip()
+    scheduled_for = ""
+    weekdays = []
+    rotation_week = 0
+    if rhythm == "once":
+        if not target_date:
+            raise ValueError("une date est obligatoire pour un envoi unique")
+        if not _parse_publish_time(publish_time):
+            raise ValueError("heure invalide, utilise HH:MM")
+        scheduled_for = datetime.combine(target_date, _parse_publish_time(publish_time)).isoformat()
+    else:
+        weekdays = _csv_weekdays(normalized.get("jours"))
+        if rhythm == "rotation":
+            try:
+                rotation_value = int(str(normalized.get("semaine_rotation") or "1").strip())
+            except ValueError:
+                raise ValueError("semaine de rotation invalide")
+            rotation_week = rotation_value - 1 if 1 <= rotation_value <= 4 else rotation_value
+
+    options = _payload_list(normalized.get("reponses"))
+    correct_values = _payload_list(
+        str(normalized.get("bonnes_reponses") or "").replace(",", "|")
+    )
+    try:
+        correct_ids = [int(value) - 1 for value in correct_values]
+    except ValueError:
+        raise ValueError("bonnes réponses invalides, utilise leurs numéros")
+
+    payload = {
+        "name": str(normalized.get("nom") or f"Publication ligne {line_number}").strip(),
+        "post_type": post_type,
+        "message": str(normalized.get("message") or "").strip(),
+        "image_url": str(normalized.get("image_url") or "").strip(),
+        "poll_question": str(normalized.get("question") or "").strip(),
+        "poll_options": options,
+        "poll_correct_option_ids": correct_ids,
+        "poll_explanation": str(normalized.get("explication") or "").strip(),
+        "poll_anonymous": _csv_boolean(normalized.get("anonyme"), True),
+        "poll_multiple": _csv_boolean(normalized.get("choix_multiples"), False),
+        "schedule_type": rhythm,
+        "weekdays": weekdays,
+        "rotation_week": rotation_week,
+        "publish_time": publish_time,
+        "scheduled_for": scheduled_for,
+        "channel": str(normalized.get("canal") or ECO_CANAL).strip(),
+        "button_text": str(normalized.get("texte_bouton") or "").strip(),
+        "button_url": str(normalized.get("lien_bouton") or "").strip(),
+        "disable_notification": _csv_boolean(normalized.get("silencieux"), False),
+        "enabled": _csv_boolean(normalized.get("actif"), True),
+        "publish_all_channels": _csv_boolean(normalized.get("tous_les_canaux"), True),
+        "channel_targets": _payload_list(normalized.get("canaux")),
+    }
+    return _validate_telegram_post_payload(payload)
+
+
+def _telegram_csv_source_key(values):
+    canonical = json.dumps(values, ensure_ascii=False, sort_keys=True, default=str)
+    return f"csv-{hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:32]}"
+
+
+def _csv_download(rows, filename):
+    stream = io.StringIO()
+    writer = csv.DictWriter(stream, fieldnames=TELEGRAM_CSV_COLUMNS, delimiter=";")
+    writer.writeheader()
+    writer.writerows(rows)
+    return Response(
+        "\ufeff" + stream.getvalue(),
+        content_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+def _telegram_post_to_csv_row(post):
+    serialized = _serialize_telegram_post(post)
+    scheduled_for = _parse_scheduled_datetime(post.get("scheduled_for"))
+    type_labels = {"message": "message", "quiz": "quiz", "poll": "sondage"}
+    rhythm_labels = {"weekly": "hebdomadaire", "rotation": "rotation", "once": "unique"}
+    day_labels = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
+    correct_ids = serialized.get("poll_correct_option_ids") or []
+    return {
+        "nom": post.get("name") or "",
+        "type": type_labels.get(post.get("post_type") or "message", "message"),
+        "date": scheduled_for.strftime("%d/%m/%Y") if scheduled_for else "",
+        "heure": scheduled_for.strftime("%H:%M") if scheduled_for else post.get("publish_time") or "",
+        "rythme": rhythm_labels.get(post.get("schedule_type"), post.get("schedule_type") or ""),
+        "jours": "|".join(day_labels[day] for day in serialized.get("weekdays", [])),
+        "semaine_rotation": (int(post.get("rotation_week")) + 1) if post.get("rotation_week") is not None else "",
+        "canal": post.get("channel") or "",
+        "message": post.get("message") if (post.get("post_type") or "message") == "message" else "",
+        "image_url": post.get("image_url") or "",
+        "texte_bouton": post.get("button_text") or "",
+        "lien_bouton": post.get("button_url") or "",
+        "question": post.get("poll_question") or "",
+        "reponses": "|".join(serialized.get("poll_options") or []),
+        "bonnes_reponses": "|".join(str(index + 1) for index in correct_ids),
+        "explication": post.get("poll_explanation") or "",
+        "anonyme": "oui" if post.get("poll_anonymous", True) else "non",
+        "choix_multiples": "oui" if post.get("poll_multiple", False) else "non",
+        "silencieux": "oui" if post.get("disable_notification") else "non",
+        "actif": "oui" if post.get("enabled") else "non",
+        "tous_les_canaux": "oui" if post.get("publish_all_channels", True) else "non",
+        "canaux": "|".join(post.get("channel_targets") or []),
+    }
+
+
+def _telegram_csv_request_allowed(key):
+    local_preview = (
+        key == "preview" and request.host.split(":", 1)[0] in {"127.0.0.1", "localhost"}
+    )
+    return key == ADMIN_KEY or local_preview
+
+
+@app.route("/admin/api/telegram/csv/template", methods=["GET"])
+def admin_api_telegram_csv_template():
+    if not _telegram_csv_request_allowed(request.args.get("key", "")):
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    try:
+        with open(TELEGRAM_CSV_TEMPLATE_PATH, "r", encoding="utf-8-sig", newline="") as template:
+            content = template.read()
+        return Response(
+            "\ufeff" + content,
+            content_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="modele-planning-telegram-semaine.csv"'}
+        )
+    except OSError as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+
+
+@app.route("/admin/api/telegram/csv/export", methods=["GET"])
+def admin_api_telegram_csv_export():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts
+               WHERE deleted=FALSE ORDER BY id"""
+        )
+        posts = [_telegram_post_from_row(row) for row in rows]
+        target_rows = conn.run(
+            """SELECT targets.post_id, channels.chat_id
+               FROM telegram_post_channels AS targets
+               JOIN telegram_channels AS channels ON channels.id=targets.channel_id
+               WHERE channels.deleted=FALSE ORDER BY targets.post_id, channels.id"""
+        )
+        target_names_by_post = {}
+        for post_id, chat_id in target_rows:
+            target_names_by_post.setdefault(int(post_id), []).append(chat_id)
+        for post in posts:
+            post["channel_targets"] = target_names_by_post.get(int(post["id"]), [])
+        return _csv_download(
+            [_telegram_post_to_csv_row(post) for post in posts],
+            f"planning-telegram-{_paris_now().strftime('%Y-%m-%d')}.csv"
+        )
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/csv/import", methods=["POST"])
+def admin_api_telegram_csv_import():
+    key = request.form.get("key", "")
+    if not _telegram_csv_request_allowed(key):
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    csv_file = request.files.get("file")
+    if not csv_file or not csv_file.filename:
+        return jsonify({"ok": False, "error": "Choisis un fichier CSV"}), 400
+    raw = csv_file.read(2 * 1024 * 1024 + 1)
+    if len(raw) > 2 * 1024 * 1024:
+        return jsonify({"ok": False, "error": "Le fichier CSV est limité à 2 Mo"}), 400
+    try:
+        decoded = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return jsonify({"ok": False, "error": "Enregistre le CSV au format UTF-8"}), 400
+    try:
+        delimiter = csv.Sniffer().sniff(decoded[:4096], delimiters=";,\t").delimiter
+    except csv.Error:
+        delimiter = ";"
+    reader = csv.DictReader(io.StringIO(decoded), delimiter=delimiter)
+    if not reader.fieldnames:
+        return jsonify({"ok": False, "error": "Le CSV ne contient pas d’en-têtes"}), 400
+
+    values_to_import = []
+    errors = []
+    for line_number, row in enumerate(reader, start=2):
+        if not any(str(value or "").strip() for value in row.values()):
+            continue
+        try:
+            values = _csv_row_to_telegram_payload(row, line_number)
+            values_to_import.append((line_number, values))
+        except (TypeError, ValueError) as error:
+            errors.append({"line": line_number, "error": str(error)})
+    if not values_to_import and not errors:
+        errors.append({"line": 1, "error": "Le CSV ne contient aucune publication"})
+    if errors:
+        return jsonify({
+            "ok": False,
+            "error": f"{len(errors)} ligne(s) à corriger",
+            "errors": errors[:50]
+        }), 400
+
+    summary = {
+        "total": len(values_to_import),
+        "messages": sum(1 for _, values in values_to_import if values["post_type"] == "message"),
+        "quizzes": sum(1 for _, values in values_to_import if values["post_type"] == "quiz"),
+        "polls": sum(1 for _, values in values_to_import if values["post_type"] == "poll"),
+    }
+    dry_run = _csv_boolean(request.form.get("dry_run"), True)
+    preview_mode = key == "preview"
+    if dry_run or preview_mode:
+        return jsonify({"ok": True, "summary": summary, "preview_mode": preview_mode})
+
+    conn = None
+    imported = 0
+    duplicates = 0
+    try:
+        conn = get_conn()
+        for _, values in values_to_import:
+            source_key = _telegram_csv_source_key(values)
+            db_values = dict(values)
+            channel_ids = db_values.pop("channel_ids", [])
+            channel_targets = db_values.pop("channel_targets", [])
+            if not db_values["publish_all_channels"] and not channel_ids:
+                for target in channel_targets:
+                    target_rows = conn.run(
+                        """SELECT id FROM telegram_channels
+                           WHERE LOWER(chat_id)=LOWER(:chat_id) AND deleted=FALSE""",
+                        chat_id=target
+                    )
+                    if not target_rows:
+                        raise ValueError(f"Canal CSV introuvable dans l’admin : {target}")
+                    channel_ids.append(int(target_rows[0][0]))
+            rows = conn.run(
+                """INSERT INTO telegram_scheduled_posts
+                   (name, message, image_url, post_type, poll_question, poll_options,
+                    poll_correct_option_ids, poll_explanation, poll_anonymous,
+                    poll_multiple, schedule_type, weekdays, rotation_week,
+                    publish_time, scheduled_for, timezone, channel, button_text,
+                    button_url, disable_notification, enabled, source_key,
+                    publish_all_channels)
+                   VALUES (:name, :message, :image_url, :post_type, :poll_question,
+                           :poll_options, :poll_correct_option_ids, :poll_explanation,
+                           :poll_anonymous, :poll_multiple, :schedule_type, :weekdays,
+                           :rotation_week, :publish_time, :scheduled_for, :timezone,
+                           :channel, :button_text, :button_url,
+                           :disable_notification, :enabled, :source_key,
+                           :publish_all_channels)
+                   ON CONFLICT (source_key) DO NOTHING RETURNING id""",
+                source_key=source_key, **db_values
+            )
+            if rows:
+                imported += 1
+                post_id = int(rows[0][0])
+                for channel_id in channel_ids:
+                    conn.run(
+                        """INSERT INTO telegram_post_channels (post_id, channel_id)
+                           SELECT :post_id, id FROM telegram_channels
+                           WHERE id=:channel_id AND deleted=FALSE
+                           ON CONFLICT DO NOTHING""",
+                        post_id=post_id, channel_id=channel_id
+                    )
+            else:
+                duplicates += 1
+        return jsonify({
+            "ok": True, "summary": summary,
+            "imported": imported, "duplicates": duplicates
+        })
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _validate_telegram_channel_payload(data):
+    name = str(data.get("name") or "").strip()
+    chat_id = str(data.get("chat_id") or "").strip()
+    if not name or len(name) > 80:
+        raise ValueError("Le nom du canal est obligatoire et limité à 80 caractères")
+    if not chat_id or any(char.isspace() for char in chat_id):
+        raise ValueError("L’identifiant Telegram du canal est invalide")
+    if not chat_id.startswith("@"):
+        try:
+            int(chat_id)
+        except ValueError:
+            raise ValueError("Utilise @nom_du_canal ou son identifiant numérique")
+    return {"name": name, "chat_id": chat_id, "active": bool(data.get("active", True))}
+
+
+def _validate_telegram_media_payload(data):
+    title = str(data.get("title") or "").strip()
+    image_url = str(data.get("image_url") or "").strip()
+    category = str(data.get("category") or "personal").strip().lower()
+    caption = str(data.get("caption") or "").strip()
+    cta_text = str(data.get("cta_text") or "").strip()
+    cta_url = str(data.get("cta_url") or "").strip()
+    if not title or len(title) > 100:
+        raise ValueError("Le nom du visuel est obligatoire et limité à 100 caractères")
+    if not image_url.startswith(("https://", "http://")):
+        raise ValueError("L’adresse du visuel doit commencer par https:// ou http://")
+    if category not in {"personal", "conversion", "market", "community"}:
+        raise ValueError("Catégorie de visuel invalide")
+    if len(caption) > 1024:
+        raise ValueError("La légende du visuel est limitée à 1 024 caractères")
+    if len(cta_text) > 64:
+        raise ValueError("Le texte du CTA est limité à 64 caractères")
+    if bool(cta_text) != bool(cta_url):
+        raise ValueError("Le texte et le lien du CTA doivent être renseignés ensemble")
+    if cta_url and not cta_url.startswith(("https://", "http://")):
+        raise ValueError("Le lien du CTA doit commencer par https:// ou http://")
+    return {
+        "title": title, "image_url": image_url, "category": category,
+        "caption": caption, "cta_text": cta_text, "cta_url": cta_url,
+    }
+
+
+@app.route("/admin/api/telegram/media-library", methods=["GET"])
+def admin_api_telegram_media_library():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, title, image_url, category, caption, cta_text,
+                      cta_url, source_type, created_at, updated_at
+               FROM telegram_media_library WHERE deleted=FALSE
+               ORDER BY updated_at DESC, id DESC"""
+        )
+        media = []
+        for row in rows:
+            item = dict(zip([
+                "id", "title", "image_url", "category", "caption", "cta_text",
+                "cta_url", "source_type", "created_at", "updated_at"
+            ], row))
+            for field in ("created_at", "updated_at"):
+                if item.get(field) and hasattr(item[field], "isoformat"):
+                    item[field] = item[field].isoformat()
+            media.append(item)
+        return jsonify({"ok": True, "media": media})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/media-library/save", methods=["POST"])
+def admin_api_telegram_media_library_save():
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        values = _validate_telegram_media_payload(data)
+        media_id = data.get("id")
+        conn = get_conn()
+        if media_id:
+            conn.run(
+                """UPDATE telegram_media_library SET title=:title,
+                          image_url=:image_url, category=:category, caption=:caption,
+                          cta_text=:cta_text, cta_url=:cta_url, deleted=FALSE,
+                          updated_at=NOW() WHERE id=:id""",
+                id=int(media_id), **values
+            )
+        else:
+            rows = conn.run(
+                """INSERT INTO telegram_media_library
+                   (title, image_url, category, caption, cta_text, cta_url, source_type, deleted)
+                   VALUES (:title, :image_url, :category, :caption, :cta_text, :cta_url, 'custom', FALSE)
+                   ON CONFLICT (image_url) DO UPDATE SET
+                     title=:title, category=:category, caption=:caption,
+                     cta_text=:cta_text, cta_url=:cta_url, deleted=FALSE, updated_at=NOW()
+                   RETURNING id""",
+                **values
+            )
+            media_id = rows[0][0]
+        return jsonify({"ok": True, "id": int(media_id)})
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/media-library/<int:media_id>/delete", methods=["POST"])
+def admin_api_telegram_media_library_delete(media_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_media_library SET deleted=TRUE, updated_at=NOW()
+               WHERE id=:id AND source_type='custom'""",
+            id=media_id
+        )
+        return jsonify({"ok": True})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels", methods=["GET"])
+def admin_api_telegram_channels():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, chat_id, active, last_check_status,
+                      last_check_at, created_at, updated_at
+               FROM telegram_channels WHERE deleted=FALSE
+               ORDER BY active DESC, id"""
+        )
+        channels = []
+        for row in rows:
+            channel = dict(zip([
+                "id", "name", "chat_id", "active", "last_check_status",
+                "last_check_at", "created_at", "updated_at"
+            ], row))
+            for field in ("last_check_at", "created_at", "updated_at"):
+                if channel.get(field) and hasattr(channel[field], "isoformat"):
+                    channel[field] = channel[field].isoformat()
+            channels.append(channel)
+        return jsonify({"ok": True, "channels": channels})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/save", methods=["POST"])
+def admin_api_telegram_channel_save():
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        values = _validate_telegram_channel_payload(data)
+        channel_id = data.get("id")
+        conn = get_conn()
+        if channel_id:
+            conn.run(
+                """UPDATE telegram_channels SET name=:name, chat_id=:chat_id,
+                          active=:active, deleted=FALSE, updated_at=NOW()
+                   WHERE id=:id AND deleted=FALSE""",
+                id=int(channel_id), **values
+            )
+        else:
+            rows = conn.run(
+                """INSERT INTO telegram_channels (name, chat_id, active, deleted)
+                   VALUES (:name, :chat_id, :active, FALSE)
+                   ON CONFLICT (chat_id) DO UPDATE SET
+                       name=:name, active=:active, deleted=FALSE, updated_at=NOW()
+                   RETURNING id""",
+                **values
+            )
+            channel_id = rows[0][0]
+        return jsonify({"ok": True, "id": int(channel_id)})
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/<int:channel_id>/toggle", methods=["POST"])
+def admin_api_telegram_channel_toggle(channel_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_channels SET active=:active, updated_at=NOW()
+               WHERE id=:id AND deleted=FALSE""",
+            id=channel_id, active=bool(data.get("active"))
+        )
+        return jsonify({"ok": True})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/<int:channel_id>/delete", methods=["POST"])
+def admin_api_telegram_channel_delete(channel_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_channels SET active=FALSE, deleted=TRUE, updated_at=NOW()
+               WHERE id=:id""",
+            id=channel_id
+        )
+        return jsonify({"ok": True})
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/channels/<int:channel_id>/test", methods=["POST"])
+def admin_api_telegram_channel_test(channel_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    status = "error"
+    detail = "Test impossible"
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            "SELECT chat_id FROM telegram_channels WHERE id=:id AND deleted=FALSE",
+            id=channel_id
+        )
+        if not rows:
+            return jsonify({"ok": False, "error": "Canal introuvable"}), 404
+        chat_id = rows[0][0]
+        me_response = requests.get(
+            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/getMe", timeout=15
+        ).json()
+        if not me_response.get("ok"):
+            raise ValueError(me_response.get("description", "Bot Telegram indisponible"))
+        bot_id = me_response["result"]["id"]
+        member_response = requests.get(
+            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/getChatMember",
+            params={"chat_id": chat_id, "user_id": bot_id}, timeout=15
+        ).json()
+        if not member_response.get("ok"):
+            raise ValueError(member_response.get("description", "Canal inaccessible"))
+        member = member_response.get("result", {})
+        role = member.get("status")
+        can_publish = role == "creator" or (
+            role == "administrator" and member.get("can_post_messages", True)
+        )
+        status = "ready" if can_publish else "permission_missing"
+        detail = "Robot prêt à publier" if can_publish else "Autorisation de publication manquante"
+        conn.run(
+            """UPDATE telegram_channels SET last_check_status=:status,
+                      last_check_at=NOW(), updated_at=NOW() WHERE id=:id""",
+            id=channel_id, status=status
+        )
+        return jsonify({"ok": True, "status": status, "detail": detail})
+    except (ValueError, requests.RequestException) as error:
+        detail = str(error)
+        if conn:
+            try:
+                conn.run(
+                    """UPDATE telegram_channels SET last_check_status='error',
+                              last_check_at=NOW(), updated_at=NOW() WHERE id=:id""",
+                    id=channel_id
+                )
+            except Exception:
+                pass
+        return jsonify({"ok": False, "error": detail}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": str(error)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts", methods=["GET"])
+def admin_api_telegram_posts():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts
+               WHERE deleted=FALSE ORDER BY enabled DESC, id DESC"""
+        )
+        posts = [_serialize_telegram_post(_telegram_post_from_row(row)) for row in rows]
+        target_rows = conn.run(
+            """SELECT targets.post_id, targets.channel_id
+               FROM telegram_post_channels AS targets
+               JOIN telegram_scheduled_posts AS posts ON posts.id=targets.post_id
+               WHERE posts.deleted=FALSE"""
+        )
+        channel_ids_by_post = {}
+        for post_id, channel_id in target_rows:
+            channel_ids_by_post.setdefault(int(post_id), []).append(int(channel_id))
+        for post in posts:
+            post["channel_ids"] = channel_ids_by_post.get(int(post["id"]), [])
+        return jsonify({
+            "ok": True,
+            "posts": posts,
+            "stats": {
+                "total": len(posts),
+                "active": sum(1 for post in posts if post["enabled"]),
+                "with_image": sum(1 for post in posts if post.get("image_url")),
+                "interactive": sum(
+                    1 for post in posts if post.get("post_type") in {"quiz", "poll"}
+                ),
+                "scheduled": sum(1 for post in posts if post.get("next_run"))
+            }
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/save", methods=["POST"])
+def admin_api_telegram_posts_save():
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        values = _validate_telegram_post_payload(data)
+        channel_ids = values.pop("channel_ids", [])
+        values.pop("channel_targets", None)
+        post_id = data.get("id")
+        conn = get_conn()
+        for channel_id in channel_ids:
+            if not conn.run(
+                "SELECT id FROM telegram_channels WHERE id=:id AND deleted=FALSE",
+                id=channel_id
+            ):
+                raise ValueError("Un canal sélectionné n’existe plus")
+        if post_id:
+            rows = conn.run(
+                "SELECT id FROM telegram_scheduled_posts WHERE id=:id AND deleted=FALSE",
+                id=int(post_id)
+            )
+            if not rows:
+                return jsonify({"ok": False, "error": "Publication introuvable"}), 404
+            conn.run(
+                """UPDATE telegram_scheduled_posts SET
+                   name=:name, message=:message, image_url=:image_url,
+                   post_type=:post_type, poll_question=:poll_question,
+                   poll_options=:poll_options,
+                   poll_correct_option_ids=:poll_correct_option_ids,
+                   poll_explanation=:poll_explanation,
+                   poll_anonymous=:poll_anonymous, poll_multiple=:poll_multiple,
+                   publish_all_channels=:publish_all_channels,
+                   schedule_type=:schedule_type, weekdays=:weekdays,
+                   rotation_week=:rotation_week, publish_time=:publish_time,
+                   scheduled_for=:scheduled_for, timezone=:timezone, channel=:channel,
+                   button_text=:button_text, button_url=:button_url,
+                   disable_notification=:disable_notification, enabled=:enabled,
+                   updated_at=NOW() WHERE id=:id""",
+                id=int(post_id), **values
+            )
+        else:
+            rows = conn.run(
+                """INSERT INTO telegram_scheduled_posts
+                   (name, message, image_url, post_type, poll_question, poll_options,
+                    poll_correct_option_ids, poll_explanation, poll_anonymous,
+                    poll_multiple, publish_all_channels, schedule_type, weekdays, rotation_week,
+                    publish_time, scheduled_for, timezone, channel, button_text,
+                    button_url, disable_notification, enabled)
+                   VALUES (:name, :message, :image_url, :post_type, :poll_question,
+                           :poll_options, :poll_correct_option_ids, :poll_explanation,
+                           :poll_anonymous, :poll_multiple, :publish_all_channels,
+                           :schedule_type, :weekdays,
+                           :rotation_week, :publish_time, :scheduled_for, :timezone,
+                           :channel, :button_text, :button_url,
+                           :disable_notification, :enabled)
+                   RETURNING id""",
+                **values
+            )
+            post_id = rows[0][0]
+        conn.run("DELETE FROM telegram_post_channels WHERE post_id=:post_id", post_id=int(post_id))
+        if not values["publish_all_channels"]:
+            for channel_id in channel_ids:
+                conn.run(
+                    """INSERT INTO telegram_post_channels (post_id, channel_id)
+                       VALUES (:post_id, :channel_id) ON CONFLICT DO NOTHING""",
+                    post_id=int(post_id), channel_id=channel_id
+                )
+        return jsonify({"ok": True, "id": int(post_id)})
+    except (TypeError, ValueError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/<int:post_id>/toggle", methods=["POST"])
+def admin_api_telegram_post_toggle(post_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_scheduled_posts
+               SET enabled=:enabled, updated_at=NOW()
+               WHERE id=:id AND deleted=FALSE""",
+            enabled=bool(data.get("enabled")), id=post_id
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/<int:post_id>/delete", methods=["POST"])
+def admin_api_telegram_post_delete(post_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE telegram_scheduled_posts
+               SET deleted=TRUE, enabled=FALSE, updated_at=NOW()
+               WHERE id=:id""",
+            id=post_id
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+@app.route("/admin/api/telegram/posts/<int:post_id>/send-now", methods=["POST"])
+def admin_api_telegram_post_send_now(post_id):
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts WHERE id=:id AND deleted=FALSE""",
+            id=post_id
+        )
+        if not rows:
+            return jsonify({"ok": False, "error": "Publication introuvable"}), 404
+        post = _telegram_post_from_row(rows[0])
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+    slot_key = f"telegram-manual-{post_id}-{_paris_now().strftime('%Y%m%d-%H%M%S-%f')}"
+    delivery = _send_saved_post_to_channels(post, slot_key, "manual-editorial")
+    if not delivery["sent"]:
+        return jsonify({
+            "ok": False,
+            "error": "Aucun canal n’a confirmé l’envoi",
+            "delivery": delivery
+        }), 502
+    update_conn = None
+    try:
+        update_conn = get_conn()
+        update_conn.run(
+            "UPDATE telegram_scheduled_posts SET last_sent_at=NOW(), updated_at=NOW() WHERE id=:id",
+            id=post_id
+        )
+    except Exception as e:
+        app.logger.error(f"manual Telegram post update {post_id}: {e}")
+    finally:
+        if update_conn:
+            try: update_conn.close()
+            except: pass
+    return jsonify({"ok": True, "delivery": delivery})
+
+
+@app.route("/admin/api/telegram/upload", methods=["POST"])
+def admin_api_telegram_upload():
+    if request.form.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    image = request.files.get("image")
+    if not image or not image.filename:
+        return jsonify({"ok": False, "error": "Choisis une image"}), 400
+    allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if image.mimetype not in allowed_types:
+        return jsonify({"ok": False, "error": "Format accepté : JPG, PNG, WebP ou GIF"}), 400
+    file_bytes = image.read(8 * 1024 * 1024 + 1)
+    if len(file_bytes) > 8 * 1024 * 1024:
+        return jsonify({"ok": False, "error": "L’image ne doit pas dépasser 8 Mo"}), 400
+    image_url = upload_to_cloudinary(file_bytes, "image", secure_filename(image.filename))
+    if not image_url:
+        return jsonify({"ok": False, "error": "L’image n’a pas pu être enregistrée"}), 502
+    return jsonify({"ok": True, "url": image_url})
+
+
+@app.route("/admin/api/telegram/history", methods=["GET"])
+def admin_api_telegram_history():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT publications.slot_key, publications.post_kind,
+                      publications.target_channel,
+                      publications.status, publications.content,
+                      publications.telegram_message_id, publications.attempts,
+                      publications.error, publications.created_at,
+                      publications.sent_at, posts.name
+               FROM scheduled_publications AS publications
+               LEFT JOIN telegram_scheduled_posts AS posts
+                 ON posts.id=publications.post_id
+               ORDER BY publications.created_at DESC LIMIT 60"""
+        )
+        history = []
+        for row in rows:
+            item = dict(zip([
+                "slot_key", "post_kind", "target_channel", "status", "content", "message_id",
+                "attempts", "error", "created_at", "sent_at", "name"
+            ], row))
+            for field in ("created_at", "sent_at"):
+                if item.get(field) and hasattr(item[field], "isoformat"):
+                    item[field] = item[field].isoformat()
+            history.append(item)
+        return jsonify({"ok": True, "history": history})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
 
 # ── STATS ──
 @app.route("/admin/api/stats", methods=["GET"])
@@ -1079,39 +2498,12 @@ def admin_api_stats():
         return jsonify({"ok":False,"error":str(e)})
 
 
-@app.route("/firebase-messaging-sw.js")
-def firebase_sw():
-    from flask import send_from_directory
-    return send_from_directory("static", "firebase-messaging-sw.js",
-        mimetype="application/javascript")
-
 @app.route("/api/push/register", methods=["POST"])
 @login_required
 def push_register():
-    """Enregistre la subscription Web Push d'un membre."""
-    data = request.get_json()
-    subscription = data.get("subscription")  # objet {endpoint, keys: {p256dh, auth}}
-    if not subscription:
-        return jsonify({"ok": False})
-    try:
-        import json as _json
-        endpoint = subscription.get("endpoint", "")
-        conn = get_conn()
-        conn.run("""CREATE TABLE IF NOT EXISTS push_tokens (
-            id SERIAL PRIMARY KEY,
-            member_code TEXT,
-            token TEXT UNIQUE,
-            subscription TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        )""")
-        conn.run("""INSERT INTO push_tokens (member_code, token, subscription)
-            VALUES (:code, :token, :sub)
-            ON CONFLICT (token) DO UPDATE SET member_code=:code, subscription=:sub""",
-            code=session["member_code"], token=endpoint, sub=_json.dumps(subscription))
-        conn.close()
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+    """Compatibilité anciens clients : enregistre dans le stockage Web Push unique."""
+    data = request.get_json(silent=True) or {}
+    return _save_push_subscription(data.get("subscription") or data)
 
 
 # ── ESSAI GRATUIT ─────────────────────────────────────────────────────────────
@@ -1241,6 +2633,478 @@ def admin_api_membre_profil():
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
 
+
+# ── BECTANSE ANALYSE IA — BÊTA PRIVÉE ───────────────────────────────────────
+
+ANALYSIS_TIMEFRAMES = {"M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"}
+ANALYSIS_SESSIONS = {"Asie", "Londres", "New York", "Overlap", "Hors session"}
+ANALYSIS_STYLES = {"Scalping", "Intraday", "Swing", "Position", "Multi-TF"}
+ANALYSIS_EVENT_IMPACTS = {"high", "medium", "low"}
+ANALYSIS_MARKETS = {"XAU/USD", "XAG/USD", "BTC/USD", "ETH/USD", "EUR/USD", "GBP/USD",
+                    "USD/JPY", "NAS100", "US30", "SPX500", "WTI", "GER40"}
+
+
+def _analysis_wallet(conn, member_code, lock=False):
+    conn.run("""INSERT INTO analysis_wallets
+        (member_code, balance, lifetime_granted, lifetime_spent)
+        VALUES (:code, :initial, :initial, 0)
+        ON CONFLICT (member_code) DO NOTHING""",
+        code=member_code, initial=ANALYSIS_INITIAL_CREDITS)
+    suffix = " FOR UPDATE" if lock else ""
+    rows = conn.run(
+        "SELECT balance, lifetime_granted, lifetime_spent FROM analysis_wallets "
+        "WHERE member_code=:code" + suffix,
+        code=member_code)
+    return {
+        "balance": int(rows[0][0]),
+        "lifetime_granted": int(rows[0][1]),
+        "lifetime_spent": int(rows[0][2]),
+    }
+
+
+def _analysis_schema():
+    zone = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "type": {"type": "string"}, "niveau": {"type": "string"},
+            "force": {"type": "string"}, "description": {"type": "string"}
+        },
+        "required": ["type", "niveau", "force", "description"]
+    }
+    plan = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "direction": {"type": "string"}, "qualite": {"type": "string"},
+            "entree": {"type": "string"}, "declencheur": {"type": "string"},
+            "objectif_1": {"type": "string"}, "objectif_2": {"type": "string"},
+            "invalidation": {"type": "string"}, "ratio": {"type": "string"}
+        },
+        "required": ["direction", "qualite", "entree", "declencheur",
+                     "objectif_1", "objectif_2", "invalidation", "ratio"]
+    }
+    checklist = {
+        "type": "object", "additionalProperties": False,
+        "properties": {"point": {"type": "string"}, "statut": {"type": "string"}},
+        "required": ["point", "statut"]
+    }
+    news_impact = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "event": {"type": "string"}, "impact": {"type": "string"},
+            "direction_attendue": {"type": "string"}, "conseil": {"type": "string"}
+        },
+        "required": ["event", "impact", "direction_attendue", "conseil"]
+    }
+    institutional = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "tendance": {"type": "string"}, "liquidite": {"type": "string"},
+            "order_blocks": {"type": "string"}, "fvg": {"type": "string"},
+            "smc_ict": {"type": "string"}, "volume": {"type": "string"},
+            "setup_recommande": {"type": "string"}, "etat_marche": {"type": "string"},
+            "regime_marche": {"type": "string"}, "mtf_alignment": {"type": "string"},
+            "kill_zone": {"type": "string"}, "phase_wyckoff": {"type": "string"},
+            "zone_prix": {"type": "string"}, "zone_ote": {"type": "string"},
+            "score_confluence": {"type": "integer", "minimum": 0, "maximum": 15},
+            "verdict": {"type": "string"}
+        },
+        "required": ["tendance", "liquidite", "order_blocks", "fvg", "smc_ict", "volume",
+                     "setup_recommande", "etat_marche", "regime_marche", "mtf_alignment",
+                     "kill_zone", "phase_wyckoff", "zone_prix", "zone_ote",
+                     "score_confluence", "verdict"]
+    }
+    intelligence = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "actualites": {"type": "string"}, "macro": {"type": "string"},
+            "geopolitique": {"type": "string"}, "session": {"type": "string"},
+            "anticipation": {"type": "string"}
+        },
+        "required": ["actualites", "macro", "geopolitique", "session", "anticipation"]
+    }
+    return {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "biais_global": {"type": "string"},
+            "confiance": {"type": "integer", "minimum": 0, "maximum": 100},
+            "structure": {"type": "string"},
+            "resume": {"type": "string"},
+            "prix_visible": {"type": "string"},
+            "zones": {"type": "array", "items": zone, "maxItems": 8},
+            "plans": {"type": "array", "items": plan, "maxItems": 3},
+            "risque": {"type": "string"},
+            "risques_detectes": {"type": "array", "items": {"type": "string"}, "maxItems": 8},
+            "contexte_marche": {"type": "string"},
+            "lecture_institutionnelle": institutional,
+            "intelligence_marche": intelligence,
+            "annonces_impact": {"type": "array", "items": news_impact, "maxItems": 12},
+            "checklist": {"type": "array", "items": checklist, "maxItems": 10},
+            "conclusion": {"type": "string"},
+            "avertissement": {"type": "string"}
+        },
+        "required": ["biais_global", "confiance", "structure", "resume", "prix_visible",
+                     "zones", "plans", "risque", "risques_detectes", "contexte_marche",
+                     "lecture_institutionnelle", "intelligence_marche", "annonces_impact",
+                     "checklist", "conclusion", "avertissement"]
+    }
+
+
+def _analysis_prompt(market, timeframe, session_name, trading_style, economic_events):
+    today = datetime.now(PARIS_TZ).strftime("%d/%m/%Y %H:%M")
+    events_context = json.dumps(economic_events, ensure_ascii=False) if economic_events else "Aucune annonce sélectionnée"
+    return f"""Tu es l'assistant d'analyse graphique éducative de Bectanse Académie.
+Bectanse possède une expertise historique sur XAU/USD, mais cet outil analyse aussi les autres
+marchés. Le marché choisi est {market}. Analyse uniquement cet instrument sur la capture jointe.
+
+Contexte utilisateur : marché {market}, timeframe {timeframe}, session {session_name}, style {trading_style}.
+Date et heure Europe/Paris : {today}.
+Événements signalés par le membre : {events_context}.
+
+Utilise la recherche Web uniquement pour vérifier le contexte macroéconomique actuel réellement
+utile à {market}. Adapte les facteurs suivis à l'instrument : devises et banques centrales pour le
+Forex, taux et indices pour les actions, flux refuge pour les métaux, marché crypto pour les actifs
+numériques, stocks et géopolitique pour l'énergie. Ne fabrique aucune actualité.
+
+RÈGLES ABSOLUES :
+- Lis les prix uniquement sur l'axe visible. N'invente jamais un niveau illisible.
+- Si un prix est ambigu, écris « niveau non lisible sur la capture ».
+- Distingue observation, scénario conditionnel et invalidation.
+- Produis une lecture institutionnelle séparée : tendance, liquidité, Order Blocks, FVG,
+  concepts SMC/ICT et volume visible. Indique clairement ce qui n'est pas lisible.
+- Inclus tous les diagnostics historiques du Bectanse Bot Analyser : setup recommandé,
+  état du marché (NO TRADE / risqué / valide), régime, alignement MTF H4/H1/TF principal,
+  Kill Zone ICT, phase Wyckoff, Premium/Discount, zone OTE, score de confluence sur 15
+  et verdict final avec conditions validées.
+- Structure l'intelligence marché en cinq angles : actualités, macro, géopolitique,
+  session active et anticipation de la prochaine session.
+- Pour chaque événement sélectionné, explique son impact potentiel sans inventer son résultat.
+- Ne promets jamais de gain et ne présente jamais un scénario comme certain.
+- Les plans sont éducatifs et conditionnels, pas des ordres ni un conseil financier personnalisé.
+- Réponds en français, de façon concise, avec le schéma JSON imposé.
+- Le champ avertissement doit rappeler que l'analyse automatisée peut se tromper et ne remplace
+  ni une vérification humaine ni une gestion du risque adaptée."""
+
+
+def _openai_analysis(image_data_url, market, timeframe, session_name, trading_style, economic_events):
+    if not OPENAI_API_KEY:
+        raise RuntimeError("Le moteur d’analyse n’est pas encore connecté.")
+    payload = {
+        "model": OPENAI_ANALYSIS_MODEL,
+        "reasoning": {"effort": "low"},
+        "max_output_tokens": 3500,
+        "tools": [{"type": "web_search"}],
+        "input": [{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": _analysis_prompt(market, timeframe, session_name, trading_style, economic_events)},
+                {"type": "input_image", "image_url": image_data_url, "detail": "high"}
+            ]
+        }],
+        "text": {"format": {
+            "type": "json_schema", "name": "bectanse_chart_analysis",
+            "strict": True, "schema": _analysis_schema()
+        }}
+    }
+    response = requests.post(
+        "https://api.openai.com/v1/responses",
+        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+        json=payload, timeout=150)
+    if not response.ok:
+        try:
+            api_error = response.json().get("error", {}).get("message", "")
+        except Exception:
+            api_error = ""
+        raise RuntimeError(api_error or f"Erreur du moteur ({response.status_code})")
+    body = response.json()
+    output_text = body.get("output_text", "")
+    if not output_text:
+        for item in body.get("output", []):
+            if item.get("type") == "message":
+                for content in item.get("content", []):
+                    if content.get("type") == "output_text":
+                        output_text += content.get("text", "")
+    if not output_text:
+        raise RuntimeError("Le moteur n’a produit aucun résultat exploitable.")
+    try:
+        result = json.loads(output_text)
+    except Exception as error:
+        raise RuntimeError("Le résultat reçu est incomplet. Le crédit sera remboursé.") from error
+    usage = body.get("usage") or {}
+    search_calls = sum(1 for item in body.get("output", []) if item.get("type") == "web_search_call")
+    return result, {
+        "input_tokens": int(usage.get("input_tokens", 0) or 0),
+        "output_tokens": int(usage.get("output_tokens", 0) or 0),
+        "search_calls": search_calls,
+    }
+
+
+def _refund_analysis_credit(member_code, job_id, error_message):
+    conn = get_conn()
+    try:
+        conn.run("BEGIN")
+        changed = conn.run("""UPDATE analysis_jobs SET status='failed', error=:error,
+            completed_at=NOW() WHERE id=:job AND member_code=:code AND status='processing'
+            RETURNING id""", error=error_message[:800], job=job_id, code=member_code)
+        if changed:
+            wallet = _analysis_wallet(conn, member_code, lock=True)
+            new_balance = wallet["balance"] + 1
+            conn.run("""UPDATE analysis_wallets SET balance=:balance,
+                lifetime_spent=GREATEST(0, lifetime_spent-1), updated_at=NOW()
+                WHERE member_code=:code""", balance=new_balance, code=member_code)
+            conn.run("""INSERT INTO analysis_credit_ledger
+                (member_code, delta, balance_after, reason, reference)
+                VALUES (:code, 1, :balance, 'refund_failed_analysis', :ref)
+                ON CONFLICT (reference) DO NOTHING""",
+                code=member_code, balance=new_balance, ref=f"refund:{job_id}")
+        conn.run("COMMIT")
+    except Exception:
+        try: conn.run("ROLLBACK")
+        except Exception: pass
+        raise
+    finally:
+        conn.close()
+
+
+ANALYSIS_ADMIN_CODE = "BCT-ADMIN-BETA"
+
+
+def _analysis_admin_allowed():
+    return hmac.compare_digest(str(request.args.get("key", "")), str(ADMIN_KEY))
+
+
+@app.route("/analyse-ia")
+def analyse_ia():
+    if not _analysis_admin_allowed():
+        return redirect("/admin-panel")
+    code = ANALYSIS_ADMIN_CODE
+    member = {"code": code, "nom": "Administration Bectanse"}
+    conn = get_conn()
+    try:
+        wallet = _analysis_wallet(conn, code)
+        rows = conn.run("""SELECT id, status, market, timeframe, session_name, trading_style,
+            result_json, error, created_at FROM analysis_jobs
+            WHERE member_code=:code ORDER BY created_at DESC LIMIT 12""", code=code)
+        history = []
+        for row in rows:
+            item = dict(zip(["id", "status", "market", "timeframe", "session_name", "trading_style",
+                             "result_json", "error", "created_at"], row))
+            if item["result_json"]:
+                try: item["result"] = json.loads(item["result_json"])
+                except Exception: item["result"] = None
+            else: item["result"] = None
+            history.append(item)
+    finally:
+        conn.close()
+    return render_template("analyse_ia.html", member=member, wallet=wallet, history=history,
+                           engine_ready=bool(OPENAI_API_KEY), demo_mode=False,
+                           admin_beta=True, admin_key=ADMIN_KEY)
+
+
+@app.route("/api/analyse-ia/run", methods=["POST"])
+def analyse_ia_run():
+    if not _analysis_admin_allowed():
+        return jsonify({"ok": False, "error": "Bêta privée réservée à l’administration."}), 403
+    code = ANALYSIS_ADMIN_CODE
+    if not OPENAI_API_KEY:
+        return jsonify({"ok": False, "error": "La bêta attend encore la connexion du moteur OpenAI."}), 503
+    data = request.get_json(silent=True) or {}
+    market = str(data.get("market", "XAU/USD")).upper().strip()
+    timeframe = str(data.get("timeframe", "M15"))
+    session_name = str(data.get("session", "Londres"))
+    trading_style = str(data.get("style", "Intraday"))
+    raw_events = data.get("events") or []
+    image_data = str(data.get("image", ""))
+    if market not in ANALYSIS_MARKETS and not re.fullmatch(r"[A-Z0-9][A-Z0-9/_.-]{1,19}", market):
+        return jsonify({"ok": False, "error": "Symbole de marché invalide."}), 400
+    if timeframe not in ANALYSIS_TIMEFRAMES or session_name not in ANALYSIS_SESSIONS or trading_style not in ANALYSIS_STYLES:
+        return jsonify({"ok": False, "error": "Configuration d’analyse invalide."}), 400
+    if not isinstance(raw_events, list) or len(raw_events) > 12:
+        return jsonify({"ok": False, "error": "Liste d’annonces invalide."}), 400
+    economic_events = []
+    for event in raw_events:
+        if not isinstance(event, dict):
+            return jsonify({"ok": False, "error": "Annonce invalide."}), 400
+        name = str(event.get("name", "")).strip()[:80]
+        impact = str(event.get("impact", "medium")).lower()
+        event_time = str(event.get("time", "")).strip()[:10]
+        if not name or impact not in ANALYSIS_EVENT_IMPACTS:
+            return jsonify({"ok": False, "error": "Annonce invalide."}), 400
+        economic_events.append({"name": name, "impact": impact, "time": event_time})
+    if not image_data.startswith("data:image/") or ";base64," not in image_data:
+        return jsonify({"ok": False, "error": "Capture invalide."}), 400
+    header, encoded = image_data.split(",", 1)
+    mime = header[5:].split(";", 1)[0].lower()
+    if mime not in {"image/jpeg", "image/png", "image/webp"}:
+        return jsonify({"ok": False, "error": "Format accepté : JPG, PNG ou WEBP."}), 400
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except Exception:
+        return jsonify({"ok": False, "error": "La capture est illisible."}), 400
+    if len(raw) > ANALYSIS_MAX_IMAGE_BYTES:
+        return jsonify({"ok": False, "error": "La capture dépasse 6 Mo."}), 413
+
+    job_id = str(uuid.uuid4())
+    conn = get_conn()
+    try:
+        conn.run("BEGIN")
+        wallet = _analysis_wallet(conn, code, lock=True)
+        if wallet["balance"] < 1:
+            conn.run("ROLLBACK")
+            return jsonify({"ok": False, "error": "Tu n’as plus de crédit disponible.", "balance": 0}), 402
+        new_balance = wallet["balance"] - 1
+        conn.run("""INSERT INTO analysis_jobs
+            (id, member_code, status, market, timeframe, session_name, trading_style, image_mime, model)
+            VALUES (:id, :code, 'processing', :market, :tf, :session, :style, :mime, :model)""",
+            id=job_id, code=code, market=market, tf=timeframe, session=session_name,
+            style=trading_style, mime=mime, model=OPENAI_ANALYSIS_MODEL)
+        conn.run("""UPDATE analysis_wallets SET balance=:balance,
+            lifetime_spent=lifetime_spent+1, updated_at=NOW() WHERE member_code=:code""",
+            balance=new_balance, code=code)
+        conn.run("""INSERT INTO analysis_credit_ledger
+            (member_code, delta, balance_after, reason, reference)
+            VALUES (:code, -1, :balance, 'analysis', :ref)""",
+            code=code, balance=new_balance, ref=f"analysis:{job_id}")
+        conn.run("COMMIT")
+    except Exception as error:
+        try: conn.run("ROLLBACK")
+        except Exception: pass
+        app.logger.error("Création analyse IA: %s", error)
+        return jsonify({"ok": False, "error": "Impossible de réserver le crédit."}), 500
+    finally:
+        conn.close()
+
+    try:
+        result, usage = _openai_analysis(image_data, market, timeframe, session_name, trading_style, economic_events)
+        conn = get_conn()
+        conn.run("""UPDATE analysis_jobs SET status='completed', result_json=:result,
+            input_tokens=:input_tokens, output_tokens=:output_tokens,
+            search_calls=:search_calls, completed_at=NOW()
+            WHERE id=:id AND member_code=:code""",
+            result=json.dumps(result, ensure_ascii=False),
+            input_tokens=usage["input_tokens"], output_tokens=usage["output_tokens"],
+            search_calls=usage["search_calls"], id=job_id, code=code)
+        conn.close()
+        return jsonify({"ok": True, "job_id": job_id, "balance": new_balance,
+                        "result": result, "usage": usage})
+    except Exception as error:
+        app.logger.error("Analyse IA %s: %s", job_id, error)
+        try: _refund_analysis_credit(code, job_id, str(error))
+        except Exception as refund_error: app.logger.error("Remboursement %s: %s", job_id, refund_error)
+        return jsonify({"ok": False, "error": str(error), "refunded": True,
+                        "balance": new_balance + 1}), 502
+
+
+@app.route("/api/analyse-ia/checkout", methods=["POST"])
+@login_required
+def analyse_ia_checkout():
+    code = session["member_code"]
+    if code == "BCT-DEMO2026":
+        return jsonify({"ok": False, "error": "Achat indisponible en mode Explorer."}), 403
+    if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
+        return jsonify({"ok": False, "error": "Les recharges seront ouvertes après la validation de la bêta."}), 503
+    pack_id = str((request.get_json(silent=True) or {}).get("pack", ""))
+    pack = ANALYSIS_PACKS.get(pack_id)
+    if not pack:
+        return jsonify({"ok": False, "error": "Pack inconnu."}), 400
+    root = request.url_root.rstrip("/")
+    form = {
+        "mode": "payment",
+        "success_url": root + "/analyse-ia?checkout=success",
+        "cancel_url": root + "/analyse-ia?checkout=cancelled",
+        "client_reference_id": code,
+        "metadata[member_code]": code,
+        "metadata[credits]": str(pack["credits"]),
+        "line_items[0][quantity]": "1",
+        "line_items[0][price_data][currency]": "eur",
+        "line_items[0][price_data][unit_amount]": str(pack["amount_cents"]),
+        "line_items[0][price_data][product_data][name]": f"Bectanse Analyse IA — {pack['credits']} crédits",
+        "line_items[0][price_data][product_data][description]": "1 crédit = 1 analyse complète",
+    }
+    try:
+        stripe_response = requests.post(
+            "https://api.stripe.com/v1/checkout/sessions",
+            auth=(STRIPE_SECRET_KEY, ""), data=form, timeout=25)
+        stripe_data = stripe_response.json()
+        if not stripe_response.ok:
+            raise RuntimeError(stripe_data.get("error", {}).get("message", "Paiement indisponible"))
+        return jsonify({"ok": True, "url": stripe_data["url"]})
+    except Exception as error:
+        app.logger.error("Création paiement crédits: %s", error)
+        return jsonify({"ok": False, "error": "Impossible d’ouvrir le paiement pour le moment."}), 502
+
+
+def _stripe_signature_valid(raw_body, signature_header):
+    if not STRIPE_WEBHOOK_SECRET or not signature_header:
+        return False
+    values = {}
+    for part in signature_header.split(","):
+        if "=" in part:
+            key, value = part.split("=", 1)
+            values.setdefault(key, []).append(value)
+    try:
+        timestamp = int(values.get("t", ["0"])[0])
+    except Exception:
+        return False
+    if abs(int(time.time()) - timestamp) > 300:
+        return False
+    signed = str(timestamp).encode("utf-8") + b"." + raw_body
+    expected = hmac.new(STRIPE_WEBHOOK_SECRET.encode("utf-8"), signed, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(expected, candidate) for candidate in values.get("v1", []))
+
+
+@app.route("/api/stripe/analyse-credits", methods=["POST"])
+def stripe_analysis_credits_webhook():
+    raw_body = request.get_data(cache=False)
+    if not _stripe_signature_valid(raw_body, request.headers.get("Stripe-Signature", "")):
+        return jsonify({"ok": False}), 400
+    try:
+        event = json.loads(raw_body.decode("utf-8"))
+        if event.get("type") != "checkout.session.completed":
+            return jsonify({"ok": True})
+        checkout = (event.get("data") or {}).get("object") or {}
+        if checkout.get("payment_status") != "paid":
+            return jsonify({"ok": True})
+        metadata = checkout.get("metadata") or {}
+        code = str(metadata.get("member_code", ""))
+        credits = int(metadata.get("credits", 0) or 0)
+        session_id = str(checkout.get("id", ""))
+        pack = next((value for value in ANALYSIS_PACKS.values() if value["credits"] == credits), None)
+        if (not code or not session_id or not pack or
+                int(checkout.get("amount_total", 0) or 0) != pack["amount_cents"] or
+                str(checkout.get("currency", "")).lower() != "eur"):
+            return jsonify({"ok": False}), 400
+        conn = get_conn()
+        try:
+            conn.run("BEGIN")
+            inserted = conn.run("""INSERT INTO analysis_purchases
+                (stripe_session_id, member_code, credits, amount_cents, currency, status)
+                VALUES (:session_id, :code, :credits, :amount, 'eur', 'paid')
+                ON CONFLICT (stripe_session_id) DO NOTHING RETURNING id""",
+                session_id=session_id, code=code, credits=credits, amount=pack["amount_cents"])
+            if inserted:
+                wallet = _analysis_wallet(conn, code, lock=True)
+                new_balance = wallet["balance"] + credits
+                conn.run("""UPDATE analysis_wallets SET balance=:balance,
+                    lifetime_granted=lifetime_granted+:credits, updated_at=NOW()
+                    WHERE member_code=:code""", balance=new_balance, credits=credits, code=code)
+                conn.run("""INSERT INTO analysis_credit_ledger
+                    (member_code, delta, balance_after, reason, reference)
+                    VALUES (:code, :credits, :balance, 'stripe_purchase', :reference)
+                    ON CONFLICT (reference) DO NOTHING""",
+                    code=code, credits=credits, balance=new_balance,
+                    reference=f"stripe:{session_id}")
+            conn.run("COMMIT")
+        except Exception:
+            try: conn.run("ROLLBACK")
+            except Exception: pass
+            raise
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+    except Exception as error:
+        app.logger.error("Webhook crédits Stripe: %s", error)
+        return jsonify({"ok": False}), 500
+
 @app.route("/calculateur")
 @login_required
 def calculateur():
@@ -1259,8 +3123,45 @@ def login():
     if "member_code" in session:
         return redirect(url_for("accueil"))
     error = None
+    notice = None
+    explorer_gate_enabled = brevo_email_delivery_available()
     if request.method == "POST":
         code = request.form.get("code","").strip().upper()
+        if code == "BCT-DEMO2026" and explorer_gate_enabled and not session.get("prospect_verified_email"):
+            prenom = request.form.get("demo_prenom", "").strip()[:80]
+            email = request.form.get("demo_email", "").strip().lower()[:254]
+            consent = request.form.get("demo_consent") == "yes"
+            if not prenom:
+                error = "Indique ton prénom pour recevoir l’accès Explorer."
+            elif "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+                error = "Saisis une adresse e-mail valide."
+            elif not consent:
+                error = "Confirme ton accord pour recevoir l’accès et les informations Bectanse."
+            else:
+                raw_token = secrets.token_urlsafe(32)
+                token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+                try:
+                    conn = get_conn()
+                    conn.run("""INSERT INTO prospect_email_verifications
+                        (email, prenom, token_hash, source, status, created_at, expires_at, verified_at)
+                        VALUES (:email, :prenom, :token_hash, 'explorer', 'pending', NOW(), NOW() + INTERVAL '24 hours', NULL)
+                        ON CONFLICT (email) DO UPDATE SET prenom=:prenom, token_hash=:token_hash,
+                        source='explorer', status='pending', created_at=NOW(),
+                        expires_at=NOW() + INTERVAL '24 hours', verified_at=NULL""",
+                        email=email, prenom=prenom, token_hash=token_hash)
+                    conn.close()
+                    confirmation_url = request.url_root.rstrip("/") + url_for(
+                        "confirm_explorer_email", token=raw_token)
+                    result = send_brevo_prospect_verification(email, prenom, confirmation_url)
+                    if result.get("ok"):
+                        notice = "E-mail envoyé. Clique sur le lien reçu pour ouvrir l’espace Explorer."
+                    else:
+                        error = "L’e-mail de confirmation n’a pas pu partir. Réessaie dans quelques instants."
+                except Exception as exc:
+                    app.logger.error("Inscription prospect Explorer: %s", exc)
+                    error = "Impossible de préparer ton accès pour le moment. Réessaie dans quelques instants."
+            return render_template("login.html", error=error, notice=notice,
+                                   explorer_gate_enabled=explorer_gate_enabled)
         member = get_member(code)
         if not member:
             error = "Code invalide. Vérifie ton code et réessaie."
@@ -1275,7 +3176,38 @@ def login():
                 conn.close()
             except: pass
             return redirect(url_for("accueil"))
-    return render_template("login.html", error=error)
+    return render_template("login.html", error=error, notice=notice,
+                           explorer_gate_enabled=explorer_gate_enabled)
+
+
+@app.route("/explorer/confirmer/<token>")
+def confirm_explorer_email(token):
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    try:
+        conn = get_conn()
+        rows = conn.run("""SELECT email, prenom FROM prospect_email_verifications
+            WHERE token_hash=:token_hash AND status='pending' AND expires_at > NOW()""",
+            token_hash=token_hash)
+        if not rows:
+            conn.close()
+            return render_template("login.html",
+                error="Ce lien de confirmation est invalide ou a expiré.", notice=None,
+                explorer_gate_enabled=brevo_email_delivery_available()), 400
+        email, prenom = rows[0]
+        conn.run("""UPDATE prospect_email_verifications SET status='verified', verified_at=NOW()
+                    WHERE token_hash=:token_hash""", token_hash=token_hash)
+        conn.close()
+        sync_result = sync_brevo_prospect_contact(email, prenom, "Explorer confirmé")
+        if not sync_result.get("ok"):
+            app.logger.error("Synchronisation prospect confirme %s: %s", email, sync_result.get("error"))
+        session["prospect_verified_email"] = email
+        session["member_code"] = "BCT-DEMO2026"
+        return redirect(url_for("accueil"))
+    except Exception as exc:
+        app.logger.error("Confirmation prospect Explorer: %s", exc)
+        return render_template("login.html",
+            error="La confirmation n’a pas pu être validée. Réessaie dans quelques instants.", notice=None,
+            explorer_gate_enabled=brevo_email_delivery_available()), 500
 
 @app.route("/dashboard")
 @login_required
@@ -1521,7 +3453,32 @@ def inscription():
         email_bienvenue_membre(prenom, email, code)
     except Exception as e:
         app.logger.error("bienvenue: %s", e)
+    try:
+        result = sync_brevo_member_contact(email)
+        if not result.get("ok"):
+            app.logger.error("sync contact inscription %s: %s", email, result.get("error"))
+    except Exception as e:
+        app.logger.error("sync contact inscription %s: %s", email, e)
     return jsonify({"ok": True, "code": code})
+
+@app.route("/admin/api/brevo/sync-members", methods=["POST"])
+def admin_sync_brevo_members():
+    """Rattrape tous les emails membres existants vers Brevo."""
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Interdit"}), 403
+    conn = get_conn()
+    rows = conn.run("""SELECT DISTINCT LOWER(TRIM(email)) FROM members
+                        WHERE email IS NOT NULL AND TRIM(email) <> ''""")
+    conn.close()
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(
+            lambda row: sync_brevo_member_contact(row[0]).get("ok", False), rows
+        ))
+    synced = sum(results)
+    failed = len(rows) - synced
+    return jsonify({"ok": failed == 0, "total": len(rows),
+                    "synced": synced, "failed": failed})
 
 @app.route("/confirm/<code>")
 def confirm_params(code):
@@ -1719,7 +3676,13 @@ def bot_webhook():
 
             elif text.startswith("/message "):
                 contenu = text[9:].strip()
-                handle_notif_globale(chat_id, contenu, "message")
+                # /message BCT-XXXXXXXX texte = message individuel.
+                # /message texte = annonce globale (compatibilité historique).
+                parts = contenu.split(" ", 1)
+                if len(parts) == 2 and parts[0].upper().startswith("BCT-"):
+                    handle_notif_individuelle(chat_id, parts[0].upper(), parts[1].strip())
+                else:
+                    handle_notif_globale(chat_id, contenu, "message")
 
             elif text.startswith("/resultat "):
                 contenu = text[10:].strip()
@@ -1879,10 +3842,17 @@ def handle_notif_globale(chat_id, contenu, notif_type):
         conn.close()
         icons = {"alerte": "🔴", "message": "💜", "resultat": "🟢", "maintenance": "🔧"}
         icon = icons.get(notif_type, "📢")
+        titles = {"alerte": "🔴 Alerte Bectanse", "message": "💜 Message Bectanse",
+                  "resultat": "🟢 Résultat Bectanse", "maintenance": "🔧 Maintenance Bectanse"}
+        push_result = send_push_to_all(titles.get(notif_type, "Bectanse AUTO"),
+                                       contenu, "/accueil")
         bot_send(chat_id, 
-            f"{icon} *Notification envoyée à {total} membres !*\n\n"
+            f"{icon} *Notification globale enregistrée pour {total} membres*\n\n"
             f"Type : `{notif_type}`\n"
-            f"Message : {contenu}")
+            f"Message : {contenu}\n\n"
+            f"📲 Appareils livrés : *{push_result['delivered']}*\n"
+            f"👥 Membres joignables : *{push_result['members']}*\n"
+            f"⚠️ Échecs : *{push_result['failed']}*")
     except Exception as e:
         bot_send(chat_id, f"❌ Erreur : {e}")
 
@@ -1903,20 +3873,19 @@ def handle_notif_individuelle(chat_id, code_dest, contenu):
         conn.run("""UPDATE members 
                     SET notif_type='individuelle', notif_message=:m, notif_lue=FALSE 
                     WHERE code=:c""", m=contenu, c=code_dest)
-        # Push Firebase individuel
-        try:
-            conn2 = get_conn()
-            tok_rows = conn2.run("SELECT token FROM push_tokens WHERE member_code=:c", c=code_dest)
-            conn2.close()
-            tokens = [r[0] for r in tok_rows if r[0]]
-            if tokens:
-                threading.Thread(target=send_fcm_push, args=(tokens, "💬 Message Personnel", contenu, "/dashboard"), daemon=True).start()
-        except: pass
         conn.close()
+        push_result = send_push_to_member(code_dest, "💬 Message personnel", contenu, "/accueil")
+        if push_result["delivered"]:
+            delivery_line = f"📲 Push livré à *{push_result['delivered']} appareil(s)*"
+        elif push_result["registered"]:
+            delivery_line = "⚠️ Appareil trouvé, mais Apple/Android a refusé la livraison. Le membre doit réactiver les notifications."
+        else:
+            delivery_line = "⚠️ Aucun téléphone abonné. Le message reste visible dans son espace membre."
         bot_send(chat_id,
-            f"✅ *Message envoyé à {nom} !*\n\n"
+            f"✅ *Message enregistré pour {nom}*\n\n"
             f"Code : `{code_dest}`\n"
-            f"Message : {contenu}")
+            f"Message : {contenu}\n\n"
+            f"{delivery_line}")
     except Exception as e:
         bot_send(chat_id, f"❌ Erreur : {e}")
 
@@ -1932,11 +3901,12 @@ def handle_aide(chat_id):
         "/prolonger BCT-XXXXXXXX 30 — Prolonger l'accès de X jours\n\n"
         "📣 *Notifications globales (tous les membres)*\n"
         "/alerte TEXTE — Bannière rouge urgente 🔴\n"
-        "/message TEXTE — Annonce violette 💜\n"
+        "/message TEXTE — Annonce violette globale 💜\n"
         "/resultat TEXTE — Performance verte 🟢\n"
         "/maintenance TEXTE — Bannière maintenance 🔧\n\n"
         "💬 *Message individuel*\n"
-        "/msg BCT-XXXXXXXX TEXTE — Notif privée à un membre\n\n"
+        "/msg BCT-XXXXXXXX TEXTE — Notif privée à un membre\n"
+        "/message BCT-XXXXXXXX TEXTE — Fonctionne aussi en individuel\n\n"
         "💡 Exemple : /alerte BUY XAUUSD — Entrée 2345 TP 2360"
     )
     markup = {"inline_keyboard": [[
@@ -2151,14 +4121,146 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
     import urllib.request as _ur, os as _os
     brevo_key = _os.environ.get("BREVO_KEY", "")
     if not brevo_key:
-        app.logger.warning("BREVO_KEY non definie")
-        return
+        app.logger.info("BREVO_KEY non definie — utilisation du SMTP Gmail")
+        sent = send_email(to_email, subject, html_content)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": "Echec SMTP Gmail" if not sent else ""}
     try:
+        account_req = _ur.Request(
+            "https://api.brevo.com/v3/account",
+            headers={"api-key": brevo_key, "Accept": "application/json"}
+        )
+        with _ur.urlopen(account_req, timeout=10) as account_response:
+            account = json.loads(account_response.read().decode("utf-8") or "{}")
+        plans = account.get("plan", [])
+        email_plan = next(
+            (plan for plan in plans if plan.get("creditsType") == "sendLimit"),
+            plans[0] if plans else {}
+        )
+        credits = email_plan.get("credits")
+        if credits is not None and int(credits) <= 0:
+            return {"ok": False, "error": "Crédits email Brevo insuffisants"}
         p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Leris - Bectanse AUTO"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
         r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
-        _ur.urlopen(r,timeout=10)
+        with _ur.urlopen(r,timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8") or "{}")
+        return {"ok": True, "message_id": payload.get("messageId", "")}
     except Exception as e:
         app.logger.error("Brevo: %s",e)
+        return {"ok": False, "error": str(e)[:500]}
+
+def sync_brevo_member_contact(email):
+    """Crée ou actualise le contact dans la liste Membres Bectanse."""
+    import urllib.request as _ur, urllib.error as _ue
+    brevo_key = os.environ.get("BREVO_KEY", "")
+    list_id = os.environ.get("BREVO_MEMBERS_LIST_ID", "")
+    clean_email = (email or "").strip().lower()
+    if not brevo_key or not list_id or "@" not in clean_email:
+        return {"ok": False, "error": "Configuration ou email invalide"}
+    try:
+        payload_data = {"email": clean_email, "listIds": [int(list_id)],
+                        "updateEnabled": True}
+        prospect_list_id = os.environ.get("BREVO_PROSPECTS_LIST_ID", "")
+        if prospect_list_id:
+            payload_data["unlinkListIds"] = [int(prospect_list_id)]
+        payload = json.dumps(payload_data).encode("utf-8")
+        req = _ur.Request("https://api.brevo.com/v3/contacts", data=payload,
+            headers={"api-key": brevo_key, "Content-Type": "application/json",
+                     "Accept": "application/json"}, method="POST")
+        with _ur.urlopen(req, timeout=10) as response:
+            response.read()
+        return {"ok": True}
+    except _ue.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")[:500]
+        app.logger.error("Brevo contact %s: HTTP %s %s", clean_email, error.code, detail)
+        return {"ok": False, "error": f"HTTP {error.code}: {detail}"}
+    except Exception as error:
+        app.logger.error("Brevo contact %s: %s", clean_email, error)
+        return {"ok": False, "error": str(error)[:500]}
+
+
+_brevo_delivery_cache = {"checked_at": 0.0, "available": False}
+
+def brevo_email_delivery_available():
+    """Vérifie périodiquement que Brevo peut réellement envoyer des e-mails."""
+    import urllib.request as _ur
+    now = time.time()
+    if now - _brevo_delivery_cache["checked_at"] < 300:
+        return _brevo_delivery_cache["available"]
+    available = False
+    brevo_key = os.environ.get("BREVO_KEY", "")
+    if brevo_key:
+        try:
+            req = _ur.Request("https://api.brevo.com/v3/account",
+                headers={"api-key": brevo_key, "Accept": "application/json"})
+            with _ur.urlopen(req, timeout=8) as response:
+                account = json.loads(response.read().decode("utf-8") or "{}")
+            plans = account.get("plan", [])
+            send_plan = next((p for p in plans if p.get("creditsType") == "sendLimit"), {})
+            available = int(send_plan.get("credits", 0) or 0) > 0
+        except Exception as error:
+            app.logger.warning("Verification credits Brevo: %s", error)
+    _brevo_delivery_cache.update(checked_at=now, available=available)
+    return available
+
+
+def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
+    """Envoie uniquement l'e-mail technique de double opt-in prospect."""
+    import urllib.request as _ur
+    if not brevo_email_delivery_available():
+        return {"ok": False, "error": "Service de confirmation temporairement indisponible"}
+    html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
+        "<div style='max-width:580px;margin:0 auto;padding:28px 18px'>"
+        "<div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
+        "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE ACADÉMIE</p>"
+        "<h1 style='margin:0 0 14px;font-size:27px'>Confirme ton adresse e-mail</h1>"
+        "<p style='margin:0 0 24px;color:#b7b7b7;line-height:1.6'>Un clic suffit pour ouvrir immédiatement l’espace Explorer en lecture seule.</p>"
+        "<a href='"+confirmation_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>CONFIRMER ET EXPLORER →</a>"
+        "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Ce lien expire dans 24 heures. Si tu n’as pas demandé cet accès, ignore simplement cet e-mail.</p>"
+        "</div></div></body></html>")
+    payload = json.dumps({
+        "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
+        "to": [{"email": to_email, "name": to_name}],
+        "subject": "Confirme ton accès Explorer — Bectanse Académie",
+        "htmlContent": html,
+        "tags": ["bectanse-prospect", "verification-email"]
+    }).encode("utf-8")
+    try:
+        req = _ur.Request("https://api.brevo.com/v3/smtp/email", data=payload,
+            headers={"api-key": os.environ["BREVO_KEY"], "Content-Type": "application/json"},
+            method="POST")
+        with _ur.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode("utf-8") or "{}")
+        return {"ok": True, "message_id": result.get("messageId", "")}
+    except Exception as error:
+        app.logger.error("Brevo verification prospect: %s", error)
+        return {"ok": False, "error": str(error)[:500]}
+
+
+def sync_brevo_prospect_contact(email, prenom="", source="Explorer"):
+    """Ajoute un e-mail confirmé à la liste Prospects, jamais à la liste Membres."""
+    import urllib.request as _ur, urllib.error as _ue
+    brevo_key = os.environ.get("BREVO_KEY", "")
+    list_id = os.environ.get("BREVO_PROSPECTS_LIST_ID", "")
+    clean_email = (email or "").strip().lower()
+    if not brevo_key or not list_id or "@" not in clean_email:
+        return {"ok": False, "error": "Configuration ou email invalide"}
+    payload = json.dumps({"email": clean_email,
+        "attributes": {"PRENOM": (prenom or "").strip()},
+        "listIds": [int(list_id)], "updateEnabled": True}).encode("utf-8")
+    try:
+        req = _ur.Request("https://api.brevo.com/v3/contacts", data=payload,
+            headers={"api-key": brevo_key, "Content-Type": "application/json",
+                     "Accept": "application/json"}, method="POST")
+        with _ur.urlopen(req, timeout=10) as response:
+            response.read()
+        return {"ok": True}
+    except _ue.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")[:500]
+        app.logger.error("Brevo prospect %s: HTTP %s %s", clean_email, error.code, detail)
+        return {"ok": False, "error": f"HTTP {error.code}: {detail}"}
+    except Exception as error:
+        return {"ok": False, "error": str(error)[:500]}
 
 def email_bienvenue_membre(prenom, email, code_acces):
     html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
@@ -2183,17 +4285,23 @@ def email_bienvenue_membre(prenom, email, code_acces):
         "</div></body></html>")
     send_brevo_membre(email, prenom, "Bienvenue "+prenom+" - Ton code Bectanse AUTO", html, "bienvenue")
 
-def email_relance_expiration(prenom, email, jours):
-    cfgs = {
-        7: ("relance-j-7", prenom+", ton abonnement expire dans 7 jours", "Expire dans 7 jours", "Il te reste 7 jours. Renouvelle maintenant.", "#FF6A00"),
-        3: ("relance-j-3", prenom+", plus que 3 jours", "Plus que 3 jours", "Dans 3 jours, le robot s'arr&ecirc;te.", "#FF6A00"),
-        1: ("relance-j-1", prenom+", ton acc&egrave;s expire demain", "Expire demain", "Derni&egrave;re chance avant suspension.", "#FF6A00"),
-        -1: ("relance-j+1", prenom+", ton acc&egrave;s est suspendu", "Acc&egrave;s suspendu", "Expir&eacute; hier. Renouvelle pour reprendre.", "#ef4444"),
-        -3: ("relance-j+3", prenom+", le robot attend ton retour", "Le robot attend", "Expir&eacute; depuis 3 jours. Renouvelle pour tout relancer.", "#ef4444"),
-        -7: ("relance-j+7", prenom+", une derni&egrave;re chose", "Derni&egrave;re chance", "7 jours sans acc&egrave;s. Si tu veux reprendre, c'est maintenant.", "#ef4444"),
-    }
-    if jours not in cfgs: return
-    tag, subject, titre, corps, couleur = cfgs[jours]
+RENEWAL_STAGE_CONTENT = {
+    "j-7": ("Ton accès expire dans 7 jours", "Anticipe ton renouvellement", "Ton accès Bectanse AUTO arrive à échéance dans 7 jours. Renouvelle maintenant pour conserver ton espace et éviter toute interruption.", "#FF6A00"),
+    "j-2": ("Plus que 48 h pour renouveler", "Ton accès expire dans 48 heures", "Il ne reste que deux jours avant la suspension de ton accès. Tu peux renouveler en quelques instants depuis ton espace membre.", "#FF6A00"),
+    "j0": ("Ton accès expire aujourd’hui", "Dernier jour avant suspension", "Ton adhésion arrive à échéance aujourd’hui. Renouvelle maintenant pour maintenir la continuité de ton accès.", "#ef4444"),
+    "expired-initial": ("Ton accès Bectanse AUTO est expiré", "Réactive ton accès", "Ton adhésion est arrivée à échéance. Ton espace et tes paramètres sont conservés : il te suffit de renouveler pour reprendre.", "#ef4444"),
+    "expired-week-1": ("Ton espace est toujours prêt", "Tu peux reprendre quand tu veux", "Tes informations sont toujours conservées. Réactive ton adhésion pour retrouver ton espace Bectanse AUTO.", "#ef4444"),
+    "expired-week-2": ("Besoin d’aide pour reprendre ?", "On t’accompagne pour la réactivation", "Si quelque chose bloque ton renouvellement, notre support peut t’aider. Sinon, tu peux réactiver directement depuis ton espace.", "#FF6A00"),
+    "expired-week-3": ("Ton accès peut être réactivé", "Reprends là où tu t’étais arrêté", "Aucune nouvelle configuration n’est nécessaire : renouvelle ton adhésion et retrouve ton environnement membre.", "#FF6A00"),
+    "expired-week-4": ("Dernier rappel de réactivation", "Dernière relance de cette séquence", "Nous clôturons cette série de rappels. Ton compte reste identifiable et tu peux renouveler ton accès dès que tu le souhaites.", "#ef4444"),
+}
+
+
+def email_relance_expiration(prenom, email, stage):
+    if stage not in RENEWAL_STAGE_CONTENT:
+        return {"ok": False, "error": "etape inconnue"}
+    subject, titre, corps, couleur = RENEWAL_STAGE_CONTENT[stage]
+    subject = f"{prenom}, {subject[:1].lower()}{subject[1:]}"
     html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
         "<div style='max-width:600px;margin:0 auto;'>"
         "<div style='background:"+couleur+";padding:20px;border-radius:0 0 16px 16px;margin-bottom:8px;'>"
@@ -2203,14 +4311,81 @@ def email_relance_expiration(prenom, email, jours):
         "<p style='color:rgba(255,255,255,.7);font-size:15px;line-height:1.8;margin:0;'>"+corps+"</p>"
         "</div>"
         "<div style='text-align:center;padding:20px 0;'>"
-        "<a href='https://acces.bectanse-academie.com' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
+        "<a href='https://acces.bectanse-academie.com/offres' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
         "</div>"
+        "<p style='text-align:center;color:rgba(255,255,255,.45);font-size:12px;'>Besoin d’aide ? <a href='https://t.me/m/PAt88QgeZDhk' style='color:#FF6A00;'>Contacter le support</a></p>"
         "<p style='text-align:center;color:rgba(255,255,255,.2);font-size:11px;'>&copy; 2026 Bectanse Acad&eacute;mie</p>"
         "</div></body></html>")
-    send_brevo_membre(email, prenom, subject, html, tag)
+    return send_brevo_membre(email, prenom, subject, html, f"renouvellement-{stage}")
+
+
+def _renewal_stage_for_member(conn, code, expiry_date, days_until):
+    """Retourne au maximum une étape due. Les anciens expirés entrent immédiatement."""
+    if days_until in (7, 2, 0):
+        return {7: "j-7", 2: "j-2", 0: "j0"}[days_until]
+    if days_until > 0:
+        return None
+    rows = conn.run(
+        """SELECT stage, sent_at FROM renewal_email_log
+           WHERE member_code=:code AND expiry_date=:expiry AND status='sent'
+           ORDER BY sent_at""",
+        code=code, expiry=expiry_date
+    )
+    sent = {row[0]: row[1] for row in rows}
+    if "j0" not in sent and "expired-initial" not in sent:
+        return "expired-initial"
+    sequence = ["expired-week-1", "expired-week-2", "expired-week-3", "expired-week-4"]
+    previous_at = sent.get("expired-initial") or sent.get("j0")
+    for stage in sequence:
+        if stage in sent:
+            previous_at = sent[stage]
+            continue
+        if previous_at and (_paris_now().replace(tzinfo=None) - previous_at).days >= 7:
+            return stage
+        return None
+    return None
+
+
+def _send_claimed_renewal_email(code, nom, email, expiry_date, stage):
+    """Réserve l'étape en base avant l'appel Brevo pour bloquer tout doublon."""
+    conn = get_conn()
+    claimed = conn.run(
+        """INSERT INTO renewal_email_log
+           (member_code, expiry_date, stage, recipient_email, status)
+           VALUES (:code, :expiry, :stage, :email, 'pending')
+           ON CONFLICT (member_code, expiry_date, stage) DO UPDATE
+           SET recipient_email=EXCLUDED.recipient_email, status='pending',
+               error='', created_at=NOW()
+           WHERE renewal_email_log.status='failed'
+           RETURNING stage""",
+        code=code, expiry=expiry_date, stage=stage, email=email
+    )
+    conn.close()
+    if not claimed:
+        return False
+    prenom = (nom or "Bonjour").split()[0]
+    result = email_relance_expiration(prenom, email, stage)
+    conn = get_conn()
+    if result.get("ok"):
+        conn.run(
+            """UPDATE renewal_email_log SET status='sent', sent_at=NOW(),
+               provider_message_id=:message_id, error=''
+               WHERE member_code=:code AND expiry_date=:expiry AND stage=:stage""",
+            message_id=result.get("message_id", ""), code=code,
+            expiry=expiry_date, stage=stage
+        )
+    else:
+        conn.run(
+            """UPDATE renewal_email_log SET status='failed', error=:error
+               WHERE member_code=:code AND expiry_date=:expiry AND stage=:stage""",
+            error=result.get("error", "Erreur Brevo")[:500], code=code,
+            expiry=expiry_date, stage=stage
+        )
+    conn.close()
+    return bool(result.get("ok"))
 
 def job_relances_quotidiennes():
-    """Tourne chaque matin à 9h — emails + rappels Telegram admin J-7, J-2, J=0."""
+    """Relances e-mail idempotentes + rappels Telegram admin, chaque jour à 9 h."""
     try:
         from datetime import datetime
         conn = get_conn()
@@ -2220,34 +4395,47 @@ def job_relances_quotidiennes():
         """)
         conn.close()
 
-        now = datetime.now()
+        today = _paris_now().date()
+        emails_sent = 0
         j7_list = []
         j2_list = []
         j0_list = []
 
         for code, nom, email, date_fin, capital in membres:
             if not date_fin: continue
-            delta = (date_fin - now).days
+            expiry_date = date_fin.date() if hasattr(date_fin, "date") else date_fin
+            delta = (expiry_date - today).days
 
-            # ── EMAILS + BANNIÈRE APP
-            if delta in [7, 3, 1] and email:
-                prenom_m = nom.split()[0] if nom else nom
-                try: email_relance_expiration(prenom_m, email, delta)
-                except: pass
+            # ── EMAILS : J-7, J-2, J0 puis une fois/semaine pendant 4 semaines.
+            if email:
+                try:
+                    conn2 = get_conn()
+                    stage = _renewal_stage_for_member(
+                        conn2, code, expiry_date, delta
+                    )
+                    conn2.close()
+                    if stage and _send_claimed_renewal_email(
+                        code, nom, email.strip(), expiry_date, stage
+                    ):
+                        emails_sent += 1
+                except Exception as email_error:
+                    app.logger.error(
+                        "relance email %s: %s", code, email_error
+                    )
+
+            # ── BANNIÈRE APP avant expiration
+            if delta in [7, 2, 0]:
                 try:
                     conn2 = get_conn()
                     conn2.run("""UPDATE members SET notif_type='alerte',
                         notif_message=:m, notif_lue=FALSE WHERE code=:c""",
-                        m=f"⚠️ Ton abonnement expire dans {delta} jour{'s' if delta>1 else ''} — Renouvelle maintenant !",
+                        m=("🚨 Ton abonnement expire aujourd'hui — Renouvelle maintenant !"
+                           if delta == 0 else
+                           f"⚠️ Ton abonnement expire dans {delta} jours — Renouvelle maintenant !"),
                         c=code)
                     conn2.close()
-                except: pass
-
-            # Après expiration
-            elif delta in [-1, -3, -7] and email:
-                prenom_m = nom.split()[0] if nom else nom
-                try: email_relance_expiration(prenom_m, email, delta)
-                except: pass
+                except Exception as notif_error:
+                    app.logger.error("banniere expiration %s: %s", code, notif_error)
 
             # ── LISTES POUR RAPPELS TELEGRAM ADMIN
             if delta == 7:
@@ -2309,97 +4497,622 @@ def job_relances_quotidiennes():
             ]]}
             send_telegram(msg, reply_markup=markup)
 
-        app.logger.info(f"job_relances: {len(membres)} membres vérifiés — J7:{len(j7_list)} J2:{len(j2_list)} J0:{len(j0_list)}")
+        app.logger.info(
+            f"job_relances: {len(membres)} membres vérifiés — "
+            f"emails:{emails_sent} J7:{len(j7_list)} J2:{len(j2_list)} J0:{len(j0_list)}"
+        )
     except Exception as e:
         app.logger.error(f"job_relances: {e}")
         send_telegram(f"❌ *ERREUR job_relances*\n`{e}`")
 
 
-def get_eco_calendar():
+@app.route("/admin/api/renewal-emails/run", methods=["POST"])
+def admin_run_renewal_emails():
+    """Déclenchement idempotent pour le déploiement ou une reprise contrôlée."""
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Interdit"}), 403
+    job_relances_quotidiennes()
+    conn = get_conn()
+    stats = conn.run(
+        """SELECT status, COUNT(*) FROM renewal_email_log
+           GROUP BY status ORDER BY status"""
+    )
+    conn.close()
+    return jsonify({"ok": True, "emails": {status: count for status, count in stats}})
+
+@app.route("/admin/api/renewal-emails/reset-undelivered", methods=["POST"])
+def admin_reset_undelivered_renewal_emails():
+    """Réouvre les envois acceptés par l'API pendant la panne de crédits Brevo."""
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Interdit"}), 403
+    conn = get_conn()
+    result = conn.run(
+        """UPDATE renewal_email_log
+           SET status='failed', error='Crédits email Brevo insuffisants', sent_at=NULL
+           WHERE status='sent' AND provider_message_id <> ''
+           RETURNING member_code"""
+    )
+    conn.close()
+    return jsonify({"ok": True, "reset": len(result)})
+
+
+JOURS_FR = {
+    "Monday": "lundi", "Tuesday": "mardi", "Wednesday": "mercredi",
+    "Thursday": "jeudi", "Friday": "vendredi", "Saturday": "samedi",
+    "Sunday": "dimanche"
+}
+MOIS_FR = {
+    "January": "janvier", "February": "février", "March": "mars",
+    "April": "avril", "May": "mai", "June": "juin", "July": "juillet",
+    "August": "août", "September": "septembre", "October": "octobre",
+    "November": "novembre", "December": "décembre"
+}
+FLAG_MAP = {
+    "USD": "🇺🇸", "EUR": "🇪🇺", "GBP": "🇬🇧", "JPY": "🇯🇵",
+    "CHF": "🇨🇭", "CAD": "🇨🇦", "AUD": "🇦🇺", "NZD": "🇳🇿",
+    "CNY": "🇨🇳"
+}
+IMPACT_ICONS = {"High": "🔴", "Medium": "🟡", "Low": "⚪"}
+
+
+def _paris_now():
+    return datetime.now(PARIS_TZ)
+
+
+def _claim_scheduled_publication(slot_key, post_kind, content, post_id=None, target_channel=""):
+    """Réserve un créneau en base pour empêcher les doublons multi-workers."""
+    conn = None
     try:
+        conn = get_conn()
+        rows = conn.run(
+            """INSERT INTO scheduled_publications
+               (slot_key, post_kind, status, content, attempts, post_id, target_channel)
+               VALUES (:slot, :kind, 'sending', :content, 1, :post_id, :target_channel)
+               ON CONFLICT (slot_key) DO UPDATE SET
+                   status='sending', content=:content,
+                   post_id=COALESCE(:post_id, scheduled_publications.post_id),
+                   target_channel=:target_channel,
+                   attempts=scheduled_publications.attempts + 1,
+                   error='', created_at=NOW()
+               WHERE scheduled_publications.status='failed'
+               RETURNING slot_key""",
+            slot=slot_key, kind=post_kind, content=content, post_id=post_id,
+            target_channel=target_channel
+        )
+        return bool(rows)
+    except Exception as e:
+        # Échec fermé : sans verrou DB, ne pas risquer une double publication.
+        app.logger.error(f"publication claim {slot_key}: {e}")
+        return False
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _finish_scheduled_publication(slot_key, status, message_id=None, error=""):
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """UPDATE scheduled_publications
+               SET status=:status, telegram_message_id=:message_id, error=:error,
+                   sent_at=CASE WHEN :status='sent' THEN NOW() ELSE sent_at END
+               WHERE slot_key=:slot""",
+            status=status, message_id=message_id, error=(error or "")[:1000], slot=slot_key
+        )
+    except Exception as e:
+        app.logger.error(f"publication finish {slot_key}: {e}")
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _scheduled_publication_status(slot_key):
+    """Relit l'état d'un créneau pour distinguer un doublon d'un échec."""
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            "SELECT status FROM scheduled_publications WHERE slot_key=:slot",
+            slot=slot_key
+        )
+        return str(rows[0][0]) if rows else ""
+    except Exception as error:
+        app.logger.error(f"publication status {slot_key}: {error}")
+        return ""
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _send_scheduled_telegram(
+    text, slot_key, post_kind, image_url="", channel=None,
+    button_text="", button_url="", disable_notification=False, post_id=None,
+    post_type="message", poll_question="", poll_options=None,
+    poll_correct_option_ids=None, poll_explanation="", poll_anonymous=True,
+    poll_multiple=False
+):
+    target_channel = (channel or ECO_CANAL or "").strip()
+    if not ECO_BOT_TOKEN or not target_channel:
+        app.logger.error("Publication Telegram annulée : ECO_BOT_TOKEN ou canal absent")
+        return False
+    post_type = post_type if post_type in {"message", "quiz", "poll"} else "message"
+    if post_type == "message":
+        max_length = 1024 if image_url else 4096
+        if not text or len(text) > max_length:
+            app.logger.error(f"Publication Telegram invalide : limite {max_length} caractères")
+            return False
+        claim_content = text
+    else:
+        poll_options = _payload_list(poll_options)
+        poll_correct_option_ids = [
+            int(index) for index in _payload_list(poll_correct_option_ids)
+        ]
+        if not poll_question or not 2 <= len(poll_options) <= 12:
+            app.logger.error("Quiz ou sondage Telegram invalide")
+            return False
+        claim_content = poll_question
+    if not _claim_scheduled_publication(
+        slot_key, post_kind, claim_content, post_id=post_id,
+        target_channel=target_channel
+    ):
+        app.logger.info(f"Publication déjà traitée ou verrouillée : {slot_key}")
+        return False
+
+    last_error = "erreur Telegram inconnue"
+    for attempt in range(3):
+        try:
+            if attempt:
+                time.sleep(2)
+            payload = {"chat_id": target_channel, "disable_notification": bool(disable_notification)}
+            if button_text and button_url:
+                payload["reply_markup"] = {
+                    "inline_keyboard": [[{"text": button_text, "url": button_url}]]
+                }
+            if post_type in {"quiz", "poll"}:
+                endpoint = "sendPoll"
+                payload.update({
+                    "question": poll_question,
+                    "options": [{"text": str(option)} for option in poll_options],
+                    "type": "quiz" if post_type == "quiz" else "regular",
+                    "is_anonymous": bool(poll_anonymous),
+                    "allows_multiple_answers": bool(poll_multiple),
+                })
+                if post_type == "quiz":
+                    payload["correct_option_ids"] = poll_correct_option_ids
+                    if poll_explanation:
+                        payload.update({
+                            "explanation": poll_explanation,
+                            "explanation_parse_mode": "Markdown"
+                        })
+            else:
+                payload["parse_mode"] = "Markdown"
+                if image_url:
+                    endpoint = "sendPhoto"
+                    payload.update({"photo": image_url, "caption": text})
+                else:
+                    endpoint = "sendMessage"
+                    payload.update({"text": text, "disable_web_page_preview": True})
+            response = requests.post(
+                f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}",
+                json=payload,
+                timeout=20
+            )
+            result = response.json()
+            if result.get("ok"):
+                message_id = result.get("result", {}).get("message_id")
+                _finish_scheduled_publication(slot_key, "sent", message_id=message_id)
+                app.logger.info(f"Publication Telegram envoyée : {slot_key}")
+                return True
+            last_error = result.get("description", f"HTTP {response.status_code}")
+        except Exception as e:
+            last_error = str(e)
+        app.logger.warning(f"Telegram {slot_key}, tentative {attempt + 1}: {last_error}")
+
+    _finish_scheduled_publication(slot_key, "failed", error=last_error)
+    send_telegram(f"❌ *Publication Telegram échouée*\n`{slot_key}`\n{last_error[:300]}")
+    return False
+
+
+def _resolve_telegram_targets(post=None, publish_all_channels=False, fallback_channel=None):
+    post = post or {}
+    use_all = bool(post.get("publish_all_channels", publish_all_channels))
+    fallback = (fallback_channel or post.get("channel") or ECO_CANAL or "").strip()
+    conn = None
+    targets = []
+    registry_checked = False
+    try:
+        conn = get_conn()
+        if use_all:
+            rows = conn.run(
+                """SELECT id, name, chat_id FROM telegram_channels
+                   WHERE active=TRUE AND deleted=FALSE ORDER BY id"""
+            )
+        elif post.get("id"):
+            rows = conn.run(
+                """SELECT channels.id, channels.name, channels.chat_id
+                   FROM telegram_post_channels AS targets
+                   JOIN telegram_channels AS channels ON channels.id=targets.channel_id
+                   WHERE targets.post_id=:post_id
+                     AND channels.active=TRUE AND channels.deleted=FALSE
+                   ORDER BY channels.id""",
+                post_id=int(post["id"])
+            )
+        else:
+            rows = []
+        registry_checked = use_all or bool(post.get("id"))
+        targets = [
+            {"id": int(channel_id), "name": name, "chat_id": chat_id}
+            for channel_id, name, chat_id in rows
+        ]
+    except Exception as error:
+        app.logger.error(f"telegram target resolution: {error}")
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+    if not targets and fallback and not registry_checked:
+        targets = [{"id": None, "name": "Canal historique", "chat_id": fallback}]
+    unique_targets = []
+    seen = set()
+    for target in targets:
+        key = str(target["chat_id"]).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_targets.append(target)
+    return unique_targets
+
+
+def _broadcast_scheduled_telegram(
+    text, base_slot_key, post_kind, post=None, publish_all_channels=False,
+    fallback_channel=None, **send_options
+):
+    targets = _resolve_telegram_targets(
+        post=post, publish_all_channels=publish_all_channels,
+        fallback_channel=fallback_channel
+    )
+    results = []
+    for target in targets:
+        target_hash = hashlib.sha256(
+            str(target["chat_id"]).lower().encode("utf-8")
+        ).hexdigest()[:12]
+        slot_key = f"{base_slot_key}-{target_hash}"
+        sent_now = _send_scheduled_telegram(
+            text,
+            slot_key=slot_key,
+            post_kind=post_kind,
+            channel=target["chat_id"],
+            **send_options
+        )
+        status = "sent" if sent_now else _scheduled_publication_status(slot_key)
+        results.append({
+            **target,
+            "sent": status == "sent",
+            "sent_now": bool(sent_now),
+            "status": status or "failed",
+        })
+    return {
+        "total": len(results),
+        "sent": sum(1 for result in results if result["sent"]),
+        "sent_now": sum(1 for result in results if result["sent_now"]),
+        "failed": sum(1 for result in results if not result["sent"]),
+        "channels": results,
+    }
+
+
+def _send_saved_post_to_channels(post, base_slot_key, post_kind):
+    return _broadcast_scheduled_telegram(
+        post["message"], base_slot_key=base_slot_key, post_kind=post_kind,
+        post=post, fallback_channel=post.get("channel"),
+        image_url=post.get("image_url") or "",
+        button_text=post.get("button_text") or "",
+        button_url=post.get("button_url") or "",
+        disable_notification=post.get("disable_notification", False),
+        post_id=post.get("id"), post_type=post.get("post_type") or "message",
+        poll_question=post.get("poll_question") or "",
+        poll_options=post.get("poll_options") or "[]",
+        poll_correct_option_ids=post.get("poll_correct_option_ids") or "[]",
+        poll_explanation=post.get("poll_explanation") or "",
+        poll_anonymous=post.get("poll_anonymous", True),
+        poll_multiple=post.get("poll_multiple", False)
+    )
+
+
+def load_telegram_editorial_calendar():
+    with open(TELEGRAM_EDITORIAL_PATH, "r", encoding="utf-8") as content_file:
+        calendar = json.load(content_file)
+    weeks = calendar.get("weeks") or []
+    if not weeks or any(len(week) != 7 for week in weeks):
+        raise ValueError("Le calendrier Telegram doit contenir des semaines de 7 publications")
+    return calendar
+
+
+def build_daily_editorial_post(target_date=None):
+    target_date = target_date or _paris_now().date()
+    calendar = load_telegram_editorial_calendar()
+    weeks = calendar["weeks"]
+    week_index = (target_date.isocalendar().week - 1) % len(weeks)
+    post = weeks[week_index][target_date.weekday()]
+    message = _format_editorial_entry(calendar, post)
+    if len(message) > 4096:
+        raise ValueError("La publication Telegram dépasse la limite de 4 096 caractères")
+    return message
+
+
+def send_daily_editorial_post(target_date=None):
+    target_date = target_date or _paris_now().date()
+    try:
+        message = build_daily_editorial_post(target_date)
+        delivery = _broadcast_scheduled_telegram(
+            message,
+            base_slot_key=f"editorial-{target_date.isoformat()}",
+            post_kind="editorial", publish_all_channels=True,
+            fallback_channel=ECO_CANAL
+        )
+        return delivery["sent"] > 0
+    except Exception as e:
+        app.logger.error(f"send_daily_editorial_post: {e}")
+        send_telegram(f"❌ *Erreur calendrier éditorial*\n`{str(e)[:300]}`")
+        return False
+
+
+TELEGRAM_POST_COLUMNS = [
+    "id", "name", "message", "image_url", "schedule_type", "weekdays",
+    "rotation_week", "publish_time", "scheduled_for", "timezone", "channel",
+    "button_text", "button_url", "disable_notification", "enabled", "source_key",
+    "deleted", "last_sent_at", "created_at", "updated_at", "post_type",
+    "poll_question", "poll_options", "poll_correct_option_ids",
+    "poll_explanation", "poll_anonymous", "poll_multiple", "publish_all_channels"
+]
+
+
+def _telegram_post_from_row(row):
+    return dict(zip(TELEGRAM_POST_COLUMNS, row))
+
+
+def _parse_scheduled_datetime(value):
+    if not value:
+        return None
+    parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=PARIS_TZ)
+    return parsed.astimezone(PARIS_TZ)
+
+
+def _parse_publish_time(value):
+    try:
+        return datetime.strptime(str(value), "%H:%M").time()
+    except (TypeError, ValueError):
+        return None
+
+
+def _post_matches_day(post, target_date):
+    schedule_type = post.get("schedule_type")
+    if schedule_type == "once":
+        scheduled_for = _parse_scheduled_datetime(post.get("scheduled_for"))
+        return bool(scheduled_for and scheduled_for.date() == target_date)
+    try:
+        weekdays = {int(day) for day in str(post.get("weekdays") or "").split(",") if day != ""}
+    except ValueError:
+        return False
+    if target_date.weekday() not in weekdays:
+        return False
+    if schedule_type == "rotation":
+        return ((target_date.isocalendar().week - 1) % 4) == int(post.get("rotation_week") or 0)
+    return schedule_type == "weekly"
+
+
+def scheduled_telegram_post_is_due(post, now=None, grace_minutes=10):
+    now = now or _paris_now()
+    if not post.get("enabled") or post.get("deleted"):
+        return False
+    if post.get("schedule_type") == "once":
+        scheduled_at = _parse_scheduled_datetime(post.get("scheduled_for"))
+    else:
+        publish_time = _parse_publish_time(post.get("publish_time"))
+        if not publish_time or not _post_matches_day(post, now.date()):
+            return False
+        scheduled_at = datetime.combine(now.date(), publish_time, tzinfo=PARIS_TZ)
+    if not scheduled_at:
+        return False
+    delay = (now - scheduled_at).total_seconds()
+    return 0 <= delay < grace_minutes * 60
+
+
+def next_run_for_telegram_post(post, now=None):
+    now = now or _paris_now()
+    if not post.get("enabled") or post.get("deleted"):
+        return None
+    if post.get("schedule_type") == "once":
+        scheduled_at = _parse_scheduled_datetime(post.get("scheduled_for"))
+        return scheduled_at.isoformat() if scheduled_at and scheduled_at >= now else None
+    publish_time = _parse_publish_time(post.get("publish_time"))
+    if not publish_time:
+        return None
+    for offset in range(36):
+        target_date = now.date() + timedelta(days=offset)
+        if not _post_matches_day(post, target_date):
+            continue
+        candidate = datetime.combine(target_date, publish_time, tzinfo=PARIS_TZ)
+        if candidate >= now:
+            return candidate.isoformat()
+    return None
+
+
+def process_scheduled_telegram_posts(now=None):
+    """Vérifie les posts dus. Le verrou DB évite les doubles envois workers."""
+    now = now or _paris_now()
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT id, name, message, image_url, schedule_type, weekdays,
+                      rotation_week, publish_time, scheduled_for, timezone, channel,
+                      button_text, button_url, disable_notification, enabled, source_key,
+                      deleted, last_sent_at, created_at, updated_at, post_type,
+                      poll_question, poll_options, poll_correct_option_ids,
+                      poll_explanation, poll_anonymous, poll_multiple,
+                      publish_all_channels
+               FROM telegram_scheduled_posts
+               WHERE enabled=TRUE AND deleted=FALSE
+               ORDER BY id"""
+        )
+    except Exception as e:
+        app.logger.error(f"process scheduled Telegram: {e}")
+        return 0
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+    sent_count = 0
+    for row in rows:
+        post = _telegram_post_from_row(row)
+        if not scheduled_telegram_post_is_due(post, now=now):
+            continue
+        if post["schedule_type"] == "once":
+            scheduled_at = _parse_scheduled_datetime(post.get("scheduled_for"))
+        else:
+            scheduled_at = datetime.combine(
+                now.date(), _parse_publish_time(post.get("publish_time")), tzinfo=PARIS_TZ
+            )
+        slot_key = f"telegram-post-{post['id']}-{scheduled_at.strftime('%Y%m%d-%H%M')}"
+        delivery = _send_saved_post_to_channels(post, slot_key, "custom-editorial")
+        if not delivery["sent"]:
+            continue
+        sent_now = delivery.get("sent_now", delivery["sent"])
+        complete = delivery["total"] > 0 and delivery["failed"] == 0
+        if sent_now:
+            sent_count += 1
+        if not sent_now and not (post["schedule_type"] == "once" and complete):
+            continue
+        update_conn = None
+        try:
+            update_conn = get_conn()
+            update_conn.run(
+                """UPDATE telegram_scheduled_posts
+                   SET last_sent_at=CASE WHEN :sent_now THEN NOW() ELSE last_sent_at END,
+                       enabled=CASE
+                           WHEN schedule_type='once' AND :complete THEN FALSE
+                           ELSE enabled
+                       END,
+                       updated_at=NOW()
+                   WHERE id=:id""",
+                id=post["id"], sent_now=bool(sent_now), complete=complete
+            )
+        except Exception as e:
+            app.logger.error(f"scheduled Telegram post update {post['id']}: {e}")
+        finally:
+            if update_conn:
+                try: update_conn.close()
+                except: pass
+    return sent_count
+
+
+def get_eco_calendar(target_date=None):
+    try:
+        target_date = target_date or _paris_now().date()
         url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
         r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         if r.status_code != 200:
-            return []
-        data = r.json()
-        today_str = datetime.now().strftime("%Y-%m-%d")
+            app.logger.error(f"eco_calendar: source indisponible (HTTP {r.status_code})")
+            return None
         events = []
-        for event in data:
+        for event in r.json():
             try:
-                event_date = event.get("date","")[:10]
-                if event_date == today_str and event.get("impact") in ["High","Medium"]:
-                    events.append(event)
-            except: pass
-        return sorted(events, key=lambda x: x.get("date",""))
+                date_str = event.get("date", "")
+                event_dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S%z").astimezone(PARIS_TZ)
+                if event_dt.date() == target_date and event.get("impact") in ("High", "Medium"):
+                    enriched = dict(event)
+                    enriched["paris_time"] = event_dt.strftime("%H:%M")
+                    events.append(enriched)
+            except Exception:
+                pass
+        return sorted(events, key=lambda item: item.get("date", ""))
     except Exception as e:
         app.logger.error(f"eco_calendar: {e}")
-        return []
+        return None
 
-def send_eco_message():
+
+def send_eco_message(target_date=None):
     try:
-        events = get_eco_calendar()
-        now = datetime.now()
-        date_fr = now.strftime("%A %d %B %Y")
-        for en, fr in JOURS_FR.items(): date_fr = date_fr.replace(en, fr)
-        for en, fr in MOIS_FR.items(): date_fr = date_fr.replace(en, fr)
+        target_date = target_date or _paris_now().date()
+        events = get_eco_calendar(target_date)
+        if events is None:
+            app.logger.error("Calendrier économique non publié : données non vérifiables")
+            send_telegram(
+                "❌ *Calendrier économique non publié*\n"
+                "La source de données est indisponible. Aucun agenda public n’a été envoyé."
+            )
+            return False
+        date_fr = target_date.strftime("%A %d %B %Y")
+        for en, fr in JOURS_FR.items():
+            date_fr = date_fr.replace(en, fr)
+        for en, fr in MOIS_FR.items():
+            date_fr = date_fr.replace(en, fr)
         date_fr = date_fr.capitalize()
 
         if not events:
             msg = (
                 f"📅 *CALENDRIER ÉCONOMIQUE — {date_fr}*\n\n"
-                f"✅ Aucune annonce majeure aujourd\'hui.\n"
-                f"Journée calme — trading normal.\n\n"
-                f"━━━━━━━━━━━━━━━\n"
-                f"🔥 *Bectanse AUTO — Copy Trading Automatique*\n📲 bectanse-academie.com/lerisluketoVIP"
+                "✅ Aucune annonce à impact fort ou moyen repérée dans le calendrier utilisé.\n"
+                "Reste vigilant : d’autres événements et mouvements de marché restent possibles.\n\n"
+                "━━━━━━━━━━━━━━━\n"
+                "🔥 *Bectanse AUTO — Copy Trading Automatique*"
             )
         else:
-            high_count = sum(1 for e in events if e.get("impact") == "High")
+            high_count = sum(1 for event in events if event.get("impact") == "High")
             msg = f"📅 *CALENDRIER ÉCONOMIQUE — {date_fr}*\n\n"
-            if high_count > 0:
+            if high_count:
                 msg += f"⚠️ *{high_count} annonce(s) à fort impact*\n\n"
             for event in events:
-                try:
-                    currency = event.get("currency","")
-                    title = event.get("title","")
-                    impact = event.get("impact","Low")
-                    forecast = event.get("forecast","—") or "—"
-                    previous = event.get("previous","—") or "—"
-                    date_str = event.get("date","")
-                    try:
-                        from datetime import timezone
-                        dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S%z")
-                        heure = dt.strftime("%H:%M")
-                    except:
-                        heure = "—"
-                    flag = FLAG_MAP.get(currency, "🌐")
-                    icon = IMPACT_ICONS.get(impact,"⚪")
-                    msg += f"{icon} *{heure}* {flag} {title}\n"
-                    if forecast != "—":
-                        msg += f"   Prévision: `{forecast}` | Précédent: `{previous}`\n"
-                    msg += "\n"
-                except: pass
+                currency = event.get("currency", "")
+                title = event.get("title", "")
+                impact = event.get("impact", "Low")
+                forecast = event.get("forecast", "—") or "—"
+                previous = event.get("previous", "—") or "—"
+                flag = FLAG_MAP.get(currency, "🌐")
+                icon = IMPACT_ICONS.get(impact, "⚪")
+                msg += f"{icon} *{event.get('paris_time', '—')}* {flag} {title}\n"
+                if forecast != "—":
+                    msg += f"   Prévision: `{forecast}` | Précédent: `{previous}`\n"
+                msg += "\n"
             msg += "━━━━━━━━━━━━━━━\n"
             msg += "🔴 Fort impact  🟡 Moyen impact\n\n"
-            msg += "🔥 *Bectanse AUTO — Copy Trading Automatique*\n"
-            msg += "📲 bectanse-auto.up.railway.app"
+            msg += "_Un calendrier économique informe sur le timing, pas sur la direction future du marché._\n\n"
+            msg += "🔥 *Bectanse AUTO — Copy Trading Automatique*"
 
-        requests.post(
-            f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/sendMessage",
-            json={"chat_id": ECO_CANAL, "text": msg, "parse_mode": "Markdown"},
-            timeout=10
+        delivery = _broadcast_scheduled_telegram(
+            msg,
+            base_slot_key=f"economic-calendar-{target_date.isoformat()}",
+            post_kind="economic-calendar", publish_all_channels=True,
+            fallback_channel=ECO_CANAL,
+            button_text="ACCÉDER À L’ESPACE",
+            button_url="https://acces.bectanse-academie.com/"
         )
-        app.logger.info("Calendrier économique envoyé")
-        # Push Firebase calendrier
-        nb_high = sum(1 for e in events if e.get("impact") == "High") if events else 0
-        if nb_high > 0:
-            push_title = "📅 Calendrier Économique"
-            push_body = f"{nb_high} annonce(s) à fort impact aujourd'hui — Soyez prudents"
+        if not delivery["sent"]:
+            return False
+
+        nb_high = sum(1 for event in events if event.get("impact") == "High")
+        push_title = "📅 Calendrier économique"
+        if nb_high:
+            push_body = f"{nb_high} annonce(s) à fort impact aujourd’hui — prudence renforcée"
         else:
-            push_title = "📅 Calendrier Économique"
-            push_body = "Aucune annonce majeure aujourd'hui — Trading normal"
-        threading.Thread(target=send_push_to_all_fcm, args=(push_title, push_body, "/accueil"), daemon=True).start()
+            push_body = "Aucune annonce à fort impact repérée dans le calendrier utilisé"
+        threading.Thread(
+            target=send_push_to_all_fcm,
+            args=(push_title, push_body, "/accueil"),
+            daemon=True
+        ).start()
+        return True
     except Exception as e:
         app.logger.error(f"send_eco_message: {e}")
+        return False
 
 
 
@@ -2407,70 +5120,132 @@ def send_eco_message():
 
 @app.route("/api/push/vapid-public")
 def vapid_public():
-    return jsonify({"key": VAPID_PUBLIC})
+    return jsonify({"key": VAPID_PUBLIC_KEY})
 
-@app.route("/api/push/subscribe", methods=["POST"])
-def push_subscribe():
-    if "member_code" not in session:
-        return jsonify({"error": "non connecté"}), 401
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "pas de données"}), 400
-    code     = session["member_code"]
-    endpoint = data.get("endpoint", "")
-    p256dh   = data.get("keys", {}).get("p256dh", "")
-    auth_key = data.get("keys", {}).get("auth", "")
+def _save_push_subscription(data):
+    code = session.get("member_code")
+    endpoint = (data or {}).get("endpoint", "")
+    keys = (data or {}).get("keys", {})
+    p256dh, auth_key = keys.get("p256dh", ""), keys.get("auth", "")
+    if not code:
+        return jsonify({"ok": False, "error": "non connecté"}), 401
     if not endpoint or not p256dh or not auth_key:
-        return jsonify({"error": "données incomplètes"}), 400
+        return jsonify({"ok": False, "error": "abonnement incomplet"}), 400
     try:
         conn = get_conn()
-        conn.run(
-            """INSERT INTO push_subscriptions (member_code, endpoint, p256dh, auth)
-               VALUES (:code, :ep, :p256dh, :auth)
-               ON CONFLICT (endpoint) DO UPDATE SET
-               member_code=:code, p256dh=:p256dh, auth=:auth""",
-            code=code, ep=endpoint, p256dh=p256dh, auth=auth_key
-        )
+        conn.run("""INSERT INTO push_subscriptions (member_code, endpoint, p256dh, auth)
+            VALUES (:code, :endpoint, :p256dh, :auth)
+            ON CONFLICT (endpoint) DO UPDATE SET member_code=:code,
+            p256dh=:p256dh, auth=:auth""",
+            code=code, endpoint=endpoint, p256dh=p256dh, auth=auth_key)
         conn.close()
         return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception as error:
+        app.logger.error("Enregistrement Web Push: %s", error)
+        return jsonify({"ok": False, "error": "enregistrement impossible"}), 500
+
+@app.route("/api/push/subscribe", methods=["POST"])
+@login_required
+def push_subscribe():
+    return _save_push_subscription(request.get_json(silent=True) or {})
 
 @app.route("/api/push/unsubscribe", methods=["POST"])
+@login_required
 def push_unsubscribe():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if data and data.get("endpoint"):
         try:
             conn = get_conn()
-            conn.run("DELETE FROM push_subscriptions WHERE endpoint=:ep", ep=data["endpoint"])
+            conn.run("DELETE FROM push_subscriptions WHERE endpoint=:ep AND member_code=:code",
+                     ep=data["endpoint"], code=session["member_code"])
             conn.close()
         except: pass
     return jsonify({"ok": True})
 
+@app.route("/api/push/status")
+@login_required
+def push_status():
+    try:
+        conn = get_conn()
+        count = conn.run("SELECT COUNT(*) FROM push_subscriptions WHERE member_code=:code",
+                         code=session["member_code"])[0][0]
+        conn.close()
+        return jsonify({"ok": True, "subscribed": count > 0, "devices": count})
+    except Exception:
+        return jsonify({"ok": False, "subscribed": False, "devices": 0}), 500
+
+@app.route("/api/push/test", methods=["POST"])
+@login_required
+def push_test():
+    """Envoie une notification de validation uniquement aux appareils du membre."""
+    try:
+        endpoint = (request.get_json(silent=True) or {}).get("endpoint", "")
+        if not endpoint:
+            return jsonify({"ok": False, "error": "Appareil non identifié"}), 400
+        conn = get_conn()
+        rows = conn.run("""SELECT endpoint, p256dh, auth FROM push_subscriptions
+            WHERE member_code=:code AND endpoint=:endpoint""",
+            code=session["member_code"], endpoint=endpoint)
+        conn.close()
+        if not rows:
+            return jsonify({"ok": False, "error": "Appareil non abonné"}), 404
+        sent = 0
+        for endpoint, p256dh, auth_key in rows:
+            try:
+                delivered = send_webpush_notification(
+                    {"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    "Bectanse AUTO", "Tes notifications iPhone sont bien activées.", "/accueil")
+                if delivered:
+                    sent += 1
+            except Exception:
+                pass
+        return jsonify({"ok": sent > 0, "sent": sent})
+    except Exception as error:
+        app.logger.error("Test Web Push: %s", error)
+        return jsonify({"ok": False, "error": "test impossible"}), 500
+
 def send_push_to_all(title, body, url="/canal"):
-    """Envoie une Web Push à tous les membres abonnés."""
+    """Envoie un Web Push à tous les appareils des membres actifs avec bilan."""
+    from concurrent.futures import ThreadPoolExecutor
+    result = {"registered": 0, "delivered": 0, "failed": 0, "members": 0}
     try:
         from pywebpush import webpush, WebPushException
         conn = get_conn()
-        subs = conn.run("SELECT endpoint, p256dh, auth FROM push_subscriptions")
+        subs = conn.run("""SELECT ps.endpoint, ps.p256dh, ps.auth, ps.member_code
+            FROM push_subscriptions ps
+            JOIN members m ON m.code=ps.member_code
+            WHERE m.actif=TRUE AND m.code <> 'BCT-DEMO2026'""")
         conn.close()
+        result["registered"] = len(subs)
+        result["members"] = len({row[3] for row in subs})
         if not subs:
-            return
-        payload = json.dumps({"title": title, "body": body, "url": url})
-        dead = []
-        for ep, p256dh, auth_key in subs:
+            return result
+        payload = json.dumps({"title": title, "body": body, "url": url,
+                              "tag": f"bectanse-global-{int(time.time())}"})
+
+        def deliver(row):
+            ep, p256dh, auth_key, _member_code = row
             try:
                 webpush(
                     subscription_info={"endpoint": ep, "keys": {"p256dh": p256dh, "auth": auth_key}},
                     data=payload,
-                    vapid_private_key=VAPID_PRIVATE,
-                    vapid_claims=VAPID_CLAIMS
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS,
+                    timeout=10
                 )
+                return ep, True, False
             except WebPushException as ex:
-                if ex.response and ex.response.status_code in (404, 410):
-                    dead.append(ep)
-            except Exception:
-                pass
+                status = ex.response.status_code if ex.response else None
+                return ep, False, status in (404, 410)
+            except Exception as error:
+                app.logger.warning("Push global %s: %s", _member_code, error)
+                return ep, False, False
+
+        with ThreadPoolExecutor(max_workers=min(12, len(subs))) as pool:
+            deliveries = list(pool.map(deliver, subs))
+        result["delivered"] = sum(1 for _, ok, _ in deliveries if ok)
+        result["failed"] = result["registered"] - result["delivered"]
+        dead = [endpoint for endpoint, _, expired in deliveries if expired]
         if dead:
             conn2 = get_conn()
             for ep in dead:
@@ -2478,18 +5253,60 @@ def send_push_to_all(title, body, url="/canal"):
                     conn2.run("DELETE FROM push_subscriptions WHERE endpoint=:ep", ep=ep)
                 except: pass
             conn2.close()
+        return result
     except Exception as e:
         app.logger.error(f"send_push_to_all: {e}")
+        return result
+
+def send_push_to_member(member_code, title, body, url="/accueil"):
+    """Envoie un Web Push aux appareils d'un seul membre et retourne un bilan réel."""
+    from pywebpush import webpush, WebPushException
+    result = {"registered": 0, "delivered": 0, "failed": 0}
+    dead = []
+    try:
+        conn = get_conn()
+        rows = conn.run("""SELECT endpoint, p256dh, auth FROM push_subscriptions
+            WHERE member_code=:code""", code=member_code)
+        conn.close()
+        result["registered"] = len(rows)
+        payload = json.dumps({"title": title, "body": body, "url": url,
+                              "tag": f"bectanse-personal-{member_code}"})
+        for endpoint, p256dh, auth_key in rows:
+            try:
+                webpush(
+                    subscription_info={"endpoint": endpoint,
+                        "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    data=payload,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS,
+                    timeout=10
+                )
+                result["delivered"] += 1
+            except WebPushException as error:
+                result["failed"] += 1
+                status = error.response.status_code if error.response else None
+                if status in (404, 410):
+                    dead.append(endpoint)
+                app.logger.warning("Push membre %s: HTTP %s", member_code, status)
+            except Exception as error:
+                result["failed"] += 1
+                app.logger.warning("Push membre %s: %s", member_code, error)
+        if dead:
+            conn = get_conn()
+            for endpoint in dead:
+                conn.run("DELETE FROM push_subscriptions WHERE endpoint=:endpoint",
+                         endpoint=endpoint)
+            conn.close()
+        return result
+    except Exception as error:
+        app.logger.error("Push individuel %s: %s", member_code, error)
+        return result
 
 # ── CANAL VIP ─────────────────────────────────────────────────────────────────
 
 CANAL_BOT_TOKEN = "8895323708:AAFNFHv8BXada_wFDnZhh69rKPLKs2oGAco"
 CANAL_GROUP_ID  = -1003605441967
 CANAL_ADMIN_CODE = "BCT-LERIS"
-VAPID_PUBLIC  = "BI5TQpefuRvs_HIPgRzXnBQqcQ5V9puh2hteQmdRp8pQFMEh-XyvgPGpYrO5ioPak9Z7ml6laSl2WnNh96RFrv8"
-VAPID_PRIVATE = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmeZdDREE6AdkScXLD0GeI65NwMQ3C7kBzmRN49e-XTqhRANCAASOU0KXn7kb7PxyD4Ec15wUKnEOVfabodobXkJnUafKUBTBIfl8r4DxqWKzuYqD2pPWe5pepWkpdlpzYfekRa7_"
-VAPID_CLAIMS  = {"sub": "mailto:bectanse@gmail.com"}  # code membre admin qui peut publier depuis webapp
-
 def detect_msg_type(text):
     """Détecte automatiquement le type de message selon les mots-clés."""
     t = (text or "").lower()
@@ -3008,14 +5825,30 @@ def _startup():
         app.logger.info("Webhook enregistré")
         register_canal_webhook()
         app.logger.info("Canal webhook enregistré")
-        # Scheduler calendrier économique 08:00
+        # Publications Telegram et relances — heure de Paris.
         from apscheduler.schedulers.background import BackgroundScheduler
         scheduler = BackgroundScheduler(timezone='Europe/Paris')
-        scheduler.add_job(send_eco_message, 'cron', hour=8, minute=0)
-        scheduler.add_job(job_relances_quotidiennes, 'cron', hour=9, minute=0)
+        scheduler.add_job(
+            send_eco_message, 'cron', hour=8, minute=30,
+            id='telegram_economic_calendar', replace_existing=True,
+            coalesce=True, max_instances=1, misfire_grace_time=3600
+        )
+        scheduler.add_job(
+            job_relances_quotidiennes, 'cron', hour=9, minute=0,
+            id='member_daily_reminders', replace_existing=True,
+            coalesce=True, max_instances=1, misfire_grace_time=3600
+        )
+        scheduler.add_job(
+            process_scheduled_telegram_posts, 'interval', minutes=1,
+            id='telegram_scheduled_posts', replace_existing=True,
+            next_run_time=_paris_now(), coalesce=True, max_instances=1,
+            misfire_grace_time=120
+        )
         init_demo_account()
         scheduler.start()
-        app.logger.info("✅ Schedulers: calendrier 8h + relances 9h (J-7/J-2/J=0 Telegram + emails)")
+        app.logger.info(
+            "✅ Schedulers: calendrier 8h30 + relances 9h + centre Telegram chaque minute (Europe/Paris)"
+        )
     except Exception as e:
         app.logger.error(f"startup: {e}")
 
