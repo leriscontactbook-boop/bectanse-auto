@@ -1,4 +1,4 @@
-import os, json, secrets, string, requests, time, threading, csv, io, hashlib, unicodedata
+import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re
 from datetime import datetime, timedelta
 from functools import wraps
 from zoneinfo import ZoneInfo
@@ -21,6 +21,17 @@ VAPID_CLAIMS      = {"sub": "mailto:bectanseacademie@gmail.com"}
 CLOUDINARY_CLOUD  = os.environ.get("CLOUDINARY_CLOUD", "dqgd441is")
 CLOUDINARY_KEY    = os.environ.get("CLOUDINARY_KEY", "631288474842446")
 CLOUDINARY_SECRET = os.environ.get("CLOUDINARY_SECRET", "GqmAD-4OOtkLGhu6boCcnwUXXUE")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_ANALYSIS_MODEL = os.environ.get("OPENAI_ANALYSIS_MODEL", "gpt-5.6-terra")
+ANALYSIS_INITIAL_CREDITS = int(os.environ.get("ANALYSIS_INITIAL_CREDITS", "5"))
+ANALYSIS_MAX_IMAGE_BYTES = 6 * 1024 * 1024
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+ANALYSIS_PACKS = {
+    "10": {"credits": 10, "amount_cents": 990, "label": "Pack Découverte"},
+    "30": {"credits": 30, "amount_cents": 2490, "label": "Pack Trader"},
+    "100": {"credits": 100, "amount_cents": 5990, "label": "Pack Pro"},
+}
 ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "8565312655:AAFyfFQvKEiFtFJYA0yDQE1bLdH8N50UX4c")
 ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
 GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
@@ -33,10 +44,6 @@ TELEGRAM_EDITORIAL_PATH = os.environ.get(
 TELEGRAM_CSV_TEMPLATE_PATH = os.path.join(
     APP_DIR, "content", "modele_planning_telegram_semaine.csv"
 )
-PUBLIC_APP_URL = os.environ.get(
-    "PUBLIC_APP_URL", "https://acces.bectanse-academie.com"
-).rstrip("/")
-BASE_URL = os.environ.get("BASE_URL", PUBLIC_APP_URL).rstrip("/")
 
 
 def _format_editorial_entry(calendar, post):
@@ -140,6 +147,67 @@ def init_db():
             """)
             conn.run("""CREATE INDEX IF NOT EXISTS prospect_verification_status_idx
                          ON prospect_email_verifications (status, expires_at)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_wallets (
+                    member_code      TEXT PRIMARY KEY,
+                    balance          INTEGER NOT NULL DEFAULT 5 CHECK (balance >= 0),
+                    lifetime_granted INTEGER NOT NULL DEFAULT 5,
+                    lifetime_spent   INTEGER NOT NULL DEFAULT 0,
+                    created_at       TIMESTAMP DEFAULT NOW(),
+                    updated_at       TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_jobs (
+                    id               TEXT PRIMARY KEY,
+                    member_code      TEXT NOT NULL,
+                    status           TEXT NOT NULL DEFAULT 'processing',
+                    timeframe        TEXT NOT NULL,
+                    session_name     TEXT NOT NULL,
+                    trading_style    TEXT NOT NULL,
+                    market           TEXT NOT NULL DEFAULT 'XAU/USD',
+                    image_mime       TEXT NOT NULL,
+                    result_json      TEXT NOT NULL DEFAULT '',
+                    error            TEXT NOT NULL DEFAULT '',
+                    model            TEXT NOT NULL DEFAULT '',
+                    input_tokens     INTEGER NOT NULL DEFAULT 0,
+                    output_tokens    INTEGER NOT NULL DEFAULT 0,
+                    search_calls     INTEGER NOT NULL DEFAULT 0,
+                    created_at       TIMESTAMP DEFAULT NOW(),
+                    completed_at     TIMESTAMP
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS analysis_jobs_member_idx
+                         ON analysis_jobs (member_code, created_at DESC)""")
+            try:
+                conn.run("ALTER TABLE analysis_jobs ADD COLUMN IF NOT EXISTS market TEXT NOT NULL DEFAULT 'XAU/USD'")
+            except Exception:
+                pass
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_credit_ledger (
+                    id            SERIAL PRIMARY KEY,
+                    member_code   TEXT NOT NULL,
+                    delta         INTEGER NOT NULL,
+                    balance_after INTEGER NOT NULL,
+                    reason        TEXT NOT NULL,
+                    reference     TEXT UNIQUE NOT NULL,
+                    created_at    TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS analysis_ledger_member_idx
+                         ON analysis_credit_ledger (member_code, created_at DESC)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS analysis_purchases (
+                    id                SERIAL PRIMARY KEY,
+                    stripe_session_id TEXT UNIQUE NOT NULL,
+                    member_code       TEXT NOT NULL,
+                    credits           INTEGER NOT NULL,
+                    amount_cents      INTEGER NOT NULL,
+                    currency          TEXT NOT NULL DEFAULT 'eur',
+                    status            TEXT NOT NULL DEFAULT 'paid',
+                    created_at        TIMESTAMP DEFAULT NOW()
+                )
+            """)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -684,10 +752,6 @@ def activer_prospect():
     telephone   = request.args.get("tel","")
     offre       = request.args.get("offre","")
     parrain_code= request.args.get("parrain","").upper()
-    mt_login    = request.args.get("mt_login", "")
-    mt_pass     = request.args.get("mt_password", "")
-    serveur     = request.args.get("serveur", "")
-    plateforme  = request.args.get("plateforme", "MT5")
 
     # Créer le membre
     code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
@@ -1309,76 +1373,10 @@ def _payload_list(value, separator="|"):
     return [item.strip() for item in text.split(separator) if item.strip()]
 
 
-def _normalize_telegram_image_url(value):
-    image_url = str(value or "").strip()
-    if image_url.startswith("//"):
-        return f"https:{image_url}"
-    if image_url.startswith("/static/"):
-        return f"{PUBLIC_APP_URL}{image_url}"
-    if image_url.startswith("static/"):
-        return f"{PUBLIC_APP_URL}/{image_url}"
-    return image_url
-
-
-def _telegram_photo_delivery_url(value):
-    image_url = _normalize_telegram_image_url(value)
-    if not image_url:
-        return ""
-    clean_url, separator, query = image_url.partition("?")
-    if "/static/telegram-visuals/" in clean_url and clean_url.lower().endswith(".webp"):
-        clean_url = f"{clean_url[:-5]}.png"
-    elif "res.cloudinary.com/" in clean_url and "/image/upload/" in clean_url:
-        prefix, suffix = clean_url.split("/image/upload/", 1)
-        if not suffix.startswith("f_jpg"):
-            suffix = f"f_jpg,q_auto/{suffix}"
-        if "." in suffix.rsplit("/", 1)[-1]:
-            suffix = f"{suffix.rsplit('.', 1)[0]}.jpg"
-        clean_url = f"{prefix}/image/upload/{suffix}"
-    return f"{clean_url}{separator}{query}" if separator else clean_url
-
-
-def _download_telegram_photo(image_url, max_bytes=10 * 1024 * 1024):
-    clean_url = image_url.split("?", 1)[0]
-    static_marker = "/static/telegram-visuals/"
-    if static_marker in clean_url:
-        filename = secure_filename(clean_url.split(static_marker, 1)[1])
-        file_path = os.path.join(APP_DIR, "static", "telegram-visuals", filename)
-        if filename.lower().endswith((".jpg", ".jpeg")):
-            content_type = "image/jpeg"
-        elif filename.lower().endswith(".png"):
-            content_type = "image/png"
-        else:
-            content_type = ""
-        if not os.path.isfile(file_path) or not content_type:
-            raise ValueError("Le visuel Bectanse est introuvable ou incompatible avec Telegram")
-        with open(file_path, "rb") as source:
-            image_bytes = source.read(max_bytes + 1)
-        if not image_bytes or len(image_bytes) > max_bytes:
-            raise ValueError("Le visuel est vide ou dépasse la limite Telegram de 10 Mo")
-        return filename, image_bytes, content_type
-
-    response = requests.get(image_url, timeout=20)
-    response.raise_for_status()
-    content_type = str(response.headers.get("Content-Type") or "").split(";", 1)[0].lower()
-    if content_type not in {"image/jpeg", "image/png"}:
-        raise ValueError("Le visuel doit être une image JPEG ou PNG compatible Telegram")
-    content_length = int(response.headers.get("Content-Length") or 0)
-    if content_length > max_bytes:
-        raise ValueError("Le visuel dépasse la limite Telegram de 10 Mo")
-    image_bytes = response.content
-    if not image_bytes or len(image_bytes) > max_bytes:
-        raise ValueError("Le visuel est vide ou dépasse la limite Telegram de 10 Mo")
-    extension = "jpg" if content_type == "image/jpeg" else "png"
-    filename = secure_filename(image_url.split("?", 1)[0].rsplit("/", 1)[-1])
-    if not filename.lower().endswith((".jpg", ".jpeg", ".png")):
-        filename = f"bectanse-telegram.{extension}"
-    return filename, image_bytes, content_type
-
-
 def _validate_telegram_post_payload(data):
     name = str(data.get("name") or "").strip()
     message = str(data.get("message") or "").strip()
-    image_url = _telegram_photo_delivery_url(data.get("image_url"))
+    image_url = str(data.get("image_url") or "").strip()
     post_type = str(data.get("post_type") or "message").strip().lower()
     schedule_type = str(data.get("schedule_type") or "weekly").strip()
     publish_time = str(data.get("publish_time") or "18:30").strip()
@@ -1899,15 +1897,15 @@ def _validate_telegram_channel_payload(data):
 
 def _validate_telegram_media_payload(data):
     title = str(data.get("title") or "").strip()
-    image_url = _normalize_telegram_image_url(data.get("image_url"))
+    image_url = str(data.get("image_url") or "").strip()
     category = str(data.get("category") or "personal").strip().lower()
     caption = str(data.get("caption") or "").strip()
     cta_text = str(data.get("cta_text") or "").strip()
     cta_url = str(data.get("cta_url") or "").strip()
     if not title or len(title) > 100:
         raise ValueError("Le nom du visuel est obligatoire et limité à 100 caractères")
-    if not image_url.startswith("https://"):
-        raise ValueError("L’adresse du visuel doit utiliser HTTPS")
+    if not image_url.startswith(("https://", "http://")):
+        raise ValueError("L’adresse du visuel doit commencer par https:// ou http://")
     if category not in {"personal", "conversion", "market", "community"}:
         raise ValueError("Catégorie de visuel invalide")
     if len(caption) > 1024:
@@ -2438,9 +2436,7 @@ def admin_api_telegram_upload():
     file_bytes = image.read(8 * 1024 * 1024 + 1)
     if len(file_bytes) > 8 * 1024 * 1024:
         return jsonify({"ok": False, "error": "L’image ne doit pas dépasser 8 Mo"}), 400
-    image_url = _telegram_photo_delivery_url(
-        upload_to_cloudinary(file_bytes, "image", secure_filename(image.filename))
-    )
+    image_url = upload_to_cloudinary(file_bytes, "image", secure_filename(image.filename))
     if not image_url:
         return jsonify({"ok": False, "error": "L’image n’a pas pu être enregistrée"}), 502
     return jsonify({"ok": True, "url": image_url})
@@ -2636,6 +2632,478 @@ def admin_api_membre_profil():
         return jsonify({"ok":True,"member":member})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
+
+
+# ── BECTANSE ANALYSE IA — BÊTA PRIVÉE ───────────────────────────────────────
+
+ANALYSIS_TIMEFRAMES = {"M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"}
+ANALYSIS_SESSIONS = {"Asie", "Londres", "New York", "Overlap", "Hors session"}
+ANALYSIS_STYLES = {"Scalping", "Intraday", "Swing", "Position", "Multi-TF"}
+ANALYSIS_EVENT_IMPACTS = {"high", "medium", "low"}
+ANALYSIS_MARKETS = {"XAU/USD", "XAG/USD", "BTC/USD", "ETH/USD", "EUR/USD", "GBP/USD",
+                    "USD/JPY", "NAS100", "US30", "SPX500", "WTI", "GER40"}
+
+
+def _analysis_wallet(conn, member_code, lock=False):
+    conn.run("""INSERT INTO analysis_wallets
+        (member_code, balance, lifetime_granted, lifetime_spent)
+        VALUES (:code, :initial, :initial, 0)
+        ON CONFLICT (member_code) DO NOTHING""",
+        code=member_code, initial=ANALYSIS_INITIAL_CREDITS)
+    suffix = " FOR UPDATE" if lock else ""
+    rows = conn.run(
+        "SELECT balance, lifetime_granted, lifetime_spent FROM analysis_wallets "
+        "WHERE member_code=:code" + suffix,
+        code=member_code)
+    return {
+        "balance": int(rows[0][0]),
+        "lifetime_granted": int(rows[0][1]),
+        "lifetime_spent": int(rows[0][2]),
+    }
+
+
+def _analysis_schema():
+    zone = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "type": {"type": "string"}, "niveau": {"type": "string"},
+            "force": {"type": "string"}, "description": {"type": "string"}
+        },
+        "required": ["type", "niveau", "force", "description"]
+    }
+    plan = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "direction": {"type": "string"}, "qualite": {"type": "string"},
+            "entree": {"type": "string"}, "declencheur": {"type": "string"},
+            "objectif_1": {"type": "string"}, "objectif_2": {"type": "string"},
+            "invalidation": {"type": "string"}, "ratio": {"type": "string"}
+        },
+        "required": ["direction", "qualite", "entree", "declencheur",
+                     "objectif_1", "objectif_2", "invalidation", "ratio"]
+    }
+    checklist = {
+        "type": "object", "additionalProperties": False,
+        "properties": {"point": {"type": "string"}, "statut": {"type": "string"}},
+        "required": ["point", "statut"]
+    }
+    news_impact = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "event": {"type": "string"}, "impact": {"type": "string"},
+            "direction_attendue": {"type": "string"}, "conseil": {"type": "string"}
+        },
+        "required": ["event", "impact", "direction_attendue", "conseil"]
+    }
+    institutional = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "tendance": {"type": "string"}, "liquidite": {"type": "string"},
+            "order_blocks": {"type": "string"}, "fvg": {"type": "string"},
+            "smc_ict": {"type": "string"}, "volume": {"type": "string"},
+            "setup_recommande": {"type": "string"}, "etat_marche": {"type": "string"},
+            "regime_marche": {"type": "string"}, "mtf_alignment": {"type": "string"},
+            "kill_zone": {"type": "string"}, "phase_wyckoff": {"type": "string"},
+            "zone_prix": {"type": "string"}, "zone_ote": {"type": "string"},
+            "score_confluence": {"type": "integer", "minimum": 0, "maximum": 15},
+            "verdict": {"type": "string"}
+        },
+        "required": ["tendance", "liquidite", "order_blocks", "fvg", "smc_ict", "volume",
+                     "setup_recommande", "etat_marche", "regime_marche", "mtf_alignment",
+                     "kill_zone", "phase_wyckoff", "zone_prix", "zone_ote",
+                     "score_confluence", "verdict"]
+    }
+    intelligence = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "actualites": {"type": "string"}, "macro": {"type": "string"},
+            "geopolitique": {"type": "string"}, "session": {"type": "string"},
+            "anticipation": {"type": "string"}
+        },
+        "required": ["actualites", "macro", "geopolitique", "session", "anticipation"]
+    }
+    return {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "biais_global": {"type": "string"},
+            "confiance": {"type": "integer", "minimum": 0, "maximum": 100},
+            "structure": {"type": "string"},
+            "resume": {"type": "string"},
+            "prix_visible": {"type": "string"},
+            "zones": {"type": "array", "items": zone, "maxItems": 8},
+            "plans": {"type": "array", "items": plan, "maxItems": 3},
+            "risque": {"type": "string"},
+            "risques_detectes": {"type": "array", "items": {"type": "string"}, "maxItems": 8},
+            "contexte_marche": {"type": "string"},
+            "lecture_institutionnelle": institutional,
+            "intelligence_marche": intelligence,
+            "annonces_impact": {"type": "array", "items": news_impact, "maxItems": 12},
+            "checklist": {"type": "array", "items": checklist, "maxItems": 10},
+            "conclusion": {"type": "string"},
+            "avertissement": {"type": "string"}
+        },
+        "required": ["biais_global", "confiance", "structure", "resume", "prix_visible",
+                     "zones", "plans", "risque", "risques_detectes", "contexte_marche",
+                     "lecture_institutionnelle", "intelligence_marche", "annonces_impact",
+                     "checklist", "conclusion", "avertissement"]
+    }
+
+
+def _analysis_prompt(market, timeframe, session_name, trading_style, economic_events):
+    today = datetime.now(PARIS_TZ).strftime("%d/%m/%Y %H:%M")
+    events_context = json.dumps(economic_events, ensure_ascii=False) if economic_events else "Aucune annonce sélectionnée"
+    return f"""Tu es l'assistant d'analyse graphique éducative de Bectanse Académie.
+Bectanse possède une expertise historique sur XAU/USD, mais cet outil analyse aussi les autres
+marchés. Le marché choisi est {market}. Analyse uniquement cet instrument sur la capture jointe.
+
+Contexte utilisateur : marché {market}, timeframe {timeframe}, session {session_name}, style {trading_style}.
+Date et heure Europe/Paris : {today}.
+Événements signalés par le membre : {events_context}.
+
+Utilise la recherche Web uniquement pour vérifier le contexte macroéconomique actuel réellement
+utile à {market}. Adapte les facteurs suivis à l'instrument : devises et banques centrales pour le
+Forex, taux et indices pour les actions, flux refuge pour les métaux, marché crypto pour les actifs
+numériques, stocks et géopolitique pour l'énergie. Ne fabrique aucune actualité.
+
+RÈGLES ABSOLUES :
+- Lis les prix uniquement sur l'axe visible. N'invente jamais un niveau illisible.
+- Si un prix est ambigu, écris « niveau non lisible sur la capture ».
+- Distingue observation, scénario conditionnel et invalidation.
+- Produis une lecture institutionnelle séparée : tendance, liquidité, Order Blocks, FVG,
+  concepts SMC/ICT et volume visible. Indique clairement ce qui n'est pas lisible.
+- Inclus tous les diagnostics historiques du Bectanse Bot Analyser : setup recommandé,
+  état du marché (NO TRADE / risqué / valide), régime, alignement MTF H4/H1/TF principal,
+  Kill Zone ICT, phase Wyckoff, Premium/Discount, zone OTE, score de confluence sur 15
+  et verdict final avec conditions validées.
+- Structure l'intelligence marché en cinq angles : actualités, macro, géopolitique,
+  session active et anticipation de la prochaine session.
+- Pour chaque événement sélectionné, explique son impact potentiel sans inventer son résultat.
+- Ne promets jamais de gain et ne présente jamais un scénario comme certain.
+- Les plans sont éducatifs et conditionnels, pas des ordres ni un conseil financier personnalisé.
+- Réponds en français, de façon concise, avec le schéma JSON imposé.
+- Le champ avertissement doit rappeler que l'analyse automatisée peut se tromper et ne remplace
+  ni une vérification humaine ni une gestion du risque adaptée."""
+
+
+def _openai_analysis(image_data_url, market, timeframe, session_name, trading_style, economic_events):
+    if not OPENAI_API_KEY:
+        raise RuntimeError("Le moteur d’analyse n’est pas encore connecté.")
+    payload = {
+        "model": OPENAI_ANALYSIS_MODEL,
+        "reasoning": {"effort": "low"},
+        "max_output_tokens": 3500,
+        "tools": [{"type": "web_search"}],
+        "input": [{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": _analysis_prompt(market, timeframe, session_name, trading_style, economic_events)},
+                {"type": "input_image", "image_url": image_data_url, "detail": "high"}
+            ]
+        }],
+        "text": {"format": {
+            "type": "json_schema", "name": "bectanse_chart_analysis",
+            "strict": True, "schema": _analysis_schema()
+        }}
+    }
+    response = requests.post(
+        "https://api.openai.com/v1/responses",
+        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+        json=payload, timeout=150)
+    if not response.ok:
+        try:
+            api_error = response.json().get("error", {}).get("message", "")
+        except Exception:
+            api_error = ""
+        raise RuntimeError(api_error or f"Erreur du moteur ({response.status_code})")
+    body = response.json()
+    output_text = body.get("output_text", "")
+    if not output_text:
+        for item in body.get("output", []):
+            if item.get("type") == "message":
+                for content in item.get("content", []):
+                    if content.get("type") == "output_text":
+                        output_text += content.get("text", "")
+    if not output_text:
+        raise RuntimeError("Le moteur n’a produit aucun résultat exploitable.")
+    try:
+        result = json.loads(output_text)
+    except Exception as error:
+        raise RuntimeError("Le résultat reçu est incomplet. Le crédit sera remboursé.") from error
+    usage = body.get("usage") or {}
+    search_calls = sum(1 for item in body.get("output", []) if item.get("type") == "web_search_call")
+    return result, {
+        "input_tokens": int(usage.get("input_tokens", 0) or 0),
+        "output_tokens": int(usage.get("output_tokens", 0) or 0),
+        "search_calls": search_calls,
+    }
+
+
+def _refund_analysis_credit(member_code, job_id, error_message):
+    conn = get_conn()
+    try:
+        conn.run("BEGIN")
+        changed = conn.run("""UPDATE analysis_jobs SET status='failed', error=:error,
+            completed_at=NOW() WHERE id=:job AND member_code=:code AND status='processing'
+            RETURNING id""", error=error_message[:800], job=job_id, code=member_code)
+        if changed:
+            wallet = _analysis_wallet(conn, member_code, lock=True)
+            new_balance = wallet["balance"] + 1
+            conn.run("""UPDATE analysis_wallets SET balance=:balance,
+                lifetime_spent=GREATEST(0, lifetime_spent-1), updated_at=NOW()
+                WHERE member_code=:code""", balance=new_balance, code=member_code)
+            conn.run("""INSERT INTO analysis_credit_ledger
+                (member_code, delta, balance_after, reason, reference)
+                VALUES (:code, 1, :balance, 'refund_failed_analysis', :ref)
+                ON CONFLICT (reference) DO NOTHING""",
+                code=member_code, balance=new_balance, ref=f"refund:{job_id}")
+        conn.run("COMMIT")
+    except Exception:
+        try: conn.run("ROLLBACK")
+        except Exception: pass
+        raise
+    finally:
+        conn.close()
+
+
+ANALYSIS_ADMIN_CODE = "BCT-ADMIN-BETA"
+
+
+def _analysis_admin_allowed():
+    return hmac.compare_digest(str(request.args.get("key", "")), str(ADMIN_KEY))
+
+
+@app.route("/analyse-ia")
+def analyse_ia():
+    if not _analysis_admin_allowed():
+        return redirect("/admin-panel")
+    code = ANALYSIS_ADMIN_CODE
+    member = {"code": code, "nom": "Administration Bectanse"}
+    conn = get_conn()
+    try:
+        wallet = _analysis_wallet(conn, code)
+        rows = conn.run("""SELECT id, status, market, timeframe, session_name, trading_style,
+            result_json, error, created_at FROM analysis_jobs
+            WHERE member_code=:code ORDER BY created_at DESC LIMIT 12""", code=code)
+        history = []
+        for row in rows:
+            item = dict(zip(["id", "status", "market", "timeframe", "session_name", "trading_style",
+                             "result_json", "error", "created_at"], row))
+            if item["result_json"]:
+                try: item["result"] = json.loads(item["result_json"])
+                except Exception: item["result"] = None
+            else: item["result"] = None
+            history.append(item)
+    finally:
+        conn.close()
+    return render_template("analyse_ia.html", member=member, wallet=wallet, history=history,
+                           engine_ready=bool(OPENAI_API_KEY), demo_mode=False,
+                           admin_beta=True, admin_key=ADMIN_KEY)
+
+
+@app.route("/api/analyse-ia/run", methods=["POST"])
+def analyse_ia_run():
+    if not _analysis_admin_allowed():
+        return jsonify({"ok": False, "error": "Bêta privée réservée à l’administration."}), 403
+    code = ANALYSIS_ADMIN_CODE
+    if not OPENAI_API_KEY:
+        return jsonify({"ok": False, "error": "La bêta attend encore la connexion du moteur OpenAI."}), 503
+    data = request.get_json(silent=True) or {}
+    market = str(data.get("market", "XAU/USD")).upper().strip()
+    timeframe = str(data.get("timeframe", "M15"))
+    session_name = str(data.get("session", "Londres"))
+    trading_style = str(data.get("style", "Intraday"))
+    raw_events = data.get("events") or []
+    image_data = str(data.get("image", ""))
+    if market not in ANALYSIS_MARKETS and not re.fullmatch(r"[A-Z0-9][A-Z0-9/_.-]{1,19}", market):
+        return jsonify({"ok": False, "error": "Symbole de marché invalide."}), 400
+    if timeframe not in ANALYSIS_TIMEFRAMES or session_name not in ANALYSIS_SESSIONS or trading_style not in ANALYSIS_STYLES:
+        return jsonify({"ok": False, "error": "Configuration d’analyse invalide."}), 400
+    if not isinstance(raw_events, list) or len(raw_events) > 12:
+        return jsonify({"ok": False, "error": "Liste d’annonces invalide."}), 400
+    economic_events = []
+    for event in raw_events:
+        if not isinstance(event, dict):
+            return jsonify({"ok": False, "error": "Annonce invalide."}), 400
+        name = str(event.get("name", "")).strip()[:80]
+        impact = str(event.get("impact", "medium")).lower()
+        event_time = str(event.get("time", "")).strip()[:10]
+        if not name or impact not in ANALYSIS_EVENT_IMPACTS:
+            return jsonify({"ok": False, "error": "Annonce invalide."}), 400
+        economic_events.append({"name": name, "impact": impact, "time": event_time})
+    if not image_data.startswith("data:image/") or ";base64," not in image_data:
+        return jsonify({"ok": False, "error": "Capture invalide."}), 400
+    header, encoded = image_data.split(",", 1)
+    mime = header[5:].split(";", 1)[0].lower()
+    if mime not in {"image/jpeg", "image/png", "image/webp"}:
+        return jsonify({"ok": False, "error": "Format accepté : JPG, PNG ou WEBP."}), 400
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except Exception:
+        return jsonify({"ok": False, "error": "La capture est illisible."}), 400
+    if len(raw) > ANALYSIS_MAX_IMAGE_BYTES:
+        return jsonify({"ok": False, "error": "La capture dépasse 6 Mo."}), 413
+
+    job_id = str(uuid.uuid4())
+    conn = get_conn()
+    try:
+        conn.run("BEGIN")
+        wallet = _analysis_wallet(conn, code, lock=True)
+        if wallet["balance"] < 1:
+            conn.run("ROLLBACK")
+            return jsonify({"ok": False, "error": "Tu n’as plus de crédit disponible.", "balance": 0}), 402
+        new_balance = wallet["balance"] - 1
+        conn.run("""INSERT INTO analysis_jobs
+            (id, member_code, status, market, timeframe, session_name, trading_style, image_mime, model)
+            VALUES (:id, :code, 'processing', :market, :tf, :session, :style, :mime, :model)""",
+            id=job_id, code=code, market=market, tf=timeframe, session=session_name,
+            style=trading_style, mime=mime, model=OPENAI_ANALYSIS_MODEL)
+        conn.run("""UPDATE analysis_wallets SET balance=:balance,
+            lifetime_spent=lifetime_spent+1, updated_at=NOW() WHERE member_code=:code""",
+            balance=new_balance, code=code)
+        conn.run("""INSERT INTO analysis_credit_ledger
+            (member_code, delta, balance_after, reason, reference)
+            VALUES (:code, -1, :balance, 'analysis', :ref)""",
+            code=code, balance=new_balance, ref=f"analysis:{job_id}")
+        conn.run("COMMIT")
+    except Exception as error:
+        try: conn.run("ROLLBACK")
+        except Exception: pass
+        app.logger.error("Création analyse IA: %s", error)
+        return jsonify({"ok": False, "error": "Impossible de réserver le crédit."}), 500
+    finally:
+        conn.close()
+
+    try:
+        result, usage = _openai_analysis(image_data, market, timeframe, session_name, trading_style, economic_events)
+        conn = get_conn()
+        conn.run("""UPDATE analysis_jobs SET status='completed', result_json=:result,
+            input_tokens=:input_tokens, output_tokens=:output_tokens,
+            search_calls=:search_calls, completed_at=NOW()
+            WHERE id=:id AND member_code=:code""",
+            result=json.dumps(result, ensure_ascii=False),
+            input_tokens=usage["input_tokens"], output_tokens=usage["output_tokens"],
+            search_calls=usage["search_calls"], id=job_id, code=code)
+        conn.close()
+        return jsonify({"ok": True, "job_id": job_id, "balance": new_balance,
+                        "result": result, "usage": usage})
+    except Exception as error:
+        app.logger.error("Analyse IA %s: %s", job_id, error)
+        try: _refund_analysis_credit(code, job_id, str(error))
+        except Exception as refund_error: app.logger.error("Remboursement %s: %s", job_id, refund_error)
+        return jsonify({"ok": False, "error": str(error), "refunded": True,
+                        "balance": new_balance + 1}), 502
+
+
+@app.route("/api/analyse-ia/checkout", methods=["POST"])
+@login_required
+def analyse_ia_checkout():
+    code = session["member_code"]
+    if code == "BCT-DEMO2026":
+        return jsonify({"ok": False, "error": "Achat indisponible en mode Explorer."}), 403
+    if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
+        return jsonify({"ok": False, "error": "Les recharges seront ouvertes après la validation de la bêta."}), 503
+    pack_id = str((request.get_json(silent=True) or {}).get("pack", ""))
+    pack = ANALYSIS_PACKS.get(pack_id)
+    if not pack:
+        return jsonify({"ok": False, "error": "Pack inconnu."}), 400
+    root = request.url_root.rstrip("/")
+    form = {
+        "mode": "payment",
+        "success_url": root + "/analyse-ia?checkout=success",
+        "cancel_url": root + "/analyse-ia?checkout=cancelled",
+        "client_reference_id": code,
+        "metadata[member_code]": code,
+        "metadata[credits]": str(pack["credits"]),
+        "line_items[0][quantity]": "1",
+        "line_items[0][price_data][currency]": "eur",
+        "line_items[0][price_data][unit_amount]": str(pack["amount_cents"]),
+        "line_items[0][price_data][product_data][name]": f"Bectanse Analyse IA — {pack['credits']} crédits",
+        "line_items[0][price_data][product_data][description]": "1 crédit = 1 analyse complète",
+    }
+    try:
+        stripe_response = requests.post(
+            "https://api.stripe.com/v1/checkout/sessions",
+            auth=(STRIPE_SECRET_KEY, ""), data=form, timeout=25)
+        stripe_data = stripe_response.json()
+        if not stripe_response.ok:
+            raise RuntimeError(stripe_data.get("error", {}).get("message", "Paiement indisponible"))
+        return jsonify({"ok": True, "url": stripe_data["url"]})
+    except Exception as error:
+        app.logger.error("Création paiement crédits: %s", error)
+        return jsonify({"ok": False, "error": "Impossible d’ouvrir le paiement pour le moment."}), 502
+
+
+def _stripe_signature_valid(raw_body, signature_header):
+    if not STRIPE_WEBHOOK_SECRET or not signature_header:
+        return False
+    values = {}
+    for part in signature_header.split(","):
+        if "=" in part:
+            key, value = part.split("=", 1)
+            values.setdefault(key, []).append(value)
+    try:
+        timestamp = int(values.get("t", ["0"])[0])
+    except Exception:
+        return False
+    if abs(int(time.time()) - timestamp) > 300:
+        return False
+    signed = str(timestamp).encode("utf-8") + b"." + raw_body
+    expected = hmac.new(STRIPE_WEBHOOK_SECRET.encode("utf-8"), signed, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(expected, candidate) for candidate in values.get("v1", []))
+
+
+@app.route("/api/stripe/analyse-credits", methods=["POST"])
+def stripe_analysis_credits_webhook():
+    raw_body = request.get_data(cache=False)
+    if not _stripe_signature_valid(raw_body, request.headers.get("Stripe-Signature", "")):
+        return jsonify({"ok": False}), 400
+    try:
+        event = json.loads(raw_body.decode("utf-8"))
+        if event.get("type") != "checkout.session.completed":
+            return jsonify({"ok": True})
+        checkout = (event.get("data") or {}).get("object") or {}
+        if checkout.get("payment_status") != "paid":
+            return jsonify({"ok": True})
+        metadata = checkout.get("metadata") or {}
+        code = str(metadata.get("member_code", ""))
+        credits = int(metadata.get("credits", 0) or 0)
+        session_id = str(checkout.get("id", ""))
+        pack = next((value for value in ANALYSIS_PACKS.values() if value["credits"] == credits), None)
+        if (not code or not session_id or not pack or
+                int(checkout.get("amount_total", 0) or 0) != pack["amount_cents"] or
+                str(checkout.get("currency", "")).lower() != "eur"):
+            return jsonify({"ok": False}), 400
+        conn = get_conn()
+        try:
+            conn.run("BEGIN")
+            inserted = conn.run("""INSERT INTO analysis_purchases
+                (stripe_session_id, member_code, credits, amount_cents, currency, status)
+                VALUES (:session_id, :code, :credits, :amount, 'eur', 'paid')
+                ON CONFLICT (stripe_session_id) DO NOTHING RETURNING id""",
+                session_id=session_id, code=code, credits=credits, amount=pack["amount_cents"])
+            if inserted:
+                wallet = _analysis_wallet(conn, code, lock=True)
+                new_balance = wallet["balance"] + credits
+                conn.run("""UPDATE analysis_wallets SET balance=:balance,
+                    lifetime_granted=lifetime_granted+:credits, updated_at=NOW()
+                    WHERE member_code=:code""", balance=new_balance, credits=credits, code=code)
+                conn.run("""INSERT INTO analysis_credit_ledger
+                    (member_code, delta, balance_after, reason, reference)
+                    VALUES (:code, :credits, :balance, 'stripe_purchase', :reference)
+                    ON CONFLICT (reference) DO NOTHING""",
+                    code=code, credits=credits, balance=new_balance,
+                    reference=f"stripe:{session_id}")
+            conn.run("COMMIT")
+        except Exception:
+            try: conn.run("ROLLBACK")
+            except Exception: pass
+            raise
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+    except Exception as error:
+        app.logger.error("Webhook crédits Stripe: %s", error)
+        return jsonify({"ok": False}), 500
 
 @app.route("/calculateur")
 @login_required
@@ -3155,10 +3623,6 @@ def admin_add():
     data = request.get_json()
     nom = data.get("nom","")
     capital = data.get("capital","")
-    mt_login = data.get("mt_login", "")
-    mt_pass = data.get("mt_password", "")
-    serveur = data.get("serveur", "")
-    plateforme = data.get("plateforme", "MT5")
     code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
     try:
         conn = get_conn()
@@ -3212,7 +3676,13 @@ def bot_webhook():
 
             elif text.startswith("/message "):
                 contenu = text[9:].strip()
-                handle_notif_globale(chat_id, contenu, "message")
+                # /message BCT-XXXXXXXX texte = message individuel.
+                # /message texte = annonce globale (compatibilité historique).
+                parts = contenu.split(" ", 1)
+                if len(parts) == 2 and parts[0].upper().startswith("BCT-"):
+                    handle_notif_individuelle(chat_id, parts[0].upper(), parts[1].strip())
+                else:
+                    handle_notif_globale(chat_id, contenu, "message")
 
             elif text.startswith("/resultat "):
                 contenu = text[10:].strip()
@@ -3372,10 +3842,17 @@ def handle_notif_globale(chat_id, contenu, notif_type):
         conn.close()
         icons = {"alerte": "🔴", "message": "💜", "resultat": "🟢", "maintenance": "🔧"}
         icon = icons.get(notif_type, "📢")
+        titles = {"alerte": "🔴 Alerte Bectanse", "message": "💜 Message Bectanse",
+                  "resultat": "🟢 Résultat Bectanse", "maintenance": "🔧 Maintenance Bectanse"}
+        push_result = send_push_to_all(titles.get(notif_type, "Bectanse AUTO"),
+                                       contenu, "/accueil")
         bot_send(chat_id, 
-            f"{icon} *Notification envoyée à {total} membres !*\n\n"
+            f"{icon} *Notification globale enregistrée pour {total} membres*\n\n"
             f"Type : `{notif_type}`\n"
-            f"Message : {contenu}")
+            f"Message : {contenu}\n\n"
+            f"📲 Appareils livrés : *{push_result['delivered']}*\n"
+            f"👥 Membres joignables : *{push_result['members']}*\n"
+            f"⚠️ Échecs : *{push_result['failed']}*")
     except Exception as e:
         bot_send(chat_id, f"❌ Erreur : {e}")
 
@@ -3396,20 +3873,19 @@ def handle_notif_individuelle(chat_id, code_dest, contenu):
         conn.run("""UPDATE members 
                     SET notif_type='individuelle', notif_message=:m, notif_lue=FALSE 
                     WHERE code=:c""", m=contenu, c=code_dest)
-        # Push Firebase individuel
-        try:
-            conn2 = get_conn()
-            tok_rows = conn2.run("SELECT token FROM push_tokens WHERE member_code=:c", c=code_dest)
-            conn2.close()
-            tokens = [r[0] for r in tok_rows if r[0]]
-            if tokens:
-                threading.Thread(target=send_fcm_push, args=(tokens, "💬 Message Personnel", contenu, "/dashboard"), daemon=True).start()
-        except: pass
         conn.close()
+        push_result = send_push_to_member(code_dest, "💬 Message personnel", contenu, "/accueil")
+        if push_result["delivered"]:
+            delivery_line = f"📲 Push livré à *{push_result['delivered']} appareil(s)*"
+        elif push_result["registered"]:
+            delivery_line = "⚠️ Appareil trouvé, mais Apple/Android a refusé la livraison. Le membre doit réactiver les notifications."
+        else:
+            delivery_line = "⚠️ Aucun téléphone abonné. Le message reste visible dans son espace membre."
         bot_send(chat_id,
-            f"✅ *Message envoyé à {nom} !*\n\n"
+            f"✅ *Message enregistré pour {nom}*\n\n"
             f"Code : `{code_dest}`\n"
-            f"Message : {contenu}")
+            f"Message : {contenu}\n\n"
+            f"{delivery_line}")
     except Exception as e:
         bot_send(chat_id, f"❌ Erreur : {e}")
 
@@ -3425,11 +3901,12 @@ def handle_aide(chat_id):
         "/prolonger BCT-XXXXXXXX 30 — Prolonger l'accès de X jours\n\n"
         "📣 *Notifications globales (tous les membres)*\n"
         "/alerte TEXTE — Bannière rouge urgente 🔴\n"
-        "/message TEXTE — Annonce violette 💜\n"
+        "/message TEXTE — Annonce violette globale 💜\n"
         "/resultat TEXTE — Performance verte 🟢\n"
         "/maintenance TEXTE — Bannière maintenance 🔧\n\n"
         "💬 *Message individuel*\n"
-        "/msg BCT-XXXXXXXX TEXTE — Notif privée à un membre\n\n"
+        "/msg BCT-XXXXXXXX TEXTE — Notif privée à un membre\n"
+        "/message BCT-XXXXXXXX TEXTE — Fonctionne aussi en individuel\n\n"
         "💡 Exemple : /alerte BUY XAUUSD — Entrée 2345 TP 2360"
     )
     markup = {"inline_keyboard": [[
@@ -3655,9 +4132,10 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
         )
         with _ur.urlopen(account_req, timeout=10) as account_response:
             account = json.loads(account_response.read().decode("utf-8") or "{}")
+        plans = account.get("plan", [])
         email_plan = next(
-            (plan for plan in account.get("plan", []) if plan.get("type") == "email"),
-            {}
+            (plan for plan in plans if plan.get("creditsType") == "sendLimit"),
+            plans[0] if plans else {}
         )
         credits = email_plan.get("credits")
         if credits is not None and int(credits) <= 0:
@@ -4158,7 +4636,6 @@ def _send_scheduled_telegram(
     poll_multiple=False
 ):
     target_channel = (channel or ECO_CANAL or "").strip()
-    image_url = _telegram_photo_delivery_url(image_url)
     if not ECO_BOT_TOKEN or not target_channel:
         app.logger.error("Publication Telegram annulée : ECO_BOT_TOKEN ou canal absent")
         return False
@@ -4186,7 +4663,6 @@ def _send_scheduled_telegram(
         return False
 
     last_error = "erreur Telegram inconnue"
-    photo_file = None
     for attempt in range(3):
         try:
             if attempt:
@@ -4220,23 +4696,11 @@ def _send_scheduled_telegram(
                 else:
                     endpoint = "sendMessage"
                     payload.update({"text": text, "disable_web_page_preview": True})
-            telegram_url = f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}"
-            if endpoint == "sendPhoto":
-                if photo_file is None:
-                    photo_file = _download_telegram_photo(image_url)
-                payload.pop("photo", None)
-                multipart_payload = {
-                    key: json.dumps(value) if isinstance(value, (dict, list, bool)) else value
-                    for key, value in payload.items()
-                }
-                response = requests.post(
-                    telegram_url,
-                    data=multipart_payload,
-                    files={"photo": photo_file},
-                    timeout=20
-                )
-            else:
-                response = requests.post(telegram_url, json=payload, timeout=20)
+            response = requests.post(
+                f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}",
+                json=payload,
+                timeout=20
+            )
             result = response.json()
             if result.get("ok"):
                 message_id = result.get("result", {}).get("message_id")
@@ -4741,29 +5205,47 @@ def push_test():
         return jsonify({"ok": False, "error": "test impossible"}), 500
 
 def send_push_to_all(title, body, url="/canal"):
-    """Envoie une Web Push à tous les membres abonnés."""
+    """Envoie un Web Push à tous les appareils des membres actifs avec bilan."""
+    from concurrent.futures import ThreadPoolExecutor
+    result = {"registered": 0, "delivered": 0, "failed": 0, "members": 0}
     try:
         from pywebpush import webpush, WebPushException
         conn = get_conn()
-        subs = conn.run("SELECT endpoint, p256dh, auth FROM push_subscriptions")
+        subs = conn.run("""SELECT ps.endpoint, ps.p256dh, ps.auth, ps.member_code
+            FROM push_subscriptions ps
+            JOIN members m ON m.code=ps.member_code
+            WHERE m.actif=TRUE AND m.code <> 'BCT-DEMO2026'""")
         conn.close()
+        result["registered"] = len(subs)
+        result["members"] = len({row[3] for row in subs})
         if not subs:
-            return
-        payload = json.dumps({"title": title, "body": body, "url": url})
-        dead = []
-        for ep, p256dh, auth_key in subs:
+            return result
+        payload = json.dumps({"title": title, "body": body, "url": url,
+                              "tag": f"bectanse-global-{int(time.time())}"})
+
+        def deliver(row):
+            ep, p256dh, auth_key, _member_code = row
             try:
                 webpush(
                     subscription_info={"endpoint": ep, "keys": {"p256dh": p256dh, "auth": auth_key}},
                     data=payload,
                     vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS
+                    vapid_claims=VAPID_CLAIMS,
+                    timeout=10
                 )
+                return ep, True, False
             except WebPushException as ex:
-                if ex.response and ex.response.status_code in (404, 410):
-                    dead.append(ep)
-            except Exception:
-                pass
+                status = ex.response.status_code if ex.response else None
+                return ep, False, status in (404, 410)
+            except Exception as error:
+                app.logger.warning("Push global %s: %s", _member_code, error)
+                return ep, False, False
+
+        with ThreadPoolExecutor(max_workers=min(12, len(subs))) as pool:
+            deliveries = list(pool.map(deliver, subs))
+        result["delivered"] = sum(1 for _, ok, _ in deliveries if ok)
+        result["failed"] = result["registered"] - result["delivered"]
+        dead = [endpoint for endpoint, _, expired in deliveries if expired]
         if dead:
             conn2 = get_conn()
             for ep in dead:
@@ -4771,8 +5253,54 @@ def send_push_to_all(title, body, url="/canal"):
                     conn2.run("DELETE FROM push_subscriptions WHERE endpoint=:ep", ep=ep)
                 except: pass
             conn2.close()
+        return result
     except Exception as e:
         app.logger.error(f"send_push_to_all: {e}")
+        return result
+
+def send_push_to_member(member_code, title, body, url="/accueil"):
+    """Envoie un Web Push aux appareils d'un seul membre et retourne un bilan réel."""
+    from pywebpush import webpush, WebPushException
+    result = {"registered": 0, "delivered": 0, "failed": 0}
+    dead = []
+    try:
+        conn = get_conn()
+        rows = conn.run("""SELECT endpoint, p256dh, auth FROM push_subscriptions
+            WHERE member_code=:code""", code=member_code)
+        conn.close()
+        result["registered"] = len(rows)
+        payload = json.dumps({"title": title, "body": body, "url": url,
+                              "tag": f"bectanse-personal-{member_code}"})
+        for endpoint, p256dh, auth_key in rows:
+            try:
+                webpush(
+                    subscription_info={"endpoint": endpoint,
+                        "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    data=payload,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=VAPID_CLAIMS,
+                    timeout=10
+                )
+                result["delivered"] += 1
+            except WebPushException as error:
+                result["failed"] += 1
+                status = error.response.status_code if error.response else None
+                if status in (404, 410):
+                    dead.append(endpoint)
+                app.logger.warning("Push membre %s: HTTP %s", member_code, status)
+            except Exception as error:
+                result["failed"] += 1
+                app.logger.warning("Push membre %s: %s", member_code, error)
+        if dead:
+            conn = get_conn()
+            for endpoint in dead:
+                conn.run("DELETE FROM push_subscriptions WHERE endpoint=:endpoint",
+                         endpoint=endpoint)
+            conn.close()
+        return result
+    except Exception as error:
+        app.logger.error("Push individuel %s: %s", member_code, error)
+        return result
 
 # ── CANAL VIP ─────────────────────────────────────────────────────────────────
 
