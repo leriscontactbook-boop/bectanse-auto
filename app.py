@@ -15,8 +15,8 @@ ADMIN_ID   = os.environ.get("ADMIN_ID",   "6164373751")
 ADMIN_KEY  = os.environ.get("ADMIN_KEY",  "bectanse_admin_2026")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
-VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY",  "BP3k0fJd97TMN7N9I37KkkXkUTTIzJFVHhZLGqg-0VrsFFPaKgQb15zPw-DIgS2lBst8QOSlMGLLA04uMpzCyEg")
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "-BH9Fk2jRo9Wms-svtp4s-AJZPZ6Iv1s2JedOJWNrWY")
+VAPID_PUBLIC_KEY  = os.environ.get("VAPID_PUBLIC_KEY", "BI5TQpefuRvs_HIPgRzXnBQqcQ5V9puh2hteQmdRp8pQFMEh-XyvgPGpYrO5ioPak9Z7ml6laSl2WnNh96RFrv8")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmeZdDREE6AdkScXLD0GeI65NwMQ3C7kBzmRN49e-XTqhRANCAASOU0KXn7kb7PxyD4Ec15wUKnEOVfabodobXkJnUafKUBTBIfl8r4DxqWKzuYqD2pPWe5pepWkpdlpzYfekRa7_")
 VAPID_CLAIMS      = {"sub": "mailto:bectanseacademie@gmail.com"}
 CLOUDINARY_CLOUD  = os.environ.get("CLOUDINARY_CLOUD", "dqgd441is")
 CLOUDINARY_KEY    = os.environ.get("CLOUDINARY_KEY", "631288474842446")
@@ -126,6 +126,20 @@ def init_db():
             """)
             conn.run("""CREATE INDEX IF NOT EXISTS renewal_email_log_status_idx
                          ON renewal_email_log (status, created_at)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS prospect_email_verifications (
+                    email       TEXT PRIMARY KEY,
+                    prenom      TEXT NOT NULL DEFAULT '',
+                    token_hash  TEXT UNIQUE NOT NULL,
+                    source      TEXT NOT NULL DEFAULT 'explorer',
+                    status      TEXT NOT NULL DEFAULT 'pending',
+                    created_at  TIMESTAMP DEFAULT NOW(),
+                    expires_at  TIMESTAMP NOT NULL,
+                    verified_at TIMESTAMP
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS prospect_verification_status_idx
+                         ON prospect_email_verifications (status, expires_at)""")
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -399,8 +413,10 @@ def send_webpush_notification(subscription_info, title, body, url="/accueil"):
             vapid_claims=VAPID_CLAIMS,
             timeout=10
         )
+        return True
     except Exception as e:
         app.logger.debug(f"webpush: {e}")
+        return False
 
 def send_fcm_push(tokens, title, body, url="/accueil"):
     """Alias — envoie via Web Push à une liste de tokens (subscriptions JSON)."""
@@ -2486,39 +2502,12 @@ def admin_api_stats():
         return jsonify({"ok":False,"error":str(e)})
 
 
-@app.route("/firebase-messaging-sw.js")
-def firebase_sw():
-    from flask import send_from_directory
-    return send_from_directory("static", "firebase-messaging-sw.js",
-        mimetype="application/javascript")
-
 @app.route("/api/push/register", methods=["POST"])
 @login_required
 def push_register():
-    """Enregistre la subscription Web Push d'un membre."""
-    data = request.get_json()
-    subscription = data.get("subscription")  # objet {endpoint, keys: {p256dh, auth}}
-    if not subscription:
-        return jsonify({"ok": False})
-    try:
-        import json as _json
-        endpoint = subscription.get("endpoint", "")
-        conn = get_conn()
-        conn.run("""CREATE TABLE IF NOT EXISTS push_tokens (
-            id SERIAL PRIMARY KEY,
-            member_code TEXT,
-            token TEXT UNIQUE,
-            subscription TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        )""")
-        conn.run("""INSERT INTO push_tokens (member_code, token, subscription)
-            VALUES (:code, :token, :sub)
-            ON CONFLICT (token) DO UPDATE SET member_code=:code, subscription=:sub""",
-            code=session["member_code"], token=endpoint, sub=_json.dumps(subscription))
-        conn.close()
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+    """Compatibilité anciens clients : enregistre dans le stockage Web Push unique."""
+    data = request.get_json(silent=True) or {}
+    return _save_push_subscription(data.get("subscription") or data)
 
 
 # ── ESSAI GRATUIT ─────────────────────────────────────────────────────────────
@@ -2666,8 +2655,45 @@ def login():
     if "member_code" in session:
         return redirect(url_for("accueil"))
     error = None
+    notice = None
+    explorer_gate_enabled = brevo_email_delivery_available()
     if request.method == "POST":
         code = request.form.get("code","").strip().upper()
+        if code == "BCT-DEMO2026" and explorer_gate_enabled and not session.get("prospect_verified_email"):
+            prenom = request.form.get("demo_prenom", "").strip()[:80]
+            email = request.form.get("demo_email", "").strip().lower()[:254]
+            consent = request.form.get("demo_consent") == "yes"
+            if not prenom:
+                error = "Indique ton prénom pour recevoir l’accès Explorer."
+            elif "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+                error = "Saisis une adresse e-mail valide."
+            elif not consent:
+                error = "Confirme ton accord pour recevoir l’accès et les informations Bectanse."
+            else:
+                raw_token = secrets.token_urlsafe(32)
+                token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+                try:
+                    conn = get_conn()
+                    conn.run("""INSERT INTO prospect_email_verifications
+                        (email, prenom, token_hash, source, status, created_at, expires_at, verified_at)
+                        VALUES (:email, :prenom, :token_hash, 'explorer', 'pending', NOW(), NOW() + INTERVAL '24 hours', NULL)
+                        ON CONFLICT (email) DO UPDATE SET prenom=:prenom, token_hash=:token_hash,
+                        source='explorer', status='pending', created_at=NOW(),
+                        expires_at=NOW() + INTERVAL '24 hours', verified_at=NULL""",
+                        email=email, prenom=prenom, token_hash=token_hash)
+                    conn.close()
+                    confirmation_url = request.url_root.rstrip("/") + url_for(
+                        "confirm_explorer_email", token=raw_token)
+                    result = send_brevo_prospect_verification(email, prenom, confirmation_url)
+                    if result.get("ok"):
+                        notice = "E-mail envoyé. Clique sur le lien reçu pour ouvrir l’espace Explorer."
+                    else:
+                        error = "L’e-mail de confirmation n’a pas pu partir. Réessaie dans quelques instants."
+                except Exception as exc:
+                    app.logger.error("Inscription prospect Explorer: %s", exc)
+                    error = "Impossible de préparer ton accès pour le moment. Réessaie dans quelques instants."
+            return render_template("login.html", error=error, notice=notice,
+                                   explorer_gate_enabled=explorer_gate_enabled)
         member = get_member(code)
         if not member:
             error = "Code invalide. Vérifie ton code et réessaie."
@@ -2682,7 +2708,38 @@ def login():
                 conn.close()
             except: pass
             return redirect(url_for("accueil"))
-    return render_template("login.html", error=error)
+    return render_template("login.html", error=error, notice=notice,
+                           explorer_gate_enabled=explorer_gate_enabled)
+
+
+@app.route("/explorer/confirmer/<token>")
+def confirm_explorer_email(token):
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    try:
+        conn = get_conn()
+        rows = conn.run("""SELECT email, prenom FROM prospect_email_verifications
+            WHERE token_hash=:token_hash AND status='pending' AND expires_at > NOW()""",
+            token_hash=token_hash)
+        if not rows:
+            conn.close()
+            return render_template("login.html",
+                error="Ce lien de confirmation est invalide ou a expiré.", notice=None,
+                explorer_gate_enabled=brevo_email_delivery_available()), 400
+        email, prenom = rows[0]
+        conn.run("""UPDATE prospect_email_verifications SET status='verified', verified_at=NOW()
+                    WHERE token_hash=:token_hash""", token_hash=token_hash)
+        conn.close()
+        sync_result = sync_brevo_prospect_contact(email, prenom, "Explorer confirmé")
+        if not sync_result.get("ok"):
+            app.logger.error("Synchronisation prospect confirme %s: %s", email, sync_result.get("error"))
+        session["prospect_verified_email"] = email
+        session["member_code"] = "BCT-DEMO2026"
+        return redirect(url_for("accueil"))
+    except Exception as exc:
+        app.logger.error("Confirmation prospect Explorer: %s", exc)
+        return render_template("login.html",
+            error="La confirmation n’a pas pu être validée. Réessaie dans quelques instants.", notice=None,
+            explorer_gate_enabled=brevo_email_delivery_available()), 500
 
 @app.route("/dashboard")
 @login_required
@@ -3623,8 +3680,12 @@ def sync_brevo_member_contact(email):
     if not brevo_key or not list_id or "@" not in clean_email:
         return {"ok": False, "error": "Configuration ou email invalide"}
     try:
-        payload = json.dumps({"email": clean_email, "listIds": [int(list_id)],
-                              "updateEnabled": True}).encode("utf-8")
+        payload_data = {"email": clean_email, "listIds": [int(list_id)],
+                        "updateEnabled": True}
+        prospect_list_id = os.environ.get("BREVO_PROSPECTS_LIST_ID", "")
+        if prospect_list_id:
+            payload_data["unlinkListIds"] = [int(prospect_list_id)]
+        payload = json.dumps(payload_data).encode("utf-8")
         req = _ur.Request("https://api.brevo.com/v3/contacts", data=payload,
             headers={"api-key": brevo_key, "Content-Type": "application/json",
                      "Accept": "application/json"}, method="POST")
@@ -3637,6 +3698,90 @@ def sync_brevo_member_contact(email):
         return {"ok": False, "error": f"HTTP {error.code}: {detail}"}
     except Exception as error:
         app.logger.error("Brevo contact %s: %s", clean_email, error)
+        return {"ok": False, "error": str(error)[:500]}
+
+
+_brevo_delivery_cache = {"checked_at": 0.0, "available": False}
+
+def brevo_email_delivery_available():
+    """Vérifie périodiquement que Brevo peut réellement envoyer des e-mails."""
+    import urllib.request as _ur
+    now = time.time()
+    if now - _brevo_delivery_cache["checked_at"] < 300:
+        return _brevo_delivery_cache["available"]
+    available = False
+    brevo_key = os.environ.get("BREVO_KEY", "")
+    if brevo_key:
+        try:
+            req = _ur.Request("https://api.brevo.com/v3/account",
+                headers={"api-key": brevo_key, "Accept": "application/json"})
+            with _ur.urlopen(req, timeout=8) as response:
+                account = json.loads(response.read().decode("utf-8") or "{}")
+            plans = account.get("plan", [])
+            send_plan = next((p for p in plans if p.get("creditsType") == "sendLimit"), {})
+            available = int(send_plan.get("credits", 0) or 0) > 0
+        except Exception as error:
+            app.logger.warning("Verification credits Brevo: %s", error)
+    _brevo_delivery_cache.update(checked_at=now, available=available)
+    return available
+
+
+def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
+    """Envoie uniquement l'e-mail technique de double opt-in prospect."""
+    import urllib.request as _ur
+    if not brevo_email_delivery_available():
+        return {"ok": False, "error": "Service de confirmation temporairement indisponible"}
+    html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
+        "<div style='max-width:580px;margin:0 auto;padding:28px 18px'>"
+        "<div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
+        "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE ACADÉMIE</p>"
+        "<h1 style='margin:0 0 14px;font-size:27px'>Confirme ton adresse e-mail</h1>"
+        "<p style='margin:0 0 24px;color:#b7b7b7;line-height:1.6'>Un clic suffit pour ouvrir immédiatement l’espace Explorer en lecture seule.</p>"
+        "<a href='"+confirmation_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>CONFIRMER ET EXPLORER →</a>"
+        "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Ce lien expire dans 24 heures. Si tu n’as pas demandé cet accès, ignore simplement cet e-mail.</p>"
+        "</div></div></body></html>")
+    payload = json.dumps({
+        "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
+        "to": [{"email": to_email, "name": to_name}],
+        "subject": "Confirme ton accès Explorer — Bectanse Académie",
+        "htmlContent": html,
+        "tags": ["bectanse-prospect", "verification-email"]
+    }).encode("utf-8")
+    try:
+        req = _ur.Request("https://api.brevo.com/v3/smtp/email", data=payload,
+            headers={"api-key": os.environ["BREVO_KEY"], "Content-Type": "application/json"},
+            method="POST")
+        with _ur.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode("utf-8") or "{}")
+        return {"ok": True, "message_id": result.get("messageId", "")}
+    except Exception as error:
+        app.logger.error("Brevo verification prospect: %s", error)
+        return {"ok": False, "error": str(error)[:500]}
+
+
+def sync_brevo_prospect_contact(email, prenom="", source="Explorer"):
+    """Ajoute un e-mail confirmé à la liste Prospects, jamais à la liste Membres."""
+    import urllib.request as _ur, urllib.error as _ue
+    brevo_key = os.environ.get("BREVO_KEY", "")
+    list_id = os.environ.get("BREVO_PROSPECTS_LIST_ID", "")
+    clean_email = (email or "").strip().lower()
+    if not brevo_key or not list_id or "@" not in clean_email:
+        return {"ok": False, "error": "Configuration ou email invalide"}
+    payload = json.dumps({"email": clean_email,
+        "attributes": {"PRENOM": (prenom or "").strip()},
+        "listIds": [int(list_id)], "updateEnabled": True}).encode("utf-8")
+    try:
+        req = _ur.Request("https://api.brevo.com/v3/contacts", data=payload,
+            headers={"api-key": brevo_key, "Content-Type": "application/json",
+                     "Accept": "application/json"}, method="POST")
+        with _ur.urlopen(req, timeout=10) as response:
+            response.read()
+        return {"ok": True}
+    except _ue.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")[:500]
+        app.logger.error("Brevo prospect %s: HTTP %s %s", clean_email, error.code, detail)
+        return {"ok": False, "error": f"HTTP {error.code}: {detail}"}
+    except Exception as error:
         return {"ok": False, "error": str(error)[:500]}
 
 def email_bienvenue_membre(prenom, email, code_acces):
@@ -4511,45 +4656,89 @@ def send_eco_message(target_date=None):
 
 @app.route("/api/push/vapid-public")
 def vapid_public():
-    return jsonify({"key": VAPID_PUBLIC})
+    return jsonify({"key": VAPID_PUBLIC_KEY})
 
-@app.route("/api/push/subscribe", methods=["POST"])
-def push_subscribe():
-    if "member_code" not in session:
-        return jsonify({"error": "non connecté"}), 401
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "pas de données"}), 400
-    code     = session["member_code"]
-    endpoint = data.get("endpoint", "")
-    p256dh   = data.get("keys", {}).get("p256dh", "")
-    auth_key = data.get("keys", {}).get("auth", "")
+def _save_push_subscription(data):
+    code = session.get("member_code")
+    endpoint = (data or {}).get("endpoint", "")
+    keys = (data or {}).get("keys", {})
+    p256dh, auth_key = keys.get("p256dh", ""), keys.get("auth", "")
+    if not code:
+        return jsonify({"ok": False, "error": "non connecté"}), 401
     if not endpoint or not p256dh or not auth_key:
-        return jsonify({"error": "données incomplètes"}), 400
+        return jsonify({"ok": False, "error": "abonnement incomplet"}), 400
     try:
         conn = get_conn()
-        conn.run(
-            """INSERT INTO push_subscriptions (member_code, endpoint, p256dh, auth)
-               VALUES (:code, :ep, :p256dh, :auth)
-               ON CONFLICT (endpoint) DO UPDATE SET
-               member_code=:code, p256dh=:p256dh, auth=:auth""",
-            code=code, ep=endpoint, p256dh=p256dh, auth=auth_key
-        )
+        conn.run("""INSERT INTO push_subscriptions (member_code, endpoint, p256dh, auth)
+            VALUES (:code, :endpoint, :p256dh, :auth)
+            ON CONFLICT (endpoint) DO UPDATE SET member_code=:code,
+            p256dh=:p256dh, auth=:auth""",
+            code=code, endpoint=endpoint, p256dh=p256dh, auth=auth_key)
         conn.close()
         return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception as error:
+        app.logger.error("Enregistrement Web Push: %s", error)
+        return jsonify({"ok": False, "error": "enregistrement impossible"}), 500
+
+@app.route("/api/push/subscribe", methods=["POST"])
+@login_required
+def push_subscribe():
+    return _save_push_subscription(request.get_json(silent=True) or {})
 
 @app.route("/api/push/unsubscribe", methods=["POST"])
+@login_required
 def push_unsubscribe():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if data and data.get("endpoint"):
         try:
             conn = get_conn()
-            conn.run("DELETE FROM push_subscriptions WHERE endpoint=:ep", ep=data["endpoint"])
+            conn.run("DELETE FROM push_subscriptions WHERE endpoint=:ep AND member_code=:code",
+                     ep=data["endpoint"], code=session["member_code"])
             conn.close()
         except: pass
     return jsonify({"ok": True})
+
+@app.route("/api/push/status")
+@login_required
+def push_status():
+    try:
+        conn = get_conn()
+        count = conn.run("SELECT COUNT(*) FROM push_subscriptions WHERE member_code=:code",
+                         code=session["member_code"])[0][0]
+        conn.close()
+        return jsonify({"ok": True, "subscribed": count > 0, "devices": count})
+    except Exception:
+        return jsonify({"ok": False, "subscribed": False, "devices": 0}), 500
+
+@app.route("/api/push/test", methods=["POST"])
+@login_required
+def push_test():
+    """Envoie une notification de validation uniquement aux appareils du membre."""
+    try:
+        endpoint = (request.get_json(silent=True) or {}).get("endpoint", "")
+        if not endpoint:
+            return jsonify({"ok": False, "error": "Appareil non identifié"}), 400
+        conn = get_conn()
+        rows = conn.run("""SELECT endpoint, p256dh, auth FROM push_subscriptions
+            WHERE member_code=:code AND endpoint=:endpoint""",
+            code=session["member_code"], endpoint=endpoint)
+        conn.close()
+        if not rows:
+            return jsonify({"ok": False, "error": "Appareil non abonné"}), 404
+        sent = 0
+        for endpoint, p256dh, auth_key in rows:
+            try:
+                delivered = send_webpush_notification(
+                    {"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    "Bectanse AUTO", "Tes notifications iPhone sont bien activées.", "/accueil")
+                if delivered:
+                    sent += 1
+            except Exception:
+                pass
+        return jsonify({"ok": sent > 0, "sent": sent})
+    except Exception as error:
+        app.logger.error("Test Web Push: %s", error)
+        return jsonify({"ok": False, "error": "test impossible"}), 500
 
 def send_push_to_all(title, body, url="/canal"):
     """Envoie une Web Push à tous les membres abonnés."""
@@ -4567,7 +4756,7 @@ def send_push_to_all(title, body, url="/canal"):
                 webpush(
                     subscription_info={"endpoint": ep, "keys": {"p256dh": p256dh, "auth": auth_key}},
                     data=payload,
-                    vapid_private_key=VAPID_PRIVATE,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
                     vapid_claims=VAPID_CLAIMS
                 )
             except WebPushException as ex:
@@ -4590,10 +4779,6 @@ def send_push_to_all(title, body, url="/canal"):
 CANAL_BOT_TOKEN = "8895323708:AAFNFHv8BXada_wFDnZhh69rKPLKs2oGAco"
 CANAL_GROUP_ID  = -1003605441967
 CANAL_ADMIN_CODE = "BCT-LERIS"
-VAPID_PUBLIC  = "BI5TQpefuRvs_HIPgRzXnBQqcQ5V9puh2hteQmdRp8pQFMEh-XyvgPGpYrO5ioPak9Z7ml6laSl2WnNh96RFrv8"
-VAPID_PRIVATE = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmeZdDREE6AdkScXLD0GeI65NwMQ3C7kBzmRN49e-XTqhRANCAASOU0KXn7kb7PxyD4Ec15wUKnEOVfabodobXkJnUafKUBTBIfl8r4DxqWKzuYqD2pPWe5pepWkpdlpzYfekRa7_"
-VAPID_CLAIMS  = {"sub": "mailto:bectanse@gmail.com"}  # code membre admin qui peut publier depuis webapp
-
 def detect_msg_type(text):
     """Détecte automatiquement le type de message selon les mots-clés."""
     t = (text or "").lower()
