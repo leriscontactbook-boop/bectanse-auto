@@ -2663,6 +2663,24 @@ def _analysis_wallet(conn, member_code, lock=False):
 
 
 def _analysis_schema():
+    annotation = {
+        "type": "object", "additionalProperties": False,
+        "properties": {
+            "type": {"type": "string", "enum": ["zone", "line", "point"]},
+            "role": {"type": "string", "enum": [
+                "support", "resistance", "liquidity", "entry", "target",
+                "invalidation", "structure"
+            ]},
+            "label": {"type": "string"},
+            "price": {"type": "string"},
+            "x_start": {"type": "number", "minimum": 0, "maximum": 100},
+            "x_end": {"type": "number", "minimum": 0, "maximum": 100},
+            "y_start": {"type": "number", "minimum": 0, "maximum": 100},
+            "y_end": {"type": "number", "minimum": 0, "maximum": 100}
+        },
+        "required": ["type", "role", "label", "price", "x_start", "x_end",
+                     "y_start", "y_end"]
+    }
     zone = {
         "type": "object", "additionalProperties": False,
         "properties": {
@@ -2677,10 +2695,11 @@ def _analysis_schema():
             "direction": {"type": "string"}, "qualite": {"type": "string"},
             "entree": {"type": "string"}, "declencheur": {"type": "string"},
             "objectif_1": {"type": "string"}, "objectif_2": {"type": "string"},
+            "objectif_3": {"type": "string"},
             "invalidation": {"type": "string"}, "ratio": {"type": "string"}
         },
         "required": ["direction", "qualite", "entree", "declencheur",
-                     "objectif_1", "objectif_2", "invalidation", "ratio"]
+                     "objectif_1", "objectif_2", "objectif_3", "invalidation", "ratio"]
     }
     checklist = {
         "type": "object", "additionalProperties": False,
@@ -2730,6 +2749,7 @@ def _analysis_schema():
             "structure": {"type": "string"},
             "resume": {"type": "string"},
             "prix_visible": {"type": "string"},
+            "annotations_graphique": {"type": "array", "items": annotation, "maxItems": 16},
             "zones": {"type": "array", "items": zone, "maxItems": 8},
             "plans": {"type": "array", "items": plan, "maxItems": 3},
             "risque": {"type": "string"},
@@ -2743,6 +2763,7 @@ def _analysis_schema():
             "avertissement": {"type": "string"}
         },
         "required": ["biais_global", "confiance", "structure", "resume", "prix_visible",
+                     "annotations_graphique",
                      "zones", "plans", "risque", "risques_detectes", "contexte_marche",
                      "lecture_institutionnelle", "intelligence_marche", "annonces_impact",
                      "checklist", "conclusion", "avertissement"]
@@ -2769,6 +2790,14 @@ RÈGLES ABSOLUES :
 - Lis les prix uniquement sur l'axe visible. N'invente jamais un niveau illisible.
 - Si un prix est ambigu, écris « niveau non lisible sur la capture ».
 - Distingue observation, scénario conditionnel et invalidation.
+- Fournis un plan en trois objectifs distincts TP1, TP2 et TP3 pour chaque scénario. Si un
+  objectif fiable n'est pas lisible, écris « à déterminer après confirmation » au lieu d'inventer.
+- Retourne aussi les annotations à superposer sur la capture originale. Les coordonnées sont des
+  pourcentages de l'image complète : x de gauche à droite et y de haut en bas, entre 0 et 100.
+  Pour une ligne horizontale, utilise y_start = y_end. Pour une zone, encadre ses deux limites.
+  Annote uniquement ce qui est réellement visible : supports, résistances, liquidité, structure,
+  entrée conditionnelle, invalidation et les trois objectifs TP1, TP2, TP3. Utilise des libellés
+  courts et place les annotations sur la partie graphique sans masquer inutilement les bougies.
 - Produis une lecture institutionnelle séparée : tendance, liquidité, Order Blocks, FVG,
   concepts SMC/ICT et volume visible. Indique clairement ce qui n'est pas lisible.
 - Inclus tous les diagnostics historiques du Bectanse Bot Analyser : setup recommandé,
@@ -2791,7 +2820,7 @@ def _openai_analysis(image_data_url, market, timeframe, session_name, trading_st
     payload = {
         "model": OPENAI_ANALYSIS_MODEL,
         "reasoning": {"effort": "low"},
-        "max_output_tokens": 3500,
+        "max_output_tokens": 4500,
         "tools": [{"type": "web_search"}],
         "input": [{
             "role": "user",
