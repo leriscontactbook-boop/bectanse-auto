@@ -3592,6 +3592,19 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
         return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
                 "error": "Echec SMTP Gmail" if not sent else ""}
     try:
+        account_req = _ur.Request(
+            "https://api.brevo.com/v3/account",
+            headers={"api-key": brevo_key, "Accept": "application/json"}
+        )
+        with _ur.urlopen(account_req, timeout=10) as account_response:
+            account = json.loads(account_response.read().decode("utf-8") or "{}")
+        email_plan = next(
+            (plan for plan in account.get("plan", []) if plan.get("type") == "email"),
+            {}
+        )
+        credits = email_plan.get("credits")
+        if credits is not None and int(credits) <= 0:
+            return {"ok": False, "error": "Crédits email Brevo insuffisants"}
         p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Leris - Bectanse AUTO"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
         r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
         with _ur.urlopen(r,timeout=10) as response:
@@ -3883,6 +3896,21 @@ def admin_run_renewal_emails():
     )
     conn.close()
     return jsonify({"ok": True, "emails": {status: count for status, count in stats}})
+
+@app.route("/admin/api/renewal-emails/reset-undelivered", methods=["POST"])
+def admin_reset_undelivered_renewal_emails():
+    """Réouvre les envois acceptés par l'API pendant la panne de crédits Brevo."""
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Interdit"}), 403
+    conn = get_conn()
+    result = conn.run(
+        """UPDATE renewal_email_log
+           SET status='failed', error='Crédits email Brevo insuffisants', sent_at=NULL
+           WHERE status='sent' AND provider_message_id <> ''
+           RETURNING member_code"""
+    )
+    conn.close()
+    return jsonify({"ok": True, "reset": len(result)})
 
 
 JOURS_FR = {
