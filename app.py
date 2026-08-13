@@ -3562,8 +3562,10 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
     import urllib.request as _ur, os as _os
     brevo_key = _os.environ.get("BREVO_KEY", "")
     if not brevo_key:
-        app.logger.warning("BREVO_KEY non definie")
-        return {"ok": False, "error": "BREVO_KEY non definie"}
+        app.logger.info("BREVO_KEY non definie — utilisation du SMTP Gmail")
+        sent = send_email(to_email, subject, html_content)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": "Echec SMTP Gmail" if not sent else ""}
     try:
         p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Leris - Bectanse AUTO"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
         r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
@@ -3669,7 +3671,6 @@ def _send_claimed_renewal_email(code, nom, email, expiry_date, stage):
            SET recipient_email=EXCLUDED.recipient_email, status='pending',
                error='', created_at=NOW()
            WHERE renewal_email_log.status='failed'
-             AND renewal_email_log.created_at < NOW() - INTERVAL '1 hour'
            RETURNING stage""",
         code=code, expiry=expiry_date, stage=stage, email=email
     )
