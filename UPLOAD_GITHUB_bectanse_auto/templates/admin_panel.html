@@ -144,6 +144,8 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <a class="s-item" onclick="showSection('annonces')"><span class="s-icon">📢</span> Annonces</a>
     <a class="s-item" onclick="showSection('telegram')"><span class="s-icon">✈️</span> Telegram</a>
     <a class="s-item" href="/admin/telegram-automation?key={{ admin_key }}"><span class="s-icon">🤖</span> Centre Telegram</a>
+    <div class="s-section">Outils privés</div>
+    <a class="s-item" href="/analyse-ia?key={{ admin_key }}"><span class="s-icon">◈</span> Analyse IA — Bêta</a>
     <div class="s-section">Formation</div>
     <a class="s-item" onclick="showSection('videos')"><span class="s-icon">🎬</span> Vidéos</a>
     <a class="s-item" onclick="showSection('pdfs')"><span class="s-icon">📚</span> PDFs</a>
@@ -875,5 +877,6 @@ function renderDashboardMembres(membres) {
 loadStats();
 loadDashboardMembres();
 </script>
+<script src="/static/source-guard.js" defer></script>
 </body>
 </html>
