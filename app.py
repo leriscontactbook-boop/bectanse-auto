@@ -22,7 +22,7 @@ CLOUDINARY_CLOUD  = os.environ.get("CLOUDINARY_CLOUD", "dqgd441is")
 CLOUDINARY_KEY    = os.environ.get("CLOUDINARY_KEY", "631288474842446")
 CLOUDINARY_SECRET = os.environ.get("CLOUDINARY_SECRET", "GqmAD-4OOtkLGhu6boCcnwUXXUE")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-OPENAI_ANALYSIS_MODEL = os.environ.get("OPENAI_ANALYSIS_MODEL", "gpt-5.6-terra")
+OPENAI_ANALYSIS_MODEL = os.environ.get("OPENAI_ANALYSIS_MODEL", "gpt-5.6-luna")
 ANALYSIS_INITIAL_CREDITS = int(os.environ.get("ANALYSIS_INITIAL_CREDITS", "5"))
 ANALYSIS_MAX_IMAGE_BYTES = 6 * 1024 * 1024
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -2749,9 +2749,9 @@ def _analysis_schema():
             "structure": {"type": "string"},
             "resume": {"type": "string"},
             "prix_visible": {"type": "string"},
-            "annotations_graphique": {"type": "array", "items": annotation, "maxItems": 16},
-            "zones": {"type": "array", "items": zone, "maxItems": 8},
-            "plans": {"type": "array", "items": plan, "maxItems": 3},
+            "annotations_graphique": {"type": "array", "items": annotation, "maxItems": 12},
+            "zones": {"type": "array", "items": zone, "maxItems": 6},
+            "plans": {"type": "array", "items": plan, "minItems": 1, "maxItems": 2},
             "risque": {"type": "string"},
             "risques_detectes": {"type": "array", "items": {"type": "string"}, "maxItems": 8},
             "contexte_marche": {"type": "string"},
@@ -2781,10 +2781,8 @@ Contexte utilisateur : marché {market}, timeframe {timeframe}, session {session
 Date et heure Europe/Paris : {today}.
 Événements signalés par le membre : {events_context}.
 
-Utilise la recherche Web uniquement pour vérifier le contexte macroéconomique actuel réellement
-utile à {market}. Adapte les facteurs suivis à l'instrument : devises et banques centrales pour le
-Forex, taux et indices pour les actions, flux refuge pour les métaux, marché crypto pour les actifs
-numériques, stocks et géopolitique pour l'énergie. Ne fabrique aucune actualité.
+Le contexte économique transmis par le membre est la seule source d'événements. N'invente aucune
+actualité ni aucun chiffre absent. Adapte simplement les facteurs de risque à l'instrument choisi.
 
 RÈGLES ABSOLUES :
 - Lis les prix uniquement sur l'axe visible. N'invente jamais un niveau illisible.
@@ -2810,6 +2808,10 @@ RÈGLES ABSOLUES :
 - Ne promets jamais de gain et ne présente jamais un scénario comme certain.
 - Les plans sont éducatifs et conditionnels, pas des ordres ni un conseil financier personnalisé.
 - Réponds en français, de façon concise, avec le schéma JSON imposé.
+- Priorité absolue au plan exploitable : biais, zone d'entrée conditionnelle, invalidation/SL,
+  TP1, TP2, TP3 et conditions de déclenchement. Deux scénarios maximum : principal et alternatif.
+- Une seule phrase courte par champ. Ne répète jamais la même information dans plusieurs sections.
+- Le rapport complet doit rester sous 1 500 mots, annotations JSON comprises.
 - Le champ avertissement doit rappeler que l'analyse automatisée peut se tromper et ne remplace
   ni une vérification humaine ni une gestion du risque adaptée."""
 
@@ -2819,9 +2821,8 @@ def _openai_analysis(image_data_url, market, timeframe, session_name, trading_st
         raise RuntimeError("Le moteur d’analyse n’est pas encore connecté.")
     payload = {
         "model": OPENAI_ANALYSIS_MODEL,
-        "reasoning": {"effort": "low"},
-        "max_output_tokens": 4500,
-        "tools": [{"type": "web_search"}],
+        "reasoning": {"effort": "none"},
+        "max_output_tokens": 2200,
         "input": [{
             "role": "user",
             "content": [
@@ -2859,7 +2860,7 @@ def _openai_analysis(image_data_url, market, timeframe, session_name, trading_st
     except Exception as error:
         raise RuntimeError("Le résultat reçu est incomplet. Le crédit sera remboursé.") from error
     usage = body.get("usage") or {}
-    search_calls = sum(1 for item in body.get("output", []) if item.get("type") == "web_search_call")
+    search_calls = 0
     return result, {
         "input_tokens": int(usage.get("input_tokens", 0) or 0),
         "output_tokens": int(usage.get("output_tokens", 0) or 0),
