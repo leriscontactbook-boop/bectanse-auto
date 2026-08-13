@@ -110,6 +110,22 @@ def init_db():
                     created_at  TIMESTAMP DEFAULT NOW()
                 )
             """)
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS renewal_email_log (
+                    member_code         TEXT NOT NULL,
+                    expiry_date         DATE NOT NULL,
+                    stage               TEXT NOT NULL,
+                    recipient_email     TEXT NOT NULL,
+                    status              TEXT NOT NULL DEFAULT 'pending',
+                    provider_message_id TEXT NOT NULL DEFAULT '',
+                    error               TEXT NOT NULL DEFAULT '',
+                    created_at          TIMESTAMP DEFAULT NOW(),
+                    sent_at             TIMESTAMP,
+                    PRIMARY KEY (member_code, expiry_date, stage)
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS renewal_email_log_status_idx
+                         ON renewal_email_log (status, created_at)""")
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -3547,13 +3563,16 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
     brevo_key = _os.environ.get("BREVO_KEY", "")
     if not brevo_key:
         app.logger.warning("BREVO_KEY non definie")
-        return
+        return {"ok": False, "error": "BREVO_KEY non definie"}
     try:
         p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Leris - Bectanse AUTO"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
         r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
-        _ur.urlopen(r,timeout=10)
+        with _ur.urlopen(r,timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8") or "{}")
+        return {"ok": True, "message_id": payload.get("messageId", "")}
     except Exception as e:
         app.logger.error("Brevo: %s",e)
+        return {"ok": False, "error": str(e)[:500]}
 
 def email_bienvenue_membre(prenom, email, code_acces):
     html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
@@ -3578,17 +3597,23 @@ def email_bienvenue_membre(prenom, email, code_acces):
         "</div></body></html>")
     send_brevo_membre(email, prenom, "Bienvenue "+prenom+" - Ton code Bectanse AUTO", html, "bienvenue")
 
-def email_relance_expiration(prenom, email, jours):
-    cfgs = {
-        7: ("relance-j-7", prenom+", ton abonnement expire dans 7 jours", "Expire dans 7 jours", "Il te reste 7 jours. Renouvelle maintenant.", "#FF6A00"),
-        3: ("relance-j-3", prenom+", plus que 3 jours", "Plus que 3 jours", "Dans 3 jours, le robot s'arr&ecirc;te.", "#FF6A00"),
-        1: ("relance-j-1", prenom+", ton acc&egrave;s expire demain", "Expire demain", "Derni&egrave;re chance avant suspension.", "#FF6A00"),
-        -1: ("relance-j+1", prenom+", ton acc&egrave;s est suspendu", "Acc&egrave;s suspendu", "Expir&eacute; hier. Renouvelle pour reprendre.", "#ef4444"),
-        -3: ("relance-j+3", prenom+", le robot attend ton retour", "Le robot attend", "Expir&eacute; depuis 3 jours. Renouvelle pour tout relancer.", "#ef4444"),
-        -7: ("relance-j+7", prenom+", une derni&egrave;re chose", "Derni&egrave;re chance", "7 jours sans acc&egrave;s. Si tu veux reprendre, c'est maintenant.", "#ef4444"),
-    }
-    if jours not in cfgs: return
-    tag, subject, titre, corps, couleur = cfgs[jours]
+RENEWAL_STAGE_CONTENT = {
+    "j-7": ("Ton accès expire dans 7 jours", "Anticipe ton renouvellement", "Ton accès Bectanse AUTO arrive à échéance dans 7 jours. Renouvelle maintenant pour conserver ton espace et éviter toute interruption.", "#FF6A00"),
+    "j-2": ("Plus que 48 h pour renouveler", "Ton accès expire dans 48 heures", "Il ne reste que deux jours avant la suspension de ton accès. Tu peux renouveler en quelques instants depuis ton espace membre.", "#FF6A00"),
+    "j0": ("Ton accès expire aujourd’hui", "Dernier jour avant suspension", "Ton adhésion arrive à échéance aujourd’hui. Renouvelle maintenant pour maintenir la continuité de ton accès.", "#ef4444"),
+    "expired-initial": ("Ton accès Bectanse AUTO est expiré", "Réactive ton accès", "Ton adhésion est arrivée à échéance. Ton espace et tes paramètres sont conservés : il te suffit de renouveler pour reprendre.", "#ef4444"),
+    "expired-week-1": ("Ton espace est toujours prêt", "Tu peux reprendre quand tu veux", "Tes informations sont toujours conservées. Réactive ton adhésion pour retrouver ton espace Bectanse AUTO.", "#ef4444"),
+    "expired-week-2": ("Besoin d’aide pour reprendre ?", "On t’accompagne pour la réactivation", "Si quelque chose bloque ton renouvellement, notre support peut t’aider. Sinon, tu peux réactiver directement depuis ton espace.", "#FF6A00"),
+    "expired-week-3": ("Ton accès peut être réactivé", "Reprends là où tu t’étais arrêté", "Aucune nouvelle configuration n’est nécessaire : renouvelle ton adhésion et retrouve ton environnement membre.", "#FF6A00"),
+    "expired-week-4": ("Dernier rappel de réactivation", "Dernière relance de cette séquence", "Nous clôturons cette série de rappels. Ton compte reste identifiable et tu peux renouveler ton accès dès que tu le souhaites.", "#ef4444"),
+}
+
+
+def email_relance_expiration(prenom, email, stage):
+    if stage not in RENEWAL_STAGE_CONTENT:
+        return {"ok": False, "error": "etape inconnue"}
+    subject, titre, corps, couleur = RENEWAL_STAGE_CONTENT[stage]
+    subject = f"{prenom}, {subject[:1].lower()}{subject[1:]}"
     html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
         "<div style='max-width:600px;margin:0 auto;'>"
         "<div style='background:"+couleur+";padding:20px;border-radius:0 0 16px 16px;margin-bottom:8px;'>"
@@ -3598,14 +3623,82 @@ def email_relance_expiration(prenom, email, jours):
         "<p style='color:rgba(255,255,255,.7);font-size:15px;line-height:1.8;margin:0;'>"+corps+"</p>"
         "</div>"
         "<div style='text-align:center;padding:20px 0;'>"
-        "<a href='https://acces.bectanse-academie.com' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
+        "<a href='https://acces.bectanse-academie.com/offres' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
         "</div>"
+        "<p style='text-align:center;color:rgba(255,255,255,.45);font-size:12px;'>Besoin d’aide ? <a href='https://t.me/m/PAt88QgeZDhk' style='color:#FF6A00;'>Contacter le support</a></p>"
         "<p style='text-align:center;color:rgba(255,255,255,.2);font-size:11px;'>&copy; 2026 Bectanse Acad&eacute;mie</p>"
         "</div></body></html>")
-    send_brevo_membre(email, prenom, subject, html, tag)
+    return send_brevo_membre(email, prenom, subject, html, f"renouvellement-{stage}")
+
+
+def _renewal_stage_for_member(conn, code, expiry_date, days_until):
+    """Retourne au maximum une étape due. Les anciens expirés entrent immédiatement."""
+    if days_until in (7, 2, 0):
+        return {7: "j-7", 2: "j-2", 0: "j0"}[days_until]
+    if days_until > 0:
+        return None
+    rows = conn.run(
+        """SELECT stage, sent_at FROM renewal_email_log
+           WHERE member_code=:code AND expiry_date=:expiry AND status='sent'
+           ORDER BY sent_at""",
+        code=code, expiry=expiry_date
+    )
+    sent = {row[0]: row[1] for row in rows}
+    if "j0" not in sent and "expired-initial" not in sent:
+        return "expired-initial"
+    sequence = ["expired-week-1", "expired-week-2", "expired-week-3", "expired-week-4"]
+    previous_at = sent.get("expired-initial") or sent.get("j0")
+    for stage in sequence:
+        if stage in sent:
+            previous_at = sent[stage]
+            continue
+        if previous_at and (_paris_now().replace(tzinfo=None) - previous_at).days >= 7:
+            return stage
+        return None
+    return None
+
+
+def _send_claimed_renewal_email(code, nom, email, expiry_date, stage):
+    """Réserve l'étape en base avant l'appel Brevo pour bloquer tout doublon."""
+    conn = get_conn()
+    claimed = conn.run(
+        """INSERT INTO renewal_email_log
+           (member_code, expiry_date, stage, recipient_email, status)
+           VALUES (:code, :expiry, :stage, :email, 'pending')
+           ON CONFLICT (member_code, expiry_date, stage) DO UPDATE
+           SET recipient_email=EXCLUDED.recipient_email, status='pending',
+               error='', created_at=NOW()
+           WHERE renewal_email_log.status='failed'
+             AND renewal_email_log.created_at < NOW() - INTERVAL '1 hour'
+           RETURNING stage""",
+        code=code, expiry=expiry_date, stage=stage, email=email
+    )
+    conn.close()
+    if not claimed:
+        return False
+    prenom = (nom or "Bonjour").split()[0]
+    result = email_relance_expiration(prenom, email, stage)
+    conn = get_conn()
+    if result.get("ok"):
+        conn.run(
+            """UPDATE renewal_email_log SET status='sent', sent_at=NOW(),
+               provider_message_id=:message_id, error=''
+               WHERE member_code=:code AND expiry_date=:expiry AND stage=:stage""",
+            message_id=result.get("message_id", ""), code=code,
+            expiry=expiry_date, stage=stage
+        )
+    else:
+        conn.run(
+            """UPDATE renewal_email_log SET status='failed', error=:error
+               WHERE member_code=:code AND expiry_date=:expiry AND stage=:stage""",
+            error=result.get("error", "Erreur Brevo")[:500], code=code,
+            expiry=expiry_date, stage=stage
+        )
+    conn.close()
+    return bool(result.get("ok"))
 
 def job_relances_quotidiennes():
-    """Tourne chaque matin à 9h — emails + rappels Telegram admin J-7, J-2, J=0."""
+    """Relances e-mail idempotentes + rappels Telegram admin, chaque jour à 9 h."""
     try:
         from datetime import datetime
         conn = get_conn()
@@ -3615,34 +3708,47 @@ def job_relances_quotidiennes():
         """)
         conn.close()
 
-        now = datetime.now()
+        today = _paris_now().date()
+        emails_sent = 0
         j7_list = []
         j2_list = []
         j0_list = []
 
         for code, nom, email, date_fin, capital in membres:
             if not date_fin: continue
-            delta = (date_fin - now).days
+            expiry_date = date_fin.date() if hasattr(date_fin, "date") else date_fin
+            delta = (expiry_date - today).days
 
-            # ── EMAILS + BANNIÈRE APP
-            if delta in [7, 3, 1] and email:
-                prenom_m = nom.split()[0] if nom else nom
-                try: email_relance_expiration(prenom_m, email, delta)
-                except: pass
+            # ── EMAILS : J-7, J-2, J0 puis une fois/semaine pendant 4 semaines.
+            if email:
+                try:
+                    conn2 = get_conn()
+                    stage = _renewal_stage_for_member(
+                        conn2, code, expiry_date, delta
+                    )
+                    conn2.close()
+                    if stage and _send_claimed_renewal_email(
+                        code, nom, email.strip(), expiry_date, stage
+                    ):
+                        emails_sent += 1
+                except Exception as email_error:
+                    app.logger.error(
+                        "relance email %s: %s", code, email_error
+                    )
+
+            # ── BANNIÈRE APP avant expiration
+            if delta in [7, 2, 0]:
                 try:
                     conn2 = get_conn()
                     conn2.run("""UPDATE members SET notif_type='alerte',
                         notif_message=:m, notif_lue=FALSE WHERE code=:c""",
-                        m=f"⚠️ Ton abonnement expire dans {delta} jour{'s' if delta>1 else ''} — Renouvelle maintenant !",
+                        m=("🚨 Ton abonnement expire aujourd'hui — Renouvelle maintenant !"
+                           if delta == 0 else
+                           f"⚠️ Ton abonnement expire dans {delta} jours — Renouvelle maintenant !"),
                         c=code)
                     conn2.close()
-                except: pass
-
-            # Après expiration
-            elif delta in [-1, -3, -7] and email:
-                prenom_m = nom.split()[0] if nom else nom
-                try: email_relance_expiration(prenom_m, email, delta)
-                except: pass
+                except Exception as notif_error:
+                    app.logger.error("banniere expiration %s: %s", code, notif_error)
 
             # ── LISTES POUR RAPPELS TELEGRAM ADMIN
             if delta == 7:
@@ -3704,10 +3810,28 @@ def job_relances_quotidiennes():
             ]]}
             send_telegram(msg, reply_markup=markup)
 
-        app.logger.info(f"job_relances: {len(membres)} membres vérifiés — J7:{len(j7_list)} J2:{len(j2_list)} J0:{len(j0_list)}")
+        app.logger.info(
+            f"job_relances: {len(membres)} membres vérifiés — "
+            f"emails:{emails_sent} J7:{len(j7_list)} J2:{len(j2_list)} J0:{len(j0_list)}"
+        )
     except Exception as e:
         app.logger.error(f"job_relances: {e}")
         send_telegram(f"❌ *ERREUR job_relances*\n`{e}`")
+
+
+@app.route("/admin/api/renewal-emails/run", methods=["POST"])
+def admin_run_renewal_emails():
+    """Déclenchement idempotent pour le déploiement ou une reprise contrôlée."""
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Interdit"}), 403
+    job_relances_quotidiennes()
+    conn = get_conn()
+    stats = conn.run(
+        """SELECT status, COUNT(*) FROM renewal_email_log
+           GROUP BY status ORDER BY status"""
+    )
+    conn.close()
+    return jsonify({"ok": True, "emails": {status: count for status, count in stats}})
 
 
 JOURS_FR = {
