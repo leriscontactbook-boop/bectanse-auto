@@ -132,23 +132,27 @@
   function renderItems(id,items,plan){var root=document.getElementById(id);root.innerHTML='';(items||[]).forEach(function(item){var el=document.createElement('div');el.className='item'+(plan?' plan':'');var title=document.createElement('b'),body=document.createElement('p');if(plan){title.textContent=(item.direction||'SCÉNARIO')+' · '+(item.qualite||'');body.textContent='Entrée : '+item.entree+' · Déclencheur : '+item.declencheur+' · TP1 : '+item.objectif_1+' · TP2 : '+item.objectif_2+' · TP3 : '+item.objectif_3+' · Invalidation / SL : '+item.invalidation+' · R/R : '+item.ratio}else{title.textContent=(item.type||'Zone')+' · '+(item.niveau||'');body.textContent=(item.force||'')+' — '+(item.description||'')}el.appendChild(title);el.appendChild(body);root.appendChild(el)})}
   function renderObject(id,data,labels){var root=document.getElementById(id);root.innerHTML='';Object.keys(labels).forEach(function(key){var item=document.createElement('div');item.className='item';var title=document.createElement('b'),body=document.createElement('p');title.textContent=labels[key];body.textContent=(data&&data[key])||'—';item.appendChild(title);item.appendChild(body);root.appendChild(item)})}
   function renderNews(items){var root=document.getElementById('news-impact');root.innerHTML='';if(!(items||[]).length){var item=document.createElement('div');item.className='item';item.textContent='Aucune annonce sélectionnée.';root.appendChild(item);return}(items||[]).forEach(function(event){var item=document.createElement('div');item.className='item';var title=document.createElement('b'),body=document.createElement('p');title.textContent=(event.event||'Annonce')+' · '+(event.impact||'');body.textContent=(event.direction_attendue||'')+' — '+(event.conseil||'');item.appendChild(title);item.appendChild(body);root.appendChild(item)})}
-  function annotationColor(role){return {support:'#37df7c',resistance:'#ff5252',liquidity:'#3fa9ff',entry:'#ff8a32',target:'#31e7d2',invalidation:'#ff3d8f',structure:'#a77aff'}[role]||'#ffffff'}
+  function annotationColor(role){return {support:'#2864ff',resistance:'#ef3340',supply:'#8b68c9',demand:'#39a844',liquidity:'#202124',pivot:'#2864ff',entry:'#f28c28',target:'#10a38f',invalidation:'#ef3340',structure:'#202124',bullish_path:'#38a94b',bearish_path:'#ef3340'}[role]||'#202124'}
   function drawAnnotatedChart(data){
     var canvas=document.getElementById('annotated-canvas'),ctx=canvas.getContext('2d'),source=new Image();
     source.onload=function(){
       canvas.width=source.naturalWidth;canvas.height=source.naturalHeight;ctx.drawImage(source,0,0,canvas.width,canvas.height);
-      var scale=Math.max(.75,Math.min(1.8,canvas.width/900)),annotations=data.annotations_graphique||[];
+      var scale=Math.max(.8,Math.min(2,canvas.width/1100)),annotations=(data.annotations_graphique||[]).slice(0,10);
+      function arrow(x1,y1,x2,y2,color){var angle=Math.atan2(y2-y1,x2-x1),size=14*scale;ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3.2*scale;ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-size*Math.cos(angle-Math.PI/6),y2-size*Math.sin(angle-Math.PI/6));ctx.lineTo(x2-size*Math.cos(angle+Math.PI/6),y2-size*Math.sin(angle+Math.PI/6));ctx.closePath();ctx.fill()}
+      function label(a,color){var label=((a.label||'NIVEAU')+(a.price?' · '+a.price:'')).toUpperCase(),lx=canvas.width*a.label_x/100,ly=canvas.height*a.label_y/100;ctx.font='800 '+Math.round(15*scale)+'px Arial';var pad=5*scale,tw=ctx.measureText(label).width;lx=Math.max(8,Math.min(canvas.width-tw-pad*2-8,lx));ly=Math.max(22*scale,Math.min(canvas.height-10,ly));ctx.fillStyle='rgba(255,255,255,.82)';ctx.fillRect(lx-pad,ly-18*scale,tw+pad*2,23*scale);ctx.fillStyle=color;ctx.fillText(label,lx,ly)}
       annotations.forEach(function(a){
         var color=annotationColor(a.role),x1=canvas.width*a.x_start/100,x2=canvas.width*a.x_end/100,y1=canvas.height*a.y_start/100,y2=canvas.height*a.y_end/100;
-        ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=2.4*scale;ctx.shadowColor='rgba(0,0,0,.75)';ctx.shadowBlur=4*scale;
-        if(a.role==='invalidation')ctx.setLineDash([9*scale,6*scale]);
+        ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=2.8*scale;ctx.lineJoin='round';ctx.lineCap='round';
+        if(a.role==='invalidation'||a.role==='liquidity')ctx.setLineDash([8*scale,6*scale]);
         if(a.type==='zone'){
           var left=Math.min(x1,x2),top=Math.min(y1,y2),width=Math.max(10,Math.abs(x2-x1)),height=Math.max(8,Math.abs(y2-y1));
-          ctx.globalAlpha=.14;ctx.fillRect(left,top,width,height);ctx.globalAlpha=.9;ctx.strokeRect(left,top,width,height);
+          ctx.globalAlpha=a.role==='supply'||a.role==='demand'? .24:.18;ctx.fillRect(left,top,width,height);ctx.globalAlpha=.55;ctx.strokeRect(left,top,width,height);ctx.globalAlpha=1;label(a,color);
+        }else if(a.type==='path'&&(a.points||[]).length>1){
+          var pts=a.points.map(function(p){return{x:canvas.width*p.x/100,y:canvas.height*p.y/100}});ctx.lineWidth=3.4*scale;ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.slice(1).forEach(function(p){ctx.lineTo(p.x,p.y)});ctx.stroke();arrow(pts[pts.length-2].x,pts[pts.length-2].y,pts[pts.length-1].x,pts[pts.length-1].y,color);label(a,color);
         }else if(a.type==='point'){
-          ctx.beginPath();ctx.arc(x1,y1,6*scale,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(x1-13*scale,y1);ctx.lineTo(x1+13*scale,y1);ctx.moveTo(x1,y1-13*scale);ctx.lineTo(x1,y1+13*scale);ctx.stroke();
-        }else{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}
-        ctx.setLineDash([]);ctx.shadowBlur=0;var label=((a.label||'NIVEAU')+(a.price?' · '+a.price:'')).toUpperCase();ctx.font='800 '+Math.round(12*scale)+'px Arial';var pad=6*scale,tw=ctx.measureText(label).width,lx=Math.max(4,Math.min(canvas.width-tw-pad*2-4,x1)),ly=Math.max(3,Math.min(canvas.height-22*scale,y1-24*scale));ctx.globalAlpha=.92;ctx.fillStyle='#090a09';ctx.fillRect(lx,ly,tw+pad*2,20*scale);ctx.fillStyle=color;ctx.fillRect(lx,ly,3*scale,20*scale);ctx.fillText(label,lx+pad,ly+14*scale);ctx.restore();
+          ctx.beginPath();ctx.arc(x1,y1,5.5*scale,0,Math.PI*2);ctx.fill();label(a,color);
+        }else{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();label(a,color)}
+        ctx.restore();
       });
       ctx.save();ctx.font='800 '+Math.round(13*scale)+'px Arial';var stamp='BECTANSE ANALYSE IA · '+state.market+' · '+state.timeframe,sw=ctx.measureText(stamp).width;ctx.fillStyle='rgba(5,6,5,.84)';ctx.fillRect(10,canvas.height-34*scale,sw+22*scale,25*scale);ctx.fillStyle='#ff641e';ctx.fillText(stamp,20*scale,canvas.height-17*scale);ctx.restore();
     };source.src=state.image;

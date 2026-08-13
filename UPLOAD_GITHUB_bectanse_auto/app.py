@@ -2666,20 +2666,29 @@ def _analysis_schema():
     annotation = {
         "type": "object", "additionalProperties": False,
         "properties": {
-            "type": {"type": "string", "enum": ["zone", "line", "point"]},
+            "type": {"type": "string", "enum": ["zone", "line", "point", "path"]},
             "role": {"type": "string", "enum": [
-                "support", "resistance", "liquidity", "entry", "target",
-                "invalidation", "structure"
+                "support", "resistance", "supply", "demand", "liquidity", "pivot",
+                "entry", "target", "invalidation", "structure", "bullish_path", "bearish_path"
             ]},
             "label": {"type": "string"},
             "price": {"type": "string"},
             "x_start": {"type": "number", "minimum": 0, "maximum": 100},
             "x_end": {"type": "number", "minimum": 0, "maximum": 100},
             "y_start": {"type": "number", "minimum": 0, "maximum": 100},
-            "y_end": {"type": "number", "minimum": 0, "maximum": 100}
+            "y_end": {"type": "number", "minimum": 0, "maximum": 100},
+            "label_x": {"type": "number", "minimum": 0, "maximum": 100},
+            "label_y": {"type": "number", "minimum": 0, "maximum": 100},
+            "points": {"type": "array", "maxItems": 8, "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "x": {"type": "number", "minimum": 0, "maximum": 100},
+                    "y": {"type": "number", "minimum": 0, "maximum": 100}
+                }, "required": ["x", "y"]
+            }}
         },
         "required": ["type", "role", "label", "price", "x_start", "x_end",
-                     "y_start", "y_end"]
+                     "y_start", "y_end", "label_x", "label_y", "points"]
     }
     zone = {
         "type": "object", "additionalProperties": False,
@@ -2793,9 +2802,15 @@ RÈGLES ABSOLUES :
 - Retourne aussi les annotations à superposer sur la capture originale. Les coordonnées sont des
   pourcentages de l'image complète : x de gauche à droite et y de haut en bas, entre 0 et 100.
   Pour une ligne horizontale, utilise y_start = y_end. Pour une zone, encadre ses deux limites.
-  Annote uniquement ce qui est réellement visible : supports, résistances, liquidité, structure,
-  entrée conditionnelle, invalidation et les trois objectifs TP1, TP2, TP3. Utilise des libellés
-  courts et place les annotations sur la partie graphique sans masquer inutilement les bougies.
+  Pour une trajectoire, type=path et renseigne 4 à 8 points formant un zigzag réaliste terminé par
+  la cible; les autres types ont points=[]. label_x/label_y fixe l'emplacement exact du libellé.
+- Le rendu doit ressembler à une analyse TradingView professionnelle : 2 ou 3 grandes zones
+  horizontales translucides (Supply, Support, Demand), 1 ou 2 niveaux clés (Pivot, liquidité),
+  puis une trajectoire haussière verte et/ou baissière rouge avec flèche. Les zones s'étendent sur
+  une largeur utile du graphique et leur libellé reste à l'intérieur, loin de l'axe des prix.
+- Ne crée jamais une colonne d'étiquettes empilées à droite. Ne superpose aucun libellé. N'annote
+  pas chaque donnée du rapport : 8 à 10 éléments visuels lisibles maximum. TP1/TP2/TP3 restent
+  détaillés dans le plan écrit; sur l'image, la trajectoire et ses niveaux majeurs suffisent.
 - Produis une lecture institutionnelle séparée : tendance, liquidité, Order Blocks, FVG,
   concepts SMC/ICT et volume visible. Indique clairement ce qui n'est pas lisible.
 - Inclus tous les diagnostics historiques du Bectanse Bot Analyser : setup recommandé,
