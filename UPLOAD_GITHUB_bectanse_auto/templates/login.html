@@ -117,7 +117,6 @@ button, input { font: inherit; }
   color: #b8bcb5;
   font-size: 12px;
   font-weight: 600;
-<<<<<<< HEAD
 }
 .topbar-actions{display:flex;align-items:center;gap:16px}.topbar-install{padding:10px 14px;border:1px solid rgba(255,90,18,.4);border-radius:9px;color:#ff8a50;background:rgba(255,90,18,.06);text-decoration:none;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 
@@ -174,63 +173,6 @@ button, input { font: inherit; }
   box-shadow: 0 0 80px rgba(255,90,18,.08), inset 0 0 70px rgba(255,90,18,.05);
 }
 
-=======
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 8px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 0 5px rgba(99,220,130,.08), 0 0 18px rgba(99,220,130,.42);
-  animation: pulse 2.3s ease-in-out infinite;
-}
-
-.login-shell {
-  position: relative;
-  z-index: 1;
-  width: min(1180px, calc(100% - 40px));
-  min-height: calc(100vh - 88px);
-  margin: 0 auto;
-  padding: 46px 0 64px;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(380px, .85fr);
-  align-items: center;
-  gap: 28px;
-}
-
-.member-intro,
-.access-panel {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: rgba(15,17,15,.92);
-  box-shadow: 0 28px 80px rgba(0,0,0,.34);
-}
-
-.member-intro {
-  min-height: 594px;
-  padding: 54px;
-  border-radius: 26px 8px 8px 26px;
-  background:
-    linear-gradient(145deg, rgba(255,255,255,.025), transparent 42%),
-    rgba(12,14,12,.92);
-}
-
-.member-intro::after {
-  content: '';
-  position: absolute;
-  width: 330px;
-  height: 330px;
-  right: -150px;
-  bottom: -170px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,90,18,.18);
-  box-shadow: 0 0 80px rgba(255,90,18,.08), inset 0 0 70px rgba(255,90,18,.05);
-}
-
->>>>>>> origin/main
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -420,7 +362,6 @@ button, input { font: inherit; }
   font-weight: 800;
 }
 
-<<<<<<< HEAD
 .notice-box {
   display: flex;
   align-items: flex-start;
@@ -447,8 +388,6 @@ button, input { font: inherit; }
 .demo-verify { display:block; margin-top:7px; color:#777b75; font-size:10px; line-height:1.4; }
 @media (max-width: 520px) { .demo-fields { grid-template-columns: 1fr; } }
 
-=======
->>>>>>> origin/main
 .field { margin-bottom: 14px; }
 
 .field label {
@@ -776,12 +715,8 @@ button, input { font: inherit; }
   .brand-mark { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; }
   .brand-mark::before { width: 14px; left: 8px; top: 9px; }
   .brand-mark::after { height: 14px; right: 7px; bottom: 6px; }
-<<<<<<< HEAD
   .topbar-status { display:none; }
   .topbar-actions{gap:8px}.topbar-install{padding:9px 10px;font-size:9px}
-=======
-  .topbar-status { font-size: 10px; }
->>>>>>> origin/main
   .login-shell { width: calc(100% - 28px); min-height: calc(100vh - 72px); padding: 18px 0 34px; }
   .member-intro { padding: 28px 24px; }
   .member-intro h1 { margin-top: 20px; font-size: 40px; }
@@ -808,11 +743,7 @@ button, input { font: inherit; }
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
-<<<<<<< HEAD
 <link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
-=======
-<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
->>>>>>> origin/main
 </head>
 <body>
 <div class="page-bg" aria-hidden="true"></div>
@@ -822,14 +753,10 @@ button, input { font: inherit; }
     <span class="brand-mark" aria-hidden="true"></span>
     <span>BECTANSE <strong>AUTO</strong></span>
   </a>
-<<<<<<< HEAD
   <div class="topbar-actions">
     <div class="topbar-status"><span class="status-dot" aria-hidden="true"></span>Espace sécurisé</div>
     <a class="topbar-install" href="#installer-app">Installer l’app</a>
   </div>
-=======
-  <div class="topbar-status"><span class="status-dot" aria-hidden="true"></span>Espace sécurisé</div>
->>>>>>> origin/main
 </header>
 
 <main class="login-shell">
@@ -858,7 +785,6 @@ button, input { font: inherit; }
       <strong>Bectanse Auto Engine</strong>
       <span>Connexion en temps réel</span>
       <i class="signal-track"></i>
-<<<<<<< HEAD
     </div>
   </section>
 
@@ -872,20 +798,6 @@ button, input { font: inherit; }
       <span>{{ error }}</span>
     </div>
     {% if notice %}<div class="notice-box" role="status"><span>✓</span><span>{{ notice }}</span></div>{% endif %}
-=======
-    </div>
-  </section>
-
-  <section class="access-panel" aria-labelledby="login-title">
-    <div class="access-number" aria-hidden="true">01</div>
-    <h2 id="login-title">Connexion</h2>
-    <p class="login-desc">Entre ton code d'accès membre pour ouvrir ton espace.</p>
-
-    <div class="error-box" role="alert" style="display:none;{% if error %}display:flex;{% endif %}">
-      <span class="error-icon" aria-hidden="true">!</span>
-      <span>{{ error }}</span>
-    </div>
->>>>>>> origin/main
 
     <form method="POST">
       <div class="field">
@@ -922,7 +834,6 @@ button, input { font: inherit; }
       <div class="demo-divider">Ou découvrir avant de rejoindre</div>
       <form method="POST">
         <input type="hidden" name="code" value="BCT-DEMO2026">
-<<<<<<< HEAD
         {% if explorer_gate_enabled %}
         <div class="demo-fields">
           <input type="text" name="demo_prenom" placeholder="Ton prénom" autocomplete="given-name" required>
@@ -941,15 +852,6 @@ button, input { font: inherit; }
           <span class="demo-arrow" aria-hidden="true">→</span>
         </button>
         {% if explorer_gate_enabled %}<small class="demo-verify">Aucun faux contact : l’accès s’ouvre après confirmation de l’adresse.</small>{% endif %}
-=======
-        <button type="submit" class="btn-demo" aria-label="Explorer l'espace Bectanse en mode démonstration">
-          <span class="demo-copy">
-            <strong>Explorer en mode démo</strong>
-            <small>Accès immédiat · sans inscription · lecture seule</small>
-          </span>
-          <span class="demo-arrow" aria-hidden="true">→</span>
-        </button>
->>>>>>> origin/main
       </form>
     </div>
 
@@ -970,12 +872,9 @@ button, input { font: inherit; }
   </section>
 </main>
 
-<<<<<<< HEAD
 {% set install_context = 'public' %}
 {% include "_install_app_section.html" %}
 
-=======
->>>>>>> origin/main
 <script>
 // Pré-remplir le code si présent dans l'URL (?code=BCT-XXXXXXXX)
 window.addEventListener('DOMContentLoaded', function() {

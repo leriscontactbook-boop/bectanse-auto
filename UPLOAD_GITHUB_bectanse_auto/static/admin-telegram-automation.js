@@ -247,18 +247,7 @@ function setImage(url='') {
 function publicAssetUrl(path='') {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
-<<<<<<< HEAD
   return `/${String(path).replace(/^\/+/, '')}`;
-=======
-  return `${window.location.origin}/${String(path).replace(/^\/+/, '')}`;
-}
-
-function templateTelegramImage(template={}) {
-  const path = template.sourceType === 'brand'
-    ? (template.png || template.webp || template.image_url)
-    : (template.image_url || template.webp || template.png);
-  return publicAssetUrl(path);
->>>>>>> origin/main
 }
 
 function updateVisualLibraryState() {
@@ -266,11 +255,7 @@ function updateVisualLibraryState() {
   document.querySelectorAll('.visual-template-card').forEach(card => {
     card.classList.toggle('disabled', !isMessage);
     const template = visualTemplates.find(item => item.id === card.dataset.templateId);
-<<<<<<< HEAD
     const templateUrl = publicAssetUrl(template?.webp || template?.png || '');
-=======
-    const templateUrl = templateTelegramImage(template);
->>>>>>> origin/main
     card.classList.toggle('selected', isMessage && Boolean(templateUrl) && currentImageUrl === templateUrl);
     card.setAttribute('aria-disabled', String(!isMessage));
   });
@@ -344,11 +329,7 @@ function useVisualTemplate(templateId) {
     showToast('Un quiz ou sondage natif ne peut pas recevoir de photo. Crée un message teaser séparé pour utiliser ce visuel.', 'error');
     return;
   }
-<<<<<<< HEAD
   setImage(publicAssetUrl(template.webp || template.png));
-=======
-  setImage(templateTelegramImage(template));
->>>>>>> origin/main
   if (template.caption && !$('post-message').value.trim()) $('post-message').value = template.caption;
   if (template.ctaText && template.ctaUrl) {
     $('button-text').value = template.ctaText;
@@ -542,11 +523,7 @@ function formPayload() {
     ...(id ? {id} : {}),
     name: $('post-name').value.trim(),
     message: $('post-message').value.trim(),
-<<<<<<< HEAD
     image_url: postType === 'message' ? currentImageUrl : '',
-=======
-    image_url: postType === 'message' ? publicAssetUrl(currentImageUrl) : '',
->>>>>>> origin/main
     post_type: postType,
     poll_question: $('poll-question').value.trim(),
     poll_options: pollOptions(),
