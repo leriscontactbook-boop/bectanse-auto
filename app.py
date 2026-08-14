@@ -418,6 +418,28 @@ def get_member(code):
         app.logger.error(f"get_member: {e}")
         return None
 
+
+def enforce_member_access_state():
+    """Désactive définitivement les accès techniques des comptes expirés ou suspendus."""
+    conn = get_conn()
+    try:
+        changed = conn.run("""UPDATE members
+            SET actif=CASE
+                    WHEN date_fin IS NOT NULL AND date_fin <= NOW() THEN FALSE
+                    ELSE actif
+                END,
+                copy_actif=CASE
+                    WHEN actif=FALSE OR (date_fin IS NOT NULL AND date_fin <= NOW()) THEN FALSE
+                    ELSE copy_actif
+                END
+            WHERE actif=FALSE
+               OR (date_fin IS NOT NULL AND date_fin <= NOW())
+            RETURNING code""")
+        return len(changed or [])
+    finally:
+        conn.close()
+
+
 def default_params():
     return {"mode_risque":"Lots fixes","lots":0.01,"lots_max":5,"slippage":100,
             "forcer_lot_minimum":False,"inverser_trades":False,
@@ -571,6 +593,7 @@ def login_required(f):
             try:
                 from datetime import datetime
                 code = session["member_code"]
+                enforce_member_access_state()
                 conn = get_conn()
                 rows = conn.run("SELECT date_fin, actif FROM members WHERE code=:c", c=code)
                 conn.close()
@@ -578,7 +601,7 @@ def login_required(f):
                     date_fin, actif = rows[0]
                     if not actif:
                         return redirect(url_for("accueil_expire"))
-                    if date_fin and (date_fin - datetime.now()).days < 0:
+                    if date_fin and date_fin <= datetime.now():
                         if f.__name__ != "offres":
                             return redirect(url_for("accueil_expire"))
             except: pass
@@ -1050,6 +1073,7 @@ def admin_api_membres():
     key = request.args.get("key","")
     if key != ADMIN_KEY: return jsonify({"ok":False}), 403
     try:
+        enforce_member_access_state()
         conn = get_conn()
         rows = conn.run("SELECT code,nom,capital,actif,copy_actif,date_fin,email,telephone,telegram,parrain_code,filleuls_count,gains_parrainage,created_at FROM members ORDER BY created_at DESC")
         cols = ["code","nom","capital","actif","copy_actif","date_fin","email","telephone","telegram","parrain_code","filleuls_count","gains_parrainage","created_at"]
@@ -1058,7 +1082,7 @@ def admin_api_membres():
         maintenant = datetime.now()
         for r in rows:
             m = dict(zip(cols, r))
-            m["est_expire"] = bool(m["date_fin"] and m["date_fin"] < maintenant and m["actif"])
+            m["est_expire"] = bool(m["date_fin"] and m["date_fin"] <= maintenant)
             m["nouveau_7j"] = bool(m["created_at"] and m["created_at"] > maintenant - timedelta(days=7))
             if m["date_fin"] and hasattr(m["date_fin"],"strftime"):
                 delta = m["date_fin"] - maintenant
@@ -1093,9 +1117,17 @@ def admin_api_membre_update():
             if not isinstance(data["actif"], bool):
                 conn.close()
                 return jsonify({"ok":False,"error":"Statut invalide"}), 400
-            conn.run("UPDATE members SET actif=:v WHERE code=:c", v=data["actif"], c=code)
+            if data["actif"]:
+                conn.run("""UPDATE members SET actif=TRUE WHERE code=:c
+                    AND (date_fin IS NULL OR date_fin > NOW())""", c=code)
+            else:
+                conn.run("UPDATE members SET actif=FALSE, copy_actif=FALSE WHERE code=:c", c=code)
         if "copy_actif" in data:
-            conn.run("UPDATE members SET copy_actif=:v WHERE code=:c", v=data["copy_actif"], c=code)
+            if bool(data["copy_actif"]):
+                conn.run("""UPDATE members SET copy_actif=TRUE WHERE code=:c
+                    AND actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""", c=code)
+            else:
+                conn.run("UPDATE members SET copy_actif=FALSE WHERE code=:c", c=code)
         if "jours" in data:
             from datetime import datetime, timedelta
             try:
@@ -1113,6 +1145,7 @@ def admin_api_membre_update():
                 nouvelle = datetime.now() + timedelta(days=jours)
             conn.run("UPDATE members SET date_fin=:df WHERE code=:c", df=nouvelle, c=code)
         conn.close()
+        enforce_member_access_state()
         return jsonify({"ok":True})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
@@ -1139,9 +1172,12 @@ def admin_api_notif_globale():
         notif_type = request.json.get("type","message")
         contenu = request.json.get("contenu","")
         conn = get_conn()
-        rows = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")
+        rows = conn.run("""SELECT COUNT(*) FROM members
+            WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""")
         total = rows[0][0]
-        conn.run("UPDATE members SET notif_type=:t, notif_message=:m, notif_lue=FALSE WHERE actif=TRUE", t=notif_type, m=contenu)
+        conn.run("""UPDATE members SET notif_type=:t, notif_message=:m, notif_lue=FALSE
+            WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""",
+            t=notif_type, m=contenu)
         conn.close()
         return jsonify({"ok":True,"total":total})
     except Exception as e:
@@ -2485,12 +2521,16 @@ def admin_api_stats():
     key = request.args.get("key","")
     if key != ADMIN_KEY: return jsonify({"ok":False}), 403
     try:
+        enforce_member_access_state()
         conn = get_conn()
         from datetime import datetime
         total = conn.run("SELECT COUNT(*) FROM members")[0][0]
-        actifs = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")[0][0]
-        copy_on = conn.run("SELECT COUNT(*) FROM members WHERE copy_actif=TRUE AND actif=TRUE")[0][0]
-        expires = conn.run("SELECT COUNT(*) FROM members WHERE date_fin < NOW() AND actif=TRUE")[0][0]
+        actifs = conn.run("""SELECT COUNT(*) FROM members
+            WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""")[0][0]
+        copy_on = conn.run("""SELECT COUNT(*) FROM members
+            WHERE copy_actif=TRUE AND actif=TRUE
+              AND (date_fin IS NULL OR date_fin > NOW())""")[0][0]
+        expires = conn.run("SELECT COUNT(*) FROM members WHERE date_fin <= NOW()")[0][0]
         nouveaux = conn.run("SELECT COUNT(*) FROM members WHERE created_at > NOW() - INTERVAL '7 days'")[0][0]
         conn.close()
         return jsonify({"ok":True,"total":total,"actifs":actifs,"copy_on":copy_on,"expires":expires,"nouveaux_7j":nouveaux})
@@ -3887,12 +3927,15 @@ def handle_notif_globale(chat_id, contenu, notif_type):
         bot_send(chat_id, "❌ Message vide.")
         return
     try:
+        enforce_member_access_state()
         conn = get_conn()
-        rows = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")
+        rows = conn.run("""SELECT COUNT(*) FROM members
+            WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""")
         total = rows[0][0] if rows else 0
         conn.run("""UPDATE members 
                     SET notif_type=:t, notif_message=:m, notif_lue=FALSE 
-                    WHERE actif=TRUE""", t=notif_type, m=contenu)
+                    WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""",
+                 t=notif_type, m=contenu)
         conn.close()
         icons = {"alerte": "🔴", "message": "💜", "resultat": "🟢", "maintenance": "🔧"}
         icon = icons.get(notif_type, "📢")
@@ -3918,7 +3961,8 @@ def handle_notif_individuelle(chat_id, code_dest, contenu):
         return
     try:
         conn = get_conn()
-        rows = conn.run("SELECT nom FROM members WHERE code=:c AND actif=TRUE", c=code_dest)
+        rows = conn.run("""SELECT nom FROM members WHERE code=:c AND actif=TRUE
+            AND (date_fin IS NULL OR date_fin > NOW())""", c=code_dest)
         if not rows:
             conn.close()
             bot_send(chat_id, f"❌ Membre `{code_dest}` introuvable ou inactif.")
@@ -3971,11 +4015,14 @@ def handle_aide(chat_id):
 
 def handle_stats(chat_id):
     try:
+        enforce_member_access_state()
         conn = get_conn()
         total    = conn.run("SELECT COUNT(*) FROM members")[0][0]
-        actifs   = conn.run("SELECT COUNT(*) FROM members WHERE actif=TRUE")[0][0]
-        expires  = conn.run("SELECT COUNT(*) FROM members WHERE date_fin < NOW() AND actif=TRUE")[0][0]
-        copy_on  = conn.run("SELECT COUNT(*) FROM members WHERE copy_actif=TRUE AND actif=TRUE")[0][0]
+        actifs   = conn.run("""SELECT COUNT(*) FROM members WHERE actif=TRUE
+            AND (date_fin IS NULL OR date_fin > NOW())""")[0][0]
+        expires  = conn.run("SELECT COUNT(*) FROM members WHERE date_fin <= NOW()")[0][0]
+        copy_on  = conn.run("""SELECT COUNT(*) FROM members WHERE copy_actif=TRUE
+            AND actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""")[0][0]
         conn.close()
         msg = (
             f"📊 *STATISTIQUES BECTANSE AUTO*\n\n"
@@ -4442,10 +4489,11 @@ def job_relances_quotidiennes():
     """Relances e-mail idempotentes + rappels Telegram admin, chaque jour à 9 h."""
     try:
         from datetime import datetime
+        enforce_member_access_state()
         conn = get_conn()
         membres = conn.run("""
             SELECT code, nom, email, date_fin, capital
-            FROM members WHERE actif=TRUE
+            FROM members WHERE date_fin IS NOT NULL
         """)
         conn.close()
 
@@ -5306,11 +5354,13 @@ def send_push_to_all(title, body, url="/canal"):
     result = {"registered": 0, "delivered": 0, "failed": 0, "members": 0}
     try:
         from pywebpush import webpush, WebPushException
+        enforce_member_access_state()
         conn = get_conn()
         subs = conn.run("""SELECT ps.endpoint, ps.p256dh, ps.auth, ps.member_code
             FROM push_subscriptions ps
             JOIN members m ON m.code=ps.member_code
-            WHERE m.actif=TRUE AND m.code <> 'BCT-DEMO2026'""")
+            WHERE m.actif=TRUE AND (m.date_fin IS NULL OR m.date_fin > NOW())
+              AND m.code <> 'BCT-DEMO2026'""")
         conn.close()
         result["registered"] = len(subs)
         result["members"] = len({row[3] for row in subs})
@@ -5933,6 +5983,12 @@ def _startup():
             job_relances_quotidiennes, 'cron', hour=9, minute=0,
             id='member_daily_reminders', replace_existing=True,
             coalesce=True, max_instances=1, misfire_grace_time=3600
+        )
+        scheduler.add_job(
+            enforce_member_access_state, 'interval', minutes=5,
+            id='member_access_enforcement', replace_existing=True,
+            next_run_time=_paris_now(), coalesce=True, max_instances=1,
+            misfire_grace_time=300
         )
         scheduler.add_job(
             process_scheduled_telegram_posts, 'interval', minutes=1,
