@@ -2890,7 +2890,7 @@ def _refund_analysis_credit(member_code, job_id, error_message):
         changed = conn.run("""UPDATE analysis_jobs SET status='failed', error=:error,
             completed_at=NOW() WHERE id=:job AND member_code=:code AND status='processing'
             RETURNING id""", error=error_message[:800], job=job_id, code=member_code)
-        if changed:
+        if changed and member_code != ANALYSIS_ADMIN_CODE:
             wallet = _analysis_wallet(conn, member_code, lock=True)
             new_balance = wallet["balance"] + 1
             conn.run("""UPDATE analysis_wallets SET balance=:balance,
@@ -2944,7 +2944,8 @@ def analyse_ia():
     member = {"code": code, "nom": "Administration Bectanse"}
     conn = get_conn()
     try:
-        wallet = _analysis_wallet(conn, code)
+        wallet = {"balance": None, "unlimited": True,
+                  "lifetime_granted": 0, "lifetime_spent": 0}
         rows = conn.run("""SELECT id, status, market, timeframe, session_name, trading_style,
             result_json, error, created_at FROM analysis_jobs
             WHERE member_code=:code ORDER BY created_at DESC LIMIT 12""", code=code)
@@ -3011,23 +3012,12 @@ def analyse_ia_run():
     conn = get_conn()
     try:
         conn.run("BEGIN")
-        wallet = _analysis_wallet(conn, code, lock=True)
-        if wallet["balance"] < 1:
-            conn.run("ROLLBACK")
-            return jsonify({"ok": False, "error": "Tu n’as plus de crédit disponible.", "balance": 0}), 402
-        new_balance = wallet["balance"] - 1
+        new_balance = None
         conn.run("""INSERT INTO analysis_jobs
             (id, member_code, status, market, timeframe, session_name, trading_style, image_mime, model)
             VALUES (:id, :code, 'processing', :market, :tf, :session, :style, :mime, :model)""",
             id=job_id, code=code, market=market, tf=timeframe, session=session_name,
             style=trading_style, mime=mime, model=OPENAI_ANALYSIS_MODEL)
-        conn.run("""UPDATE analysis_wallets SET balance=:balance,
-            lifetime_spent=lifetime_spent+1, updated_at=NOW() WHERE member_code=:code""",
-            balance=new_balance, code=code)
-        conn.run("""INSERT INTO analysis_credit_ledger
-            (member_code, delta, balance_after, reason, reference)
-            VALUES (:code, -1, :balance, 'analysis', :ref)""",
-            code=code, balance=new_balance, ref=f"analysis:{job_id}")
         conn.run("COMMIT")
     except Exception as error:
         try: conn.run("ROLLBACK")
@@ -3054,8 +3044,8 @@ def analyse_ia_run():
         app.logger.error("Analyse IA %s: %s", job_id, error)
         try: _refund_analysis_credit(code, job_id, str(error))
         except Exception as refund_error: app.logger.error("Remboursement %s: %s", job_id, refund_error)
-        return jsonify({"ok": False, "error": str(error), "refunded": True,
-                        "balance": new_balance + 1}), 502
+        return jsonify({"ok": False, "error": str(error), "refunded": False,
+                        "balance": None}), 502
 
 
 @app.route("/api/analyse-ia/checkout", methods=["POST"])
