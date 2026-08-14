@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bectanse Auto — Espace membre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080908;--panel:#111210;--panel2:#151614;--line:#272824;--soft:#96988f;--text:#f4f4f0;--orange:#ff5a12;--orange2:#ff8b49;--green:#76db72;--red:#ff6464}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}
+body{background:radial-gradient(circle at 78% 2%,rgba(255,90,18,.055),transparent 28%),#080908}
+button,a,input{font:inherit}
+button,a{color:inherit}
+.app{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;background:#0b0c0b;border-right:1px solid #20211e;padding:22px 14px 16px;display:flex;flex-direction:column}
+.brand{height:46px;display:flex;align-items:center;gap:10px;padding:0 9px 18px;border-bottom:1px solid #20211e}
+.brand-mark{width:27px;height:27px;border:1px solid #ff6c2a;border-radius:8px;position:relative;background:linear-gradient(145deg,#ff6d28,#b82e00)}
+.brand-mark:before,.brand-mark:after{content:"";position:absolute;background:#fff;border-radius:2px;opacity:.92}
+.brand-mark:before{width:9px;height:3px;left:5px;top:7px;box-shadow:4px 7px 0 #fff}
+.brand-mark:after{width:3px;height:9px;right:5px;bottom:5px}
+.brand-name{font-family:"Space Grotesk";font-weight:700;letter-spacing:.05em;font-size:14px}.brand-name span{color:var(--orange)}
+.nav-group{margin-top:24px}.nav-title{font-size:9px;text-transform:uppercase;letter-spacing:.17em;color:#565852;font-weight:700;padding:0 10px 8px}
+.nav{display:grid;gap:4px}.nav-item{display:flex;align-items:center;gap:11px;min-height:38px;padding:0 10px;border:1px solid transparent;border-radius:8px;color:#8e9089;text-decoration:none;font-size:11px;font-weight:500;transition:.18s}
+.nav-item:hover{background:#141512;color:#fff}.nav-item.active{background:linear-gradient(90deg,rgba(255,90,18,.15),rgba(255,90,18,.02));border-color:rgba(255,90,18,.13);color:#fff}
+.ico{width:17px;height:17px;border:1px solid #4b4d47;border-radius:5px;display:grid;place-items:center;color:#b2b4ad;font-size:9px;flex:0 0 auto}.active .ico{border-color:rgba(255,90,18,.55);color:var(--orange);background:rgba(255,90,18,.08)}
+.side-plan{margin-top:auto;border:1px solid rgba(255,90,18,.25);border-radius:13px;padding:13px;background:linear-gradient(145deg,rgba(255,90,18,.12),rgba(255,90,18,.025))}
+.plan-kicker{font-size:8px;text-transform:uppercase;letter-spacing:.16em;color:var(--orange2)}.plan-name{font:600 13px "Space Grotesk";margin-top:7px}.plan-meta{font-size:9px;color:#81837c;margin-top:5px}.plan-progress{height:4px;background:#242520;border-radius:9px;margin:11px 0 6px;overflow:hidden}.plan-progress span{display:block;width:76%;height:100%;background:linear-gradient(90deg,var(--orange),var(--orange2))}.plan-days{font-size:9px;color:#b8bab2;display:flex;justify-content:space-between}
+.main{min-width:0;padding:24px 24px 34px}
+.account-overview{margin-bottom:18px}
+.account-overview-head{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 0 16px;border-bottom:1px solid var(--line)}
+.account-overview-title{font:600 23px "Space Grotesk";letter-spacing:-.03em}
+.account-overview-actions{display:flex;align-items:center;gap:10px}
+.overview-action{min-height:42px;padding:0 18px;border:1px solid #30312d;border-radius:10px;background:#11120f;color:#b5b7b0;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;transition:.18s}
+.overview-action:hover{color:#fff;border-color:#4b4c46;transform:translateY(-1px)}
+.overview-action.primary{border-color:var(--orange);background:var(--orange);color:#fff;box-shadow:0 10px 28px rgba(255,90,18,.18)}
+.overview-avatar{width:44px;height:44px;border:3px solid #4a4b46;border-radius:50%;background:linear-gradient(145deg,#ff844b,#d43c00);display:grid;place-items:center;font:700 13px "Space Grotesk";color:#fff}
+.account-overview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}
+.account-overview-card{min-height:146px;padding:22px 24px;border:1px solid #30312d;border-radius:14px;background:linear-gradient(145deg,#141512,#10110f 68%);transition:.2s}
+.account-overview-card:hover{border-color:rgba(255,90,18,.36);transform:translateY(-2px);box-shadow:0 16px 36px rgba(0,0,0,.18)}
+.overview-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.overview-card-label{font-size:12px;color:#92948d}
+.overview-pill{padding:5px 10px;border:1px solid #3c3e38;border-radius:999px;color:#bdbfb8;font-size:9px;font-weight:500}
+.overview-card-value{font:700 32px "Space Grotesk";letter-spacing:-.04em;margin-top:24px;color:#f8f8f5}
+.overview-card-meta{display:flex;align-items:center;gap:8px;margin-top:10px;color:#73756e;font-size:9px}
+.overview-card-meta.is-live:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(118,219,114,.06)}
+.topbar{height:48px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #20211e;margin-bottom:17px}
+.page-title{font:600 17px "Space Grotesk"}.top-actions{display:flex;align-items:center;gap:7px}.ghost,.primary{height:32px;padding:0 11px;border-radius:7px;border:1px solid #2a2b27;background:#121310;color:#b7b9b2;font-size:10px;font-weight:600;cursor:pointer}.ghost:hover{color:#fff;border-color:#45463f}.primary{border-color:var(--orange);background:var(--orange);color:white;box-shadow:0 8px 22px rgba(255,90,18,.16)}
+.search{height:32px;width:195px;border:1px solid #292a26;background:#10110f;border-radius:7px;color:#d8d9d4;font-size:10px;padding:0 11px;outline:0}.search:focus{border-color:rgba(255,90,18,.5)}
+.avatar{width:31px;height:31px;border-radius:50%;background:linear-gradient(145deg,#ff864c,#cf3b00);display:grid;place-items:center;font-size:10px;font-weight:700;border:2px solid #383934}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 14px;position:relative;overflow:hidden}.stat:after{content:"";position:absolute;inset:auto 0 0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,90,18,.6),transparent);opacity:0;transition:.2s}.stat:hover:after{opacity:1}
+.stat-head{display:flex;align-items:center;justify-content:space-between;font-size:9px;color:#797b74}.stat-badge{font-size:8px;padding:3px 6px;border:1px solid #34352f;border-radius:12px;color:#aeb0aa}.stat-value{font:600 21px "Space Grotesk";margin-top:13px;letter-spacing:-.03em}.stat-foot{display:flex;align-items:center;gap:5px;font-size:8px;color:#666861;margin-top:5px}.positive{color:var(--green)}
+.workspace{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}.panel-head{height:49px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #22231f}.panel-title{font:600 12px "Space Grotesk"}.panel-sub{font-size:8px;color:#74766f;margin-top:3px}.segmented{display:flex;padding:3px;border:1px solid #2d2e29;background:#0d0e0c;border-radius:7px}.segmented button{border:0;background:transparent;color:#6f716a;border-radius:5px;padding:4px 7px;font-size:8px;cursor:pointer}.segmented button.active{background:#252620;color:white}
+.chart-body{padding:14px}.price-row{display:flex;align-items:end;justify-content:space-between;margin-bottom:8px}.price{font:600 25px "Space Grotesk";letter-spacing:-.04em}.price small{font:500 10px Inter;color:var(--green);margin-left:8px}.market-state{display:flex;align-items:center;gap:6px;font-size:8px;color:#9a9c95}.live{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(118,219,114,.07);animation:pulse 2s infinite}
+.chart{height:294px;border:1px solid #22231f;border-radius:9px;background:linear-gradient(180deg,rgba(255,255,255,.012),transparent),#0c0d0b;position:relative;overflow:hidden}.grid-lines{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:100% 25%,12.5% 100%}.chart svg{position:absolute;inset:18px 12px 24px;width:calc(100% - 24px);height:calc(100% - 42px);overflow:visible}.axis{position:absolute;left:12px;right:12px;bottom:8px;display:flex;justify-content:space-between;font-size:7px;color:#4f514c}.price-tag{position:absolute;right:0;top:40%;transform:translateY(-50%);font-size:8px;font-weight:700;background:var(--orange);padding:4px 7px;color:#fff}.chart-legend{position:absolute;top:12px;left:12px;display:flex;gap:12px;font-size:8px;color:#777972}.chart-legend b{color:#d9dad5;font-weight:600}.bars{position:absolute;left:12px;right:12px;bottom:25px;height:38px;display:flex;align-items:end;gap:3px;opacity:.44}.bars i{display:block;flex:1;background:#5f625b;min-width:2px;border-radius:1px 1px 0 0}.bars i.hot{background:var(--orange);opacity:1}
+.right-stack{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.engine{padding:14px}.engine-header{display:flex;align-items:center;gap:10px;padding-bottom:13px;border-bottom:1px solid #252621}.engine-chip{width:38px;height:38px;border:1px solid rgba(255,90,18,.45);border-radius:9px;background:rgba(255,90,18,.07);display:grid;place-items:center;font:700 9px "Space Grotesk";color:#fff}.engine-name{font:600 12px "Space Grotesk"}.engine-online{font-size:8px;color:var(--green);margin-top:3px}.switch-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #22231f;font-size:9px;color:#a6a8a1}.switch{width:31px;height:17px;border-radius:15px;background:#2a2c27;position:relative;cursor:pointer;border:0}.switch:after{content:"";position:absolute;width:11px;height:11px;border-radius:50%;background:#787b73;top:3px;left:3px;transition:.2s}.switch.on{background:rgba(255,90,18,.3)}.switch.on:after{left:17px;background:var(--orange)}
+.risk{margin-top:13px;padding:12px;background:#0d0e0c;border:1px solid #272824;border-radius:9px}.risk-head{display:flex;justify-content:space-between;font-size:8px;color:#85877f}.risk-head b{color:#fff}.risk-track{height:4px;background:#292a25;border-radius:9px;margin-top:9px;overflow:hidden}.risk-track span{display:block;width:62%;height:100%;background:linear-gradient(90deg,var(--orange),#ff9a62)}.engine-action{width:100%;height:32px;border:0;border-radius:7px;background:var(--orange);color:#fff;font-size:9px;font-weight:700;margin-top:12px;cursor:pointer}
+.member-card{padding:14px;background:linear-gradient(145deg,#22231f,#111210 62%);position:relative}.member-card:after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.035),transparent 65%);pointer-events:none}.member-top{display:flex;justify-content:space-between;align-items:start}.member-label{font-size:8px;color:#777972}.member-name{font:600 12px "Space Grotesk";margin-top:4px}.member-logo{font:700 9px "Space Grotesk";color:var(--orange)}.member-number{font:500 15px "Space Grotesk";letter-spacing:.08em;margin:23px 0 12px}.member-bottom{display:flex;justify-content:space-between;font-size:8px;color:#7f817a}.member-bottom b{color:#e2e3df;font-weight:500}
+.activity{grid-column:1/2;margin-top:10px}.table-tools{display:flex;gap:7px}.mini-input{height:27px;width:150px;background:#0d0e0c;border:1px solid #292a26;border-radius:6px;padding:0 8px;color:white;font-size:8px;outline:0}.table{width:100%;border-collapse:collapse}.table th{padding:9px 12px;text-align:left;font-size:7px;text-transform:uppercase;letter-spacing:.12em;color:#565852;font-weight:700;background:#0e0f0d}.table td{padding:10px 12px;border-top:1px solid #22231f;font-size:8px;color:#9b9d96}.table td strong{font-weight:600;color:#e2e3df}.symbol{display:inline-grid;place-items:center;width:23px;height:23px;border:1px solid #33342f;border-radius:6px;margin-right:7px;color:var(--orange);font-size:7px}.status{font-size:7px;padding:4px 7px;border-radius:10px;border:1px solid}.status.done{color:var(--green);border-color:rgba(118,219,114,.25);background:rgba(118,219,114,.07)}.status.live{position:static;width:auto;height:auto;box-shadow:none;animation:none;color:#ffb183;border-color:rgba(255,90,18,.25);background:rgba(255,90,18,.07)}
+.limits{padding:13px}.limit-row{margin-top:13px}.limit-head{display:flex;justify-content:space-between;font-size:8px;color:#85877f}.limit-head b{font-weight:600;color:#d7d8d2}.limit-track{display:flex;gap:3px;margin-top:7px}.limit-track i{height:5px;flex:1;background:#2a2b27;border-radius:2px}.limit-track i.fill{background:linear-gradient(90deg,var(--orange),#ffad7b)}
+.market-summary{padding:14px;border-bottom:1px solid #22231f;display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(180deg,rgba(255,255,255,.018),transparent)}
+.market-kicker{font-size:8px;letter-spacing:.13em;text-transform:uppercase;color:#666861;font-weight:700}.market-line{display:flex;align-items:center;gap:9px;margin-top:8px}.market-line strong{font:600 15px "Space Grotesk"}.market-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(118,219,114,.07)}.market-dot.closed{background:var(--red);box-shadow:0 0 0 5px rgba(255,100,100,.07)}
+.market-detail{font-size:9px;color:#81837c;margin-top:5px}.market-countdown{font:600 10px "Space Grotesk";color:var(--orange2);margin-top:5px;min-height:12px}
+.sessions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.session-pill{padding:5px 8px;border:1px solid #2e302b;border-radius:999px;color:#666861;font-size:8px;font-weight:600}.session-pill.active{color:#d8f7d6;border-color:rgba(118,219,114,.36);background:rgba(118,219,114,.08)}.session-pill.overlap{color:#ffd7c3;border-color:rgba(255,90,18,.42);background:rgba(255,90,18,.09)}
+.tradingview-shell{height:clamp(560px,68vh,760px)!important;margin:18px;border:1px solid #353730;border-radius:10px;overflow:hidden;background:#0b0c0b;position:relative}.tradingview-shell:before{content:"Connexion au flux XAU/USD…";position:absolute;inset:0;display:grid;place-items:center;color:#595b55;font-size:9px;letter-spacing:.08em}.tradingview-shell>div{position:relative;z-index:1;height:100%}
+.account-list{padding-top:4px}.account-row{display:flex;justify-content:space-between;gap:15px;padding:10px 0;border-bottom:1px solid #22231f;font-size:9px;color:#84867f}.account-row strong{font-weight:600;color:#eee}.account-row .good{color:var(--green)}.personal-message{margin-top:12px;padding:11px;border:1px solid rgba(255,90,18,.24);border-radius:8px;background:rgba(255,90,18,.055);font-size:9px;line-height:1.55;color:#c5c7c0}.personal-message b{display:block;color:var(--orange2);font-size:8px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.feed{padding:8px 14px 13px}.feed-row{display:grid;grid-template-columns:7px 1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #22231f;font-size:9px;color:#a7a9a2}.feed-row:last-child{border-bottom:0}.feed-dot{width:6px;height:6px;border-radius:50%;background:#62645d}.feed-row time{font-size:8px;color:#5f615b}.feed-link{display:inline-block;margin-top:6px;color:var(--orange2);font-size:8px;text-decoration:none;font-weight:700}
+.eco{grid-column:1/2;margin-top:10px}.eco-list{padding:3px 14px 12px}.eco-row{display:grid;grid-template-columns:54px 9px 1fr auto;gap:9px;align-items:center;padding:12px 0;border-bottom:1px solid #22231f;font-size:9px}.eco-row:last-child{border-bottom:0}.eco-row time{font-weight:600;color:#ddd}.eco-impact{width:7px;height:7px;border-radius:50%;background:#f4a524}.eco-impact.high{background:#f34f4f}.eco-title{color:#b7b9b2}.eco-tag{font-size:7px;color:#696b65;border:1px solid #2e302b;border-radius:12px;padding:3px 6px}
+.quick-card{padding:14px}.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}.quick-actions a{border:1px solid #2b2d28;border-radius:8px;background:#0d0e0c;color:#aaa;text-decoration:none;padding:10px;font-size:8px;transition:.18s}.quick-actions a:hover{border-color:rgba(255,90,18,.42);color:#fff}
+@keyframes pulse{50%{opacity:.5;transform:scale(.85)}}
+@media(max-width:980px){.app{grid-template-columns:190px minmax(0,1fr)}.account-overview-grid{grid-template-columns:1fr}.right-stack{grid-template-columns:1fr}.activity{grid-column:auto}.search{display:none}}
+@media(max-width:680px){.app{display:block}.sidebar{display:none}.main{padding:12px}.account-overview-head{align-items:flex-start;flex-direction:column}.account-overview-actions{width:100%;display:grid;grid-template-columns:1fr 1.25fr auto}.overview-action{padding:0 10px;font-size:9px}.overview-avatar{width:42px;height:42px}.account-overview-card{min-height:126px;padding:18px}.overview-card-value{font-size:27px;margin-top:18px}.topbar{height:48px}.ghost{display:none}.top-actions{gap:6px}.stats{grid-template-columns:1fr}.workspace{display:block}.panel,.right-stack>.panel{margin-bottom:10px}.right-stack{display:block}.tradingview-shell{height:330px!important;margin:9px}.market-summary{align-items:flex-start;flex-direction:column}.sessions{justify-content:flex-start}.eco{margin-bottom:10px}.page-title{font-size:15px}.primary{padding:0 9px}.avatar{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark"></div><div class="brand-name">BECTANSE <span>AUTO</span></div></div>
+    <div class="nav-group"><div class="nav-title">Navigation</div><nav class="nav">
+      <a class="nav-item active" href="#accueil"><span class="ico">01</span>Accueil</a>
+      <a class="nav-item" href="#parametres"><span class="ico">02</span>Mes paramètres</a>
+      <a class="nav-item" href="#canal"><span class="ico">03</span>Canal VIP</a>
+      <a class="nav-item" href="#offres"><span class="ico">04</span>Renouveler / Upgrader</a>
+      <a class="nav-item" href="#support"><span class="ico">05</span>Discuter avec un agent</a>
+    </nav></div>
+    <div class="nav-group"><div class="nav-title">Académie</div><nav class="nav">
+      <a class="nav-item" href="#calculateur"><span class="ico">06</span>Calculateur</a>
+      <a class="nav-item" href="#formation"><span class="ico">07</span>Formation</a>
+      <a class="nav-item" href="#parrainage"><span class="ico">08</span>Parrainage VIP</a>
+      <a class="nav-item" href="#faq"><span class="ico">09</span>FAQ &amp; Guide</a>
+    </nav></div>
+    <div class="side-plan"><div class="plan-kicker">Accès membre actif</div><div class="plan-name">Malcom Dides</div><div class="plan-meta">Copy Trading synchronisé</div><div class="plan-progress"><span></span></div><div class="plan-days"><span>24 jours restants</span><span>Actif</span></div></div>
+  </aside>
+  <main class="main">
+    <section class="workspace">
+      <section class="account-overview" aria-labelledby="account-overview-title">
+        <div class="account-overview-head">
+          <h1 class="account-overview-title" id="account-overview-title">Accueil</h1>
+          <div class="account-overview-actions">
+            <a class="overview-action" href="#formation">Formation</a>
+            <a class="overview-action primary" href="#parametres">Gérer Bectanse Auto</a>
+            <span class="overview-avatar" aria-label="Profil de Malcom">M</span>
+          </div>
+        </div>
+        <div class="account-overview-grid">
+          <article class="account-overview-card">
+            <div class="overview-card-top"><span class="overview-card-label">Capital configuré</span><span class="overview-pill">Compte réel</span></div>
+            <div class="overview-card-value">200,00 €</div>
+            <div class="overview-card-meta is-live">Synchronisé avec ton compte</div>
+          </article>
+          <article class="account-overview-card">
+            <div class="overview-card-top"><span class="overview-card-label">Bectanse Auto</span><span class="overview-pill">MT5</span></div>
+            <div class="overview-card-value">Actif</div>
+            <div class="overview-card-meta is-live">Robot connecté en temps réel</div>
+          </article>
+          <article class="account-overview-card">
+            <div class="overview-card-top"><span class="overview-card-label">Accès membre</span><span class="overview-pill">Actif</span></div>
+            <div class="overview-card-value">24 jours</div>
+            <div class="overview-card-meta">Expiration le 28/08/2026</div>
+          </article>
+        </div>
+      </section>
+      <article class="panel">
+        <div class="market-summary">
+          <div><div class="market-kicker">État du marché</div><div class="market-line"><span class="market-dot" id="market-dot"></span><strong id="market-text">Vérification du marché…</strong></div><div class="market-detail" id="market-detail"></div><div class="market-countdown" id="market-countdown"></div></div>
+          <div class="sessions" id="sessions-pills" aria-label="Sessions de marché"></div>
+        </div>
+        <div class="tradingview-shell"><div id="tradingview_gold"></div></div>
+      </article>
+      <div class="right-stack">
+        <article class="panel engine"><div class="engine-header"><div class="engine-chip">AUTO</div><div><div class="engine-name">Mon compte</div><div class="engine-online">● SYSTÈME ACTIF · synchronisation en temps réel</div></div></div><div class="account-list"><div class="account-row"><span>Copy Trading</span><strong class="good">Actif</strong></div><div class="account-row"><span>Capital</span><strong>200 €</strong></div><div class="account-row"><span>Expiration</span><strong>28/08/2026</strong></div><div class="account-row"><span>Jours restants</span><strong class="good">24 jours</strong></div></div><div class="personal-message"><b>Message personnel</b>Tes paramètres ont été appliqués sur le système Bectanse AUTO.</div><button class="engine-action">Configurer mes paramètres</button></article>
+        <article class="panel"><div class="panel-head"><div><div class="panel-title">Canal VIP</div><div class="panel-sub">Aperçu des derniers messages</div></div><span class="positive" style="font-size:8px">LIVE</span></div><div class="feed"><div class="feed-row"><i class="feed-dot"></i><span>Ça s’est joué à rien</span><time>15:47</time></div><div class="feed-row"><i class="feed-dot"></i><span>Audio</span><time>15:46</time></div><div class="feed-row"><i class="feed-dot"></i><span>Message vocal</span><time>15:45</time></div><a class="feed-link" href="#canal">Voir tout le canal →</a></div></article>
+      </div>
+      <article class="panel eco"><div class="panel-head"><div><div class="panel-title">Actualité économique du jour</div><div class="panel-sub">Les événements déjà affichés dans l’espace membre</div></div><span class="stat-badge">Calendrier</span></div><div class="eco-list"><div class="eco-row"><time>08:30</time><i class="eco-impact"></i><span class="eco-title">CPI m/m</span><span class="eco-tag">USD</span></div><div class="eco-row"><time>16:00</time><i class="eco-impact high"></i><span class="eco-title">ISM Manufacturing PMI</span><span class="eco-tag">USD</span></div><div class="eco-row"><time>16:00</time><i class="eco-impact"></i><span class="eco-title">ISM Manufacturing Prices</span><span class="eco-tag">USD</span></div></div></article>
+      <article class="panel quick-card"><div class="panel-title">Accès rapide</div><div class="panel-sub">Les fonctions existantes de ton espace</div><div class="quick-actions"><a href="#parametres">Paramétrer Bectanse AUTO →</a><a href="#formation">Accéder à la formation →</a><a href="#support">Discuter avec un agent →</a><a href="#faq">Voir la FAQ &amp; Guide →</a></div></article>
+    </section>
+  </main>
+</div>
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+const JOURS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+function getNowParis(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}))}
+function getMarketStatus(){const now=getNowParis(),day=now.getDay(),t=now.getHours()*60+now.getMinutes();if(day===6||day===0||(day===5&&t>=1380))return{open:false,reason:'Week-end',type:'weekend'};if(t>=1380)return{open:false,reason:'Pause technique (23h-00h)',type:'pause'};return{open:true,type:'open'}}
+function getMinsUntilMonday(){const now=getNowParis(),day=now.getDay(),next=new Date(now),days=day===0?1:day===6?2:8-day;next.setDate(now.getDate()+days);next.setHours(0,0,0,0);return Math.max(0,Math.floor((next-now)/60000))}
+function formatDuration(mins){if(mins>=1440){const j=Math.floor(mins/1440),h=Math.floor((mins%1440)/60);return`${j}j ${h}h`}const h=Math.floor(mins/60),m=mins%60;return`${h}h ${m<10?'0'+m:m}min`}
+function getActiveSessions(){const now=getNowParis(),t=now.getHours()*60+now.getMinutes();return[{name:'Tokyo',active:t>=60&&t<540},{name:'Londres',active:t>=540&&t<1080},{name:'New York',active:t>=840&&t<1380}]}
+function updateMarket(){const state=getMarketStatus(),now=getNowParis(),text=document.getElementById('market-text'),detail=document.getElementById('market-detail'),countdown=document.getElementById('market-countdown'),dot=document.getElementById('market-dot'),sessions=getActiveSessions();dot.classList.toggle('closed',!state.open);text.textContent=state.open?'MARCHÉ OUVERT':'MARCHÉ FERMÉ';if(state.open){const mins=1380-(now.getHours()*60+now.getMinutes());detail.textContent=mins<480?`Fermeture dans ${formatDuration(mins)}`:'Session en cours';countdown.textContent=''}else if(state.type==='weekend'){detail.textContent='Week-end';countdown.textContent=`Réouverture lundi dans ${formatDuration(getMinsUntilMonday())}`}else{const mins=1440-(now.getHours()*60+now.getMinutes());detail.textContent=state.reason;countdown.textContent=`Réouverture dans ${formatDuration(mins)}`};const activeCount=sessions.filter(s=>s.active).length;document.getElementById('sessions-pills').innerHTML=sessions.map(s=>`<span class="session-pill ${s.active?(activeCount>1?'overlap':'active'):''}">${s.name}</span>`).join('')}
+function initTradingView(){if(!window.TradingView){setTimeout(initTradingView,120);return}new TradingView.widget({autosize:true,height:'100%',symbol:'OANDA:XAUUSD',interval:'15',timezone:'Europe/Paris',theme:'dark',style:'1',locale:'fr',toolbar_bg:'#0b0c0b',enable_publishing:false,hide_top_toolbar:true,hide_side_toolbar:true,hide_legend:false,allow_symbol_change:false,withdateranges:false,save_image:false,container_id:'tradingview_gold',backgroundColor:'rgba(11,12,11,1)',gridColor:'rgba(255,255,255,0.035)'})}
+updateMarket();setInterval(updateMarket,30000);initTradingView();
+</script>
+</body>
+</html>

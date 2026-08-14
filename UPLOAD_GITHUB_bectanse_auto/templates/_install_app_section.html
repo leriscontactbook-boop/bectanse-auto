@@ -1,0 +1,72 @@
+{% set install_member = install_context|default('public') == 'member' %}
+<section id="installer-app" class="ba-install{% if install_member %} ba-install-member{% endif %}" aria-labelledby="ba-install-title">
+  <div class="ba-install-copy">
+    <span class="ba-install-kicker">APPLICATION BECTANSE</span>
+    <h2 id="ba-install-title">Installe Bectanse sur ton téléphone.</h2>
+    <p>{% if install_member %}Accède plus vite à ton espace et reçois tes notifications personnelles directement sur ton téléphone.{% else %}Ajoute gratuitement la Web App à ton écran d’accueil. Aucun accès membre n’est nécessaire pour l’installer.{% endif %}</p>
+    <div class="ba-install-points">
+      <span>✓ iPhone et Android</span><span>✓ Installation rapide</span><span>✓ Accès en un clic</span>
+    </div>
+  </div>
+  <div class="ba-install-actions">
+    <div class="ba-install-status" id="ba-install-status"><i></i><span>Prête à être installée</span></div>
+    <button type="button" class="ba-install-primary" id="ba-install-open">Installer l’application</button>
+    {% if install_member %}<button type="button" class="ba-install-secondary" id="ba-push-enable">Activer et tester mes notifications</button>{% else %}<a class="ba-install-secondary" href="#login-title">Je suis déjà membre</a>{% endif %}
+  </div>
+</section>
+
+<div class="ba-install-modal" id="ba-install-modal" aria-hidden="true">
+  <div class="ba-install-dialog" role="dialog" aria-modal="true" aria-labelledby="ba-guide-title">
+    <button class="ba-install-close" type="button" aria-label="Fermer">×</button>
+    <span class="ba-install-kicker">GUIDE D’INSTALLATION</span>
+    <h2 id="ba-guide-title">Installe l’app en quelques secondes</h2>
+    <div class="ba-device-tabs">
+      <button type="button" data-device="ios"> iPhone</button>
+      <button type="button" data-device="android">Android</button>
+    </div>
+    <div class="ba-guide" data-guide="ios">
+      <div><b>1</b><p>Ouvre cette page dans <strong>Safari</strong>.</p></div>
+      <div><b>2</b><p>Appuie sur l’icône <strong>Partager</strong> en bas de l’écran.</p></div>
+      <div><b>3</b><p>Choisis <strong>« Sur l’écran d’accueil »</strong>, puis confirme avec « Ajouter ».</p></div>
+    </div>
+    <div class="ba-guide" data-guide="android">
+      <div><b>1</b><p>Ouvre cette page dans <strong>Chrome</strong>.</p></div>
+      <div><b>2</b><p>Appuie sur le menu <strong>⋮</strong> en haut à droite.</p></div>
+      <div><b>3</b><p>Choisis <strong>« Installer l’application »</strong> ou « Ajouter à l’écran d’accueil ».</p></div>
+    </div>
+    <button type="button" class="ba-install-primary ba-guide-done">J’ai terminé l’installation</button>
+  </div>
+</div>
+
+<style>
+.ba-install{position:relative;z-index:2;width:min(1180px,calc(100% - 40px));margin:0 auto 64px;padding:34px 38px;display:grid;grid-template-columns:1.35fr .65fr;gap:28px;align-items:center;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:22px;background:linear-gradient(120deg,rgba(255,90,18,.11),rgba(15,17,15,.96) 42%,rgba(15,17,15,.96));box-shadow:0 24px 70px rgba(0,0,0,.3)}
+.ba-install-member{width:100%;margin:18px 0 28px;border-radius:14px;padding:26px 28px}
+.ba-install-kicker{display:block;margin-bottom:9px;color:#ff7431;font:800 11px/1 'Barlow Condensed',Arial,sans-serif;letter-spacing:.15em}
+.ba-install h2{margin:0;color:#f7f7f4;font-size:clamp(24px,3vw,38px);line-height:1.04;letter-spacing:-.035em}.ba-install p{max-width:650px;margin:12px 0 0;color:#92968f;font:500 13px/1.65 Inter,Arial,sans-serif}.ba-install-points{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:17px;color:#c9ccc6;font-size:11px;font-weight:700}.ba-install-points span::first-letter{color:#63dc82}
+.ba-install-actions{display:flex;flex-direction:column;gap:10px}.ba-install-status{display:flex;align-items:center;gap:9px;margin-bottom:3px;color:#aeb2aa;font-size:11px;font-weight:700}.ba-install-status i{width:8px;height:8px;border-radius:50%;background:#63dc82;box-shadow:0 0 14px rgba(99,220,130,.65)}
+.ba-install-primary,.ba-install-secondary{min-height:48px;padding:0 18px;display:flex;align-items:center;justify-content:center;border-radius:11px;text-decoration:none;font:800 11px/1 Inter,Arial,sans-serif;letter-spacing:.04em;cursor:pointer}.ba-install-primary{border:1px solid #ff7b3d;color:white;background:linear-gradient(110deg,#e94706,#ff681f);box-shadow:0 12px 28px rgba(255,90,18,.16)}.ba-install-secondary{border:1px solid rgba(255,255,255,.14);color:#d8dbd5;background:rgba(255,255,255,.035)}
+.ba-install-modal{position:fixed;inset:0;z-index:5000;display:none;place-items:center;padding:18px;background:rgba(0,0,0,.78);backdrop-filter:blur(9px)}.ba-install-modal.open{display:grid}.ba-install-dialog{position:relative;width:min(470px,100%);padding:30px;border:1px solid rgba(255,255,255,.13);border-radius:22px;color:#f7f7f4;background:#111310;box-shadow:0 30px 100px rgba(0,0,0,.6)}.ba-install-dialog h2{margin:0 36px 20px 0;font-size:28px;line-height:1.08}.ba-install-close{position:absolute;right:18px;top:16px;width:36px;height:36px;border:1px solid rgba(255,255,255,.12);border-radius:50%;color:#fff;background:#1b1d1a;font-size:24px;cursor:pointer}.ba-device-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}.ba-device-tabs button{height:42px;border:1px solid rgba(255,255,255,.11);border-radius:10px;color:#92968f;background:#0b0d0b;font-weight:800;cursor:pointer}.ba-device-tabs button.active{border-color:#ff681f;color:#fff;background:rgba(255,90,18,.12)}.ba-guide{display:none;gap:9px;margin-bottom:18px}.ba-guide.active{display:grid}.ba-guide>div{display:flex;align-items:center;gap:13px;padding:13px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.025)}.ba-guide b{width:28px;height:28px;display:grid;place-items:center;flex:0 0 28px;border-radius:8px;color:#fff;background:#e94d0c}.ba-guide p{margin:0;color:#b9bdb5;font-size:12px;line-height:1.45}.ba-guide strong{color:#fff}.ba-guide-done{width:100%}
+@media(max-width:760px){.ba-install{width:calc(100% - 28px);margin-bottom:34px;padding:25px 22px;grid-template-columns:1fr}.ba-install-member{width:100%;margin:16px 0 24px}.ba-install h2{font-size:28px}.ba-install-points{display:grid;grid-template-columns:1fr 1fr}.ba-install-dialog{padding:26px 20px}.ba-install-dialog h2{font-size:25px}}
+</style>
+
+<script>
+(function(){
+  var promptEvent=null, modal=document.getElementById('ba-install-modal');
+  var open=document.getElementById('ba-install-open'), status=document.getElementById('ba-install-status');
+  var standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  var isiOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isAndroid=/android/i.test(navigator.userAgent);
+  function setDevice(device){document.querySelectorAll('.ba-device-tabs button').forEach(function(b){b.classList.toggle('active',b.dataset.device===device)});document.querySelectorAll('.ba-guide').forEach(function(g){g.classList.toggle('active',g.dataset.guide===device)})}
+  function showGuide(){setDevice(isAndroid?'android':'ios');modal.classList.add('open');modal.setAttribute('aria-hidden','false')}
+  function closeGuide(){modal.classList.remove('open');modal.setAttribute('aria-hidden','true')}
+  if(standalone){status.querySelector('span').textContent='Application installée';open.textContent='Application déjà installée';open.disabled=true}
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();promptEvent=e;status.querySelector('span').textContent='Installation disponible'});
+  open.addEventListener('click',async function(){if(standalone)return;if(promptEvent){promptEvent.prompt();await promptEvent.userChoice;promptEvent=null}else showGuide()});
+  document.querySelectorAll('.ba-device-tabs button').forEach(function(b){b.addEventListener('click',function(){setDevice(b.dataset.device)})});
+  modal.querySelector('.ba-install-close').addEventListener('click',closeGuide);modal.querySelector('.ba-guide-done').addEventListener('click',closeGuide);modal.addEventListener('click',function(e){if(e.target===modal)closeGuide()});
+  {% if install_member %}
+  var pushButton=document.getElementById('ba-push-enable');
+  if(pushButton)pushButton.addEventListener('click',async function(){pushButton.disabled=true;pushButton.textContent='Activation en cours…';var result=window.enablePushNotifications?await window.enablePushNotifications():{ok:false};pushButton.textContent=result.ok?(result.testSent?'✓ Notification test envoyée':'✓ Notifications activées'):(result.reason==='install-required'?'Installe d’abord l’application sur iPhone':'Réessayer l’activation');pushButton.disabled=false;if(result.reason==='install-required')showGuide()});
+  {% endif %}
+})();
+</script>

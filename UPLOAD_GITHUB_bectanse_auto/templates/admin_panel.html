@@ -122,6 +122,8 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 .search-bar{display:flex;gap:10px;margin-bottom:16px}
 .search-input{flex:1;background:var(--d2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;color:var(--white);font-size:13px;outline:none}
 .search-input:focus{border-color:var(--purple)}
+.analytics-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}.periods{display:flex;gap:7px;background:var(--d2);border:1px solid var(--border);padding:5px;border-radius:12px}.period-btn{border:0;background:transparent;color:rgba(255,255,255,.5);padding:8px 13px;border-radius:8px;font-weight:700;cursor:pointer}.period-btn.active{background:var(--orange);color:#fff}.analytics-status{font-size:11px;font-weight:700;color:#6EE7B7;border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.08);padding:8px 12px;border-radius:999px}.analytics-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px}.analytics-kpi,.analytics-card{background:var(--d2);border:1px solid var(--border);border-radius:15px;padding:18px}.analytics-kpi small{display:block;color:rgba(255,255,255,.42);font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.analytics-kpi strong{display:block;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:34px;margin-top:7px}.analytics-kpi.accent{border-color:rgba(255,92,27,.45);background:linear-gradient(145deg,rgba(255,92,27,.13),var(--d2))}.analytics-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-bottom:16px}.analytics-grid.three{grid-template-columns:repeat(3,1fr)}.analytics-card h3{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.08em;color:#fff;font-size:15px;margin:0 0 16px}.trend-chart{height:205px;display:flex;align-items:flex-end;gap:7px;border-bottom:1px solid var(--border);padding-top:20px}.trend-col{flex:1;min-width:8px;background:linear-gradient(180deg,#ff6b2a,#8f2d05);border-radius:6px 6px 0 0;position:relative;min-height:3px}.trend-col:hover:after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#050505;color:#fff;padding:5px 7px;border-radius:6px;font-size:10px;white-space:nowrap;z-index:2}.funnel-list,.bar-list{display:flex;flex-direction:column;gap:10px}.funnel-step{background:rgba(255,255,255,.035);border:1px solid var(--border);padding:11px 13px;border-radius:10px;position:relative;overflow:hidden}.funnel-fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,rgba(109,40,217,.22),rgba(255,92,27,.12));z-index:0}.funnel-text,.bar-meta{position:relative;z-index:1;display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:700;color:#fff}.bar-row{font-size:11px;color:rgba(255,255,255,.7)}.bar-meta span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:78%}.bar-track{height:5px;background:rgba(255,255,255,.07);border-radius:99px;margin-top:6px;overflow:hidden}.bar-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--orange));border-radius:99px}.analytics-empty{color:rgba(255,255,255,.32);font-size:12px;padding:28px 0;text-align:center}
+@media(max-width:768px){.analytics-kpis{grid-template-columns:1fr 1fr}.analytics-grid,.analytics-grid.three{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -137,6 +139,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
   <nav class="s-nav">
     <div class="s-section">Tableau de bord</div>
     <a class="s-item active" onclick="showSection('dashboard')"><span class="s-icon">📊</span> Vue d'ensemble</a>
+    <a class="s-item" onclick="showSection('analytics')"><span class="s-icon">📈</span> Statistiques & conversion</a>
     <div class="s-section">Membres</div>
     <a class="s-item" onclick="showSection('membres')"><span class="s-icon">👥</span> Tous les membres</a>
     <div class="s-section">Communication</div>
@@ -189,6 +192,19 @@ tr:hover td{background:rgba(255,255,255,0.02)}
       </tbody>
     </table>
   </div>
+</div>
+
+<!-- STATISTIQUES & CONVERSION -->
+<div class="section" id="section-analytics">
+  <div class="analytics-head">
+    <div><div class="section-title" style="margin-bottom:5px">Statistiques & conversion</div><div style="color:rgba(255,255,255,.38);font-size:12px">Trafic réel, provenance et progression dans le tunnel</div></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="analytics-status" id="analytics-status">● Suivi interne actif</span><div class="periods"><button class="period-btn" data-period="1d" onclick="loadAnalytics('1d')">24 h</button><button class="period-btn active" data-period="7d" onclick="loadAnalytics('7d')">7 j</button><button class="period-btn" data-period="30d" onclick="loadAnalytics('30d')">30 j</button><button class="period-btn" data-period="90d" onclick="loadAnalytics('90d')">90 j</button></div></div>
+  </div>
+  <div class="analytics-kpis">
+    <div class="analytics-kpi"><small>Visites</small><strong id="a-visits">—</strong></div><div class="analytics-kpi"><small>Visiteurs uniques</small><strong id="a-visitors">—</strong></div><div class="analytics-kpi"><small>Sessions</small><strong id="a-sessions">—</strong></div><div class="analytics-kpi"><small>Inscriptions</small><strong id="a-registrations">—</strong></div><div class="analytics-kpi accent"><small>Conversion</small><strong id="a-conversion">—</strong></div>
+  </div>
+  <div class="analytics-grid"><div class="analytics-card"><h3>Évolution des visites</h3><div class="trend-chart" id="analytics-trend"></div></div><div class="analytics-card"><h3>Tunnel de conversion</h3><div class="funnel-list" id="analytics-funnel"></div></div></div>
+  <div class="analytics-grid three"><div class="analytics-card"><h3>Sources du trafic</h3><div class="bar-list" id="analytics-sources"></div></div><div class="analytics-card"><h3>Pages les plus vues</h3><div class="bar-list" id="analytics-pages"></div></div><div class="analytics-card"><h3>Appareils</h3><div class="bar-list" id="analytics-devices"></div></div></div>
 </div>
 
 <!-- MEMBRES -->
@@ -419,11 +435,45 @@ function showSection(id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('section-' + id).classList.add('active');
   document.querySelectorAll('.s-item').forEach(i => i.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  if (typeof event !== 'undefined' && event.currentTarget) event.currentTarget.classList.add('active');
   if (id === 'membres') loadMembres();
   if (id === 'annonces') loadAnnonces();
   if (id === 'pdfs') loadPDFs();
   if (id === 'canal') loadCanalMessages();
+  if (id === 'analytics') loadAnalytics(currentAnalyticsPeriod);
+}
+
+// ── ANALYTICS
+let currentAnalyticsPeriod = '7d';
+function escapeAnalytics(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function renderBarList(id, rows) {
+  const el = document.getElementById(id);
+  if (!rows || !rows.length) { el.innerHTML = '<div class="analytics-empty">Les premières données vont apparaître ici.</div>'; return; }
+  const max = Math.max(...rows.map(r => r.value), 1);
+  el.innerHTML = rows.map(r => `<div class="bar-row"><div class="bar-meta"><span>${escapeAnalytics(r.label)}</span><span>${r.value}</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, r.value/max*100)}%"></div></div></div>`).join('');
+}
+async function loadAnalytics(period='7d') {
+  currentAnalyticsPeriod = period;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('active', b.dataset.period === period));
+  try {
+    const r = await fetch(`${API('/admin/api/analytics')}&period=${encodeURIComponent(period)}`);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'Erreur');
+    const k = d.kpis;
+    document.getElementById('a-visits').textContent = k.visits.toLocaleString('fr-FR');
+    document.getElementById('a-visitors').textContent = k.visitors.toLocaleString('fr-FR');
+    document.getElementById('a-sessions').textContent = k.sessions.toLocaleString('fr-FR');
+    document.getElementById('a-registrations').textContent = k.registrations.toLocaleString('fr-FR');
+    document.getElementById('a-conversion').textContent = `${k.conversion_rate}%`;
+    document.getElementById('analytics-status').textContent = d.posthog_connected ? '● Suivi interne + PostHog actifs' : '● Suivi interne actif';
+    const maxTrend = Math.max(...d.trend.map(x => x.visits), 1);
+    document.getElementById('analytics-trend').innerHTML = d.trend.length ? d.trend.map(x => `<div class="trend-col" style="height:${Math.max(3,x.visits/maxTrend*100)}%" data-tip="${escapeAnalytics(x.date)} · ${x.visits} visites"></div>`).join('') : '<div class="analytics-empty" style="width:100%;align-self:center">Les visites seront visibles dès aujourd’hui.</div>';
+    const first = Math.max(d.funnel[0]?.value || 0, 1);
+    document.getElementById('analytics-funnel').innerHTML = d.funnel.map((x,i) => `<div class="funnel-step"><div class="funnel-fill" style="width:${Math.max(x.value ? 5 : 0,x.value/first*100)}%"></div><div class="funnel-text"><span>${i+1}. ${escapeAnalytics(x.label)}</span><span>${x.value}</span></div></div>`).join('');
+    renderBarList('analytics-sources', d.sources); renderBarList('analytics-pages', d.pages); renderBarList('analytics-devices', d.devices);
+  } catch (e) { toast('Impossible de charger les statistiques', 'error'); }
 }
 
 // ── STATS

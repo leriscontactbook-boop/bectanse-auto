@@ -8,7 +8,7 @@
 <link rel="manifest" href="/static/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
-<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--d2:#111827;--d3:#1F2937;--white:#fff;--gray:#9CA3AF;--border:rgba(91,33,182,0.18)}
@@ -330,17 +330,7 @@ input[type=range].bct::-webkit-slider-thumb:hover{transform:scale(1.2)}
 </div>
 
 <!-- NAV MOBILE -->
-<nav class="m-univ-nav">
-  <a class="m-univ-nav-item" href="/accueil"><span class="mni">🏠</span><span>Accueil</span></a>
-  <a class="m-univ-nav-item" href="/dashboard"><span class="mni">⚙️</span><span>Params</span></a>
-  <a class="m-univ-nav-item" href="/canal"><span class="mni">📡</span><span>Canal VIP</span></a>
-  <a class="m-univ-nav-item" href="/offres"><span class="mni">🚀</span><span>Upgrader</span></a>
-  <a class="m-univ-nav-item" href="/formation"><span class="mni">🎓</span><span>Formation</span></a>
-  <a class="m-univ-nav-item active" href="/calculateur"><span class="mni">📐</span><span>Calcul</span></a>
-  <a class="m-univ-nav-item" href="/parrainage"><span class="mni">🎁</span><span>Parrainage</span></a>
-  <a class="m-univ-nav-item" href="/faq"><span class="mni">❓</span><span>FAQ</span></a>
-  <a class="m-univ-nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span class="mni">💬</span><span>Support</span></a>
-</nav>
+{% include "_mobile_nav.html" %}
 
 {% if not demo_mode %}
 <a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
@@ -569,5 +559,6 @@ fetchEURUSD();
 update();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 </script>
+<script src="/static/source-guard.js" defer></script>
 </body>
 </html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Centre Telegram — Bectanse Admin</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/admin-telegram-automation.css?v=20260809-v3">
+</head>
+<body data-admin-key="{{ admin_key|e }}" data-preview-mode="{{ 'true' if preview_mode else 'false' }}">
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/admin-panel?key={{ admin_key|urlencode }}">
+      <span class="brand-mark">B€</span>
+      <span><strong>BECTANSE</strong><small>ADMIN CONTROL</small></span>
+    </a>
+    <div class="topbar-actions">
+      <span class="robot-status"><i></i> {{ 'Aperçu sans envoi' if preview_mode else 'Robot éditorial actif' }}</span>
+      <a class="button button-ghost" href="{{ '#' if preview_mode else '/admin-panel?key=' ~ (admin_key|urlencode) }}">← Retour à l’admin</a>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <span class="eyebrow">Telegram Automation Studio</span>
+        <h1>Centre de commande<br><em>éditorial.</em></h1>
+        <p>Prépare, programme et pilote tous les messages envoyés par les robots Bectanse.</p>
+      </div>
+      <div class="hero-signal" aria-hidden="true">
+        <span class="signal-ring ring-one"></span>
+        <span class="signal-ring ring-two"></span>
+        <span class="signal-core">✈</span>
+      </div>
+    </section>
+
+    <section class="stats-grid" aria-label="Résumé des automatisations">
+      <article class="stat-card"><span>Publications</span><strong id="stat-total">—</strong><small>dans le planning</small></article>
+      <article class="stat-card active"><span>Robots actifs</span><strong id="stat-active">—</strong><small>en cours d’exécution</small></article>
+      <article class="stat-card"><span>Prochains envois</span><strong id="stat-scheduled">—</strong><small>déjà programmés</small></article>
+      <article class="stat-card"><span>Formats interactifs</span><strong id="stat-interactive">—</strong><small>quiz et sondages</small></article>
+    </section>
+
+    <section class="panel channels-panel">
+      <div class="panel-head channels-head">
+        <div><span class="panel-kicker">Diffusion multi-canaux</span><h2>Canaux connectés</h2></div>
+        <button class="button button-primary" type="button" id="add-channel">＋ Ajouter un canal</button>
+      </div>
+      <p class="channels-intro">Une seule programmation peut être reproduite sur tous les canaux actifs. Le robot doit être administrateur avec le droit de publier.</p>
+      <form class="channel-form" id="channel-form" hidden>
+        <input type="hidden" id="channel-id">
+        <div class="field"><label for="channel-name">Nom interne</label><input id="channel-name" maxlength="80" placeholder="Ex. Canal France"></div>
+        <div class="field"><label for="channel-chat-id">Identifiant Telegram</label><input id="channel-chat-id" placeholder="@nom_du_canal ou -100…"></div>
+        <label class="toggle-control"><input id="channel-active" type="checkbox" checked><span></span><div><strong>Canal actif</strong><small>Reçoit les prochaines publications.</small></div></label>
+        <div class="channel-form-actions">
+          <button class="button button-ghost" type="button" id="cancel-channel">Annuler</button>
+          <button class="button button-primary" type="submit">Enregistrer le canal →</button>
+        </div>
+      </form>
+      <div class="channels-list" id="channels-list"><div class="empty-state">Chargement des canaux…</div></div>
+    </section>
+
+    <section class="studio-grid">
+      <form class="panel composer" id="post-form">
+        <div class="panel-head">
+          <div><span class="panel-kicker">Éditeur</span><h2 id="form-title">Nouvelle publication</h2></div>
+          <button class="icon-button" type="button" id="reset-form" aria-label="Vider le formulaire">↺</button>
+        </div>
+        <input type="hidden" id="post-id">
+
+        <div class="field">
+          <label for="post-name">Nom interne</label>
+          <input id="post-name" maxlength="120" placeholder="Ex. Conseil risque du lundi" required>
+          <small>Visible uniquement dans l’admin.</small>
+        </div>
+
+        <div class="format-card">
+          <div class="schedule-title"><span>01</span><div><strong>Format Telegram</strong><small>Rendu natif dans le canal</small></div></div>
+          <div class="format-picker" id="format-picker">
+            <label><input type="radio" name="post-type" value="message" checked><span><b>✈</b><strong>Message / Photo</strong><small>Texte, visuel et bouton</small></span></label>
+            <label><input type="radio" name="post-type" value="quiz"><span><b>?</b><strong>Quiz</strong><small>Bonne réponse cliquable</small></span></label>
+            <label><input type="radio" name="post-type" value="poll"><span><b>◉</b><strong>Sondage</strong><small>Vote Telegram natif</small></span></label>
+          </div>
+        </div>
+
+        <div id="message-fields">
+          <div class="field">
+            <div class="label-row"><label for="post-message">Message Telegram</label><span id="char-count">0 / 4 096</span></div>
+            <textarea id="post-message" rows="10" placeholder="Écris le message exactement comme il apparaîtra sur Telegram…"></textarea>
+            <div class="format-hint"><code>*gras*</code><code>_italique_</code><code>`code`</code></div>
+          </div>
+
+          <div class="field">
+            <label>Image ou visuel</label>
+            <label class="upload-zone" id="upload-zone" for="post-image">
+              <input id="post-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+              <span class="upload-icon">＋</span>
+              <strong>Ajouter une image</strong>
+              <small>JPG, PNG, WebP ou GIF · 8 Mo maximum</small>
+            </label>
+            <div class="uploaded-image" id="uploaded-image" hidden>
+              <img id="uploaded-image-preview" alt="Visuel sélectionné">
+              <div><strong>Image prête</strong><small>Elle sera jointe au message.</small></div>
+              <button type="button" id="remove-image" aria-label="Retirer l’image">×</button>
+            </div>
+          </div>
+        </div>
+
+        <section class="visual-library" aria-labelledby="visual-library-title">
+          <div class="visual-library-head">
+            <div>
+              <span class="panel-kicker">Catalogue visuel permanent</span>
+              <h3 id="visual-library-title">Bectanse Visual Catalog</h3>
+            </div>
+            <span class="visual-library-badge" id="visual-library-count">Chargement…</span>
+          </div>
+          <p>Choisis un modèle Bectanse ou enregistre tes propres créations. Le visuel, sa légende et son CTA peuvent être appliqués au post en un clic.</p>
+
+          <div class="visual-catalog-toolbar">
+            <input id="visual-library-search" type="search" placeholder="Rechercher un visuel…" aria-label="Rechercher dans le catalogue">
+            <div class="visual-filter-chips" id="visual-filter-chips" aria-label="Filtrer les visuels">
+              <button type="button" class="active" data-visual-filter="all">Tous</button>
+              <button type="button" data-visual-filter="market">Marché</button>
+              <button type="button" data-visual-filter="conversion">Conversion</button>
+              <button type="button" data-visual-filter="community">Communauté</button>
+              <button type="button" data-visual-filter="personal">Mes visuels</button>
+            </div>
+            <button class="button button-primary visual-add-button" type="button" id="open-library-upload">＋ Ajouter mon visuel</button>
+          </div>
+
+          <div class="visual-catalog-upload" id="visual-catalog-upload" hidden>
+            <div class="visual-upload-title"><strong>Enregistrer un visuel réutilisable</strong><small>Il restera disponible dans « Mes visuels ».</small></div>
+            <div class="visual-upload-grid">
+              <div class="field"><label for="library-image-title">Nom du visuel</label><input id="library-image-title" maxlength="100" placeholder="Ex. Invitation coaching du dimanche"></div>
+              <div class="field"><label for="library-image-category">Catégorie</label><select id="library-image-category"><option value="personal">Mes visuels</option><option value="conversion">Conversion</option><option value="market">Marché</option><option value="community">Communauté</option></select></div>
+              <div class="field visual-file-field"><label for="library-image-file">Fichier image</label><input id="library-image-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+              <div class="field"><label for="library-image-cta">CTA par défaut</label><input id="library-image-cta" maxlength="64" placeholder="Ex. Découvrir Bectanse"></div>
+              <div class="field"><label for="library-image-url">Lien du CTA</label><input id="library-image-url" type="url" value="https://acces.bectanse-academie.com/"></div>
+              <div class="field visual-caption-field"><label for="library-image-caption">Légende par défaut</label><textarea id="library-image-caption" rows="3" maxlength="1024" placeholder="Facultatif : texte proposé quand tu utilises ce visuel…"></textarea></div>
+            </div>
+            <div class="visual-upload-actions">
+              <button class="button button-ghost" type="button" id="cancel-library-upload">Annuler</button>
+              <button class="button button-primary" type="button" id="save-library-upload">Enregistrer dans le catalogue →</button>
+            </div>
+          </div>
+
+          <div class="visual-template-grid" id="visual-template-grid">
+            <div class="visual-library-loading">Chargement de la bibliothèque…</div>
+          </div>
+          <div class="visual-native-note">Les quiz et sondages restent natifs et cliquables dans Telegram. Utilise leur bannière dans un message teaser séparé.</div>
+        </section>
+
+        <div id="poll-fields" hidden>
+          <div class="field">
+            <div class="label-row"><label for="poll-question">Question</label><span id="question-count">0 / 300</span></div>
+            <textarea id="poll-question" rows="4" maxlength="300" placeholder="Pose une question claire à la communauté…"></textarea>
+          </div>
+          <div class="field">
+            <div class="label-row"><label>Réponses proposées</label><span>2 à 12 choix</span></div>
+            <div class="poll-options-editor" id="poll-options-editor"></div>
+            <button class="add-option" type="button" id="add-poll-option">＋ Ajouter une réponse</button>
+            <small id="correct-answer-help">Coche la ou les bonnes réponses du quiz.</small>
+          </div>
+          <div class="field" id="quiz-explanation-field">
+            <div class="label-row"><label for="poll-explanation">Explication de la réponse</label><span id="explanation-count">0 / 200</span></div>
+            <textarea id="poll-explanation" rows="3" maxlength="200" placeholder="Cette explication apparaîtra après la réponse…"></textarea>
+          </div>
+          <div class="toggle-row poll-settings">
+            <label class="toggle-control"><input id="poll-anonymous" type="checkbox" checked><span></span><div><strong>Votes anonymes</strong><small>Recommandé pour un canal.</small></div></label>
+            <label class="toggle-control"><input id="poll-multiple" type="checkbox"><span></span><div><strong>Choix multiples</strong><small>Plusieurs réponses possibles.</small></div></label>
+          </div>
+        </div>
+
+        <div class="schedule-card">
+          <div class="schedule-title"><span>02</span><div><strong>Programmation</strong><small>Heure de Paris</small></div></div>
+          <div class="field">
+            <label for="schedule-type">Rythme</label>
+            <select id="schedule-type">
+              <option value="weekly">Chaque semaine</option>
+              <option value="rotation">Rotation sur 4 semaines</option>
+              <option value="once">Envoi unique</option>
+            </select>
+          </div>
+
+          <div id="recurring-fields">
+            <div class="field">
+              <label>Jours d’envoi</label>
+              <div class="days-picker" id="days-picker">
+                <label><input type="checkbox" value="0"><span>Lun</span></label>
+                <label><input type="checkbox" value="1"><span>Mar</span></label>
+                <label><input type="checkbox" value="2"><span>Mer</span></label>
+                <label><input type="checkbox" value="3"><span>Jeu</span></label>
+                <label><input type="checkbox" value="4"><span>Ven</span></label>
+                <label><input type="checkbox" value="5"><span>Sam</span></label>
+                <label><input type="checkbox" value="6"><span>Dim</span></label>
+              </div>
+            </div>
+            <div class="field" id="rotation-field" hidden>
+              <label for="rotation-week">Semaine de la rotation</label>
+              <select id="rotation-week">
+                <option value="0">Semaine 1 sur 4</option>
+                <option value="1">Semaine 2 sur 4</option>
+                <option value="2">Semaine 3 sur 4</option>
+                <option value="3">Semaine 4 sur 4</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="publish-time">Heure d’envoi</label>
+              <input id="publish-time" type="time" value="18:30">
+            </div>
+          </div>
+
+          <div class="field" id="once-field" hidden>
+            <label for="scheduled-for">Date et heure de l’envoi</label>
+            <input id="scheduled-for" type="datetime-local">
+          </div>
+        </div>
+
+        <div class="schedule-card">
+          <div class="schedule-title"><span>03</span><div><strong>Options d’envoi</strong><small>Destination et interaction</small></div></div>
+          <input id="post-channel" type="hidden" value="@BECTANSE_ACADEMIE">
+          <div class="field broadcast-field">
+            <label>Canaux destinataires</label>
+            <label class="toggle-control broadcast-toggle"><input id="publish-all-channels" type="checkbox" checked><span></span><div><strong>Publier sur tous les canaux actifs</strong><small>Les nouveaux canaux seront automatiquement inclus.</small></div></label>
+            <div class="channel-targets" id="channel-targets" hidden></div>
+          </div>
+          <div class="field">
+            <label for="button-text">Texte du bouton</label>
+            <input id="button-text" maxlength="64" placeholder="Découvrir Bectanse">
+          </div>
+          <div class="field">
+            <label for="button-url">Lien du bouton</label>
+            <input id="button-url" type="url" placeholder="https://acces.bectanse-academie.com">
+          </div>
+          <div class="toggle-row">
+            <label class="toggle-control"><input id="post-enabled" type="checkbox" checked><span></span><div><strong>Robot actif</strong><small>Le post sera envoyé automatiquement.</small></div></label>
+            <label class="toggle-control"><input id="post-silent" type="checkbox"><span></span><div><strong>Mode silencieux</strong><small>Pas de notification sonore.</small></div></label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="button button-ghost" type="button" id="cancel-edit" hidden>Annuler</button>
+          <button class="button button-primary" type="submit"><span id="save-label">Enregistrer le post</span> →</button>
+        </div>
+      </form>
+
+      <aside class="preview-column">
+        <div class="panel preview-panel">
+          <div class="panel-head">
+            <div><span class="panel-kicker">Aperçu en direct</span><h2>Rendu Telegram</h2></div>
+            <span class="live-pill"><i></i> Live</span>
+          </div>
+          <div class="phone-frame">
+            <div class="phone-top"><span>9:41</span><i></i><span>•••</span></div>
+            <div class="telegram-head"><span class="channel-avatar">B€</span><div><strong>Bectanse Académie</strong><small>canal</small></div></div>
+            <div class="telegram-wall">
+              <article class="telegram-bubble">
+                <div id="telegram-preview-standard">
+                  <img id="telegram-preview-image" alt="Aperçu du visuel" hidden>
+                  <div id="telegram-preview-message" class="telegram-message">Ton message apparaîtra ici…</div>
+                </div>
+                <div class="telegram-poll" id="telegram-preview-poll" hidden>
+                  <span class="telegram-poll-type" id="telegram-poll-type">QUIZ</span>
+                  <strong id="telegram-poll-question">Ta question apparaîtra ici…</strong>
+                  <div class="telegram-poll-options" id="telegram-poll-options"></div>
+                  <div class="telegram-poll-footer"><span id="telegram-poll-votes">Quiz anonyme</span><span id="telegram-poll-bulb">💡</span></div>
+                  <p id="telegram-poll-explanation" hidden></p>
+                </div>
+                <a id="telegram-preview-button" class="telegram-button" hidden>Découvrir</a>
+                <div class="telegram-meta"><span id="preview-time">18:30</span><span>✓✓</span></div>
+              </article>
+            </div>
+          </div>
+          <div class="preview-note"><span>i</span><p>Avec une image, Telegram limite la légende à 1 024 caractères. Sans image, la limite est de 4 096.</p></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="panel csv-panel">
+      <div class="panel-head csv-head">
+        <div><span class="panel-kicker">Programmation en masse</span><h2>Importer une semaine par CSV</h2></div>
+        <span class="csv-badge">Messages · Photos · Quiz · Sondages</span>
+      </div>
+      <div class="csv-layout">
+        <div>
+          <h3>Prépare tout le planning en une fois.</h3>
+          <p>Télécharge le modèle, remplace les exemples par tes contenus, puis dépose-le ici. Chaque ligne devient une vraie publication Telegram à la date et à l’heure indiquées.</p>
+          <div class="csv-actions">
+            <a class="button button-ghost" id="download-csv-template" href="/admin/api/telegram/csv/template?key={{ admin_key|urlencode }}">↓ Modèle semaine CSV</a>
+            <a class="button button-ghost" id="export-csv" href="/admin/api/telegram/csv/export?key={{ admin_key|urlencode }}">↓ Exporter le planning</a>
+          </div>
+        </div>
+        <div class="csv-import-card">
+          <label class="csv-dropzone" id="csv-dropzone" for="csv-file">
+            <input id="csv-file" type="file" accept=".csv,text/csv">
+            <span>CSV</span><strong>Déposer le fichier ici</strong><small>Le fichier est contrôlé avant toute programmation.</small>
+          </label>
+          <div class="csv-validation" id="csv-validation" hidden></div>
+          <button class="button button-primary" id="import-csv" type="button" disabled>Importer les publications →</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel planning-panel">
+      <div class="panel-head planning-head">
+        <div><span class="panel-kicker">Planning automatisé</span><h2>Toutes les publications</h2></div>
+        <div class="planning-tools">
+          <input id="post-search" type="search" placeholder="Rechercher un post…">
+          <select id="post-filter"><option value="all">Tous</option><option value="active">Actifs</option><option value="draft">Brouillons</option></select>
+          <button class="icon-button" id="refresh-posts" type="button" aria-label="Actualiser">↻</button>
+        </div>
+      </div>
+      <div class="posts-list" id="posts-list"><div class="empty-state">Chargement du planning…</div></div>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="panel-head">
+        <div><span class="panel-kicker">Journal du robot</span><h2>Historique des envois</h2></div>
+        <button class="button button-ghost" type="button" id="refresh-history">Actualiser</button>
+      </div>
+      <div class="history-list" id="history-list"><div class="empty-state">Chargement de l’historique…</div></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/static/admin-telegram-automation.js?v=20260809-v3" defer></script>
+  <script src="/static/source-guard.js" defer></script>
+</body>
+</html>

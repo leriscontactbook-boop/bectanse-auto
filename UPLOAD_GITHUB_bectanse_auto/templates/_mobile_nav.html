@@ -1,0 +1,47 @@
+<style>
+  .m-univ-nav{display:none}
+  @media(max-width:768px){
+    .m-univ-nav{
+      display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1000;
+      height:calc(68px + env(safe-area-inset-bottom));
+      padding:0 4px env(safe-area-inset-bottom);box-sizing:border-box;
+      overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;
+      scrollbar-width:none;-webkit-overflow-scrolling:touch;
+      background:rgba(3,4,3,.98);border-top:1px solid rgba(255,101,0,.48);
+    }
+    .m-univ-nav::-webkit-scrollbar{display:none}
+    .m-univ-nav-item{
+      flex:0 0 72px;height:68px;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:3px;text-decoration:none;
+      color:#656762;font-family:'Barlow Condensed',Arial,sans-serif;
+      font-size:11px;font-weight:800;line-height:1;text-transform:uppercase;
+      white-space:nowrap;letter-spacing:.02em;
+    }
+    .m-univ-nav-item .mni{font-size:27px;line-height:30px;filter:grayscale(.28)}
+    .m-univ-nav-item.active,.m-univ-nav-item.gold{color:#ff6500}
+    .m-univ-nav-item.active .mni{filter:none}
+  }
+</style>
+
+{% set mobile_active = request.endpoint %}
+<nav class="m-univ-nav" aria-label="Navigation principale">
+  <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"><span class="mni">🏠</span><span>Accueil</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'dashboard' %} active{% endif %}" href="/dashboard"><span class="mni">⚙️</span><span>Params</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"><span class="mni">📡</span><span>Canal VIP</span></a>
+  <a class="m-univ-nav-item gold{% if mobile_active == 'offres' %} active{% endif %}" href="/offres"><span class="mni">🚀</span><span>Upgrader</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'formation' %} active{% endif %}" href="/formation"><span class="mni">🎓</span><span>Formation</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'calculateur' %} active{% endif %}" href="/calculateur"><span class="mni">📐</span><span>Calcul</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'analyse_ia' %} active{% endif %}" href="/analyse-ia"{% if demo_mode|default(false) %} aria-label="Analyse IA — aperçu verrouillé"{% endif %}><span class="mni">{% if demo_mode|default(false) %}🔒{% else %}◈{% endif %}</span><span>Analyse IA</span></a>
+  <a class="m-univ-nav-item gold{% if mobile_active == 'parrainage' %} active{% endif %}" href="/parrainage"><span class="mni">🎁</span><span>Parrainage</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'faq' %} active{% endif %}" href="/faq"><span class="mni">❓</span><span>FAQ</span></a>
+  {% if not demo_mode|default(false) %}<a class="m-univ-nav-item{% if mobile_active == 'support' %} active{% endif %}" target="_blank" rel="noopener" href="https://wa.me/436785328698?text=Bonjour"><span class="mni">💬</span><span>Support</span></a>{% endif %}
+</nav>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var nav = document.querySelector('.m-univ-nav');
+    var active = nav && nav.querySelector('.active');
+    if (!nav || !active || window.innerWidth > 768) return;
+    nav.scrollLeft = Math.max(0, active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2);
+  });
+</script>
