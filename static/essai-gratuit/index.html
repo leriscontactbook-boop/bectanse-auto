@@ -754,7 +754,6 @@
 <script>
   // CONFIG - modifier uniquement ces valeurs
   var WHATSAPP_NUMBER = '4367853286983';
-  var GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxibVo5o_9O6h8Uc9XoNRRRSlSXMUC09EStS0FHjz6trpVa9J-MpS-n8U3cTZwRV4A/exec';
 
   // TICKER
   var tickerData = [
@@ -944,10 +943,10 @@
     var phoneComplet=indicatif+phoneNum;
     var phoneSans=phoneComplet.replace('+','').replace(/\s/g,'');
 
-    // Google Sheets
+    // Enregistrement via le serveur sécurisé (le connecteur externe reste privé)
     try{
-      fetch(GOOGLE_SHEETS_URL,{
-        method:'POST',mode:'no-cors',
+      fetch('/api/essai/register',{
+        method:'POST',credentials:'same-origin',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           prenom:prenom,email:email,phone:phoneComplet,
@@ -1013,5 +1012,7 @@
     }
   }
 </script>
+<script src="/static/source-guard.js" defer></script>
+<script src="/static/analytics.js" defer></script>
 </body>
 </html>

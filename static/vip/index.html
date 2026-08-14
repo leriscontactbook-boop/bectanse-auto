@@ -17,6 +17,10 @@
 <meta name="twitter:description" content="Application privée, Bectanse AUTO, formation structurée et accompagnement personnalisé.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://player.vimeo.com" crossorigin>
+<link rel="preconnect" href="https://i.vimeocdn.com" crossorigin>
+<link rel="dns-prefetch" href="//player.vimeo.com">
+<link rel="dns-prefetch" href="//i.vimeocdn.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Urbanist:wght@300;400;500;600;700;800&amp;family=Inter:wght@300;400;500;600;700;800&amp;family=Barlow+Condensed:wght@300;400;600;700;900&amp;family=Barlow:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
 <style>
 /* Fallback si Google Fonts ne charge pas */
@@ -401,9 +405,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,10,15,0.9
 .ob-green{background:rgba(232,93,4,0.1);color:#E85D04;border:1px solid rgba(232,93,4,0.28)}
 .o-cta{font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:10px 18px;border-radius:10px;color:#fff;background:var(--orange);white-space:nowrap}
 .o-cta.green{background:var(--green)}
-.klarna-n{display:flex;align-items:center;gap:10px;background:rgba(255,179,198,0.04);border:1px solid rgba(255,179,198,0.14);border-radius:12px;padding:13px 16px;margin-bottom:13px}
-.klarna-n p{font-size:12px;color:rgba(255,255,255,0.36);line-height:1.5}
-.klarna-n strong{color:#fff}
 .urgence{background:linear-gradient(135deg,rgba(220,38,38,0.07),rgba(220,38,38,0.03));border:1px solid rgba(220,38,38,0.16);border-radius:14px;padding:18px;margin-bottom:13px;display:flex;gap:12px}
 .urgence h4{font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:14px;font-weight:700;color:#FCA5A5;letter-spacing:0.04em;margin-bottom:4px}
 .urgence p{font-size:11px;color:rgba(255,255,255,0.3);line-height:1.65}
@@ -1203,7 +1204,7 @@ nav{
   font-weight:700 !important;
 }
 .sec-h2{font-size:clamp(32px,5.2vw,58px) !important}
-.sec-p,.announce-sub,.step-sub,.zero-d,.temo-gain,.ui-txt,.vg-item,.vs-item-txt,.budget-feat,.of,.klarna-n p,.urgence p,.stripe-note p{
+.sec-p,.announce-sub,.step-sub,.zero-d,.temo-gain,.ui-txt,.vg-item,.vs-item-txt,.budget-feat,.of,.urgence p,.stripe-note p{
   color:rgba(255,255,255,0.56) !important;
 }
 
@@ -1791,10 +1792,55 @@ select,
     <p style="font-size:13px;color:rgba(255,255,255,0.36)">Les stratégies qui m'ont permis de générer <strong style="color:#E85D04">800 000€ en 5 jours</strong></p>
   </div>
 
-  <!-- VIDEO EMBED -->
-  <div style="position:relative;border-radius:20px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(232,93,4,0.15);max-width:360px;margin:0 auto;background:#000;aspect-ratio:9/16">
-    <iframe src="https://player.vimeo.com/video/1130571998?h=d9edae231b&amp;autoplay=1&amp;muted=1&amp;loop=1&amp;background=1&amp;controls=0&amp;byline=0&amp;portrait=0&amp;title=0&amp;quality=4K&amp;dnt=1&amp;transparent=0&amp;playsinline=1" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen="" loading="lazy" decoding="async" playsinline=""></iframe>
+  <!-- VIDEO EMBED — chargement prioritaire -->
+  <style>
+    @keyframes bectanseVideoSpin { to { transform: rotate(360deg); } }
+  </style>
+  <div data-priority-video="results" style="position:relative;border-radius:20px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(232,93,4,0.15);max-width:360px;margin:0 auto;background:#000;aspect-ratio:9/16">
+    <div data-video-cover aria-hidden="true" style="position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(circle at 50% 44%,rgba(232,93,4,.18),transparent 45%),#050302;transition:opacity .35s ease">
+      <span style="font-family:'Barlow Condensed',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.22em;color:#E85D04">BECTANSE ACADÉMIE</span>
+      <strong style="font-size:14px;color:#fff">Chargement de la vidéo</strong>
+      <i style="width:28px;height:28px;border:2px solid rgba(255,255,255,.16);border-top-color:#E85D04;border-radius:50%;animation:bectanseVideoSpin .8s linear infinite"></i>
+    </div>
+    <iframe id="results-vimeo" src="https://player.vimeo.com/video/1130571998?h=d9edae231b&amp;autoplay=1&amp;muted=1&amp;loop=1&amp;background=1&amp;controls=0&amp;byline=0&amp;portrait=0&amp;title=0&amp;quality=auto&amp;dnt=1&amp;transparent=0&amp;playsinline=1&amp;api=1&amp;player_id=results-vimeo&amp;autopause=0" style="position:absolute;inset:0;z-index:1;width:100%;height:100%;border:none;opacity:0;transition:opacity .35s ease" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen="" loading="eager" fetchpriority="high" title="Vidéo des résultats Bectanse Académie" playsinline=""></iframe>
   </div>
+  <script>
+    (() => {
+      const frame = document.querySelector('[data-priority-video="results"]');
+      if (!frame) return;
+      const iframe = frame.querySelector('iframe');
+      const cover = frame.querySelector('[data-video-cover]');
+      let revealed = false;
+      const reveal = () => {
+        if (revealed) return;
+        revealed = true;
+        iframe.style.opacity = '1';
+        cover.style.opacity = '0';
+        setTimeout(() => cover.remove(), 400);
+      };
+      const subscribe = () => {
+        if (!iframe.contentWindow) return;
+        ['play', 'playing'].forEach(value => iframe.contentWindow.postMessage(
+          JSON.stringify({ method: 'addEventListener', value }),
+          'https://player.vimeo.com'
+        ));
+      };
+      window.addEventListener('message', event => {
+        if (event.origin !== 'https://player.vimeo.com') return;
+        let data = event.data;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (_) { return; }
+        }
+        if (data?.player_id && data.player_id !== 'results-vimeo') return;
+        if (data?.event === 'ready') subscribe();
+        if (data?.event === 'play' || data?.event === 'playing') reveal();
+      });
+      iframe.addEventListener('load', () => {
+        subscribe();
+        setTimeout(reveal, 2500);
+      }, { once: true });
+    })();
+  </script>
 
 <div class="divl"></div>
 
@@ -3733,7 +3779,7 @@ body.telegram-video-open{overflow:hidden}
       </div>
       <div style="text-align:right">
         <div style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:3px">À partir de</div>
-        <div style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:36px;color:#E85D04;line-height:1">125€ <span style="font-size:16px;color:rgba(255,255,255,0.35)">/ mois avec Klarna</span></div>
+        <div style="font-family:'Bebas Neue',Impact,'Arial Black',sans-serif;font-size:36px;color:#E85D04;line-height:1">500€</div>
       </div>
     </div>
   </div>
@@ -3838,7 +3884,6 @@ body.telegram-video-open{overflow:hidden}
   .ocard-price sup{font-size:.72em;color:#fff;vertical-align:baseline;font-family:'Urbanist','Inter',Arial,sans-serif;font-weight:800;margin-right:2px}
   .ocard-day{font-size:12px;color:rgba(255,255,255,0.46);margin-top:8px;line-height:1.45}
   .ocard-day b{color:#fff;font-size:12px}
-  .ocard-klarna{font-size:11px;color:rgba(255,255,255,0.46);margin-top:5px;font-weight:500;line-height:1.45}
   .ocard-right{width:100%;display:flex;flex-direction:column-reverse;align-items:stretch;gap:10px;margin-top:auto;padding-top:18px}
   .ocard-badge{position:absolute;top:24px;right:24px;font-family:'Urbanist','Inter',Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:0;text-transform:none;padding:7px 10px;border-radius:999px}
   .ocard-badge-pop,.ocard-badge-best{background:rgba(0,0,0,0.32);color:#fff;border:1px solid rgba(255,255,255,0.22)}
@@ -3863,7 +3908,6 @@ body.telegram-video-open{overflow:hidden}
         <div class="ocard-dur">Accompagnement 1 mois</div>
         <div class="ocard-price"><sup>€</sup>500</div>
         <div class="ocard-day"><b>16,67€</b>/jour</div>
-        <div class="ocard-klarna">ou 4 × 125€ avec Klarna</div>
       </div>
       <div class="ocard-right">
         <div class="ocard-btn ocard-btn-o">Choisir →</div>
@@ -3887,7 +3931,6 @@ body.telegram-video-open{overflow:hidden}
         <div class="ocard-dur">Accompagnement 3 mois</div>
         <div class="ocard-price"><sup>€</sup>1000</div>
         <div class="ocard-day"><b>11,11€</b>/j · économise 500€</div>
-        <div class="ocard-klarna">ou 4 × 250€ avec Klarna</div>
       </div>
       <div class="ocard-right">
         <div class="ocard-badge ocard-badge-pop">1 mois offert</div>
@@ -3912,7 +3955,6 @@ body.telegram-video-open{overflow:hidden}
         <div class="ocard-dur">Accompagnement 1 an</div>
         <div class="ocard-price"><sup>€</sup>4000</div>
         <div class="ocard-day"><b>10,96€</b>/j · économise 2000€</div>
-        <div class="ocard-klarna">ou 4 × 1000€ avec Klarna</div>
       </div>
       <div class="ocard-right">
         <div class="ocard-badge ocard-badge-best">4 mois offerts</div>
@@ -3931,12 +3973,8 @@ body.telegram-video-open{overflow:hidden}
     </div>
   </a>
 
-  <!-- KLARNA + STRIPE -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;margin-bottom:12px">
-    <div style="background:rgba(255,179,198,0.05);border:1px solid rgba(255,179,198,0.2);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px">
-      <svg width="52" height="24" viewBox="0 0 80 28" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="28" rx="5" fill="#FFB3C7"></rect><text x="40" y="19" font-family="Arial Black,Arial" font-size="13" font-weight="900" fill="#000" text-anchor="middle">klarna</text></svg>
-      <div><div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:12px;font-weight:700;color:#fff">4× sans frais</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">Disponible sur toutes les offres</div></div>
-    </div>
+  <!-- PAIEMENT SÉCURISÉ -->
+  <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:16px;margin-bottom:12px">
     <div style="background:rgba(232,93,4,0.05);border:1px solid rgba(232,93,4,0.2);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px">
       <span style="font-size:22px;flex-shrink:0">🔒</span>
       <div><div style="font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:12px;font-weight:700;color:#fff">Stripe sécurisé</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">Visa · Mastercard · Apple Pay</div></div>
@@ -5069,4 +5107,6 @@ a[href*="instagram.com"]{
   }
 })();
 </script>
+<script src="/static/source-guard.js" defer></script>
+<script src="/static/analytics.js" defer></script>
 </body></html>

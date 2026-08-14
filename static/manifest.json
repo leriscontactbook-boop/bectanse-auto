@@ -2,6 +2,8 @@
   "name": "Bectanse AUTO",
   "short_name": "Bectanse AUTO",
   "description": "Copy trading automatique — Ton espace membre",
+  "id": "/",
+  "scope": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A0A0F",
@@ -9,13 +11,13 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/static/icons/icon-192.png",
+      "src": "/static/icons/bectanse-icon-v2-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/icon-512.png",
+      "src": "/static/icons/bectanse-icon-v2-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
