@@ -440,6 +440,7 @@ function showSection(id) {
   if (id === 'annonces') loadAnnonces();
   if (id === 'pdfs') loadPDFs();
   if (id === 'canal') loadCanalMessages();
+<<<<<<< HEAD
   if (id === 'analytics') loadAnalytics(currentAnalyticsPeriod);
 }
 
@@ -474,6 +475,8 @@ async function loadAnalytics(period='7d') {
     document.getElementById('analytics-funnel').innerHTML = d.funnel.map((x,i) => `<div class="funnel-step"><div class="funnel-fill" style="width:${Math.max(x.value ? 5 : 0,x.value/first*100)}%"></div><div class="funnel-text"><span>${i+1}. ${escapeAnalytics(x.label)}</span><span>${x.value}</span></div></div>`).join('');
     renderBarList('analytics-sources', d.sources); renderBarList('analytics-pages', d.pages); renderBarList('analytics-devices', d.devices);
   } catch (e) { toast('Impossible de charger les statistiques', 'error'); }
+=======
+>>>>>>> origin/main
 }
 
 // ── STATS
