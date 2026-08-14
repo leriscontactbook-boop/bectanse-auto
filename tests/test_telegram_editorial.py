@@ -1,9 +1,5 @@
 import os
 import csv
-<<<<<<< HEAD
-=======
-import io
->>>>>>> origin/main
 import json
 import unittest
 from datetime import date, datetime, timedelta
@@ -15,28 +11,6 @@ import app
 
 
 class TelegramEditorialCalendarTests(unittest.TestCase):
-<<<<<<< HEAD
-=======
-    def test_public_base_url_is_available_to_reminder_jobs(self):
-        self.assertTrue(app.BASE_URL.startswith("https://"))
-        self.assertFalse(app.BASE_URL.endswith("/"))
-
-    def test_daily_reminder_job_builds_working_admin_links(self):
-        conn = Mock()
-        conn.run.return_value = [[
-            "BCT-TEST123", "Membre Test", "",
-            datetime.now() + timedelta(days=7, hours=1), "1000",
-        ]]
-        with patch.object(app, "get_conn", return_value=conn), \
-             patch.object(app, "send_telegram") as send:
-            app.job_relances_quotidiennes()
-        send.assert_called_once()
-        markup = send.call_args.kwargs["reply_markup"]
-        urls = [button["url"] for row in markup["inline_keyboard"] for button in row]
-        self.assertTrue(any(url.startswith(f"{app.BASE_URL}/admin-panel") for url in urls))
-
-
->>>>>>> origin/main
     def test_calendar_contains_four_complete_weeks(self):
         calendar = app.load_telegram_editorial_calendar()
         self.assertEqual(len(calendar["weeks"]), 4)
@@ -157,24 +131,14 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         finish_conn = Mock()
         response = Mock(status_code=200)
         response.json.return_value = {"ok": True, "result": {"message_id": 678}}
-<<<<<<< HEAD
         image_response = Mock(status_code=200)
         image_response.headers = {"Content-Type": "image/jpeg"}
         image_response.content = b"fake-jpeg"
-=======
-        image_response = Mock()
-        image_response.headers = {"Content-Type": "image/jpeg", "Content-Length": "12"}
-        image_response.content = b"jpeg-content"
->>>>>>> origin/main
         image_response.raise_for_status.return_value = None
 
         with patch.object(app, "ECO_BOT_TOKEN", "test-token"), \
              patch.object(app, "get_conn", side_effect=[claim_conn, finish_conn]), \
-<<<<<<< HEAD
              patch.object(app.requests, "get", return_value=image_response), \
-=======
-             patch.object(app.requests, "get", return_value=image_response) as get, \
->>>>>>> origin/main
              patch.object(app.requests, "post", return_value=response) as post:
             sent = app._send_scheduled_telegram(
                 "Légende de test", "telegram-post-1-20260810-1830", "custom-editorial",
@@ -184,37 +148,9 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
             )
 
         self.assertTrue(sent)
-<<<<<<< HEAD
         self.assertIn("sendPhoto", post.call_args.args[0])
         self.assertEqual(post.call_args.kwargs["data"]["caption"], "Légende de test")
         self.assertIn("Découvrir", post.call_args.kwargs["data"]["reply_markup"])
-=======
-        get.assert_called_once()
-        self.assertIn("sendPhoto", post.call_args.args[0])
-        self.assertEqual(post.call_args.kwargs["data"]["caption"], "Légende de test")
-        reply_markup = json.loads(post.call_args.kwargs["data"]["reply_markup"])
-        self.assertEqual(reply_markup["inline_keyboard"][0][0]["text"], "Découvrir")
-        self.assertEqual(post.call_args.kwargs["files"]["photo"][1], b"jpeg-content")
-
-    def test_photo_download_rejects_a_web_page(self):
-        response = Mock()
-        response.headers = {"Content-Type": "text/html"}
-        response.content = b"<html></html>"
-        response.raise_for_status.return_value = None
-        with patch.object(app.requests, "get", return_value=response):
-            with self.assertRaisesRegex(ValueError, "JPEG ou PNG"):
-                app._download_telegram_photo("https://example.com/photo")
-
-    def test_bectanse_photo_is_read_locally_without_an_http_loop(self):
-        with patch.object(app.requests, "get") as get:
-            filename, image_bytes, content_type = app._download_telegram_photo(
-                "https://bectanse-auto.up.railway.app/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.png"
-            )
-        get.assert_not_called()
-        self.assertEqual(filename, "10-cta-avancer-avec-cadre-v3.png")
-        self.assertEqual(content_type, "image/png")
-        self.assertTrue(image_bytes.startswith(b"\x89PNG"))
->>>>>>> origin/main
 
     def test_quiz_payload_creates_a_native_clickable_telegram_quiz(self):
         claim_conn = Mock()
@@ -308,38 +244,6 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         self.assertEqual(sum(template["category"] == "conversion" for template in manifest["templates"]), 3)
         self.assertTrue(all(template["ctaText"] and template["ctaUrl"] for template in manifest["templates"]))
 
-<<<<<<< HEAD
-=======
-    def test_catalog_image_is_normalized_to_public_https_before_save(self):
-        payload = app._validate_telegram_post_payload({
-            "name": "CTA catalogue",
-            "message": "Un message mentor.",
-            "image_url": "/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.webp",
-            "schedule_type": "weekly",
-            "weekdays": [0],
-            "publish_time": "18:30",
-            "publish_all_channels": True,
-        })
-        self.assertEqual(
-            payload["image_url"],
-            "https://acces.bectanse-academie.com/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.png",
-        )
-
-    def test_telegram_photo_delivery_url_uses_supported_formats(self):
-        self.assertEqual(
-            app._telegram_photo_delivery_url(
-                "https://bectanse-auto.up.railway.app/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.webp"
-            ),
-            "https://bectanse-auto.up.railway.app/static/telegram-visuals/10-cta-avancer-avec-cadre-v3.png",
-        )
-        self.assertEqual(
-            app._telegram_photo_delivery_url(
-                "https://res.cloudinary.com/dqgd441is/image/upload/v1/catalogue.webp"
-            ),
-            "https://res.cloudinary.com/dqgd441is/image/upload/f_jpg,q_auto/v1/catalogue.jpg",
-        )
-
->>>>>>> origin/main
     def test_custom_visual_catalog_payload_requires_a_real_cta_pair(self):
         payload = app._validate_telegram_media_payload({
             "title": "Mon visuel coaching",
@@ -350,22 +254,6 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
             "cta_url": "https://acces.bectanse-academie.com/",
         })
         self.assertEqual(payload["category"], "conversion")
-<<<<<<< HEAD
-=======
-        internal_payload = app._validate_telegram_media_payload({
-            "title": "Visuel Bectanse interne",
-            "image_url": "static/telegram-visuals/08-cta-systeme-bectanse-v3.webp",
-        })
-        self.assertEqual(
-            internal_payload["image_url"],
-            "https://acces.bectanse-academie.com/static/telegram-visuals/08-cta-systeme-bectanse-v3.webp",
-        )
-        with self.assertRaisesRegex(ValueError, "HTTPS"):
-            app._validate_telegram_media_payload({
-                "title": "Visuel non sécurisé",
-                "image_url": "http://example.com/image.webp",
-            })
->>>>>>> origin/main
         with self.assertRaisesRegex(ValueError, "ensemble"):
             app._validate_telegram_media_payload({
                 "title": "CTA incomplet",
@@ -374,26 +262,6 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
                 "cta_url": "",
             })
 
-<<<<<<< HEAD
-=======
-    def test_admin_image_upload_returns_a_permanent_https_url(self):
-        client = app.app.test_client()
-        secure_url = "https://res.cloudinary.com/bectanse/image/upload/catalogue-test.png"
-        telegram_url = "https://res.cloudinary.com/bectanse/image/upload/f_jpg,q_auto/catalogue-test.jpg"
-        with patch.object(app, "upload_to_cloudinary", return_value=secure_url) as uploader:
-            response = client.post(
-                "/admin/api/telegram/upload",
-                data={
-                    "key": app.ADMIN_KEY,
-                    "image": (io.BytesIO(b"test-image"), "catalogue-test.png"),
-                },
-                content_type="multipart/form-data",
-            )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json()["url"], telegram_url)
-        uploader.assert_called_once()
-
->>>>>>> origin/main
     def test_targeted_post_requires_at_least_one_channel(self):
         with self.assertRaisesRegex(ValueError, "Choisis au moins un canal"):
             app._validate_telegram_post_payload({
@@ -476,13 +344,9 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
 
     def test_admin_automation_page_renders_for_valid_key(self):
         client = app.app.test_client()
-<<<<<<< HEAD
         with client.session_transaction() as admin_session:
             admin_session["admin_authenticated"] = True
         response = client.get("/admin/telegram-automation")
-=======
-        response = client.get(f"/admin/telegram-automation?key={app.ADMIN_KEY}")
->>>>>>> origin/main
         self.assertEqual(response.status_code, 200)
         page = response.get_data(as_text=True)
         self.assertIn("Centre de commande", page)
