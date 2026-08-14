@@ -4682,6 +4682,25 @@ def _scheduled_publication_status(slot_key):
             except: pass
 
 
+def _download_telegram_image(image_url):
+    """Télécharge le média pour éviter que Telegram interprète une page Web comme une photo."""
+    if not image_url:
+        return None
+    response = requests.get(
+        image_url, timeout=20, allow_redirects=True,
+        headers={"User-Agent": "Bectanse-Telegram-Publisher/1.0"}
+    )
+    response.raise_for_status()
+    content_type = str(response.headers.get("Content-Type") or "").split(";", 1)[0].lower()
+    content = response.content
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise ValueError(f"Le lien média renvoie {content_type or 'un contenu inconnu'}, pas une image")
+    if not content or len(content) > 10 * 1024 * 1024:
+        raise ValueError("L’image Telegram est vide ou dépasse 10 Mo")
+    extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[content_type]
+    return (f"bectanse-publication.{extension}", content, content_type)
+
+
 def _send_scheduled_telegram(
     text, slot_key, post_kind, image_url="", channel=None,
     button_text="", button_url="", disable_notification=False, post_id=None,
@@ -4715,6 +4734,15 @@ def _send_scheduled_telegram(
     ):
         app.logger.info(f"Publication déjà traitée ou verrouillée : {slot_key}")
         return False
+
+    image_file = None
+    if image_url and post_type == "message":
+        try:
+            image_file = _download_telegram_image(image_url)
+        except Exception as error:
+            # Une URL média cassée ne doit jamais bloquer toute la publication.
+            app.logger.warning(f"Média Telegram ignoré pour {slot_key}: {error}")
+            image_url = ""
 
     last_error = "erreur Telegram inconnue"
     for attempt in range(3):
@@ -4750,11 +4778,25 @@ def _send_scheduled_telegram(
                 else:
                     endpoint = "sendMessage"
                     payload.update({"text": text, "disable_web_page_preview": True})
-            response = requests.post(
-                f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}",
-                json=payload,
-                timeout=20
-            )
+            if endpoint == "sendPhoto" and image_file:
+                multipart_payload = dict(payload)
+                multipart_payload["reply_markup"] = json.dumps(
+                    multipart_payload["reply_markup"], ensure_ascii=False
+                ) if multipart_payload.get("reply_markup") else None
+                multipart_payload = {
+                    key: (str(value).lower() if isinstance(value, bool) else value)
+                    for key, value in multipart_payload.items() if value is not None
+                }
+                multipart_payload.pop("photo", None)
+                response = requests.post(
+                    f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}",
+                    data=multipart_payload, files={"photo": image_file}, timeout=30
+                )
+            else:
+                response = requests.post(
+                    f"https://api.telegram.org/bot{ECO_BOT_TOKEN}/{endpoint}",
+                    json=payload, timeout=20
+                )
             result = response.json()
             if result.get("ok"):
                 message_id = result.get("result", {}).get("message_id")
