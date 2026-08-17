@@ -125,8 +125,21 @@
   window.BectansePush = {init: initPushNotifications, enable: enablePushNotifications,
     isIOS, isStandalone};
 
+  async function clearVisibleAppBadge() {
+    if (!isStandalone() || document.visibilityState !== 'visible') return;
+    try {
+      if ('clearAppBadge' in navigator) await navigator.clearAppBadge();
+      const registration = await navigator.serviceWorker.ready;
+      if (registration.active) registration.active.postMessage({type: 'CLEAR_BADGE'});
+    } catch (_) {}
+  }
+
   // Réenregistre silencieusement un abonnement existant, sans demander d’autorisation.
-  const start = () => initPushNotifications().catch(error => console.warn('Bectanse Web Push:', error));
+  const start = () => {
+    initPushNotifications().catch(error => console.warn('Bectanse Web Push:', error));
+    clearVisibleAppBadge();
+  };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
   else start();
+  document.addEventListener('visibilitychange', clearVisibleAppBadge);
 })();
