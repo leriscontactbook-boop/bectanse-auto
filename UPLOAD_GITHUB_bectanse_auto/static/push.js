@@ -8,6 +8,23 @@
     return Uint8Array.from(raw, character => character.charCodeAt(0));
   }
 
+  function sameApplicationServerKey(subscription, expectedBytes) {
+    const current = subscription && subscription.options && subscription.options.applicationServerKey;
+    if (!current) return false;
+    const currentBytes = new Uint8Array(current);
+    if (currentBytes.length !== expectedBytes.length) return false;
+    return currentBytes.every((value, index) => value === expectedBytes[index]);
+  }
+
+  async function getCurrentApplicationServerKey() {
+    const response = await fetch('/api/push/vapid-public', {
+      credentials: 'same-origin', cache: 'no-store'
+    });
+    if (!response.ok) throw new Error('Clé de notification indisponible');
+    const {key} = await response.json();
+    return base64ToBytes(key);
+  }
+
   function isIOS() {
     return /iphone|ipad|ipod/i.test(navigator.userAgent);
   }
@@ -39,6 +56,24 @@
     await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
 
+    // Une rotation VAPID rend les anciens abonnements Apple inutilisables.
+    // Compare la clé réellement liée à l'appareil et renouvelle silencieusement
+    // l'abonnement si l'autorisation système est toujours accordée.
+    if (subscription && Notification.permission === 'granted') {
+      const currentKey = await getCurrentApplicationServerKey();
+      if (!sameApplicationServerKey(subscription, currentKey)) {
+        try {
+          await fetch('/api/push/unsubscribe', {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({endpoint: subscription.endpoint})
+          });
+        } catch (_) {}
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+    }
+
     // Une visite ne déclenche jamais la fenêtre système. Seul un clic volontaire le fait.
     if (!subscription && Notification.permission === 'default' && !requestPermission) {
       return {ok: false, reason: 'permission-required'};
@@ -52,12 +87,10 @@
     }
 
     if (!subscription && Notification.permission === 'granted') {
-      const keyResponse = await fetch('/api/push/vapid-public', {credentials: 'same-origin'});
-      if (!keyResponse.ok) throw new Error('Clé de notification indisponible');
-      const {key} = await keyResponse.json();
+      const applicationServerKey = await getCurrentApplicationServerKey();
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: base64ToBytes(key)
+        applicationServerKey
       });
     }
     if (subscription) {
