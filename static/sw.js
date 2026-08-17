@@ -1,5 +1,5 @@
 // Bectanse AUTO — Service Worker PWA + Web Push
-const CACHE = 'bectanse-auto-v5';
+const CACHE = 'bectanse-auto-v6';
 const ASSETS = ['/', '/dashboard', '/static/manifest.json'];
 
 self.addEventListener('install', e => {
