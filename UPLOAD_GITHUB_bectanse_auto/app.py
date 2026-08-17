@@ -6146,8 +6146,8 @@ def send_push_to_all(title, body, url="/canal"):
                 )
                 return ep, True, False
             except WebPushException as ex:
-                status = ex.response.status_code if ex.response else None
-                response_body = ex.response.text if ex.response else ""
+                status = ex.response.status_code if ex.response is not None else None
+                response_body = ex.response.text if ex.response is not None else ""
                 invalid_vapid = status == 400 and "VapidPkHashMismatch" in response_body
                 return ep, False, status in (404, 410) or invalid_vapid
             except Exception as error:
@@ -6197,8 +6197,8 @@ def send_push_to_member(member_code, title, body, url="/accueil"):
                 result["delivered"] += 1
             except WebPushException as error:
                 result["failed"] += 1
-                status = error.response.status_code if error.response else None
-                response_body = error.response.text if error.response else ""
+                status = error.response.status_code if error.response is not None else None
+                response_body = error.response.text if error.response is not None else ""
                 if status in (404, 410) or (status == 400 and "VapidPkHashMismatch" in response_body):
                     dead.append(endpoint)
                 app.logger.warning("Push membre %s: HTTP %s", member_code, status)
