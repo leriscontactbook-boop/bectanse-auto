@@ -5298,8 +5298,6 @@ def brevo_email_delivery_available():
 def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
     """Envoie uniquement l'e-mail technique de double opt-in prospect."""
     import urllib.request as _ur
-    if not brevo_email_delivery_available():
-        return {"ok": False, "error": "Service de confirmation temporairement indisponible"}
     html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
         "<div style='max-width:580px;margin:0 auto;padding:28px 18px'>"
         "<div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
@@ -5309,10 +5307,15 @@ def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
         "<a href='"+confirmation_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>CONFIRMER ET EXPLORER →</a>"
         "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Ce lien expire dans 24 heures. Si tu n’as pas demandé cet accès, ignore simplement cet e-mail.</p>"
         "</div></div></body></html>")
+    subject = "Confirme ton accès Explorer — Bectanse Académie"
+    if not brevo_email_delivery_available():
+        sent = send_email(to_email, subject, html)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": "Envoi e-mail indisponible" if not sent else ""}
     payload = json.dumps({
         "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
         "to": [{"email": to_email, "name": to_name}],
-        "subject": "Confirme ton accès Explorer — Bectanse Académie",
+        "subject": subject,
         "htmlContent": html,
         "tags": ["bectanse-prospect", "verification-email"]
     }).encode("utf-8")
@@ -5325,14 +5328,14 @@ def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
         return {"ok": True, "message_id": result.get("messageId", "")}
     except Exception as error:
         app.logger.error("Brevo verification prospect: %s", error)
-        return {"ok": False, "error": str(error)[:500]}
+        sent = send_email(to_email, subject, html)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": str(error)[:500] if not sent else ""}
 
 
 def send_brevo_member_verification(to_email, to_name, confirmation_url):
     """Valide l'adresse avant de créer le compte membre et de stocker le contact."""
     import urllib.request as _ur
-    if not brevo_email_delivery_available():
-        return {"ok": False, "error": "Service de confirmation temporairement indisponible"}
     html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
         "<div style='max-width:580px;margin:0 auto;padding:28px 18px'><div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
         "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE ACADÉMIE</p>"
@@ -5341,10 +5344,15 @@ def send_brevo_member_verification(to_email, to_name, confirmation_url):
         "<a href='"+confirmation_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>CONFIRMER MON ADRESSE →</a>"
         "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Lien sécurisé, utilisable une seule fois et valable 24 heures.</p>"
         "</div></div></body></html>")
+    subject = "Confirme ton inscription — Bectanse Académie"
+    if not brevo_email_delivery_available():
+        sent = send_email(to_email, subject, html)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": "Envoi e-mail indisponible" if not sent else ""}
     payload = json.dumps({
         "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
         "to": [{"email": to_email, "name": to_name}],
-        "subject": "Confirme ton inscription — Bectanse Académie",
+        "subject": subject,
         "htmlContent": html, "tags": ["bectanse-inscription", "verification-email"]
     }).encode("utf-8")
     try:
@@ -5355,7 +5363,9 @@ def send_brevo_member_verification(to_email, to_name, confirmation_url):
         return {"ok": True, "message_id": result.get("messageId", "")}
     except Exception as error:
         app.logger.error("Brevo verification membre: %s", error)
-        return {"ok": False, "error": str(error)[:500]}
+        sent = send_email(to_email, subject, html)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": str(error)[:500] if not sent else ""}
 
 
 def send_brevo_explorer_ready(to_email, to_name, member_code):
@@ -5371,10 +5381,15 @@ def send_brevo_explorer_ready(to_email, to_name, member_code):
         "<a href='"+login_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>OUVRIR MON ESPACE →</a>"
         "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Ton compte Explorer est gratuit et en lecture seule. Les fonctionnalités membres se débloquent depuis la présentation complète.</p>"
         "</div></div></body></html>")
+    subject = "Ton code Explorer Bectanse"
+    if not brevo_email_delivery_available():
+        sent = send_email(to_email, subject, html)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": "Envoi e-mail indisponible" if not sent else ""}
     payload = json.dumps({
         "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
         "to": [{"email": to_email, "name": to_name or "Membre Explorer"}],
-        "subject": "Ton code Explorer Bectanse", "htmlContent": html,
+        "subject": subject, "htmlContent": html,
         "tags": ["bectanse-prospect", "explorer-ready"]
     }).encode("utf-8")
     try:
@@ -5384,7 +5399,9 @@ def send_brevo_explorer_ready(to_email, to_name, member_code):
             result = json.loads(response.read().decode("utf-8") or "{}")
         return {"ok": True, "message_id": result.get("messageId", "")}
     except Exception as error:
-        return {"ok": False, "error": str(error)[:500]}
+        sent = send_email(to_email, subject, html)
+        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
+                "error": str(error)[:500] if not sent else ""}
 
 
 def sync_brevo_prospect_contact(email, prenom="", source="Explorer"):
