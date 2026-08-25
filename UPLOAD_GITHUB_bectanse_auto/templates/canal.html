@@ -100,6 +100,17 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .chat-feed::-webkit-scrollbar-track{background:transparent}
 .chat-feed::-webkit-scrollbar-thumb{background:rgba(91,33,182,0.3);border-radius:4px}
 
+.history-loader{
+  padding:10px 20px;
+  text-align:center;
+  color:rgba(255,255,255,0.38);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:10px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  border-top:1px solid rgba(255,255,255,0.03)
+}
+
 /* DATE SEPARATOR */
 .date-sep{
   display:flex;align-items:center;gap:10px;
@@ -388,6 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <!-- FEED -->
+    <div class="history-loader" id="history-loader" style="display:none;">Chargement des anciens messages…</div>
     <div class="chat-feed" id="chat-feed">
       <div class="empty-feed" id="empty-state">
         <div class="empty-icon">📡</div>
@@ -437,6 +449,9 @@ let currentFilter = 'all';
 let pubType = 'signal';
 let pubImgFile = null;
 let isAtBottom = true;
+let oldestId = 0;
+let hasMoreOlder = false;
+let loadingOlder = false;
 
 const TYPE_TAG = {
   signal:   ['🟡 Signal',   'tag-signal'],
@@ -461,6 +476,22 @@ function formatDay(dt){
 
 function formatTime(dt){
   return new Date(dt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
+}
+
+function setHistoryLoader(show){
+  const h = document.getElementById('history-loader');
+  if(!h) return;
+  h.style.display = show ? 'block' : 'none';
+}
+
+function syncCursors(msgs){
+  if(!msgs.length){
+    return;
+  }
+  const ids = msgs.map(m=>m.id).filter(Boolean);
+  if(!ids.length) return;
+  lastId = Math.max(lastId, ...ids);
+  oldestId = Math.min(oldestId || ids[0], ...ids);
 }
 
 function buildFeed(msgs){
@@ -520,6 +551,15 @@ function buildFeed(msgs){
   if(scrolledToBottom) scrollToBottom();
 }
 
+function mergeMessages(existing, incoming){
+  const map = new Map();
+  [...existing, ...incoming].forEach(m=>{
+    if(!m || !m.id) return;
+    map.set(m.id, m);
+  });
+  return [...map.values()].sort((a,b)=>a.id-b.id);
+}
+
 function updateCount(n){
   const el = document.getElementById('msg-count');
   if(el) el.textContent = n > 0 ? `${n} message${n>1?'s':''}` : '';
@@ -534,6 +574,9 @@ function scrollToBottom(){
 document.getElementById('chat-feed').addEventListener('scroll', function(){
   const feed = this;
   isAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60;
+  if(feed.scrollTop < 120 && hasMoreOlder){
+    loadOlderMessages();
+  }
 });
 
 // FILTRE
@@ -547,14 +590,44 @@ function setFilter(btn, type){
 // LOAD
 async function loadFeed(){
   try{
-    const r = await fetch('/api/canal/messages');
+    const r = await fetch('/api/canal/messages?limit=50');
     const data = await r.json();
     allMsgs = data.messages || [];
-    if(allMsgs.length>0) lastId = Math.max(...allMsgs.map(m=>m.id));
+    hasMoreOlder = Boolean(data.has_more_older);
+    oldestId = 0;
+    lastId = 0;
+    syncCursors(allMsgs);
     isAtBottom = true;
     buildFeed(allMsgs);
   }catch(e){
     document.getElementById('chat-feed').innerHTML='<div class="empty-feed"><div class="empty-icon">⚠️</div><div class="empty-txt">Erreur de connexion</div></div>';
+  }
+}
+
+// CHARGEMENT HISTORIQUE (scroll haut)
+async function loadOlderMessages(){
+  if(loadingOlder || !hasMoreOlder || !oldestId) return;
+  loadingOlder = true;
+  setHistoryLoader(true);
+  const feed = document.getElementById('chat-feed');
+  const beforeHeight = feed.scrollHeight;
+  try{
+    const r = await fetch(`/api/canal/messages?before=${oldestId}&limit=50`);
+    const data = await r.json();
+    const older = data.messages || [];
+    if(older.length>0){
+      allMsgs = mergeMessages(allMsgs, older);
+      syncCursors(older);
+      buildFeed(allMsgs);
+      const afterHeight = feed.scrollHeight;
+      feed.scrollTop += (afterHeight - beforeHeight);
+    }
+    hasMoreOlder = Boolean(data.has_more_older);
+  }catch(e){
+    hasMoreOlder = hasMoreOlder;
+  }finally{
+    loadingOlder = false;
+    setHistoryLoader(false);
   }
 }
 
@@ -585,11 +658,8 @@ async function poll(){
     const data = await r.json();
     const news = data.messages||[];
     if(news.length>0){
-      news.forEach(m=>{
-        const idx = allMsgs.findIndex(x=>x.id===m.id);
-        if(idx>=0){ allMsgs[idx]=m; }
-        else{ allMsgs.push(m); lastId=Math.max(lastId,m.id); }
-      });
+      allMsgs = mergeMessages(allMsgs, news);
+      syncCursors(news);
       buildFeed(allMsgs);
     }
   }catch{}
