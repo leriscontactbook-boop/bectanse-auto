@@ -1134,7 +1134,8 @@ document.addEventListener('DOMContentLoaded', function() {
     <nav class="nav">
       <div class="nav-section">Navigation</div>
       <a class="nav-item" href="/accueil"><span class="icon">🏠</span> Accueil</a>
-      <a class="nav-item active" href="#"><span class="icon">⚙️</span> Mes paramètres</a>
+      <a class="nav-item" href="#section-profil"><span class="icon">👤</span> Profil</a>
+      <a class="nav-item active" href="#section-parametres"><span class="icon">⚙️</span> Paramètres robot</a>
       <a class="nav-item" href="/vip" style="color:#F59E0B;">
         <span class="icon">🚀</span> Renouveler / Upgrader
       </a>
@@ -1143,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </a>{%- endif %}
       <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span class="icon">🎁</span> Parrainage VIP</a>
       <a class="nav-item" href="/academie" style="color:#C4B5FD;"><span class="icon">🎓</span> Bectanse Progress</a>
-      <a class="nav-item" href="/trader-lab" style="color:#FF8B58;"><span class="icon">◈</span> Trader Lab</a>
+      <a class="nav-item" href="/trader-lab" style="color:#FF8B58;"><span class="icon">📊</span> Trader Lab</a>
       <a class="nav-item" href="/calculateur"><span style="font-size:15px">📐</span> Calculateur</a>
       <a class="nav-item" href="/faq">
         <span class="icon">❓</span> FAQ &amp; Guide
@@ -1199,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <!-- ── MAIN ── -->
   <main class="main">
 
-    <div class="topbar">
+    <div class="topbar" id="section-parametres">
       <div>
         <div class="topbar-title">Paramètres de risque</div>
         <div class="topbar-sub">Toutes les modifications seront envoyées à l'équipe Bectanse pour application.</div>
@@ -1254,6 +1255,69 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       {% endif %}
 
+
+      <!-- ── PROFIL & COMPTE MT ── -->
+      <div class="section-card" id="section-profil">
+        <div class="section-header">
+          <div class="section-icon">👤</div>
+          <div>
+            <div class="section-title">Profil & paramètres compte</div>
+            <div class="section-desc">Garde tes informations à jour pour que tout le système reste synchronisé</div>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="field-row cols-2">
+            <div class="field">
+              <label>Nom</label>
+              <input type="text" id="profil_nom" value="{{ member.nom or '' }}">
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="profil_email" value="{{ member.email or '' }}">
+            </div>
+            <div class="field">
+              <label>Téléphone</label>
+              <input type="text" id="profil_telephone" value="{{ member.telephone or '' }}">
+            </div>
+            <div class="field">
+              <label>Telegram</label>
+              <input type="text" id="profil_telegram" value="{{ member.telegram or '' }}">
+            </div>
+            <div class="field">
+              <label>Capital déclaré</label>
+              <input type="text" id="profil_capital" value="{{ member.capital or '' }}">
+            </div>
+          </div>
+
+          <div class="field-row cols-2" style="margin-top:10px">
+            <div class="field">
+              <label>Plateforme</label>
+              <select id="profil_plateforme">
+                {% set plateforme = (params.plateforme or 'MT4') %}
+                <option value="MT4" {% if plateforme == 'MT4' %}selected{% endif %}>MT4</option>
+                <option value="MT5" {% if plateforme == 'MT5' %}selected{% endif %}>MT5</option>
+                <option value="Autre" {% if plateforme not in ['MT4','MT5'] %}selected{% endif %}>Autre</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Login MT</label>
+              <input type="text" id="profil_mt_login" value="{{ params.get('mt_login', '') }}">
+            </div>
+            <div class="field">
+              <label>Serveur MT</label>
+              <input type="text" id="profil_mt_server" value="{{ params.get('serveur', '') }}">
+            </div>
+            <div class="field">
+              <label>Nouveau mot de passe MT</label>
+              <input type="password" id="profil_mt_password" autocomplete="new-password" placeholder="Laisser vide pour ne pas changer">
+            </div>
+          </div>
+
+          <button class="save-btn" onclick="saveProfil()" id="saveProfilBtn" style="margin-top:14px">
+            💾 Enregistrer le profil
+          </button>
+        </div>
+      </div>
 
 
       <!-- ── MODE DE RISQUE ── -->
@@ -1954,6 +2018,59 @@ function showToast(msg, type='success') {
   document.getElementById('toast-icon').textContent = type === 'success' ? '✅' : '❌';
   t.className = `toast ${type} show`;
   setTimeout(() => { t.classList.remove('show'); }, 4000);
+}
+
+// ── Profil membre
+async function saveProfil() {
+  const btn = document.getElementById('saveProfilBtn');
+  const value = id => (document.getElementById(id)?.value || '').trim();
+  const payload = {
+    nom: value('profil_nom'),
+    email: value('profil_email'),
+    telephone: value('profil_telephone'),
+    telegram: value('profil_telegram'),
+    capital: value('profil_capital'),
+    plateforme: value('profil_plateforme'),
+    mt_login: value('profil_mt_login'),
+    mt_server: value('profil_mt_server')
+  };
+  const mtPassword = value('profil_mt_password');
+  if (mtPassword) payload.mt_password = mtPassword;
+
+  if (!payload.nom) {
+    showToast('Le nom ne peut pas être vide.', 'error');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.textContent = 'Enregistrement...';
+  }
+
+  try {
+    const response = await fetch('/api/profil', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'Impossible de mettre à jour le profil.');
+    }
+    const passwordField = document.getElementById('profil_mt_password');
+    if (passwordField) passwordField.value = '';
+    showToast('Profil mis à jour. Les informations sont déjà synchronisées avec l’administration.', 'success');
+  } catch (error) {
+    showToast(error.message || 'Erreur de connexion.', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.textContent = '💾 Enregistrer le profil';
+    }
+  }
 }
 
 // ── Save

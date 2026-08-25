@@ -62,6 +62,79 @@ def _protect_history(history):
     return protected
 
 
+def _is_masked_password(value):
+    """Détecte les valeurs copiées de champs mot de passe déjà masqués."""
+    txt = str(value or "").strip()
+    if not txt or len(txt) < 3:
+        return False
+    return all(ch in {"*", "•", "x", "X"} for ch in txt)
+
+
+def _extract_profile_payload(payload):
+    """Normalise les champs de profil côté membre/admin."""
+    if payload is None:
+        payload = {}
+
+    member_payload = {}
+    params_payload = {}
+
+    def set_member_field(field, max_len=240):
+        if field in payload:
+            val = str(payload.get(field, "") or "").strip()
+            if field == "nom" and not val:
+                raise ValueError("Le nom ne peut pas être vide.")
+            if field == "email" and val and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", val):
+                raise ValueError("Le format de l'email n'est pas valide.")
+            member_payload[field] = val[:max_len]
+
+    for member_field in ("nom", "email", "telephone", "telegram", "capital"):
+        set_member_field(member_field)
+
+    # Données de connexion Trading, conservées dans params pour compatibilité.
+    if "plateforme" in payload:
+        plateforme = str(payload.get("plateforme", "") or "").strip() or "MT4"
+        params_payload["plateforme"] = plateforme[:50]
+    if "mt_login" in payload:
+        params_payload["mt_login"] = str(payload.get("mt_login", "") or "").strip()[:80]
+    if "mt_server" in payload:
+        params_payload["serveur"] = str(payload.get("mt_server", "") or "").strip()[:120]
+    if "serveur" in payload and "mt_server" not in payload:
+        params_payload["serveur"] = str(payload.get("serveur", "") or "").strip()[:120]
+
+    if "mt_password" in payload:
+        raw_password = str(payload.get("mt_password", "") or "").strip()
+        if raw_password and not _is_masked_password(raw_password):
+            params_payload["mt_password"] = raw_password[:200]
+
+    return member_payload, params_payload
+
+
+def _merge_member_profile(conn, code, member_payload, params_payload):
+    """Applique les modifications profil (membres + params) de manière atomique."""
+    row = conn.run("SELECT params FROM members WHERE code=:c", c=code)
+    if not row:
+        raise ValueError("Membre introuvable")
+
+    raw_params = row[0][0] if row[0] and row[0][0] is not None else {}
+    try:
+        current_params = json.loads(raw_params) if isinstance(raw_params, str) else (raw_params or {})
+    except Exception:
+        current_params = {}
+    current_params = _reveal_params(current_params)
+
+    # Mise à jour colonne membre
+    if member_payload:
+        set_clause = ", ".join([f"{field}=:{field}" for field in member_payload.keys()])
+        conn.run(f"UPDATE members SET {set_clause} WHERE code=:c", **member_payload, c=code)
+
+    # Mise à jour des champs dans params
+    if params_payload:
+        merged = dict(current_params or {})
+        merged.update(params_payload)
+        conn.run("UPDATE members SET params=:p WHERE code=:c", p=json.dumps(_protect_params(merged)), c=code)
+
+
+
 def _action_token(action, payload, lifetime_seconds=86400):
     body = {"action": action, "payload": payload, "expires": int(time.time()) + lifetime_seconds}
     return DATA_CIPHER.encrypt(json.dumps(body, separators=(",", ":")).encode("utf-8")).decode("ascii")
@@ -1514,12 +1587,17 @@ def admin_api_membre_update():
         if not code:
             return jsonify({"ok":False,"error":"Code membre manquant"}), 400
         conn = get_conn()
-        membre = conn.run("SELECT date_fin, actif FROM members WHERE code=:c", c=code)
+        membre = conn.run("SELECT date_fin, actif, params FROM members WHERE code=:c", c=code)
         if not membre:
             conn.close()
             return jsonify({"ok":False,"error":"Membre introuvable"}), 404
-        if "capital" in data:
-            conn.run("UPDATE members SET capital=:v WHERE code=:c", v=data["capital"], c=code)
+
+        # Champs modifiables via le profil (membre + admin)
+        profile_payload_member, profile_payload_params = _extract_profile_payload(data)
+        if profile_payload_member or profile_payload_params:
+            _merge_member_profile(conn, code, profile_payload_member, profile_payload_params)
+
+        # Champs de gestion abonnement/copy/training
         if "actif" in data:
             if not isinstance(data["actif"], bool):
                 conn.close()
@@ -1554,8 +1632,31 @@ def admin_api_membre_update():
         conn.close()
         enforce_member_access_state()
         return jsonify({"ok":True})
+    except ValueError as e:
+        return jsonify({"ok":False,"error":str(e)}), 400
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
+
+
+@app.route("/api/profil", methods=["POST"])
+@login_required
+def api_profil_update():
+    code = session["member_code"]
+    data = request.get_json(silent=True) or {}
+    try:
+        member_payload, params_payload = _extract_profile_payload(data)
+        if not member_payload and not params_payload:
+            return jsonify({"ok": False, "error": "Aucune modification fournie"}), 400
+
+        conn = get_conn()
+        _merge_member_profile(conn, code, member_payload, params_payload)
+        conn.close()
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        app.logger.error("api/profil: %s", e)
+        return jsonify({"ok": False, "error": "Impossible de mettre à jour le profil"}), 500
 
 @app.route("/admin/api/membre/supprimer", methods=["POST"])
 def admin_api_membre_supprimer():
@@ -3221,9 +3322,9 @@ def admin_api_membre_profil():
         from datetime import datetime
         def fmt(d): return d.strftime("%d/%m/%Y %H:%M") if d and hasattr(d,"strftime") else "—"
         member = {
-            "code": r[0], "nom": r[1], "email": r[2] or "—",
-            "telephone": r[3] or "—", "telegram": r[4] or "—",
-            "capital": r[5] or "—", "actif": r[6], "copy_actif": r[7],
+            "code": r[0], "nom": r[1], "email": r[2] or "",
+            "telephone": r[3] or "", "telegram": r[4] or "",
+            "capital": r[5] or "", "actif": r[6], "copy_actif": r[7],
             "date_souscription": fmt(r[8]), "date_fin": fmt(r[9]),
             "parrain_code": r[10] or "—", "filleuls_count": r[11] or 0,
             "gains_parrainage": r[12] or 0,
@@ -3238,9 +3339,10 @@ def admin_api_membre_profil():
         import json as _json
         try:
             p = _reveal_params(_json.loads(r[19]) if isinstance(r[19], str) else (r[19] or {}))
-            member["mt_login"]    = p.get("mt_login","—") or "—"
-            member["mt_server"]   = p.get("serveur","—") or "—"
-            member["mt_password"] = p.get("mt_password","—") or "—"
+            member["mt_login"]    = p.get("mt_login","") or ""
+            member["mt_server"]   = p.get("serveur","") or ""
+            member["mt_password_masked"] = bool(p.get("mt_password", "").strip())
+            member["mt_password"] = "••••••" if member["mt_password_masked"] else "—"
             member["mode_risque"] = p.get("mode_risque","—") or "—"
             member["lots"]        = p.get("lots","—")
             member["plateforme"]  = p.get("plateforme","MT4") or "MT4"
@@ -4325,8 +4427,13 @@ def save():
         rows = conn.run("SELECT historique FROM members WHERE code=:c", c=code)
         hist = json.loads(rows[0][0]) if rows and rows[0][0] else []
         hist.append(hist_entry)
+        # Conserver les données du profil Trading (login, serveur, mot de passe)
+        # lorsque le membre ne modifie que les paramètres du robot.
+        merged_params = dict(member.get("params") or {})
+        merged_params.update(p)
         conn.run("UPDATE members SET params=:p, historique=:h, last_login=NOW() WHERE code=:c",
-                 p=json.dumps(_protect_params(p)), h=json.dumps(_protect_history(hist[-50:])), c=code)
+                 p=json.dumps(_protect_params(merged_params)),
+                 h=json.dumps(_protect_history(hist[-50:])), c=code)
         conn.close()
         confirm_url = f"https://acces.bectanse-academie.com/confirm/{code}?token={_action_token('confirm_params', {'code': code})}"
         problem_url = f"https://acces.bectanse-academie.com/problem/{code}?token={_action_token('problem_params', {'code': code})}"
@@ -6766,12 +6873,19 @@ def canal_webhook():
 @login_required
 @academy_access_required
 def api_canal_messages():
-    """Retourne les messages du canal VIP (50 derniers, ou après un ID donné)."""
+    """Retourne un segment du fil du canal VIP avec pagination."""
     if "member_code" not in session:
         return jsonify({"error": "non connecté"}), 401
     try:
         after = request.args.get("after", 0, type=int)
+        before = request.args.get("before", 0, type=int)
+        limit = request.args.get("limit", 50, type=int)
+        limit = max(1, min(limit, 200))
         conn = get_conn()
+
+        if after > 0 and before > 0:
+            before = 0
+
         if after > 0:
             rows = conn.run(
                 """SELECT id, tg_msg_id, text_content, msg_type, photo_url, audio_url, edited,
@@ -6779,16 +6893,41 @@ def api_canal_messages():
                    WHERE id > :after AND (deleted IS NULL OR deleted=FALSE) ORDER BY id ASC""",
                 after=after
             )
+            conn.close()
         else:
+            before_clause = "AND id < :before" if before > 0 else ""
+            where_clause = f"""WHERE (deleted IS NULL OR deleted=FALSE) {before_clause}"""
+            params = {"limit": limit}
+            if before > 0:
+                params["before"] = before
             rows = conn.run(
                 """SELECT id, tg_msg_id, text_content, msg_type, photo_url, audio_url, edited,
                           sent_at::text FROM canal_messages
-                   WHERE (deleted IS NULL OR deleted=FALSE) ORDER BY id DESC LIMIT 50"""
+                   """ + f"""{where_clause} ORDER BY id DESC LIMIT :limit""",
+                **params
             )
-        conn.close()
+
+            next_cursor = rows[-1][0] if rows else 0
+            if next_cursor:
+                remaining = conn.run(
+                    "SELECT 1 FROM canal_messages WHERE id < :before AND (deleted IS NULL OR deleted=FALSE) LIMIT 1",
+                    before=next_cursor
+                )
+                has_more_older = bool(remaining)
+            else:
+                has_more_older = False
+            conn.close()
+            msgs = [{"id": r[0], "tg_msg_id": r[1], "text_content": r[2], "msg_type": r[3],
+                    "photo_url": r[4], "audio_url": r[5], "edited": r[6], "sent_at": r[7]} for r in reversed(rows)]
+            return jsonify({
+                "messages": msgs,
+                "has_more_older": has_more_older,
+                "cursor": msgs[0]["id"] if msgs else None
+            })
+
         msgs = [{"id":r[0],"tg_msg_id":r[1],"text_content":r[2],"msg_type":r[3],
                  "photo_url":r[4],"audio_url":r[5],"edited":r[6],"sent_at":r[7]} for r in rows]
-        return jsonify({"messages": msgs})
+        return jsonify({"messages": msgs, "has_more_older": False, "cursor": None})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
