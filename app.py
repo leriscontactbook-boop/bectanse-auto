@@ -236,7 +236,9 @@ def init_db():
                     paiement_crypto_reseau TEXT DEFAULT '',
                     paiement_crypto_adresse TEXT DEFAULT '',
                     paiement_type     TEXT DEFAULT '',
-                    historique        TEXT DEFAULT '[]'
+                    historique        TEXT DEFAULT '[]',
+                    access_level      TEXT NOT NULL DEFAULT 'member',
+                    email_verified_at TIMESTAMP DEFAULT NOW()
                 )
             """)
             conn.run("""
@@ -293,6 +295,8 @@ def init_db():
                     token_hash  TEXT UNIQUE NOT NULL,
                     source      TEXT NOT NULL DEFAULT 'explorer',
                     status      TEXT NOT NULL DEFAULT 'pending',
+                    payload     TEXT NOT NULL DEFAULT '',
+                    account_code TEXT NOT NULL DEFAULT '',
                     created_at  TIMESTAMP DEFAULT NOW(),
                     expires_at  TIMESTAMP NOT NULL,
                     verified_at TIMESTAMP
@@ -409,10 +413,29 @@ def init_db():
                 ("telephone","TEXT","''"),
                 ("telegram","TEXT","''"),
                 ("alerte_lue","BOOLEAN","TRUE"),
+                ("access_level","TEXT","'member'"),
+                ("email_verified_at","TIMESTAMP","NOW()"),
             ]:
                 try:
                     conn.run(f"ALTER TABLE members ADD COLUMN IF NOT EXISTS {col} {typ} DEFAULT {default}")
                 except: pass
+            for col, typ, default in [
+                ("payload", "TEXT", "''"),
+                ("account_code", "TEXT", "''"),
+            ]:
+                try:
+                    conn.run(f"ALTER TABLE prospect_email_verifications ADD COLUMN IF NOT EXISTS {col} {typ} DEFAULT {default}")
+                except: pass
+            try:
+                conn.run("UPDATE members SET access_level='demo' WHERE code='BCT-DEMO2026'")
+            except Exception:
+                pass
+            try:
+                conn.run("""UPDATE prospect_email_verifications
+                            SET status='expired', payload=''
+                            WHERE status='pending' AND expires_at <= NOW()""")
+            except Exception:
+                pass
             # Tables formation et annonces
             conn.run("""CREATE TABLE IF NOT EXISTS formation_videos (
                 id SERIAL PRIMARY KEY,
@@ -568,6 +591,8 @@ def init_db():
                 ("copy_actif", "BOOLEAN", "TRUE"),
                 ("date_souscription", "TIMESTAMP", "NOW()"),
                 ("date_fin", "TIMESTAMP", "NOW() + INTERVAL \'30 days\'"),
+                ("access_level", "TEXT", "'member'"),
+                ("email_verified_at", "TIMESTAMP", "NOW()"),
             ]
             for col, typ, default in cols_to_add:
                 try:
@@ -630,6 +655,129 @@ def get_member(code):
         return None
 
 
+def _member_is_explorer(member):
+    """Vrai pour les comptes d'observation gratuits, jamais pour un membre payant."""
+    if not member:
+        return False
+    return (str(member.get("access_level") or "member").lower() in {"explorer", "demo"}
+            or str(member.get("code") or "").upper() == "BCT-DEMO2026")
+
+
+def _member_has_academy_access(member):
+    if not member or _member_is_explorer(member) or not member.get("actif", False):
+        return False
+    date_fin = member.get("date_fin")
+    return not date_fin or date_fin > datetime.now()
+
+
+def _current_demo_mode(code=None, member=None):
+    if member is None:
+        code = code or session.get("member_code", "")
+        member = get_member(code)
+    # Tous les comptes sans abonnement actif restent connectés en observation.
+    # Les contrôles serveur continuent de bloquer les services réservés.
+    return not _member_has_academy_access(member)
+
+
+def academy_access_required(f):
+    """Protection serveur des actions réservées à l'abonnement Académie."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        code = session.get("member_code", "")
+        member = get_member(code)
+        if not _member_has_academy_access(member):
+            if request.path.startswith("/api/") or request.is_json:
+                return jsonify({"ok": False, "locked": True,
+                                "error": "Cette action est réservée aux membres Bectanse Académie.",
+                                "upgrade_url": "/vip"}), 403
+            return redirect(url_for("vip_landing"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _new_member_code(conn):
+    for _ in range(20):
+        code = "BCT-" + "".join(
+            secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        if not conn.run("SELECT 1 FROM members WHERE code=:code", code=code):
+            return code
+    raise RuntimeError("Impossible de générer un code d’accès unique")
+
+
+def _migrate_legacy_analysis_account(conn, email, member_code):
+    """Rattache les éventuels achats BAI historiques au nouveau compte BCT personnel."""
+    rows = conn.run("SELECT code FROM analysis_accounts WHERE LOWER(email)=LOWER(:email)", email=email)
+    if not rows:
+        return
+    old_code = rows[0][0]
+    wallet = conn.run("SELECT balance, lifetime_granted, lifetime_spent FROM analysis_wallets WHERE member_code=:code",
+                      code=old_code)
+    target = conn.run("SELECT balance, lifetime_granted, lifetime_spent FROM analysis_wallets WHERE member_code=:code",
+                      code=member_code)
+    if wallet and target:
+        conn.run("""UPDATE analysis_wallets SET balance=:balance, lifetime_granted=:granted,
+                    lifetime_spent=:spent, updated_at=NOW() WHERE member_code=:code""",
+                 balance=int(wallet[0][0]) + int(target[0][0]),
+                 granted=int(wallet[0][1]) + int(target[0][1]),
+                 spent=int(wallet[0][2]) + int(target[0][2]), code=member_code)
+        conn.run("DELETE FROM analysis_wallets WHERE member_code=:code", code=old_code)
+    elif wallet:
+        conn.run("UPDATE analysis_wallets SET member_code=:new WHERE member_code=:old",
+                 new=member_code, old=old_code)
+    for table in ("analysis_jobs", "analysis_credit_ledger", "analysis_purchases",
+                  "analysis_legal_acceptances"):
+        conn.run(f"UPDATE {table} SET member_code=:new WHERE member_code=:old",
+                 new=member_code, old=old_code)
+    conn.run("UPDATE analysis_accounts SET actif=FALSE WHERE code=:code", code=old_code)
+
+
+def _grant_member_beta_credits(conn, member_code):
+    """Crédite une seule fois les 2 analyses incluses lors de l'activation membre."""
+    conn.run("""INSERT INTO analysis_wallets
+        (member_code,balance,lifetime_granted,lifetime_spent)
+        VALUES (:code,0,0,0) ON CONFLICT (member_code) DO NOTHING""", code=member_code)
+    wallet = conn.run("""SELECT balance FROM analysis_wallets
+        WHERE member_code=:code FOR UPDATE""", code=member_code)
+    balance = int(wallet[0][0])
+    reference = f"member-beta:{member_code}"
+    inserted = conn.run("""INSERT INTO analysis_credit_ledger
+        (member_code,delta,balance_after,reason,reference)
+        VALUES (:code,:credits,:balance,'member_beta',:reference)
+        ON CONFLICT (reference) DO NOTHING RETURNING id""",
+        code=member_code, credits=ANALYSIS_INITIAL_CREDITS,
+        balance=balance + ANALYSIS_INITIAL_CREDITS, reference=reference)
+    if inserted:
+        conn.run("""UPDATE analysis_wallets SET
+            balance=balance+:credits,lifetime_granted=lifetime_granted+:credits,
+            updated_at=NOW() WHERE member_code=:code""",
+            credits=ANALYSIS_INITIAL_CREDITS, code=member_code)
+
+
+def _create_or_reuse_explorer(conn, email, prenom):
+    rows = conn.run("""SELECT code, COALESCE(access_level,'member') FROM members
+        WHERE LOWER(email)=LOWER(:email) ORDER BY created_at DESC LIMIT 1""", email=email)
+    if rows:
+        code, access_level = rows[0]
+        if access_level not in {"explorer", "demo"}:
+            # Le détenteur de l'adresse peut retrouver son compte membre sans créer de doublon.
+            conn.run("UPDATE members SET email_verified_at=COALESCE(email_verified_at,NOW()), last_login=NOW() WHERE code=:code",
+                     code=code)
+            return code
+        conn.run("""UPDATE members SET nom=:nom, actif=TRUE, copy_actif=FALSE,
+                    access_level='explorer', email_verified_at=NOW(), last_login=NOW(),
+                    date_fin=NULL WHERE code=:code""", nom=prenom or "Compte Explorer", code=code)
+    else:
+        code = _new_member_code(conn)
+        conn.run("""INSERT INTO members
+            (code,nom,capital,actif,copy_actif,date_souscription,date_fin,email,
+             params,historique,access_level,email_verified_at)
+            VALUES (:code,:nom,'—',TRUE,FALSE,NOW(),NULL,:email,:params,'[]','explorer',NOW())""",
+            code=code, nom=prenom or "Compte Explorer", email=email,
+            params=json.dumps(default_params()))
+    _migrate_legacy_analysis_account(conn, email, code)
+    return code
+
+
 def enforce_member_access_state():
     """Désactive définitivement les accès techniques des comptes expirés ou suspendus."""
     conn = get_conn()
@@ -643,8 +791,8 @@ def enforce_member_access_state():
                     WHEN actif=FALSE OR (date_fin IS NOT NULL AND date_fin <= NOW()) THEN FALSE
                     ELSE copy_actif
                 END
-            WHERE actif=FALSE
-               OR (date_fin IS NOT NULL AND date_fin <= NOW())
+            WHERE COALESCE(access_level, 'member') NOT IN ('explorer', 'demo')
+              AND (actif=FALSE OR (date_fin IS NOT NULL AND date_fin <= NOW()))
             RETURNING code""")
         return len(changed or [])
     finally:
@@ -797,25 +945,22 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if "member_code" not in session:
             return redirect(url_for("login"))
-        # Vérifier expiration — rediriger vers page blocage sauf routes autorisées
-        allowed = ["accueil_expire", "logout", "marquer_alerte_lue", "marquer_notif_lue",
-                   "offres", "service_worker", "health", "push_register"]
-        if f.__name__ not in allowed:
-            try:
-                from datetime import datetime
-                code = session["member_code"]
-                enforce_member_access_state()
-                conn = get_conn()
-                rows = conn.run("SELECT date_fin, actif FROM members WHERE code=:c", c=code)
-                conn.close()
-                if rows:
-                    date_fin, actif = rows[0]
-                    if not actif:
-                        return redirect(url_for("accueil_expire"))
-                    if date_fin and date_fin <= datetime.now():
-                        if f.__name__ != "offres":
-                            return redirect(url_for("accueil_expire"))
-            except: pass
+        if str(session.get("member_code", "")).upper() == "BCT-DEMO2026":
+            # L'ancien compte partagé n'est plus une identité valide : chacun
+            # doit confirmer son e-mail et recevoir son propre code BCT.
+            session.clear()
+            return redirect(url_for("login"))
+        # Un compte expiré ou suspendu conserve son espace d'observation.
+        # Les actions payantes sont contrôlées indépendamment par
+        # academy_access_required afin qu'aucune requête directe ne les contourne.
+        try:
+            enforce_member_access_state()
+            if not get_member(session["member_code"]):
+                session.clear()
+                return redirect(url_for("login"))
+        except Exception as error:
+            app.logger.error("Validation session membre: %s", error)
+            return "Service temporairement indisponible", 503
         return f(*args, **kwargs)
     return decorated
 
@@ -829,6 +974,7 @@ def vip_landing():
 
 @app.route("/support", methods=["GET", "POST"])
 @login_required
+@academy_access_required
 def support():
     code = session["member_code"]
     member = get_member(code)
@@ -882,10 +1028,11 @@ def faq():
         code = session["member_code"]
         member = get_member(code)
         return render_template("faq.html", member=member,
-            demo_mode=(code == "BCT-DEMO2026"))
+            demo_mode=_current_demo_mode(code, member))
 
 @app.route("/parrainage")
 @login_required
+@academy_access_required
 def parrainage():
     code = session["member_code"]
     member = get_member(code)
@@ -1052,6 +1199,7 @@ def activer_prospect():
 
 @app.route("/save-paiement", methods=["POST"])
 @login_required
+@academy_access_required
 def save_paiement():
     """Sauvegarde les infos de paiement du membre pour recevoir ses commissions"""
     code = session["member_code"]
@@ -1084,7 +1232,7 @@ def formation():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    demo_mode = (code == "BCT-DEMO2026")
+    demo_mode = _current_demo_mode(code, member)
     # En mode demo : ne pas envoyer les vraies URLs au client
     if demo_mode:
         return render_template("formation.html", member=member,
@@ -1147,7 +1295,7 @@ def accueil():
     notif_message = member.get("notif_message", "") or ""
     notif_lue     = member.get("notif_lue", True)
     afficher_notif = bool(notif_type and notif_message and not notif_lue)
-    demo_mode = (code == "BCT-DEMO2026")
+    demo_mode = _current_demo_mode(code, member)
     # Direction artistique fintech validée : la logique et les données restent
     # identiques, seule la présentation de l'espace membre est modernisée.
     modern_preview = True
@@ -1336,8 +1484,8 @@ def admin_api_membres():
     try:
         enforce_member_access_state()
         conn = get_conn()
-        rows = conn.run("SELECT code,nom,capital,actif,copy_actif,date_fin,email,telephone,telegram,parrain_code,filleuls_count,gains_parrainage,created_at FROM members ORDER BY created_at DESC")
-        cols = ["code","nom","capital","actif","copy_actif","date_fin","email","telephone","telegram","parrain_code","filleuls_count","gains_parrainage","created_at"]
+        rows = conn.run("SELECT code,nom,capital,actif,copy_actif,date_fin,email,telephone,telegram,parrain_code,filleuls_count,gains_parrainage,created_at,COALESCE(access_level,'member') FROM members WHERE code <> 'BCT-DEMO2026' ORDER BY created_at DESC")
+        cols = ["code","nom","capital","actif","copy_actif","date_fin","email","telephone","telegram","parrain_code","filleuls_count","gains_parrainage","created_at","access_level"]
         membres = []
         from datetime import datetime, timedelta
         maintenant = datetime.now()
@@ -2936,16 +3084,22 @@ def admin_api_stats():
         enforce_member_access_state()
         conn = get_conn()
         from datetime import datetime
-        total = conn.run("SELECT COUNT(*) FROM members")[0][0]
+        paid_filter = "COALESCE(access_level,'member') NOT IN ('explorer','demo')"
+        total = conn.run(f"SELECT COUNT(*) FROM members WHERE {paid_filter}")[0][0]
         actifs = conn.run("""SELECT COUNT(*) FROM members
-            WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""")[0][0]
+            WHERE COALESCE(access_level,'member') NOT IN ('explorer','demo')
+              AND actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""")[0][0]
         copy_on = conn.run("""SELECT COUNT(*) FROM members
-            WHERE copy_actif=TRUE AND actif=TRUE
+            WHERE COALESCE(access_level,'member') NOT IN ('explorer','demo')
+              AND copy_actif=TRUE AND actif=TRUE
               AND (date_fin IS NULL OR date_fin > NOW())""")[0][0]
-        expires = conn.run("SELECT COUNT(*) FROM members WHERE date_fin <= NOW()")[0][0]
-        nouveaux = conn.run("SELECT COUNT(*) FROM members WHERE created_at > NOW() - INTERVAL '7 days'")[0][0]
+        expires = conn.run(f"SELECT COUNT(*) FROM members WHERE {paid_filter} AND date_fin <= NOW()")[0][0]
+        nouveaux = conn.run(f"SELECT COUNT(*) FROM members WHERE {paid_filter} AND created_at > NOW() - INTERVAL '7 days'")[0][0]
+        explorers = conn.run("""SELECT COUNT(*) FROM members
+            WHERE COALESCE(access_level,'member') IN ('explorer','demo') AND code <> 'BCT-DEMO2026'""")[0][0]
         conn.close()
-        return jsonify({"ok":True,"total":total,"actifs":actifs,"copy_on":copy_on,"expires":expires,"nouveaux_7j":nouveaux})
+        return jsonify({"ok":True,"total":total,"actifs":actifs,"copy_on":copy_on,
+                        "expires":expires,"nouveaux_7j":nouveaux,"explorers":explorers})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
 
@@ -3099,7 +3253,15 @@ ANALYSIS_MARKETS = {"XAU/USD", "XAG/USD", "BTC/USD", "ETH/USD", "EUR/USD", "GBP/
 
 
 def _analysis_wallet(conn, member_code, lock=False):
-    initial_credits = 0 if str(member_code).startswith("BAI-") else ANALYSIS_INITIAL_CREDITS
+    initial_credits = ANALYSIS_INITIAL_CREDITS
+    if str(member_code).startswith("BAI-"):
+        initial_credits = 0
+    elif str(member_code).startswith("BCT-"):
+        access_rows = conn.run(
+            "SELECT COALESCE(access_level,'member') FROM members WHERE code=:code",
+            code=member_code)
+        if access_rows and access_rows[0][0] in {"explorer", "demo"}:
+            initial_credits = 0
     conn.run("""INSERT INTO analysis_wallets
         (member_code, balance, lifetime_granted, lifetime_spent)
         VALUES (:code, :initial, :initial, 0)
@@ -3660,7 +3822,7 @@ def analyse_ia():
     return render_template("analyse_ia.html", member=member, wallet=wallet, history=history,
                            engine_ready=bool(OPENAI_API_KEY), demo_mode=False,
                            admin_beta=is_admin, admin_key="", analysis_only=analysis_only,
-                           account_locked=bool(analysis_only and wallet["balance"] <= 0))
+                           account_locked=bool(not is_admin and wallet["balance"] <= 0))
 
 
 @app.route("/api/analyse-ia/run", methods=["POST"])
@@ -3937,7 +4099,8 @@ def calculateur():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    return render_template("calculateur.html", member=member, demo_mode=(code == "BCT-DEMO2026"))
+    return render_template("calculateur.html", member=member,
+                           demo_mode=_current_demo_mode(code, member))
 
 @app.route("/health")
 def health():
@@ -3951,7 +4114,9 @@ def login():
         return redirect(url_for("analyse_ia"))
     error = None
     notice = None
-    explorer_gate_enabled = brevo_email_delivery_available()
+    # L'accès Explorer exige toujours une adresse confirmée. Aucun contournement
+    # vers le compte démo partagé n'est autorisé si le prestataire e-mail est indisponible.
+    explorer_gate_enabled = True
     if request.method == "POST":
         remote = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
         now = time.time()
@@ -3977,10 +4142,12 @@ def login():
                 try:
                     conn = get_conn()
                     conn.run("""INSERT INTO prospect_email_verifications
-                        (email, prenom, token_hash, source, status, created_at, expires_at, verified_at)
-                        VALUES (:email, :prenom, :token_hash, 'explorer', 'pending', NOW(), NOW() + INTERVAL '24 hours', NULL)
+                        (email, prenom, token_hash, source, status, payload, account_code,
+                         created_at, expires_at, verified_at)
+                        VALUES (:email, :prenom, :token_hash, 'explorer', 'pending', '', '',
+                                NOW(), NOW() + INTERVAL '24 hours', NULL)
                         ON CONFLICT (email) DO UPDATE SET prenom=:prenom, token_hash=:token_hash,
-                        source='explorer', status='pending', created_at=NOW(),
+                        source='explorer', status='pending', payload='', account_code='', created_at=NOW(),
                         expires_at=NOW() + INTERVAL '24 hours', verified_at=NULL""",
                         email=email, prenom=prenom, token_hash=token_hash)
                     conn.close()
@@ -4002,10 +4169,6 @@ def login():
                 recent.append(now)
                 _ADMIN_LOGIN_ATTEMPTS["member:" + remote] = recent
             error = "Code invalide. Vérifie ton code et réessaie."
-        elif not member.get("actif", True):
-            session.permanent = True
-            session["member_code"] = member["code"]
-            return redirect(url_for("accueil_expire"))
         else:
             with _ADMIN_LOGIN_LOCK:
                 _ADMIN_LOGIN_ATTEMPTS.pop("member:" + remote, None)
@@ -4027,43 +4190,39 @@ def confirm_explorer_email(token):
     try:
         conn = get_conn()
         rows = conn.run("""SELECT email, prenom FROM prospect_email_verifications
-            WHERE token_hash=:token_hash AND status='pending' AND expires_at > NOW()""",
+            WHERE token_hash=:token_hash AND source='explorer'
+              AND status='pending' AND expires_at > NOW()""",
             token_hash=token_hash)
         if not rows:
             conn.close()
             return render_template("login.html",
                 error="Ce lien de confirmation est invalide ou a expiré.", notice=None,
-                explorer_gate_enabled=brevo_email_delivery_available()), 400
+                explorer_gate_enabled=True), 400
         email, prenom = rows[0]
-        conn.run("""UPDATE prospect_email_verifications SET status='verified', verified_at=NOW()
-                    WHERE token_hash=:token_hash""", token_hash=token_hash)
-        account_rows = conn.run("SELECT code FROM analysis_accounts WHERE email=:email", email=email)
-        if account_rows:
-            analysis_code = account_rows[0][0]
-            conn.run("""UPDATE analysis_accounts SET prenom=:prenom, actif=TRUE,
-                        verified_at=NOW(), last_login=NOW() WHERE code=:code""",
-                     prenom=prenom, code=analysis_code)
-        else:
-            analysis_code = "BAI-" + "".join(
-                secrets.choice(string.ascii_uppercase + string.digits) for _ in range(10))
-            conn.run("""INSERT INTO analysis_accounts
-                (code, email, prenom, actif, verified_at, last_login)
-                VALUES (:code, :email, :prenom, TRUE, NOW(), NOW())""",
-                code=analysis_code, email=email, prenom=prenom)
+        member_code = _create_or_reuse_explorer(conn, email, prenom)
+        conn.run("""UPDATE prospect_email_verifications SET status='verified', verified_at=NOW(),
+                    account_code=:code WHERE token_hash=:token_hash""",
+                 code=member_code, token_hash=token_hash)
         conn.close()
         sync_result = sync_brevo_prospect_contact(email, prenom, "Explorer confirmé")
         if not sync_result.get("ok"):
             app.logger.error("Synchronisation prospect confirme %s: %s", email, sync_result.get("error"))
+        try:
+            ready_result = send_brevo_explorer_ready(email, prenom, member_code)
+            if not ready_result.get("ok"):
+                app.logger.error("Envoi code Explorer %s: %s", email, ready_result.get("error"))
+        except Exception as ready_error:
+            app.logger.error("Envoi code Explorer %s: %s", email, ready_error)
         session["prospect_verified_email"] = email
-        session["analysis_account_code"] = analysis_code
+        session.pop("analysis_account_code", None)
         session.permanent = True
-        session["member_code"] = "BCT-DEMO2026"
+        session["member_code"] = member_code
         return redirect(url_for("accueil"))
     except Exception as exc:
         app.logger.error("Confirmation prospect Explorer: %s", exc)
         return render_template("login.html",
             error="La confirmation n’a pas pu être validée. Réessaie dans quelques instants.", notice=None,
-            explorer_gate_enabled=brevo_email_delivery_available()), 500
+                explorer_gate_enabled=True), 500
 
 @app.route("/dashboard")
 @login_required
@@ -4111,15 +4270,16 @@ def dashboard():
         notif_message=notif_message,
         afficher_notif=afficher_notif
     ,
-        demo_mode=(session.get("member_code","")=="BCT-DEMO2026"))
+        demo_mode=_current_demo_mode(code, member))
 
 @app.route("/offres")
 @login_required
 def offres():
-    return render_template("offres.html")
+    return redirect(url_for("vip_landing"))
 
 @app.route("/save", methods=["POST"])
 @login_required
+@academy_access_required
 def save():
     code = session["member_code"]
     member = get_member(code)
@@ -4174,6 +4334,7 @@ def save():
 
 @app.route("/toggle-copy", methods=["POST"])
 @login_required
+@academy_access_required
 def toggle_copy():
     code = session["member_code"]
     member = get_member(code)
@@ -4239,83 +4400,147 @@ def logout():
 def inscription():
     if request.method == "GET":
         return render_template("inscription.html")
-    data = request.get_json()
-    prenom    = data.get("prenom","").strip()
-    nom_fam   = data.get("nom","").strip()
-    capital   = data.get("capital","").strip()
-    email     = data.get("email","").strip()
-    telephone = data.get("telephone","").strip()
-    telegram  = data.get("telegram","").strip()
-    plateforme= data.get("plateforme","MT4")
-    serveur   = data.get("serveur","PUPrime-Live")
-    mt_login  = data.get("mt_login","").strip()
-    mt_pass   = data.get("mt_password","").strip()
+    data = request.get_json(silent=True) or {}
+    prenom    = str(data.get("prenom", "")).strip()[:80]
+    nom_fam   = str(data.get("nom", "")).strip()[:100]
+    capital   = str(data.get("capital", "")).strip()[:50]
+    email     = str(data.get("email", "")).strip().lower()[:254]
+    telephone = str(data.get("telephone", "")).strip()[:50]
+    telegram  = str(data.get("telegram", "")).strip()[:100]
+    plateforme= str(data.get("plateforme", "MT4"))[:20]
+    serveur   = str(data.get("serveur", "PUPrime-Live"))[:120]
+    mt_login  = str(data.get("mt_login", "")).strip()[:80]
+    mt_pass   = str(data.get("mt_password", "")).strip()[:200]
     if not all([prenom, nom_fam, capital, email, telephone, mt_login, mt_pass]):
-        return jsonify({"ok": False, "error": "Tous les champs sont obligatoires."})
-    nom_complet = f"{prenom} {nom_fam}"
-    code = "BCT-" + "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        return jsonify({"ok": False, "error": "Tous les champs sont obligatoires."}), 400
+    if "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+        return jsonify({"ok": False, "error": "Adresse e-mail invalide."}), 400
+    registration = {
+        "prenom": prenom, "nom": nom_fam, "capital": capital, "email": email,
+        "telephone": telephone, "telegram": telegram, "plateforme": plateforme,
+        "serveur": serveur, "mt_login": mt_login, "mt_password": mt_pass,
+        "parrain_code": str(data.get("parrain_code", "")).strip().upper()[:80],
+    }
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
     try:
         conn = get_conn()
-        parrain_ref = data.get("parrain_code","").strip().upper()
-        # Insérer sans parrain_code d'abord (colonne peut ne pas exister encore)
-        conn.run(
-            "INSERT INTO members (code,nom,capital,email,telephone,telegram,params,historique) VALUES (:c,:n,:cap,:e,:t,:tg,:p,:h)",
-            c=code, n=nom_complet, cap=capital, e=email, t=telephone, tg=telegram,
-            p=json.dumps(_protect_params({**default_params(), "mt_login": mt_login, "mt_password": mt_pass, "serveur": serveur, "plateforme": plateforme})), h=json.dumps([])
-        )
-        # Essayer de mettre à jour parrain_code si la colonne existe
-        if parrain_ref:
-            try:
-                conn.run("UPDATE members SET parrain_code=:pr WHERE code=:c", pr=parrain_ref, c=code)
-            except: pass
-        # Créditer le parrain si code valide
-        if parrain_ref:
-            try:
-                parrain_rows = conn.run("SELECT code, nom, filleuls_count, gains_parrainage FROM members WHERE code=:c AND actif=TRUE", c=parrain_ref)
-                if parrain_rows:
-                    p_code = parrain_rows[0][0]
-                    p_nom  = parrain_rows[0][1]
-                    p_fill = (parrain_rows[0][2] or 0) + 1
-                    p_gains= (parrain_rows[0][3] or 0) + 50
-                    conn.run("UPDATE members SET filleuls_count=:f, gains_parrainage=:g WHERE code=:c",
-                             f=p_fill, g=p_gains, c=p_code)
-                    # Notif Telegram au parrain
-                    send_telegram(
-                        f"🎉 *Nouveau filleul !*\n\n"
-                        f"👤 *{p_nom}* — tu viens de parrainer *{nom_complet}* !\n"
-                        f"💰 +50€ ajoutés à tes gains\n"
-                        f"📊 Total filleuls : *{p_fill}* | Gains cumulés : *{p_gains}€*\n\n"
-                        + (f"🥉 *Palier Bronze atteint ! +250€ bonus !*" if p_fill == 5 else
-                           f"🥈 *Statut AMBASSADOR atteint ! +1000€ bonus !*" if p_fill == 10 else
-                           f"🥇 *Statut ELITE atteint ! +2000€ + Voyage Dubai !*" if p_fill == 20 else "")
-                    )
-            except: pass
+        existing = conn.run("""SELECT code, COALESCE(access_level,'member') FROM members
+            WHERE LOWER(email)=LOWER(:email) ORDER BY created_at DESC LIMIT 1""", email=email)
+        if existing and existing[0][1] not in {"explorer", "demo"}:
+            conn.close()
+            return jsonify({"ok": False, "error": "Un compte existe déjà avec cette adresse. Connecte-toi avec ton code ou contacte le support."}), 409
+        conn.run("""INSERT INTO prospect_email_verifications
+            (email, prenom, token_hash, source, status, payload, account_code,
+             created_at, expires_at, verified_at)
+            VALUES (:email,:prenom,:token,'member_registration','pending',:payload,'',
+                    NOW(),NOW() + INTERVAL '24 hours',NULL)
+            ON CONFLICT (email) DO UPDATE SET prenom=:prenom, token_hash=:token,
+                source='member_registration', status='pending', payload=:payload,
+                account_code='', created_at=NOW(), expires_at=NOW() + INTERVAL '24 hours',
+                verified_at=NULL""",
+            email=email, prenom=prenom, token=token_hash,
+            payload=_encrypt_value(json.dumps(registration, ensure_ascii=False)))
         conn.close()
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
-    tg_line = f"  Telegram : {telegram}\n" if telegram else ""
-    set_dates_url = f"https://acces.bectanse-academie.com/set-dates/{code}?token={_action_token('set_dates', {'code': code}, 604800)}"
-    notif = (
-        f"🆕 *NOUVELLE INSCRIPTION BECTANSE AUTO*\n\n"
-        f"👤 *{nom_complet}*\n💰 Capital : *{capital}*\n🔑 Code : `{code}`\n\n"
-        f"📞 *CONTACT*\n  Email : `{email}`\n  Tél : `{telephone}`\n{tg_line}\n"
-        f"📊 *MT4/MT5*\n  Plateforme : *{plateforme}*\n  Serveur : *{serveur}*\n"
-        f"  Login : `{mt_login}`\n  Mot de passe investisseur : stocké chiffré dans l’administration\n\n"
-        f"⚡ *ACTION REQUISE* — Connecter sur notre système"
-    )
-    markup = {"inline_keyboard":[[{"text":"📅 Définir les dates d'abonnement","url":set_dates_url}]]}
-    send_telegram(notif, reply_markup=markup)
+        confirmation_url = request.url_root.rstrip("/") + url_for(
+            "confirm_member_registration", token=raw_token)
+        sent = send_brevo_member_verification(email, prenom, confirmation_url)
+        if not sent.get("ok"):
+            return jsonify({"ok": False, "error": "L’e-mail de confirmation n’a pas pu être envoyé. Réessaie dans quelques instants."}), 503
+        return jsonify({"ok": True, "pending_verification": True, "email": email})
+    except Exception as error:
+        app.logger.error("Préparation inscription membre: %s", error)
+        return jsonify({"ok": False, "error": "Impossible de préparer l’inscription pour le moment."}), 500
+
+
+@app.route("/inscription/confirmer/<token>")
+def confirm_member_registration(token):
+    token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+    conn = get_conn()
     try:
-        email_bienvenue_membre(prenom, email, code)
-    except Exception as e:
-        app.logger.error("bienvenue: %s", e)
-    try:
-        result = sync_brevo_member_contact(email)
-        if not result.get("ok"):
-            app.logger.error("sync contact inscription %s: %s", email, result.get("error"))
-    except Exception as e:
-        app.logger.error("sync contact inscription %s: %s", email, e)
-    return jsonify({"ok": True, "code": code})
+        conn.run("BEGIN")
+        rows = conn.run("""SELECT email, payload FROM prospect_email_verifications
+            WHERE token_hash=:token AND source='member_registration' AND status='pending'
+              AND expires_at > NOW() FOR UPDATE""", token=token_hash)
+        if not rows:
+            conn.run("ROLLBACK")
+            return render_template("login.html",
+                error="Ce lien d’inscription est invalide, déjà utilisé ou expiré.", notice=None,
+                explorer_gate_enabled=True), 400
+        email, encrypted_payload = rows[0]
+        payload = json.loads(_decrypt_value(encrypted_payload))
+        existing = conn.run("""SELECT code, COALESCE(access_level,'member') FROM members
+            WHERE LOWER(email)=LOWER(:email) ORDER BY created_at DESC LIMIT 1""", email=email)
+        if existing and existing[0][1] not in {"explorer", "demo"}:
+            raise RuntimeError("Un compte membre existe déjà avec cette adresse")
+        code = existing[0][0] if existing else _new_member_code(conn)
+        nom_complet = f"{payload['prenom']} {payload['nom']}".strip()
+        params = _protect_params({**default_params(), "mt_login": payload["mt_login"],
+            "mt_password": payload["mt_password"], "serveur": payload["serveur"],
+            "plateforme": payload["plateforme"]})
+        if existing:
+            conn.run("""UPDATE members SET nom=:nom,capital=:capital,email=:email,
+                telephone=:telephone,telegram=:telegram,params=:params,historique='[]',
+                parrain_code=:parrain,actif=TRUE,copy_actif=TRUE,access_level='member',
+                email_verified_at=NOW(),date_souscription=NOW(),
+                date_fin=NOW() + INTERVAL '30 days',last_login=NOW() WHERE code=:code""",
+                nom=nom_complet, capital=payload["capital"], email=email,
+                telephone=payload["telephone"], telegram=payload["telegram"],
+                params=json.dumps(params), parrain=payload.get("parrain_code", ""), code=code)
+        else:
+            conn.run("""INSERT INTO members
+                (code,nom,capital,email,telephone,telegram,params,historique,parrain_code,
+                 actif,copy_actif,access_level,email_verified_at,date_souscription,date_fin)
+                VALUES (:code,:nom,:capital,:email,:telephone,:telegram,:params,'[]',:parrain,
+                        TRUE,TRUE,'member',NOW(),NOW(),NOW() + INTERVAL '30 days')""",
+                code=code, nom=nom_complet, capital=payload["capital"], email=email,
+                telephone=payload["telephone"], telegram=payload["telegram"],
+                params=json.dumps(params), parrain=payload.get("parrain_code", ""))
+        parrain_ref = payload.get("parrain_code", "")
+        referral_notice = None
+        if parrain_ref:
+            parrain_rows = conn.run("""SELECT code,nom,filleuls_count,gains_parrainage
+                FROM members WHERE code=:code AND actif=TRUE""", code=parrain_ref)
+            if parrain_rows:
+                p_code, p_nom, old_count, old_gains = parrain_rows[0]
+                p_fill, p_gains = int(old_count or 0) + 1, int(old_gains or 0) + 50
+                conn.run("UPDATE members SET filleuls_count=:count,gains_parrainage=:gains WHERE code=:code",
+                         count=p_fill, gains=p_gains, code=p_code)
+                referral_notice = (p_nom, p_fill, p_gains)
+        _migrate_legacy_analysis_account(conn, email, code)
+        _grant_member_beta_credits(conn, code)
+        conn.run("""UPDATE prospect_email_verifications SET status='verified',
+            verified_at=NOW(),account_code=:code,payload='' WHERE token_hash=:token""",
+            code=code, token=token_hash)
+        conn.run("COMMIT")
+    except Exception as error:
+        try: conn.run("ROLLBACK")
+        except Exception: pass
+        app.logger.error("Confirmation inscription membre: %s", error)
+        return render_template("login.html",
+            error="Cette inscription ne peut pas être confirmée. Contacte le support si le problème persiste.",
+            notice=None, explorer_gate_enabled=True), 400
+    finally:
+        conn.close()
+
+    if referral_notice:
+        p_nom, p_fill, p_gains = referral_notice
+        send_telegram(f"🎉 *Nouveau filleul confirmé !*\n\n👤 *{p_nom}* — {nom_complet} a confirmé son inscription.\n💰 +50€ ajoutés\n📊 Total : *{p_fill}* | Gains : *{p_gains}€*")
+    set_dates_url = request.url_root.rstrip("/") + url_for(
+        "set_dates", code=code, token=_action_token("set_dates", {"code": code}, 604800))
+    telegram_line = f"  Telegram : {payload['telegram']}\n" if payload.get("telegram") else ""
+    send_telegram(
+        f"🆕 *INSCRIPTION E-MAIL CONFIRMÉE*\n\n👤 *{nom_complet}*\n💰 Capital : *{payload['capital']}*\n"
+        f"🔑 Code : `{code}`\n\n📞 *CONTACT*\n  Email : `{email}`\n  Tél : `{payload['telephone']}`\n{telegram_line}\n"
+        f"📊 *MT4/MT5*\n  Plateforme : *{payload['plateforme']}*\n  Serveur : *{payload['serveur']}*\n"
+        f"  Login : `{payload['mt_login']}`\n  Mot de passe investisseur : stocké chiffré\n\n⚡ *ACTION REQUISE* — Connecter sur notre système",
+        reply_markup={"inline_keyboard": [[{"text": "📅 Définir les dates d'abonnement", "url": set_dates_url}]]})
+    email_bienvenue_membre(payload["prenom"], email, code)
+    sync_brevo_member_contact(email)
+    session.clear()
+    session.permanent = True
+    session["member_code"] = code
+    return redirect(url_for("accueil"))
 
 @app.route("/admin/api/brevo/sync-members", methods=["POST"])
 def admin_sync_brevo_members():
@@ -4887,10 +5112,10 @@ def register_webhook():
 # ── EMAILS RELANCE AUTOMATIQUES ─────────────────────────────────────────────
 
 STRIPE_LINKS = [
-    ("1 mois", "500€",   "https://buy.stripe.com/4gMeVdaKYctK7xN8ksgfu0p"),
-    ("3 mois", "1 000€", "https://buy.stripe.com/bJefZh06k8du05leIQgfu0n"),
-    ("6 mois", "2 500€", "https://buy.stripe.com/00w28q84g5s1csDgmegA804"),
-    ("1 an",   "4 000€", "https://buy.stripe.com/bJecN498kbQp64f7PIgA803"),
+    ("1 mois", "500€",   "https://acces.bectanse-academie.com/vip"),
+    ("3 mois", "1 000€", "https://acces.bectanse-academie.com/vip"),
+    ("6 mois", "2 500€", "https://acces.bectanse-academie.com/vip"),
+    ("1 an",   "4 000€", "https://acces.bectanse-academie.com/vip"),
 ]
 
 def send_email_relance(member, jours_restants):
@@ -4974,8 +5199,8 @@ def init_demo_account():
         existing = conn.run("SELECT code FROM members WHERE code='BCT-DEMO2026'")
         if not existing:
             conn.run(
-                "INSERT INTO members (code,nom,capital,email,telephone,telegram,params,historique,actif,copy_actif) "
-                "VALUES ('BCT-DEMO2026','Compte Demo','1000','demo@bectanse.com','','',\'{}\',\'[]\',TRUE,FALSE)"
+                "INSERT INTO members (code,nom,capital,email,telephone,telegram,params,historique,actif,copy_actif,access_level,date_fin) "
+                "VALUES ('BCT-DEMO2026','Compte Demo','1000','demo@bectanse.com','','',\'{}\',\'[]\',TRUE,FALSE,'demo',NULL)"
             )
             app.logger.info("Compte demo BCT-DEMO2026 cree")
         conn.close()
@@ -5103,6 +5328,65 @@ def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
         return {"ok": False, "error": str(error)[:500]}
 
 
+def send_brevo_member_verification(to_email, to_name, confirmation_url):
+    """Valide l'adresse avant de créer le compte membre et de stocker le contact."""
+    import urllib.request as _ur
+    if not brevo_email_delivery_available():
+        return {"ok": False, "error": "Service de confirmation temporairement indisponible"}
+    html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
+        "<div style='max-width:580px;margin:0 auto;padding:28px 18px'><div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
+        "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE ACADÉMIE</p>"
+        "<h1 style='margin:0 0 14px;font-size:27px'>Confirme ton inscription</h1>"
+        "<p style='margin:0 0 24px;color:#b7b7b7;line-height:1.6'>Nous devons vérifier ton adresse avant de créer ton code BCT personnel et d’activer ton espace.</p>"
+        "<a href='"+confirmation_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>CONFIRMER MON ADRESSE →</a>"
+        "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Lien sécurisé, utilisable une seule fois et valable 24 heures.</p>"
+        "</div></div></body></html>")
+    payload = json.dumps({
+        "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
+        "to": [{"email": to_email, "name": to_name}],
+        "subject": "Confirme ton inscription — Bectanse Académie",
+        "htmlContent": html, "tags": ["bectanse-inscription", "verification-email"]
+    }).encode("utf-8")
+    try:
+        req = _ur.Request("https://api.brevo.com/v3/smtp/email", data=payload,
+            headers={"api-key": os.environ["BREVO_KEY"], "Content-Type": "application/json"}, method="POST")
+        with _ur.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode("utf-8") or "{}")
+        return {"ok": True, "message_id": result.get("messageId", "")}
+    except Exception as error:
+        app.logger.error("Brevo verification membre: %s", error)
+        return {"ok": False, "error": str(error)[:500]}
+
+
+def send_brevo_explorer_ready(to_email, to_name, member_code):
+    """Remet le code BCT permanent uniquement après le double opt-in Explorer."""
+    import urllib.request as _ur
+    login_url = "https://acces.bectanse-academie.com/"
+    html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
+        "<div style='max-width:580px;margin:0 auto;padding:28px 18px'><div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
+        "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE EXPLORER</p>"
+        "<h1 style='margin:0 0 14px;font-size:27px'>Ton espace d’observation est prêt</h1>"
+        "<p style='color:#aaa;line-height:1.6'>Conserve ce code personnel pour te reconnecter sur tous tes appareils :</p>"
+        "<div style='margin:22px 0;padding:18px;text-align:center;border:1px solid #ff6a00;border-radius:12px;color:#fff;font-size:25px;font-weight:900;letter-spacing:2px'>"+member_code+"</div>"
+        "<a href='"+login_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>OUVRIR MON ESPACE →</a>"
+        "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Ton compte Explorer est gratuit et en lecture seule. Les fonctionnalités membres se débloquent depuis la présentation complète.</p>"
+        "</div></div></body></html>")
+    payload = json.dumps({
+        "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
+        "to": [{"email": to_email, "name": to_name or "Membre Explorer"}],
+        "subject": "Ton code Explorer Bectanse", "htmlContent": html,
+        "tags": ["bectanse-prospect", "explorer-ready"]
+    }).encode("utf-8")
+    try:
+        req = _ur.Request("https://api.brevo.com/v3/smtp/email", data=payload,
+            headers={"api-key": os.environ["BREVO_KEY"], "Content-Type": "application/json"}, method="POST")
+        with _ur.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode("utf-8") or "{}")
+        return {"ok": True, "message_id": result.get("messageId", "")}
+    except Exception as error:
+        return {"ok": False, "error": str(error)[:500]}
+
+
 def sync_brevo_prospect_contact(email, prenom="", source="Explorer"):
     """Ajoute un e-mail confirmé à la liste Prospects, jamais à la liste Membres."""
     import urllib.request as _ur, urllib.error as _ue
@@ -5177,7 +5461,7 @@ def email_relance_expiration(prenom, email, stage):
         "<p style='color:rgba(255,255,255,.7);font-size:15px;line-height:1.8;margin:0;'>"+corps+"</p>"
         "</div>"
         "<div style='text-align:center;padding:20px 0;'>"
-        "<a href='https://acces.bectanse-academie.com/offres' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
+        "<a href='https://acces.bectanse-academie.com/vip' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
         "</div>"
         "<p style='text-align:center;color:rgba(255,255,255,.45);font-size:12px;'>Besoin d’aide ? <a href='https://t.me/m/PAt88QgeZDhk' style='color:#FF6A00;'>Contacter le support</a></p>"
         "<p style='text-align:center;color:rgba(255,255,255,.2);font-size:11px;'>&copy; 2026 Bectanse Acad&eacute;mie</p>"
@@ -6343,6 +6627,8 @@ def canal_webhook():
 
 
 @app.route("/api/canal/messages")
+@login_required
+@academy_access_required
 def api_canal_messages():
     """Retourne les messages du canal VIP (50 derniers, ou après un ID donné)."""
     if "member_code" not in session:
@@ -6523,7 +6809,7 @@ def canal():
     if not member:
         return redirect(url_for("login"))
     is_admin = (code == CANAL_ADMIN_CODE)
-    demo_mode = (code == "BCT-DEMO2026")
+    demo_mode = _current_demo_mode(code, member)
     # En mode demo : aucun message envoyé au client
     if demo_mode:
         return render_template("canal.html", member=member,
@@ -6711,7 +6997,7 @@ def check_and_send_relances():
                WHERE actif=TRUE AND email != '' AND date_fin IS NOT NULL"""
         )
         conn.close()
-        lien = "https://bectanse-auto.up.railway.app/offres"
+        lien = "https://acces.bectanse-academie.com/vip"
         sent = 0
         for code, nom, email, date_fin in membres:
             if not email or not date_fin:
