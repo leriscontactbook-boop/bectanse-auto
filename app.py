@@ -238,6 +238,10 @@ ANALYSIS_INITIAL_CREDITS = int(os.environ.get("ANALYSIS_INITIAL_CREDITS", "2"))
 ANALYSIS_MAX_IMAGE_BYTES = 6 * 1024 * 1024
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PAYMENT_SUCCESS_URL = os.environ.get(
+    "STRIPE_PAYMENT_SUCCESS_URL",
+    "https://t.me/m/Pnl8NciPZmZk",
+)
 STRIPE_ACADEMY_PORTAL_CONFIGURATION = os.environ.get(
     "STRIPE_ACADEMY_PORTAL_CONFIGURATION",
     "bpc_1U8QMWDE6HxqPs7GiRK7sYSk",
@@ -4169,7 +4173,7 @@ def analyse_ia_checkout():
     root = request.url_root.rstrip("/")
     form = {
         "mode": "payment",
-        "success_url": root + "/analyse-ia?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+        "success_url": STRIPE_PAYMENT_SUCCESS_URL,
         "cancel_url": root + "/analyse-ia?checkout=cancelled",
         "client_reference_id": code,
         "metadata[member_code]": code,
