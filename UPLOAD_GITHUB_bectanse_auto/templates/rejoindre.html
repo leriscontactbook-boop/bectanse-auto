@@ -50,7 +50,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .offre-price span{font-size:24px;color:rgba(255,255,255,0.5)}
 .offre-day{font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:6px}
 .offre-day strong{color:var(--gold)}
-.klarna-line{font-size:10px;color:#FFB3C6;margin-bottom:16px;display:flex;align-items:center;gap:4px}
+.billing-line{font-size:10px;color:#FFB3C6;margin-bottom:16px;display:flex;align-items:center;gap:4px}
 .offre-eco{font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;margin-bottom:16px;display:inline-block}
 .eco-gold{background:rgba(245,158,11,0.1);color:var(--gold);border:1px solid rgba(245,158,11,0.25)}
 .eco-green{background:rgba(5,150,105,0.1);color:#6EE7B7;border:1px solid rgba(5,150,105,0.25)}
@@ -74,7 +74,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .form-field input:focus,.form-field select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,33,182,0.12)}
 .form-field select option{background:#1F2937}
 .offre-select-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px;display:block}
-.offre-pills{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.offre-pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
 .offre-pill{padding:12px 8px;border-radius:10px;border:1px solid rgba(91,33,182,0.2);background:rgba(255,255,255,0.03);cursor:pointer;text-align:center;transition:all 0.15s}
 .offre-pill:hover,.offre-pill.selected{border-color:var(--purple);background:rgba(91,33,182,0.15)}
 .offre-pill .pill-dur{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--white)}
@@ -184,36 +184,28 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   </div>
 
   <div class="offres-grid fade-up delay-1">
-    <a href="https://buy.stripe.com/4gMeVdaKYctK7xN8ksgfu0p" target="_blank" class="offre-card" onclick="selectOffre('1 mois — 500€',this)">
+    <a href="https://buy.stripe.com/14A6oH5qE51iaJZ6ckgfu0H" target="_blank" rel="noopener" class="offre-card" onclick="selectOffre('1 mois — 500€',this)">
       <div class="offre-dur">1 Mois</div>
       <div class="offre-price"><span>€</span>500</div>
       <div class="offre-day"><strong>16,67€</strong>/jour</div>
-      <div class="klarna-line">💳 ou 4×125€ avec Klarna</div>
+      <div class="billing-line">Abonnement renouvelé chaque mois</div>
       <div class="offre-cta cta-default">Choisir →</div>
     </a>
-    <a href="https://buy.stripe.com/bJefZh06k8du05leIQgfu0n" target="_blank" class="offre-card popular" onclick="selectOffre('3 mois — 1000€',this)">
+    <a href="https://buy.stripe.com/7sY8wP2esbpG6tJ0S0gfu0G" target="_blank" rel="noopener" class="offre-card popular" onclick="selectOffre('3 mois — 1000€',this)">
       <div class="offre-badge badge-gold">⭐ Populaire</div>
       <div class="offre-dur">3 Mois</div>
       <div class="offre-price"><span>€</span>1000</div>
       <div class="offre-day"><strong>11,11€</strong>/jour</div>
-      <div class="klarna-line">💳 ou 4×250€ avec Klarna</div>
+      <div class="billing-line">Abonnement renouvelé tous les 3 mois</div>
       <div class="offre-eco eco-gold">-33% · Tu économises 500€</div>
       <div class="offre-cta cta-gold">Choisir →</div>
     </a>
-    <a href="https://buy.stripe.com/00w28q84g5s1csDgmegA804" target="_blank" class="offre-card" onclick="selectOffre('6 mois — 2500€',this)">
-      <div class="offre-badge badge-purple">Recommandé</div>
-      <div class="offre-dur">6 Mois</div>
-      <div class="offre-price"><span>€</span>2500</div>
-      <div class="offre-day"><strong>13,89€</strong>/jour</div>
-      <div class="klarna-line">💳 ou 4×625€ avec Klarna</div>
-      <div class="offre-cta cta-default">Choisir →</div>
-    </a>
-    <a href="https://buy.stripe.com/bJecN498kbQp64f7PIgA803" target="_blank" class="offre-card best" onclick="selectOffre('1 an — 4000€',this)">
+    <a href="https://buy.stripe.com/8x23cv4mAdxO7xN0S0gfu0F" target="_blank" rel="noopener" class="offre-card best" onclick="selectOffre('1 an — 4000€',this)">
       <div class="offre-badge badge-green">🏆 Meilleur ROI</div>
       <div class="offre-dur">1 An</div>
       <div class="offre-price"><span>€</span>4000</div>
       <div class="offre-day"><strong>10,96€</strong>/jour</div>
-      <div class="klarna-line">💳 ou 4×1000€ avec Klarna</div>
+      <div class="billing-line">Abonnement renouvelé chaque année</div>
       <div class="offre-eco eco-green">-34% · Tu économises 2000€</div>
       <div class="offre-cta cta-green">Choisir →</div>
     </a>
@@ -252,7 +244,6 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       <div class="offre-pills">
         <div class="offre-pill" onclick="setPill('1 mois — 500€',this)"><div class="pill-dur">1 Mois</div><div class="pill-price">500€</div></div>
         <div class="offre-pill selected" onclick="setPill('3 mois — 1000€',this)"><div class="pill-dur">3 Mois</div><div class="pill-price">1000€</div></div>
-        <div class="offre-pill" onclick="setPill('6 mois — 2500€',this)"><div class="pill-dur">6 Mois</div><div class="pill-price">2500€</div></div>
         <div class="offre-pill" onclick="setPill('1 an — 4000€',this)"><div class="pill-dur">1 An</div><div class="pill-price">4000€</div></div>
       </div>
       <input type="hidden" id="offre-selected" value="3 mois — 1000€">

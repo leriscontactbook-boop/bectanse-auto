@@ -238,12 +238,37 @@ ANALYSIS_INITIAL_CREDITS = int(os.environ.get("ANALYSIS_INITIAL_CREDITS", "2"))
 ANALYSIS_MAX_IMAGE_BYTES = 6 * 1024 * 1024
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_ACADEMY_PORTAL_CONFIGURATION = os.environ.get(
+    "STRIPE_ACADEMY_PORTAL_CONFIGURATION",
+    "bpc_1U8QMWDE6HxqPs7GiRK7sYSk",
+)
 POSTHOG_PROJECT_KEY = os.environ.get("POSTHOG_PROJECT_KEY", "")
 POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "https://eu.i.posthog.com").rstrip("/")
 ANALYSIS_PACKS = {
     "5": {"credits": 5, "amount_cents": 990, "label": "Pack Découverte"},
     "20": {"credits": 20, "amount_cents": 2490, "label": "Pack Trader"},
     "50": {"credits": 50, "amount_cents": 4990, "label": "Pack Pro"},
+}
+ACADEMY_SUBSCRIPTION_PLANS = {
+    "price_1U8Q3DDE6HxqPs7GiK8j8f9N": {
+        "id": "1_month", "label": "1 mois", "amount_cents": 50000, "days": 30,
+        "payment_link_id": "plink_1U8Q7fDE6HxqPs7G8pn1mwIE",
+        "payment_link": "https://buy.stripe.com/14A6oH5qE51iaJZ6ckgfu0H",
+    },
+    "price_1U8Q4FDE6HxqPs7GbCKnQb18": {
+        "id": "3_months", "label": "3 mois", "amount_cents": 100000, "days": 90,
+        "payment_link_id": "plink_1U8Q7CDE6HxqPs7GrDWCpXIU",
+        "payment_link": "https://buy.stripe.com/7sY8wP2esbpG6tJ0S0gfu0G",
+    },
+    "price_1U8Q54DE6HxqPs7GhmeoI1pa": {
+        "id": "1_year", "label": "1 an", "amount_cents": 400000, "days": 365,
+        "payment_link_id": "plink_1U8Q6aDE6HxqPs7GoQWMhER2",
+        "payment_link": "https://buy.stripe.com/8x23cv4mAdxO7xN0S0gfu0F",
+    },
+}
+ACADEMY_PLAN_BY_PAYMENT_LINK = {
+    plan["payment_link_id"]: (price_id, plan)
+    for price_id, plan in ACADEMY_SUBSCRIPTION_PLANS.items()
 }
 ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "")
 ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
@@ -478,6 +503,38 @@ def init_db():
                     accepted_at       TIMESTAMP DEFAULT NOW()
                 )
             """)
+            for col, typ, default in [
+                ("stripe_customer_id", "TEXT", "''"),
+                ("stripe_subscription_id", "TEXT", "''"),
+                ("stripe_price_id", "TEXT", "''"),
+                ("billing_status", "TEXT", "'legacy'"),
+                ("billing_current_period_end", "TIMESTAMP", "NULL"),
+                ("billing_cancel_at_period_end", "BOOLEAN", "FALSE"),
+                ("admin_suspended", "BOOLEAN", "FALSE"),
+            ]:
+                try:
+                    conn.run(f"ALTER TABLE members ADD COLUMN IF NOT EXISTS {col} {typ} DEFAULT {default}")
+                except Exception:
+                    pass
+            conn.run("""CREATE UNIQUE INDEX IF NOT EXISTS members_stripe_customer_idx
+                         ON members (stripe_customer_id)
+                         WHERE stripe_customer_id IS NOT NULL AND stripe_customer_id <> ''""")
+            conn.run("""CREATE UNIQUE INDEX IF NOT EXISTS members_stripe_subscription_idx
+                         ON members (stripe_subscription_id)
+                         WHERE stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> ''""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS stripe_academy_events (
+                    event_id      TEXT PRIMARY KEY,
+                    event_type    TEXT NOT NULL,
+                    member_code   TEXT NOT NULL DEFAULT '',
+                    status        TEXT NOT NULL DEFAULT 'processing',
+                    error         TEXT NOT NULL DEFAULT '',
+                    created_at    TIMESTAMP DEFAULT NOW(),
+                    processed_at  TIMESTAMP
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS stripe_academy_events_status_idx
+                         ON stripe_academy_events (status, created_at DESC)""")
             ensure_growth_schema(conn)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
@@ -1654,10 +1711,11 @@ def admin_api_membre_update():
                 conn.close()
                 return jsonify({"ok":False,"error":"Statut invalide"}), 400
             if data["actif"]:
-                conn.run("""UPDATE members SET actif=TRUE WHERE code=:c
+                conn.run("""UPDATE members SET actif=TRUE,admin_suspended=FALSE WHERE code=:c
                     AND (date_fin IS NULL OR date_fin > NOW())""", c=code)
             else:
-                conn.run("UPDATE members SET actif=FALSE, copy_actif=FALSE WHERE code=:c", c=code)
+                conn.run("""UPDATE members SET actif=FALSE,copy_actif=FALSE,
+                    admin_suspended=TRUE WHERE code=:c""", c=code)
         if "copy_actif" in data:
             if bool(data["copy_actif"]):
                 conn.run("""UPDATE members SET copy_actif=TRUE WHERE code=:c
@@ -4191,6 +4249,207 @@ def _stripe_signature_valid(raw_body, signature_header):
     return any(hmac.compare_digest(expected, candidate) for candidate in values.get("v1", []))
 
 
+def _stripe_id(value):
+    if isinstance(value, dict):
+        return str(value.get("id", "") or "")
+    return str(value or "")
+
+
+def _stripe_subscription_context(event_type, stripe_object):
+    """Normalise les objets Checkout, Subscription et Invoice sans appel API annexe."""
+    obj = stripe_object or {}
+    customer_id = _stripe_id(obj.get("customer"))
+    subscription_id = ""
+    if str(obj.get("id", "")).startswith("sub_"):
+        subscription_id = str(obj.get("id"))
+    subscription_id = subscription_id or _stripe_id(obj.get("subscription"))
+    parent = obj.get("parent") or {}
+    subscription_details = parent.get("subscription_details") or {}
+    subscription_id = subscription_id or _stripe_id(subscription_details.get("subscription"))
+
+    data_rows = []
+    for container in (obj.get("items") or {}, obj.get("lines") or {}):
+        data_rows.extend(container.get("data") or [])
+    price_id = ""
+    period_end = obj.get("current_period_end")
+    for row in data_rows:
+        price = row.get("price") or {}
+        pricing = row.get("pricing") or {}
+        price_details = pricing.get("price_details") or {}
+        candidate = _stripe_id(price) or _stripe_id(price_details.get("price"))
+        if candidate in ACADEMY_SUBSCRIPTION_PLANS:
+            price_id = candidate
+            period_end = period_end or row.get("current_period_end") or (row.get("period") or {}).get("end")
+            break
+
+    payment_link_id = _stripe_id(obj.get("payment_link"))
+    if not price_id and payment_link_id:
+        price_id = (ACADEMY_PLAN_BY_PAYMENT_LINK.get(payment_link_id) or ("", {}))[0]
+    plan = ACADEMY_SUBSCRIPTION_PLANS.get(price_id)
+
+    customer_details = obj.get("customer_details") or {}
+    email = str(customer_details.get("email") or obj.get("customer_email") or "").strip().lower()
+    customer_name = str(customer_details.get("name") or "").strip()
+    status = str(obj.get("status") or "").lower()
+    if event_type == "checkout.session.completed":
+        status = "active" if str(obj.get("payment_status", "")).lower() in {"paid", "no_payment_required"} else status
+    elif event_type == "invoice.paid":
+        status = "active"
+    elif event_type == "invoice.payment_failed":
+        status = "past_due"
+    elif event_type == "customer.subscription.deleted":
+        status = "canceled"
+    elif event_type == "customer.subscription.paused":
+        status = "paused"
+    elif event_type == "customer.subscription.resumed":
+        status = "active"
+
+    try:
+        period_end_dt = datetime.fromtimestamp(int(period_end)) if period_end else None
+    except (TypeError, ValueError, OSError):
+        period_end_dt = None
+    if not period_end_dt and plan and status in {"active", "trialing"}:
+        period_end_dt = datetime.now() + timedelta(days=int(plan["days"]))
+
+    return {
+        "customer_id": customer_id,
+        "subscription_id": subscription_id,
+        "price_id": price_id,
+        "plan": plan,
+        "email": email,
+        "customer_name": customer_name,
+        "status": status,
+        "period_end": period_end_dt,
+        "cancel_at_period_end": bool(obj.get("cancel_at_period_end", False)),
+    }
+
+
+def _process_academy_stripe_event(event):
+    """Rattache Stripe au compte BCT et applique l'accès de façon idempotente."""
+    event_id = str(event.get("id", ""))
+    event_type = str(event.get("type", ""))
+    stripe_object = (event.get("data") or {}).get("object") or {}
+    context = _stripe_subscription_context(event_type, stripe_object)
+    # Un Checkout provenant d'un autre produit du même compte Stripe ne doit
+    # jamais être rattaché à l'Académie par simple correspondance d'e-mail.
+    if event_type == "checkout.session.completed" and not context["plan"]:
+        return {"handled": False}
+    if not context["plan"] and not context["customer_id"] and not context["subscription_id"]:
+        return {"handled": False}
+
+    conn = get_conn()
+    member_code = ""
+    created_member = False
+    member_email = context["email"]
+    member_name = context["customer_name"] or "Nouveau membre"
+    try:
+        conn.run("BEGIN")
+        inserted = conn.run("""INSERT INTO stripe_academy_events
+            (event_id,event_type,status) VALUES (:event_id,:event_type,'processing')
+            ON CONFLICT (event_id) DO NOTHING RETURNING event_id""",
+            event_id=event_id, event_type=event_type)
+        if not inserted:
+            conn.run("ROLLBACK")
+            return {"handled": True, "duplicate": True}
+
+        rows = []
+        if context["subscription_id"]:
+            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id FROM members
+                WHERE stripe_subscription_id=:subscription LIMIT 1""",
+                subscription=context["subscription_id"])
+        if not rows and context["customer_id"]:
+            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id FROM members
+                WHERE stripe_customer_id=:customer LIMIT 1""", customer=context["customer_id"])
+        if not rows and context["email"]:
+            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id FROM members
+                WHERE LOWER(email)=LOWER(:email) ORDER BY created_at DESC LIMIT 1""",
+                email=context["email"])
+        if rows:
+            member_code, stored_email, stored_name, stored_subscription = rows[0]
+            member_email = member_email or str(stored_email or "")
+            member_name = str(stored_name or member_name)
+            if (not context["plan"] and context["subscription_id"] and
+                    (not stored_subscription or context["subscription_id"] != stored_subscription)):
+                conn.run("""UPDATE stripe_academy_events SET status='ignored',member_code=:code,
+                    error='unknown_subscription',processed_at=NOW() WHERE event_id=:event_id""",
+                    code=member_code, event_id=event_id)
+                conn.run("COMMIT")
+                return {"handled": True, "ignored": "unknown_subscription"}
+            if (event_type != "checkout.session.completed" and context["subscription_id"] and
+                    stored_subscription and context["subscription_id"] != stored_subscription):
+                conn.run("""UPDATE stripe_academy_events SET status='ignored',member_code=:code,
+                    error='stale_subscription',processed_at=NOW() WHERE event_id=:event_id""",
+                    code=member_code, event_id=event_id)
+                conn.run("COMMIT")
+                return {"handled": True, "ignored": "stale_subscription"}
+        elif context["email"] and context["plan"]:
+            member_code = _create_or_reuse_explorer(conn, context["email"], member_name)
+            created_member = True
+        else:
+            conn.run("""UPDATE stripe_academy_events SET status='ignored',
+                error='unmatched_customer',processed_at=NOW() WHERE event_id=:event_id""",
+                event_id=event_id)
+            conn.run("COMMIT")
+            return {"handled": True, "ignored": "unmatched_customer"}
+
+        status = context["status"]
+        if status in {"active", "trialing"} and context["plan"]:
+            conn.run("""UPDATE members SET
+                stripe_customer_id=CASE WHEN :customer<>'' THEN :customer ELSE stripe_customer_id END,
+                stripe_subscription_id=CASE WHEN :subscription<>'' THEN :subscription ELSE stripe_subscription_id END,
+                stripe_price_id=:price_id,billing_status=:status,
+                billing_current_period_end=:period_end,
+                billing_cancel_at_period_end=:cancel_at_period_end,
+                access_level='member',actif=CASE WHEN admin_suspended THEN FALSE ELSE TRUE END,
+                copy_actif=CASE WHEN admin_suspended THEN FALSE ELSE copy_actif END,
+                date_souscription=COALESCE(date_souscription,NOW()),date_fin=:period_end,
+                email_verified_at=COALESCE(email_verified_at,NOW())
+                WHERE code=:code""",
+                customer=context["customer_id"], subscription=context["subscription_id"],
+                price_id=context["price_id"], status=status, period_end=context["period_end"],
+                cancel_at_period_end=context["cancel_at_period_end"], code=member_code)
+            _grant_member_beta_credits(conn, member_code)
+        elif status == "past_due":
+            conn.run("""UPDATE members SET billing_status='past_due',
+                stripe_customer_id=CASE WHEN :customer<>'' THEN :customer ELSE stripe_customer_id END,
+                stripe_subscription_id=CASE WHEN :subscription<>'' THEN :subscription ELSE stripe_subscription_id END
+                WHERE code=:code""", customer=context["customer_id"],
+                subscription=context["subscription_id"], code=member_code)
+        elif status in {"canceled", "unpaid", "paused"}:
+            conn.run("""UPDATE members SET billing_status=:status,
+                billing_cancel_at_period_end=FALSE,billing_current_period_end=COALESCE(:period_end,NOW()),
+                date_fin=LEAST(COALESCE(date_fin,NOW()),NOW()),access_level='explorer',
+                actif=TRUE,copy_actif=FALSE WHERE code=:code""",
+                status=status, period_end=context["period_end"], code=member_code)
+        else:
+            conn.run("""UPDATE members SET
+                stripe_customer_id=CASE WHEN :customer<>'' THEN :customer ELSE stripe_customer_id END,
+                stripe_subscription_id=CASE WHEN :subscription<>'' THEN :subscription ELSE stripe_subscription_id END,
+                billing_status=CASE WHEN :status<>'' THEN :status ELSE billing_status END
+                WHERE code=:code""", customer=context["customer_id"],
+                subscription=context["subscription_id"], status=status, code=member_code)
+
+        conn.run("""UPDATE stripe_academy_events SET status='processed',member_code=:code,
+            processed_at=NOW() WHERE event_id=:event_id""", code=member_code, event_id=event_id)
+        conn.run("COMMIT")
+    except Exception as error:
+        try: conn.run("ROLLBACK")
+        except Exception: pass
+        app.logger.error("Synchronisation abonnement Stripe %s: %s", event_id, error)
+        raise
+    finally:
+        conn.close()
+
+    if context["status"] in {"active", "trialing"}:
+        try:
+            sync_brevo_member_contact(member_email)
+            if created_member:
+                email_bienvenue_membre(member_name.split()[0], member_email, member_code)
+        except Exception as notification_error:
+            app.logger.error("Notification activation Stripe %s: %s", member_code, notification_error)
+    return {"handled": True, "member_code": member_code, "status": context["status"]}
+
+
 @app.route("/api/stripe/analyse-credits", methods=["POST"])
 def stripe_analysis_credits_webhook():
     raw_body = request.get_data(cache=False)
@@ -4198,9 +4457,25 @@ def stripe_analysis_credits_webhook():
         return jsonify({"ok": False}), 400
     try:
         event = json.loads(raw_body.decode("utf-8"))
+        event_type = str(event.get("type", ""))
+        stripe_object = (event.get("data") or {}).get("object") or {}
+        academy_event_types = {
+            "checkout.session.completed",
+            "customer.subscription.created",
+            "customer.subscription.updated",
+            "customer.subscription.deleted",
+            "customer.subscription.paused",
+            "customer.subscription.resumed",
+            "invoice.paid",
+            "invoice.payment_failed",
+        }
+        if (event_type in academy_event_types and
+                (event_type != "checkout.session.completed" or stripe_object.get("mode") == "subscription")):
+            result = _process_academy_stripe_event(event)
+            return jsonify({"ok": True, **result})
         if event.get("type") != "checkout.session.completed":
             return jsonify({"ok": True})
-        checkout = (event.get("data") or {}).get("object") or {}
+        checkout = stripe_object
         if checkout.get("payment_status") != "paid":
             return jsonify({"ok": True})
         metadata = checkout.get("metadata") or {}
@@ -4433,6 +4708,75 @@ def dashboard():
         afficher_notif=afficher_notif
     ,
         demo_mode=_current_demo_mode(code, member))
+
+
+@app.route("/abonnement")
+@login_required
+def abonnement():
+    """Espace membre de lecture et de gestion de l'abonnement Académie."""
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        session.clear()
+        return redirect(url_for("login"))
+
+    price_id = str(member.get("stripe_price_id") or "")
+    plan = ACADEMY_SUBSCRIPTION_PLANS.get(price_id)
+    billing_status = str(member.get("billing_status") or "legacy").lower()
+    has_academy_access = _member_has_academy_access(member)
+    renewal_date = member.get("billing_current_period_end") or member.get("date_fin")
+    return render_template(
+        "abonnement.html",
+        member=member,
+        current_plan=plan,
+        plans=list(ACADEMY_SUBSCRIPTION_PLANS.values()),
+        billing_status=billing_status,
+        has_academy_access=has_academy_access,
+        renewal_date=renewal_date,
+        cancel_at_period_end=bool(member.get("billing_cancel_at_period_end")),
+        stripe_managed=bool(member.get("stripe_customer_id")),
+        demo_mode=_current_demo_mode(code, member),
+    )
+
+
+@app.route("/api/billing/portal", methods=["POST"])
+@login_required
+def create_billing_portal_session():
+    """Crée côté serveur une session courte vers le portail Stripe Bectanse."""
+    member = get_member(session["member_code"])
+    customer_id = str((member or {}).get("stripe_customer_id") or "")
+    if not customer_id:
+        return jsonify({
+            "ok": False,
+            "error": "Aucun abonnement Stripe n’est encore rattaché à ce compte.",
+            "fallback_url": url_for("vip_landing"),
+        }), 404
+    if not STRIPE_SECRET_KEY:
+        app.logger.error("Portail abonnement: STRIPE_SECRET_KEY absente")
+        return jsonify({"ok": False, "error": "Le portail est momentanément indisponible."}), 503
+
+    try:
+        return_url = url_for("abonnement", _external=True, _scheme="https")
+        response = requests.post(
+            "https://api.stripe.com/v1/billing_portal/sessions",
+            auth=(STRIPE_SECRET_KEY, ""),
+            data={
+                "customer": customer_id,
+                "configuration": STRIPE_ACADEMY_PORTAL_CONFIGURATION,
+                "return_url": return_url,
+            },
+            timeout=20,
+        )
+        stripe_data = response.json()
+        portal_url = str(stripe_data.get("url") or "")
+        if response.status_code >= 400 or not portal_url.startswith("https://billing.stripe.com/"):
+            error_message = ((stripe_data.get("error") or {}).get("message") or "Erreur Stripe")
+            app.logger.error("Création portail abonnement %s: %s", member.get("code"), error_message)
+            return jsonify({"ok": False, "error": "Le portail est momentanément indisponible."}), 502
+        return jsonify({"ok": True, "url": portal_url})
+    except Exception as error:
+        app.logger.error("Création portail abonnement %s: %s", member.get("code"), error)
+        return jsonify({"ok": False, "error": "Le portail est momentanément indisponible."}), 502
 
 
 @app.route("/guide-robot")
@@ -4674,9 +5018,8 @@ def confirm_member_registration(token):
         if existing:
             conn.run("""UPDATE members SET nom=:nom,capital=:capital,email=:email,
                 telephone=:telephone,telegram=:telegram,params=:params,historique='[]',
-                parrain_code=:parrain,actif=TRUE,copy_actif=TRUE,access_level='member',
-                email_verified_at=NOW(),date_souscription=NOW(),
-                date_fin=NOW() + INTERVAL '30 days',last_login=NOW() WHERE code=:code""",
+                parrain_code=:parrain,actif=TRUE,copy_actif=FALSE,access_level='explorer',
+                email_verified_at=NOW(),date_fin=NULL,last_login=NOW() WHERE code=:code""",
                 nom=nom_complet, capital=payload["capital"], email=email,
                 telephone=payload["telephone"], telegram=payload["telegram"],
                 params=json.dumps(params), parrain=payload.get("parrain_code", ""), code=code)
@@ -4685,11 +5028,12 @@ def confirm_member_registration(token):
                 (code,nom,capital,email,telephone,telegram,params,historique,parrain_code,
                  actif,copy_actif,access_level,email_verified_at,date_souscription,date_fin)
                 VALUES (:code,:nom,:capital,:email,:telephone,:telegram,:params,'[]',:parrain,
-                        TRUE,TRUE,'member',NOW(),NOW(),NOW() + INTERVAL '30 days')""",
+                        TRUE,FALSE,'explorer',NOW(),NOW(),NULL)""",
                 code=code, nom=nom_complet, capital=payload["capital"], email=email,
                 telephone=payload["telephone"], telegram=payload["telegram"],
                 params=json.dumps(params), parrain=payload.get("parrain_code", ""))
-        parrain_ref = payload.get("parrain_code", "")
+        # Le parrainage financier n'est validé qu'après un paiement Stripe réussi.
+        parrain_ref = ""
         referral_notice = None
         if parrain_ref:
             parrain_rows = conn.run("""SELECT code,nom,filleuls_count,gains_parrainage
@@ -4701,7 +5045,6 @@ def confirm_member_registration(token):
                          count=p_fill, gains=p_gains, code=p_code)
                 referral_notice = (p_nom, p_fill, p_gains)
         _migrate_legacy_analysis_account(conn, email, code)
-        _grant_member_beta_credits(conn, code)
         conn.run("""UPDATE prospect_email_verifications SET status='verified',
             verified_at=NOW(),account_code=:code,payload='' WHERE token_hash=:token""",
             code=code, token=token_hash)
@@ -4719,17 +5062,14 @@ def confirm_member_registration(token):
     if referral_notice:
         p_nom, p_fill, p_gains = referral_notice
         send_telegram(f"🎉 *Nouveau filleul confirmé !*\n\n👤 *{p_nom}* — {nom_complet} a confirmé son inscription.\n💰 +50€ ajoutés\n📊 Total : *{p_fill}* | Gains : *{p_gains}€*")
-    set_dates_url = request.url_root.rstrip("/") + url_for(
-        "set_dates", code=code, token=_action_token("set_dates", {"code": code}, 604800))
     telegram_line = f"  Telegram : {payload['telegram']}\n" if payload.get("telegram") else ""
     send_telegram(
-        f"🆕 *INSCRIPTION E-MAIL CONFIRMÉE*\n\n👤 *{nom_complet}*\n💰 Capital : *{payload['capital']}*\n"
+        f"🆕 *COMPTE EXPLORER CONFIRMÉ*\n\n👤 *{nom_complet}*\n💰 Capital : *{payload['capital']}*\n"
         f"🔑 Code : `{code}`\n\n📞 *CONTACT*\n  Email : `{email}`\n  Tél : `{payload['telephone']}`\n{telegram_line}\n"
         f"📊 *MT4/MT5*\n  Plateforme : *{payload['plateforme']}*\n  Serveur : *{payload['serveur']}*\n"
-        f"  Login : `{payload['mt_login']}`\n  Mot de passe investisseur : stocké chiffré\n\n⚡ *ACTION REQUISE* — Connecter sur notre système",
-        reply_markup={"inline_keyboard": [[{"text": "📅 Définir les dates d'abonnement", "url": set_dates_url}]]})
-    email_bienvenue_membre(payload["prenom"], email, code)
-    sync_brevo_member_contact(email)
+        f"  Login : `{payload['mt_login']}`\n  Mot de passe investisseur : stocké chiffré\n\n🔒 Accès payant verrouillé jusqu'au paiement Stripe")
+    send_brevo_explorer_ready(email, payload["prenom"], code)
+    sync_brevo_prospect_contact(email, payload["prenom"], "Inscription confirmée — Explorer")
     session.clear()
     session.permanent = True
     session["member_code"] = code
@@ -4867,11 +5207,8 @@ def set_dates(code):
     <body><div class='card'><h2>📅 Abonnement</h2><p style='color:rgba(255,255,255,0.4);font-size:13px;margin-bottom:20px'>👤 {nom} — 💰 {capital}</p>
     <form method='POST'><label>Date de début</label><input type='date' name='debut' value='{today}' required>
     <label>Durée</label><div class='pills'>
-    <div class='pill' onclick="setD(30,this)">30j</div>
     <div class='pill active' onclick="setD(30,this)">1 mois</div>
-    <div class='pill' onclick="setD(60,this)">2 mois</div>
     <div class='pill' onclick="setD(90,this)">3 mois</div>
-    <div class='pill' onclick="setD(180,this)">6 mois</div>
     <div class='pill' onclick="setD(365,this)">1 an</div></div>
     <label>Jours exact</label><input type='number' name='duree' id='dur' value='30' min='1' max='400' required>
     <button type='submit'>✅ Enregistrer</button></form></div>
@@ -4886,7 +5223,8 @@ def desactiver_membre(code):
         conn = get_conn()
         rows = conn.run("SELECT nom FROM members WHERE code=:c", c=code)
         nom = rows[0][0] if rows else "Membre"
-        conn.run("UPDATE members SET actif=FALSE, copy_actif=FALSE WHERE code=:c", c=code)
+        conn.run("""UPDATE members SET actif=FALSE,copy_actif=FALSE,
+            admin_suspended=TRUE WHERE code=:c""", c=code)
         conn.close()
         send_telegram(f"⛔ *{nom}* désactivé.")
         return f"<html><body style='font-family:sans-serif;padding:40px;background:#0d0d0d;color:#fff;text-align:center'><h1 style='color:#DC2626'>⛔ Désactivé</h1><p>{nom}</p></body></html>"
@@ -5305,10 +5643,9 @@ def register_webhook():
 # ── EMAILS RELANCE AUTOMATIQUES ─────────────────────────────────────────────
 
 STRIPE_LINKS = [
-    ("1 mois", "500€",   "https://acces.bectanse-academie.com/vip"),
-    ("3 mois", "1 000€", "https://acces.bectanse-academie.com/vip"),
-    ("6 mois", "2 500€", "https://acces.bectanse-academie.com/vip"),
-    ("1 an",   "4 000€", "https://acces.bectanse-academie.com/vip"),
+    ("1 mois", "500€",   "https://buy.stripe.com/14A6oH5qE51iaJZ6ckgfu0H"),
+    ("3 mois", "1 000€", "https://buy.stripe.com/7sY8wP2esbpG6tJ0S0gfu0G"),
+    ("1 an",   "4 000€", "https://buy.stripe.com/8x23cv4mAdxO7xN0S0gfu0F"),
 ]
 
 def send_email_relance(member, jours_restants):
