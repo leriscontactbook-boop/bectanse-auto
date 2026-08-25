@@ -31,6 +31,8 @@
   <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"><span class="mni">📡</span><span>Live</span></a>
   <a class="m-univ-nav-item{% if mobile_active in ['dashboard','parrainage','faq','support'] %} active{% endif %}" href="/dashboard"><span class="mni">👤</span><span>Profil</span></a>
 </nav>
+<script>window.BECTANSE_PUSH_ELIGIBLE={{ 'false' if demo_mode|default(false) else 'true' }};</script>
+<script src="/static/push.js" defer></script>
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {

@@ -1,6 +1,9 @@
 // Bectanse AUTO — client Web Push unique (iPhone, Android et ordinateur)
 (function () {
   'use strict';
+  if (window.__bectansePushLoaded) return;
+  window.__bectansePushLoaded = true;
+  if (window.BECTANSE_PUSH_ELIGIBLE === false) return;
 
   function base64ToBytes(value) {
     const padding = '='.repeat((4 - value.length % 4) % 4);
@@ -134,9 +137,58 @@
     } catch (_) {}
   }
 
+  function removeActivationPrompt() {
+    const prompt = document.getElementById('bectanse-push-required');
+    if (prompt) prompt.remove();
+  }
+
+  function showActivationPrompt(reason) {
+    if (document.getElementById('pwa-popup') || document.getElementById('bectanse-push-required')) return;
+    if (reason !== 'permission-required' && reason !== 'denied') return;
+    const prompt = document.createElement('aside');
+    prompt.id = 'bectanse-push-required';
+    prompt.setAttribute('role', 'status');
+    prompt.style.cssText = 'position:fixed;left:14px;right:14px;bottom:82px;z-index:9900;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:520px;margin:auto;padding:13px 14px;border:1px solid rgba(255,100,30,.46);border-radius:16px;background:rgba(12,13,12,.97);box-shadow:0 18px 55px rgba(0,0,0,.55);color:#fff;font-family:Inter,Arial,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)';
+    const message = document.createElement('div');
+    message.innerHTML = reason === 'denied'
+      ? '<b style="font-size:12px">🔕 Alertes VIP bloquées</b><small style="display:block;margin-top:4px;color:#a7aaa5;font-size:10px;line-height:1.35">Réactive Bectanse dans Réglages › Notifications.</small>'
+      : '<b style="font-size:12px">🔔 Ne manque aucun signal VIP</b><small style="display:block;margin-top:4px;color:#a7aaa5;font-size:10px;line-height:1.35">Active les alertes sur cet appareil.</small>';
+    prompt.appendChild(message);
+    if (reason !== 'denied') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = 'ACTIVER';
+      button.style.cssText = 'min-height:38px;padding:0 14px;border:1px solid #ff6a22;border-radius:10px;background:#ff5a16;color:#fff;font:800 11px Inter,Arial,sans-serif;letter-spacing:.06em;cursor:pointer';
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        button.textContent = 'ACTIVATION…';
+        const result = await enablePushNotifications();
+        if (result.ok) removeActivationPrompt();
+        else {
+          button.disabled = false;
+          button.textContent = result.reason === 'denied' ? 'BLOQUÉ' : 'RÉESSAYER';
+          if (result.reason === 'denied') {
+            removeActivationPrompt();
+            showActivationPrompt('denied');
+          }
+        }
+      });
+      prompt.appendChild(button);
+    }
+    document.body.appendChild(prompt);
+  }
+
   // Réenregistre silencieusement un abonnement existant, sans demander d’autorisation.
-  const start = () => {
-    initPushNotifications().catch(error => console.warn('Bectanse Web Push:', error));
+  const start = async () => {
+    try {
+      const result = await initPushNotifications();
+      if (result.ok) removeActivationPrompt();
+      else if ((isStandalone() || !isIOS()) && result.reason !== 'install-required') {
+        showActivationPrompt(result.reason);
+      }
+    } catch (error) {
+      console.warn('Bectanse Web Push:', error);
+    }
     clearVisibleAppBadge();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
