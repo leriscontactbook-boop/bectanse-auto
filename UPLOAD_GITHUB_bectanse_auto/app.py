@@ -145,6 +145,13 @@ ADMIN_ID   = _required_secret("ADMIN_ID")
 ADMIN_KEY  = _required_secret("ADMIN_KEY")
 DATABASE_URL = _required_secret("DATABASE_URL")
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
+AGENTMAIL_API_KEY = (
+    os.environ.get("AGENTMAIL_API_KEY", "")
+    or os.environ.get("AGENTMAIL_AGENTMAIL_API_KEY", "")
+)
+AGENTMAIL_INBOX_ID = os.environ.get(
+    "AGENTMAIL_INBOX_ID", "bectanse-academie@agentmail.to"
+)
 VAPID_PUBLIC_KEY  = _required_secret("VAPID_PUBLIC_KEY")
 VAPID_PRIVATE_KEY = _required_secret("VAPID_PRIVATE_KEY")
 VAPID_CLAIMS      = {"sub": "mailto:bectanseacademie@gmail.com"}
@@ -5121,10 +5128,6 @@ STRIPE_LINKS = [
 def send_email_relance(member, jours_restants):
     """Envoie un email de relance au membre."""
     try:
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-
         email_dest = member.get("email", "")
         if not email_dest:
             return False
@@ -5173,18 +5176,12 @@ def send_email_relance(member, jours_restants):
         </div>
         """
 
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = sujet
-        msg["From"]    = f"Bectanse AUTO <{GMAIL_USER}>"
-        msg["To"]      = email_dest
-        msg.attach(MIMEText(html_body, "html"))
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(GMAIL_USER, GMAIL_PASS)
-            smtp.sendmail(GMAIL_USER, email_dest, msg.as_string())
-
-        app.logger.info(f"Email relance envoyé à {email_dest} ({jours_restants}j)")
-        return True
+        result = send_transactional_email(email_dest, sujet, html_body)
+        if result.get("ok"):
+            app.logger.info(f"Email relance envoyé à {email_dest} ({jours_restants}j)")
+            return True
+        app.logger.error("Relance indisponible pour %s: %s", email_dest, result.get("error"))
+        return False
     except Exception as e:
         app.logger.error(f"send_email_relance: {e}")
         return False
@@ -5207,15 +5204,66 @@ def init_demo_account():
     except Exception as e:
         app.logger.error("init_demo: %s", e)
 
-# ── BREVO MEMBRES
+# ── E-MAILS TRANSACTIONNELS ET BREVO MEMBRES
+def send_agentmail(to_email, subject, html_content):
+    """Envoie un e-mail transactionnel via AgentMail sans exposer la clé."""
+    import urllib.parse as _up
+    import urllib.request as _ur
+
+    clean_email = (to_email or "").strip().lower()
+    if not AGENTMAIL_API_KEY or not AGENTMAIL_INBOX_ID or "@" not in clean_email:
+        return {"ok": False, "error": "AgentMail non configuré"}
+
+    payload = {
+        "to": [clean_email],
+        "subject": subject,
+        "html": html_content,
+        "text": "Bectanse Académie — ouvre cet e-mail dans un client compatible HTML.",
+    }
+    if GMAIL_USER and "@" in GMAIL_USER:
+        payload["reply_to"] = [GMAIL_USER]
+
+    try:
+        request = _ur.Request(
+            "https://api.agentmail.to/v0/inboxes/"
+            + _up.quote(AGENTMAIL_INBOX_ID, safe="")
+            + "/messages/send",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {AGENTMAIL_API_KEY}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="POST",
+        )
+        with _ur.urlopen(request, timeout=12) as response:
+            result = json.loads(response.read().decode("utf-8") or "{}")
+        return {"ok": True, "message_id": result.get("message_id", "")}
+    except Exception as error:
+        app.logger.error("AgentMail vers %s: %s", clean_email, error)
+        return {"ok": False, "error": str(error)[:500]}
+
+
+def send_transactional_email(to_email, subject, html_content):
+    """Utilise AgentMail puis Gmail en ultime secours."""
+    agentmail_result = send_agentmail(to_email, subject, html_content)
+    if agentmail_result.get("ok"):
+        return agentmail_result
+    gmail_sent = send_email(to_email, subject, html_content)
+    if gmail_sent:
+        return {"ok": True, "message_id": "gmail-smtp"}
+    return {
+        "ok": False,
+        "error": agentmail_result.get("error") or "Envoi e-mail indisponible",
+    }
+
+
 def send_brevo_membre(to_email, to_name, subject, html_content, tag):
     import urllib.request as _ur, os as _os
     brevo_key = _os.environ.get("BREVO_KEY", "")
     if not brevo_key:
-        app.logger.info("BREVO_KEY non definie — utilisation du SMTP Gmail")
-        sent = send_email(to_email, subject, html_content)
-        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
-                "error": "Echec SMTP Gmail" if not sent else ""}
+        app.logger.info("BREVO_KEY non definie — utilisation du relais transactionnel")
+        return send_transactional_email(to_email, subject, html_content)
     try:
         account_req = _ur.Request(
             "https://api.brevo.com/v3/account",
@@ -5230,7 +5278,7 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
         )
         credits = email_plan.get("credits")
         if credits is not None and int(credits) <= 0:
-            return {"ok": False, "error": "Crédits email Brevo insuffisants"}
+            return send_transactional_email(to_email, subject, html_content)
         p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Leris - Bectanse AUTO"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
         r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
         with _ur.urlopen(r,timeout=10) as response:
@@ -5238,7 +5286,10 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
         return {"ok": True, "message_id": payload.get("messageId", "")}
     except Exception as e:
         app.logger.error("Brevo: %s",e)
-        return {"ok": False, "error": str(e)[:500]}
+        fallback = send_transactional_email(to_email, subject, html_content)
+        if not fallback.get("ok"):
+            fallback["error"] = str(e)[:500]
+        return fallback
 
 def sync_brevo_member_contact(email):
     """Crée ou actualise le contact dans la liste Membres Bectanse."""
@@ -5309,9 +5360,7 @@ def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
         "</div></div></body></html>")
     subject = "Confirme ton accès Explorer — Bectanse Académie"
     if not brevo_email_delivery_available():
-        sent = send_email(to_email, subject, html)
-        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
-                "error": "Envoi e-mail indisponible" if not sent else ""}
+        return send_transactional_email(to_email, subject, html)
     payload = json.dumps({
         "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
         "to": [{"email": to_email, "name": to_name}],
@@ -5328,9 +5377,10 @@ def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
         return {"ok": True, "message_id": result.get("messageId", "")}
     except Exception as error:
         app.logger.error("Brevo verification prospect: %s", error)
-        sent = send_email(to_email, subject, html)
-        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
-                "error": str(error)[:500] if not sent else ""}
+        fallback = send_transactional_email(to_email, subject, html)
+        if not fallback.get("ok"):
+            fallback["error"] = str(error)[:500]
+        return fallback
 
 
 def send_brevo_member_verification(to_email, to_name, confirmation_url):
@@ -5346,9 +5396,7 @@ def send_brevo_member_verification(to_email, to_name, confirmation_url):
         "</div></div></body></html>")
     subject = "Confirme ton inscription — Bectanse Académie"
     if not brevo_email_delivery_available():
-        sent = send_email(to_email, subject, html)
-        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
-                "error": "Envoi e-mail indisponible" if not sent else ""}
+        return send_transactional_email(to_email, subject, html)
     payload = json.dumps({
         "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
         "to": [{"email": to_email, "name": to_name}],
@@ -5363,9 +5411,10 @@ def send_brevo_member_verification(to_email, to_name, confirmation_url):
         return {"ok": True, "message_id": result.get("messageId", "")}
     except Exception as error:
         app.logger.error("Brevo verification membre: %s", error)
-        sent = send_email(to_email, subject, html)
-        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
-                "error": str(error)[:500] if not sent else ""}
+        fallback = send_transactional_email(to_email, subject, html)
+        if not fallback.get("ok"):
+            fallback["error"] = str(error)[:500]
+        return fallback
 
 
 def send_brevo_explorer_ready(to_email, to_name, member_code):
@@ -5383,9 +5432,7 @@ def send_brevo_explorer_ready(to_email, to_name, member_code):
         "</div></div></body></html>")
     subject = "Ton code Explorer Bectanse"
     if not brevo_email_delivery_available():
-        sent = send_email(to_email, subject, html)
-        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
-                "error": "Envoi e-mail indisponible" if not sent else ""}
+        return send_transactional_email(to_email, subject, html)
     payload = json.dumps({
         "sender": {"email": "lerisluketo@bectanse-academie.com", "name": "Bectanse Académie"},
         "to": [{"email": to_email, "name": to_name or "Membre Explorer"}],
@@ -5399,9 +5446,10 @@ def send_brevo_explorer_ready(to_email, to_name, member_code):
             result = json.loads(response.read().decode("utf-8") or "{}")
         return {"ok": True, "message_id": result.get("messageId", "")}
     except Exception as error:
-        sent = send_email(to_email, subject, html)
-        return {"ok": bool(sent), "message_id": "gmail-smtp" if sent else "",
-                "error": str(error)[:500] if not sent else ""}
+        fallback = send_transactional_email(to_email, subject, html)
+        if not fallback.get("ok"):
+            fallback["error"] = str(error)[:500]
+        return fallback
 
 
 def sync_brevo_prospect_contact(email, prenom="", source="Explorer"):
@@ -7024,7 +7072,7 @@ def check_and_send_relances():
             jours = (date_fin.date() - now.date()).days if hasattr(date_fin, 'date') else (date_fin - now).days
             if jours in (7, 3, 1, 0):
                 subject, html = email_relance_html(nom.split()[0], jours, lien)
-                if send_email(email, subject, html):
+                if send_transactional_email(email, subject, html).get("ok"):
                     sent += 1
                     app.logger.info(f"Relance J{jours} envoyée à {email}")
         app.logger.info(f"check_relances: {sent} emails envoyés")

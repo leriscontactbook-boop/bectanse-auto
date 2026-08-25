@@ -87,11 +87,22 @@ class AccessModelTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/")
 
-    def test_email_confirmation_falls_back_to_configured_smtp(self):
+    def test_email_confirmation_falls_back_to_agentmail(self):
         with patch.object(app, "brevo_email_delivery_available", return_value=False), \
+             patch.object(app, "send_agentmail", return_value={"ok": True, "message_id": "agent-1"}) as agentmail, \
              patch.object(app, "send_email", return_value=True) as smtp:
             result = app.send_brevo_member_verification(
                 "client@example.com", "Client", "https://example.com/confirm")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["message_id"], "agent-1")
+        agentmail.assert_called_once()
+        smtp.assert_not_called()
+
+    def test_transactional_email_keeps_gmail_as_last_resort(self):
+        with patch.object(app, "send_agentmail", return_value={"ok": False, "error": "down"}), \
+             patch.object(app, "send_email", return_value=True) as smtp:
+            result = app.send_transactional_email(
+                "client@example.com", "Sujet", "<p>Message</p>")
         self.assertTrue(result["ok"])
         self.assertEqual(result["message_id"], "gmail-smtp")
         smtp.assert_called_once()
