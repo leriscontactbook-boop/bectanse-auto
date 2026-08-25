@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Guide Bectanse AUTO</title>
+  <meta name="theme-color" content="#070807">
+  <link rel="manifest" href="/static/manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bar-height:66px;--nav-height:76px;--orange:#ff641e;--bg:#070807}
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);color:#f5f5f1;font-family:Inter,Arial,sans-serif}
+    .guide-bar{position:fixed;left:0;right:0;top:0;z-index:1200;height:calc(var(--bar-height) + env(safe-area-inset-top));padding:env(safe-area-inset-top) 14px 0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(6,7,6,.97);box-shadow:0 12px 38px rgba(0,0,0,.36);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+    .guide-close,.guide-download{min-height:42px;display:inline-flex;align-items:center;border-radius:11px;text-decoration:none;font-size:10px;font-weight:800;letter-spacing:.02em}
+    .guide-close{justify-self:start;padding:0 13px;border:1px solid rgba(255,255,255,.12);color:#f2f3ef;background:#121411}
+    .guide-close-mark{width:23px;height:23px;margin-right:7px;display:grid;place-items:center;border-radius:7px;color:#fff;background:#292c27;font-size:20px;font-weight:500;line-height:1}
+    .guide-title{text-align:center;white-space:nowrap}.guide-title small{display:block;margin-bottom:3px;color:#ff7b3a;font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.guide-title strong{display:block;font:800 18px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.035em}
+    .guide-download{justify-self:end;padding:0 14px;color:#fff;background:linear-gradient(115deg,#e94d0b,#ff6e28);box-shadow:0 8px 22px rgba(255,85,18,.2)}
+    .guide-stage{position:fixed;left:0;right:0;top:calc(var(--bar-height) + env(safe-area-inset-top));bottom:0;padding:10px;background:radial-gradient(circle at 50% 0,rgba(255,100,30,.08),transparent 34%),#090a09}
+    .guide-frame{width:100%;height:100%;display:block;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:#1a1b1a;box-shadow:0 20px 60px rgba(0,0,0,.42)}
+    .guide-fallback{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:-1;width:min(90%,520px);padding:14px;border:1px solid rgba(255,100,30,.22);border-radius:12px;color:#aeb2aa;background:#111310;text-align:center;font-size:11px;line-height:1.5}.guide-fallback a{color:#ff7b3a;font-weight:800}
+    @media(max-width:768px){
+      .guide-bar{grid-template-columns:1fr auto;height:calc(62px + env(safe-area-inset-top));padding-left:9px;padding-right:9px}.guide-title{display:none}.guide-close,.guide-download{min-height:40px;padding-left:10px;padding-right:10px;font-size:9px}.guide-stage{top:calc(62px + env(safe-area-inset-top));bottom:calc(var(--nav-height) + env(safe-area-inset-bottom));padding:6px}.guide-frame{border-radius:10px}.guide-fallback{bottom:14px}
+    }
+    @media(max-width:340px){.guide-close-mark{margin-right:4px}.guide-close,.guide-download{font-size:8px;padding-left:7px;padding-right:7px}}
+  </style>
+</head>
+<body>
+  <header class="guide-bar">
+    <a class="guide-close" href="/dashboard#section-parametres" aria-label="Fermer le guide et revenir au pilotage du robot"><span class="guide-close-mark" aria-hidden="true">×</span>Fermer le guide</a>
+    <div class="guide-title"><small>Guide officiel</small><strong>Bectanse AUTO</strong></div>
+    <a class="guide-download" href="/guide-robot/telecharger">Télécharger le PDF</a>
+  </header>
+  <main class="guide-stage">
+    <iframe class="guide-frame" title="Guide officiel Bectanse AUTO" src="/static/guides/bectanse-auto-guide-membre.pdf#view=FitH&toolbar=1&navpanes=0"></iframe>
+    <div class="guide-fallback">Si le document ne s’affiche pas, <a href="/guide-robot/telecharger">télécharge le guide ici</a>.</div>
+  </main>
+  {% include "_mobile_nav.html" %}
+</body>
+</html>

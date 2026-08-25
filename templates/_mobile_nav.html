@@ -107,7 +107,7 @@
 </style>
 
 {% set mobile_active = request.endpoint %}
-{% set more_active = mobile_active in ['dashboard','parrainage','support','offres'] %}
+{% set more_active = mobile_active in ['dashboard','guide_robot','parrainage','support','offres'] %}
 <nav class="m-univ-nav" aria-label="Navigation principale de l’application">
   <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"{% if mobile_active == 'accueil' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('home') }}</span><span>Accueil</span></a>
   <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"{% if mobile_active in ['academie','formation'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('academy') }}</span><span>Académie</span></a>

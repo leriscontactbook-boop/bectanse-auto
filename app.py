@@ -4383,6 +4383,32 @@ def dashboard():
     ,
         demo_mode=_current_demo_mode(code, member))
 
+
+@app.route("/guide-robot")
+@login_required
+def guide_robot():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        session.clear()
+        return redirect(url_for("login"))
+    return render_template(
+        "guide_robot.html",
+        member=member,
+        demo_mode=_current_demo_mode(code, member),
+    )
+
+
+@app.route("/guide-robot/telecharger")
+@login_required
+def telecharger_guide_robot():
+    return send_from_directory(
+        os.path.join(app.static_folder, "guides"),
+        "bectanse-auto-guide-membre.pdf",
+        as_attachment=True,
+        download_name="Guide-Bectanse-AUTO.pdf",
+    )
+
 @app.route("/offres")
 @login_required
 def offres():
