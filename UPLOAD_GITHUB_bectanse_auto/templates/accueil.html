@@ -412,11 +412,11 @@ body.future-preview{
     <div class="os-nav-group">
       <div class="os-nav-title">Académie</div>
       <nav class="os-nav">
-        <a class="os-nav-item" href="/calculateur"><span>06</span>Calculateur</a>
-        <a class="os-nav-item" href="/analyse-ia"><span>{% if demo_mode %}🔒{% else %}◈{% endif %}</span>Analyse IA — Bêta{% if demo_mode %} · Aperçu{% endif %}</a>
-        <a class="os-nav-item" href="/formation"><span>07</span>Formation</a>
-        <a class="os-nav-item" href="/parrainage"><span>08</span>Parrainage VIP</a>
-        <a class="os-nav-item" href="/faq"><span>09</span>FAQ &amp; Guide</a>
+        <a class="os-nav-item" href="/academie"><span>06</span>Bectanse Progress</a>
+        <a class="os-nav-item" href="/trader-lab"><span>07</span>Trader Lab</a>
+        <a class="os-nav-item" href="/centre-confiance"><span>08</span>Centre de confiance</a>
+        <a class="os-nav-item" href="/parrainage"><span>09</span>Parrainage VIP</a>
+        <a class="os-nav-item" href="/faq"><span>10</span>FAQ &amp; Guide</a>
       </nav>
     </div>
 
@@ -435,7 +435,7 @@ body.future-preview{
       <div class="os-overview-head">
         <h1 id="os-overview-title">Accueil</h1>
         <div class="os-overview-actions">
-          <a class="os-overview-action" href="/formation">Formation</a>
+          <a class="os-overview-action" href="/academie">Académie</a>
           <a class="os-overview-action primary" href="/dashboard">Gérer Bectanse Auto</a>
           <span class="os-overview-avatar" aria-label="Profil de {{ member.nom }}">{{ member.nom[0] }}</span>
         </div>
@@ -552,7 +552,8 @@ body.future-preview{
       {%- if not demo_mode %}<a class="nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span style="font-size:15px">💬</span> Discuter avec un agent</a>{%- endif %}
       <a class="nav-item" href="/calculateur"><span style="font-size:15px">📐</span> Calculateur</a>
       <a class="nav-item" href="/analyse-ia" style="color:#FF7A3D"><span style="font-size:15px">{% if demo_mode %}🔒{% else %}◈{% endif %}</span> Analyse IA — Bêta{% if demo_mode %} · Aperçu{% endif %}</a>
-      <a class="nav-item" href="/formation" style="color:#C4B5FD;"><span style="font-size:15px">🎓</span> Formation</a>
+        <a class="nav-item" href="/academie" style="color:#C4B5FD;"><span style="font-size:15px">🎓</span> Bectanse Progress</a>
+        <a class="nav-item" href="/trader-lab" style="color:#FF8B58;"><span style="font-size:15px">◈</span> Trader Lab</a>
       <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span style="font-size:15px">🎁</span> Parrainage VIP</a>
       <a class="nav-item" href="/faq"><span style="font-size:15px">❓</span> FAQ & Guide</a>
     </nav>
@@ -571,7 +572,7 @@ body.future-preview{
         <div class="future-command-sub">Pilotage de ton espace Bectanse Auto</div>
       </div>
       <div class="future-command-actions">
-        <a class="future-command-btn secondary" href="/formation">Formation</a>
+        <a class="future-command-btn secondary" href="/academie">Académie</a>
         <a class="future-command-btn primary" href="/dashboard">Gérer le robot</a>
         <div class="future-avatar" aria-label="Profil">{{ member.nom[0] }}</div>
       </div>

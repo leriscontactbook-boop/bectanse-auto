@@ -11,7 +11,7 @@
     }
     .m-univ-nav::-webkit-scrollbar{display:none}
     .m-univ-nav-item{
-      flex:0 0 72px;height:68px;display:flex;flex-direction:column;
+      flex:1 0 64px;height:68px;display:flex;flex-direction:column;
       align-items:center;justify-content:center;gap:3px;text-decoration:none;
       color:#656762;font-family:'Barlow Condensed',Arial,sans-serif;
       font-size:11px;font-weight:800;line-height:1;text-transform:uppercase;
@@ -26,15 +26,10 @@
 {% set mobile_active = request.endpoint %}
 <nav class="m-univ-nav" aria-label="Navigation principale">
   <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"><span class="mni">🏠</span><span>Accueil</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'dashboard' %} active{% endif %}" href="/dashboard"><span class="mni">⚙️</span><span>Params</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"><span class="mni">📡</span><span>Canal VIP</span></a>
-  <a class="m-univ-nav-item gold" href="/vip"><span class="mni">🚀</span><span>Upgrader</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'formation' %} active{% endif %}" href="/formation"><span class="mni">🎓</span><span>Formation</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'calculateur' %} active{% endif %}" href="/calculateur"><span class="mni">📐</span><span>Calcul</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'analyse_ia' %} active{% endif %}" href="/analyse-ia"{% if demo_mode|default(false) %} aria-label="Analyse IA — aperçu verrouillé"{% endif %}><span class="mni">{% if demo_mode|default(false) %}🔒{% else %}◈{% endif %}</span><span>Analyse IA</span></a>
-  <a class="m-univ-nav-item gold{% if mobile_active == 'parrainage' %} active{% endif %}" href="/parrainage"><span class="mni">🎁</span><span>Parrainage</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'faq' %} active{% endif %}" href="/faq"><span class="mni">❓</span><span>FAQ</span></a>
-  {% if not demo_mode|default(false) %}<a class="m-univ-nav-item{% if mobile_active == 'support' %} active{% endif %}" target="_blank" rel="noopener" href="https://wa.me/436785328698?text=Bonjour"><span class="mni">💬</span><span>Support</span></a>{% endif %}
+  <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"><span class="mni">🎓</span><span>Académie</span></a>
+  <a class="m-univ-nav-item{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} active{% endif %}" href="/trader-lab"><span class="mni">◈</span><span>Trader Lab</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"><span class="mni">📡</span><span>Live</span></a>
+  <a class="m-univ-nav-item{% if mobile_active in ['dashboard','parrainage','faq','support'] %} active{% endif %}" href="/dashboard"><span class="mni">👤</span><span>Profil</span></a>
 </nav>
 
 <script>
