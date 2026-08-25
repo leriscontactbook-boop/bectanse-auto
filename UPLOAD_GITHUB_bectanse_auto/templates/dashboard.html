@@ -1135,7 +1135,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="nav-section">Navigation</div>
       <a class="nav-item" href="/accueil"><span class="icon">🏠</span> Accueil</a>
       <a class="nav-item active" href="#"><span class="icon">⚙️</span> Mes paramètres</a>
-      <a class="nav-item" href="/offres" style="color:#F59E0B;">
+      <a class="nav-item" href="/vip" style="color:#F59E0B;">
         <span class="icon">🚀</span> Renouveler / Upgrader
       </a>
       {%- if not demo_mode %}<a class="nav-item" href="https://wa.me/436785328698?text=Bonjour,%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j'ai%20besoin%20d'assistance." target="_blank">
@@ -1164,11 +1164,11 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="sidebar-bottom">
       <div class="status-indicator">
         <span class="status-dot"></span>
-        Système actif
+        {% if demo_mode %}Mode observation{% else %}Système actif{% endif %}
       </div>
 
       <div class="copy-toggle-wrap">
-      {% if demo_mode %}<button onclick="window.location='/vip'" style="background:#555;opacity:0.7;cursor:pointer;border:none;padding:10px 20px;border-radius:20px;color:#fff;font-weight:700;">🔒 Bloqué</button>{% else %}<button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"<button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
+      {% if demo_mode %}<button onclick="window.location='/vip'" style="background:#555;opacity:0.9;cursor:pointer;border:none;padding:10px 20px;border-radius:20px;color:#fff;font-weight:700;">🔒 Débloquer l’accès</button>{% else %}<button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
               id="copyToggleBtn" onclick="showCopyConfirm()">
         <div class="copy-dot {% if copy_actif %}actif{% else %}inactif{% endif %}"></div>
         <span class="copy-status-label">
@@ -1205,17 +1205,12 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       {% if demo_mode %}
 <button class="save-btn" onclick="window.location='/vip'" style="opacity:0.7;background:#555;cursor:pointer;">
-  🔒 Réservé aux membres — Rejoindre →
+  🔒 Découvrir l’accès membre →
 </button>
 {% else %}
-{% if demo_mode %}
-<button type="button" style="width:100%;padding:18px;background:#333;border:2px solid #555;border-radius:14px;color:rgba(255,255,255,0.4);font-size:15px;font-weight:700;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;" disabled>
-  🔒 Réservé aux membres
-</button>
-{% else %}{% if demo_mode %}<button onclick="window.location='/vip'" style="width:100%;padding:18px;background:#1a1a1a;border:2px solid #333;border-radius:14px;color:rgba(255,255,255,0.35);font-size:15px;font-weight:700;cursor:not-allowed;letter-spacing:.05em;text-transform:uppercase;" disabled>🔒 Réservé aux membres</button>{% else %}<button class="save-btn" onclick="saveParams()" id="saveBtn">
+<button class="save-btn" onclick="saveParams()" id="saveBtn">
         Envoyer la demande →
-      </button>{% endif %}
-{% endif %}
+      </button>
 {% endif %}
     </div>
 
@@ -1249,10 +1244,7 @@ document.addEventListener('DOMContentLoaded', function() {
             Renouvelle maintenant pour continuer à bénéficier du copy trading automatique.
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <a href="https://buy.stripe.com/4gMeVdaKYctK7xN8ksgfu0p" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">1 mois — 500€</a>
-            <a href="https://buy.stripe.com/bJefZh06k8du05leIQgfu0n" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">3 mois — 1 000€</a>
-            <a href="https://buy.stripe.com/00w28q84g5s1csDgmegA804" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">6 mois — 2 500€</a>
-            <a href="https://buy.stripe.com/bJecN498kbQp64f7PIgA803" target="_blank" class="alerte-btn" style="font-size:11px;padding:7px 14px">1 an — 4 000€</a>
+            <a href="/vip" class="alerte-btn" style="font-size:11px;padding:7px 14px">Découvrir les offres et le système →</a>
           </div>
         </div>
         {% if jours_restants > 3 %}
@@ -1632,10 +1624,10 @@ document.addEventListener('DOMContentLoaded', function() {
               {% if copy_actif %}Tes trades sont copiés automatiquement{% else %}Le copy trading est en pause{% endif %}
             </div>
           </div>
-          <button onclick="showCopyConfirm()"
-            class="copy-content-btn {% if copy_actif %}copy-on{% else %}copy-off{% endif %}">
+          <button onclick="{% if demo_mode %}window.location='/vip'{% else %}showCopyConfirm(){% endif %}"
+            class="copy-content-btn {% if copy_actif and not demo_mode %}copy-on{% else %}copy-off{% endif %}">
             <span class="copy-content-dot"></span>
-            {% if copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
+            {% if demo_mode %}🔒 Débloquer{% elif copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
           </button>
         </div>
       </div>
@@ -1643,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <!-- BOUTON ENVOYER MOBILE DANS LE CONTENT -->
       <div class="mobile-envoyer-wrap">
-        {% if demo_mode %}<button onclick="window.location='/vip'" style="width:100%;padding:18px;background:#1a1a1a;border:2px solid #333;border-radius:14px;color:rgba(255,255,255,0.35);font-size:15px;font-weight:700;cursor:not-allowed;letter-spacing:.05em;text-transform:uppercase;" disabled>🔒 Réservé aux membres</button>{% else %}<button class="mobile-envoyer-btn" onclick="saveParams()">
+        {% if demo_mode %}<button onclick="window.location='/vip'" style="width:100%;padding:18px;background:#1a1a1a;border:2px solid #555;border-radius:14px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">🔒 Découvrir l’accès membre →</button>{% else %}<button class="mobile-envoyer-btn" onclick="saveParams()">
           ENVOYER LA DEMANDE →
         </button>{% endif %}
       </div>

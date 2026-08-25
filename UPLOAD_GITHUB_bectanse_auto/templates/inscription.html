@@ -242,7 +242,7 @@ body{overflow-x:hidden}
     <!-- FORMULAIRE -->
     <div id="form-screen">
       <div class="form-title">Créer mon espace membre</div>
-      <div class="form-desc">Remplis tes informations. Tu recevras immédiatement ton code d'accès personnel.</div>
+      <div class="form-desc">Remplis tes informations. Un lien sécurisé validera ton e-mail avant la création de ton code personnel.</div>
 
       <div class="error-box" id="error-box"></div>
 
@@ -367,24 +367,24 @@ body{overflow-x:hidden}
       </div>
 
       <button class="btn-submit" id="btn-submit" onclick="submitForm()">
-        Créer mon espace et obtenir mon code →
+        Confirmer mon e-mail et créer mon espace →
       </button>
     </div>
 
     <!-- SUCCÈS -->
     <div class="success-screen" id="success-screen">
       <div class="success-icon">🎉</div>
-      <div class="success-title">Bienvenue dans Bectanse AUTO !</div>
-      <div class="success-desc">
+      <div class="success-title" id="success-title">Bienvenue dans Bectanse AUTO !</div>
+      <div class="success-desc" id="success-desc">
         Ton inscription a été enregistrée. Notre équipe va connecter ton compte sous peu.<br>
         Voici ton <strong>code d'accès personnel</strong> — garde-le précieusement.
       </div>
-      <div class="code-display">
+      <div class="code-display" id="success-code-box">
         <div class="code-label">Ton code d'accès</div>
         <div class="code-value" id="success-code">BCT-XXXXXXXX</div>
         <button class="code-copy-btn" onclick="copyCode()">📋 Copier le code</button>
       </div>
-      <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:14px 16px;margin-bottom:16px;text-align:left;">
+      <div id="success-code-warning" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:14px 16px;margin-bottom:16px;text-align:left;">
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;color:#F59E0B;text-transform:uppercase;margin-bottom:6px;">⚠️ Important — Mémorise ton code</div>
         <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;">
           Ce code est ton <strong style="color:#fff;">unique moyen de connexion</strong>.<br>
@@ -522,6 +522,16 @@ async function submitForm() {
     const data = await res.json();
     if (data.ok) {
       if (window.bectanseTrack) window.bectanseTrack('registration_complete');
+      if (data.pending_verification) {
+        document.getElementById("success-title").textContent = "Confirme ton adresse e-mail";
+        document.getElementById("success-desc").textContent = "Nous avons envoyé un lien sécurisé à " + data.email + ". Ton code BCT sera créé uniquement après ta confirmation.";
+        document.getElementById("success-code-box").style.display = "none";
+        document.getElementById("success-code-warning").innerHTML = "<div style=\"font-weight:800;color:#F59E0B;margin-bottom:6px\">📩 Consulte ta boîte de réception</div><div style=\"font-size:12px;color:rgba(255,255,255,.55);line-height:1.6\">Le lien est valable 24 heures et ne peut être utilisé qu’une seule fois. Vérifie également les courriers indésirables.</div>";
+        document.getElementById("form-screen").style.display = "none";
+        document.getElementById("success-screen").style.display = "block";
+        document.querySelector(".login-link").href = "/";
+        return;
+      }
       const code = data.code;
       document.getElementById("success-code").textContent = code;
       document.getElementById("form-screen").style.display = "none";
@@ -532,13 +542,13 @@ async function submitForm() {
       errorBox.textContent = data.error || "Une erreur est survenue. Réessaie.";
       errorBox.style.display = "block";
       btn.disabled = false;
-      btn.textContent = "Créer mon espace et obtenir mon code →";
+      btn.textContent = "Confirmer mon e-mail et créer mon espace →";
     }
   } catch(e) {
     errorBox.textContent = "Erreur de connexion. Réessaie.";
     errorBox.style.display = "block";
     btn.disabled = false;
-    btn.textContent = "Créer mon espace et obtenir mon code →";
+    btn.textContent = "Confirmer mon e-mail et créer mon espace →";
   }
 }
 

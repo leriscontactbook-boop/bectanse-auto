@@ -28,7 +28,7 @@ html,body{min-height:100vh;background:var(--dark);color:var(--white);font-family
 .s-icon{font-size:15px;flex-shrink:0}
 
 /* STATS ROW */
-.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px}
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
 .stat-card{width:100%;background:var(--d2);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden;color:var(--white);font-family:inherit;text-align:left;appearance:none;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}
 .stat-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.18);background:#151f30;box-shadow:0 14px 30px rgba(0,0,0,.24)}
 .stat-card:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
@@ -169,6 +169,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <button type="button" class="stat-card gold" data-dashboard-filter="copy" aria-pressed="false" onclick="appliquerFiltreDashboard('copy', this)"><span class="stat-label">Copy ON</span><span class="stat-value" id="s-copy">—</span><span class="stat-action">Voir Copy ON →</span></button>
     <button type="button" class="stat-card red" data-dashboard-filter="expires" aria-pressed="false" onclick="appliquerFiltreDashboard('expires', this)"><span class="stat-label">Expirés</span><span class="stat-value" id="s-expires">—</span><span class="stat-action">Voir les expirés →</span></button>
     <button type="button" class="stat-card blue" data-dashboard-filter="nouveaux" aria-pressed="false" onclick="appliquerFiltreDashboard('nouveaux', this)"><span class="stat-label">Nouveaux 7j</span><span class="stat-value" id="s-new">—</span><span class="stat-action">Voir les nouveaux →</span></button>
+    <button type="button" class="stat-card gold" data-dashboard-filter="explorers" aria-pressed="false" onclick="appliquerFiltreDashboard('explorers', this)"><span class="stat-label">Explorers</span><span class="stat-value" id="s-explorers">—</span><span class="stat-action">Voir les prospects →</span></button>
   </div>
 
   <!-- TABLEAU MEMBRES SUR LA PAGE D'ACCUEIL -->
@@ -486,6 +487,7 @@ async function loadStats() {
   document.getElementById('s-copy').textContent = d.copy_on;
   document.getElementById('s-expires').textContent = d.expires;
   document.getElementById('s-new').textContent = d.nouveaux_7j;
+  document.getElementById('s-explorers').textContent = d.explorers;
 }
 
 // ── MEMBRES
@@ -516,15 +518,15 @@ function renderMembres(membres) {
       <td><code style="color:#C4B5FD;font-size:11px">${m.code}</code></td>
       <td style="font-weight:600;color:#fff">${m.nom}</td>
       <td>${m.capital || '—'}</td>
-      <td><span class="badge ${m.actif ? 'on' : 'off'}">${m.actif ? 'Actif' : 'Suspendu'}</span></td>
+      <td><span class="badge ${m.access_level === 'explorer' ? 'warn' : (m.actif ? 'on' : 'off')}">${m.access_level === 'explorer' ? 'Explorer' : (m.actif ? 'Actif' : 'Suspendu')}</span></td>
       <td><span class="badge ${m.copy_actif ? 'on' : 'off'}">${m.copy_actif ? 'ON' : 'OFF'}</span></td>
       <td style="font-size:12px">${m.date_fin || '—'}</td>
-      <td><span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span></td>
+      <td>${m.access_level === 'explorer' ? '—' : `<span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span>`}</td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-sm" style="background:rgba(8,145,178,0.15);color:#67E8F9;border:1px solid rgba(8,145,178,0.3)" onclick="voirProfil('${m.code}')">👤</button>
-          <button class="btn btn-gold btn-sm" onclick="ajusterJours('${m.code}')">± Jours</button>
-          <button class="btn ${m.actif ? 'btn-red' : 'btn-green'} btn-sm" onclick="changerSuspension('${m.code}', ${m.actif ? 'true' : 'false'})">${m.actif ? 'Suspendre' : 'Réactiver'}</button>
+          ${m.access_level === 'explorer' ? '' : `<button class="btn btn-gold btn-sm" onclick="ajusterJours('${m.code}')">± Jours</button>`}
+          ${m.access_level === 'explorer' ? '' : `<button class="btn ${m.actif ? 'btn-red' : 'btn-green'} btn-sm" onclick="changerSuspension('${m.code}', ${m.actif ? 'true' : 'false'})">${m.actif ? 'Suspendre' : 'Réactiver'}</button>`}
           <button class="btn btn-sm" style="background:rgba(91,33,182,0.15);color:#C4B5FD;border:1px solid rgba(91,33,182,0.3)" onclick="msgMembre('${m.code}','${m.nom}')">Msg</button>
           <button class="btn btn-red btn-sm" onclick="supprimerMembre('${m.code}','${m.nom}')">✕</button>
         </div>
@@ -847,7 +849,8 @@ const labelsFiltresDashboard = {
   actifs: 'Membres actifs',
   copy: 'Copy Trading activé',
   expires: 'Abonnements expirés',
-  nouveaux: 'Nouveaux des 7 derniers jours'
+  nouveaux: 'Nouveaux des 7 derniers jours',
+  explorers: 'Comptes Explorer confirmés'
 };
 
 async function loadDashboardMembres() {
@@ -877,11 +880,13 @@ function appliquerFiltreDashboard(filtre, carte) {
 }
 
 function membreCorrespondAuFiltreDashboard(m) {
-  if (filtreDashboardActif === 'actifs') return Boolean(m.actif);
-  if (filtreDashboardActif === 'copy') return Boolean(m.actif && m.copy_actif);
-  if (filtreDashboardActif === 'expires') return Boolean(m.est_expire);
-  if (filtreDashboardActif === 'nouveaux') return Boolean(m.nouveau_7j);
-  return true;
+  const explorer = m.access_level === 'explorer';
+  if (filtreDashboardActif === 'explorers') return explorer;
+  if (filtreDashboardActif === 'actifs') return Boolean(!explorer && m.actif && !m.est_expire);
+  if (filtreDashboardActif === 'copy') return Boolean(!explorer && m.actif && !m.est_expire && m.copy_actif);
+  if (filtreDashboardActif === 'expires') return Boolean(!explorer && m.est_expire);
+  if (filtreDashboardActif === 'nouveaux') return Boolean(!explorer && m.nouveau_7j);
+  return !explorer;
 }
 
 function renderDashboardMembresFiltres() {
@@ -906,15 +911,15 @@ function renderDashboardMembres(membres) {
       <td><code style="color:#C4B5FD;font-size:11px">${m.code}</code></td>
       <td style="font-weight:600;color:#fff">${m.nom}</td>
       <td>${m.capital || '—'}</td>
-      <td><span class="badge ${m.actif ? 'on' : 'off'}">${m.actif ? 'Actif' : 'Suspendu'}</span></td>
+      <td><span class="badge ${m.access_level === 'explorer' ? 'warn' : (m.actif ? 'on' : 'off')}">${m.access_level === 'explorer' ? 'Explorer' : (m.actif ? 'Actif' : 'Suspendu')}</span></td>
       <td><span class="badge ${m.copy_actif ? 'on' : 'off'}">${m.copy_actif ? 'ON' : 'OFF'}</span></td>
       <td style="font-size:12px">${m.date_fin || '—'}</td>
-      <td><span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span></td>
+      <td>${m.access_level === 'explorer' ? '—' : `<span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span>`}</td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-sm" style="background:rgba(8,145,178,0.15);color:#67E8F9;border:1px solid rgba(8,145,178,0.3)" onclick="voirProfil('${m.code}')">👤</button>
-          <button class="btn btn-gold btn-sm" onclick="ajusterJours('${m.code}')">± Jours</button>
-          <button class="btn ${m.actif ? 'btn-red' : 'btn-green'} btn-sm" onclick="changerSuspension('${m.code}', ${m.actif ? 'true' : 'false'})">${m.actif ? 'Suspendre' : 'Réactiver'}</button>
+          ${m.access_level === 'explorer' ? '' : `<button class="btn btn-gold btn-sm" onclick="ajusterJours('${m.code}')">± Jours</button>`}
+          ${m.access_level === 'explorer' ? '' : `<button class="btn ${m.actif ? 'btn-red' : 'btn-green'} btn-sm" onclick="changerSuspension('${m.code}', ${m.actif ? 'true' : 'false'})">${m.actif ? 'Suspendre' : 'Réactiver'}</button>`}
           <button class="btn btn-sm" style="background:rgba(91,33,182,0.15);color:#C4B5FD;border:1px solid rgba(91,33,182,0.3)" onclick="msgMembre('${m.code}','${m.nom}')">Msg</button>
           <button class="btn btn-red btn-sm" onclick="supprimerMembre('${m.code}','${m.nom}')">✕</button>
         </div>
