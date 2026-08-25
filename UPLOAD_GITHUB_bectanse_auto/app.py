@@ -1578,6 +1578,9 @@ def admin_api_notif_globale():
     try:
         notif_type = request.json.get("type","message")
         contenu = request.json.get("contenu","")
+        if not str(contenu).strip():
+            return jsonify({"ok":False,"error":"Message vide"}), 400
+        enforce_member_access_state()
         conn = get_conn()
         rows = conn.run("""SELECT COUNT(*) FROM members
             WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""")
@@ -1586,7 +1589,10 @@ def admin_api_notif_globale():
             WHERE actif=TRUE AND (date_fin IS NULL OR date_fin > NOW())""",
             t=notif_type, m=contenu)
         conn.close()
-        return jsonify({"ok":True,"total":total})
+        titles = {"alerte":"🔴 Alerte Bectanse","message":"💜 Message Bectanse",
+                  "resultat":"🟢 Résultat Bectanse","maintenance":"🔧 Maintenance Bectanse"}
+        push_result = send_push_to_all(titles.get(notif_type,"Bectanse AUTO"), contenu, "/accueil")
+        return jsonify({"ok":True,"total":total,"push":push_result})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
 
@@ -1597,14 +1603,19 @@ def admin_api_notif_individuelle():
     try:
         code = request.json.get("code")
         contenu = request.json.get("contenu","")
+        if not str(contenu).strip():
+            return jsonify({"ok":False,"error":"Message vide"}), 400
+        enforce_member_access_state()
         conn = get_conn()
-        rows = conn.run("SELECT nom FROM members WHERE code=:c AND actif=TRUE", c=code)
+        rows = conn.run("""SELECT nom FROM members WHERE code=:c AND actif=TRUE
+            AND (date_fin IS NULL OR date_fin>NOW())""", c=code)
         if not rows:
             conn.close()
             return jsonify({"ok":False,"error":"Membre introuvable"})
         conn.run("UPDATE members SET notif_type='individuelle', notif_message=:m, notif_lue=FALSE WHERE code=:c", m=contenu, c=code)
         conn.close()
-        return jsonify({"ok":True,"nom":rows[0][0]})
+        push_result = send_push_to_member(code, "💬 Message personnel", contenu, "/accueil")
+        return jsonify({"ok":True,"nom":rows[0][0],"push":push_result})
     except Exception as e:
         return jsonify({"ok":False,"error":str(e)})
 
