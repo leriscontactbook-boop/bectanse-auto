@@ -2,10 +2,12 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Accès expiré — Bectanse AUTO</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Accès expiré — Bectanse Académie</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="/static/manifest.json">
+<link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
+<link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -13,7 +15,8 @@ html,body{min-height:100vh;background:#0A0A0F;font-family:'Barlow',sans-serif;co
 .bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(220,38,38,0.2),transparent 60%);pointer-events:none}
 
 /* LOGO */
-.logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.08em;color:#F59E0B;margin-bottom:32px;opacity:0.6}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.08em;color:#F59E0B;margin-bottom:32px;opacity:.82}
+.logo::before{content:'';width:38px;height:38px;flex:none;border-radius:11px;background:url('/static/icons/bectanse-app-icon-master.png?v=20260825') center/cover no-repeat;box-shadow:0 8px 22px rgba(255,94,0,.16)}
 
 /* CARD */
 .card{background:#111827;border:1px solid rgba(220,38,38,0.3);border-radius:24px;padding:40px 32px;max-width:420px;width:100%;text-align:center;position:relative;overflow:hidden}
@@ -49,7 +52,7 @@ html,body{min-height:100vh;background:#0A0A0F;font-family:'Barlow',sans-serif;co
 </head>
 <body>
 <div class="bg"></div>
-<div class="logo">B€CTAN$€ AUTO</div>
+<div class="logo">BECTANSE ACADÉMIE</div>
 
 <div class="card">
   <div class="lock-icon">🔒</div>

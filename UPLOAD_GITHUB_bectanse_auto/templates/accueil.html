@@ -2,13 +2,14 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Bectanse AUTO</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bectanse Académie — Espace membre</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="/static/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Bectanse AUTO">
+<meta name="apple-mobile-web-app-title" content="Bectanse Académie">
 <link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
+<link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--dark-2:#111827;--dark-3:#1F2937;--white:#fff;--border:rgba(91,33,182,0.2)}
@@ -395,7 +396,7 @@ body.future-preview{
   <aside class="os-sidebar">
     <a class="os-brand" href="/accueil" aria-label="Bectanse Auto — Accueil">
       <span class="os-brand-mark" aria-hidden="true"></span>
-      <span>BECTANSE <strong>AUTO</strong></span>
+      <span>BECTANSE <strong>ACADÉMIE</strong></span>
     </a>
 
     <div class="os-nav-group">
@@ -576,7 +577,7 @@ body.future-preview{
 
 <!-- MOBILE TOP BAR -->
 <div class="m-topbar">
-  <div class="m-logo">B€CTAN$€</div>
+  <div class="m-logo">BECTANSE ACADÉMIE</div>
   <div class="m-member">{{ member.nom.split()[0] }}</div>
 </div>
 
@@ -584,7 +585,7 @@ body.future-preview{
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-logo">B€CTAN$€ AUTO</div>
+      <div class="sidebar-logo">BECTANSE ACADÉMIE</div>
       <div class="sidebar-tagline">Espace Membre</div>
     </div>
     <div class="member-card">
@@ -633,7 +634,7 @@ body.future-preview{
     <div class="hero fade-up">
       <div class="hero-date" id="hero-date">Chargement...</div>
       <div class="hero-greeting">Bonjour, <span>{{ member.nom.split()[0] }}</span></div>
-      <div class="hero-sub" id="hero-sub">Bienvenue sur ton espace membre Bectanse AUTO</div>
+      <div class="hero-sub" id="hero-sub">Bienvenue dans ton espace Bectanse Académie</div>
       {% if modern_preview %}
       <div class="future-system-rail" aria-label="État du système automatique">
         <div class="future-system-segment">
@@ -1069,24 +1070,35 @@ async function loadCanalPreview() {
   const list = document.getElementById('canal-preview-list');
   if (!list) return;
   try {
-    const r = await fetch('/api/canal/messages');
+    const r = await fetch('/api/canal/messages?limit=3', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: {'Accept': 'application/json'}
+    });
     if (!r.ok) throw new Error();
     const data = await r.json();
-    const msgs = (data.messages || []).slice(0, 3);
+    // L'API renvoie les derniers messages dans l'ordre chronologique.
+    // On conserve donc le dernier segment réel, jamais le début d'une page de 50.
+    const msgs = (data.messages || []).slice(-3);
     if (msgs.length === 0) {
       list.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;padding:12px 0">Aucun message récent</div>';
       return;
     }
-    const TYPE_LABELS = {signal:'Signal',resultat:'Résultat',alerte:'Alerte',annonce:'Annonce',message:'Message'};
+    const TYPE_LABELS = {signal:'Signal',resultat:'Résultat',alerte:'Alerte',annonce:'Annonce',audio:'Vocal',message:'Message'};
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'
+    })[char]);
     list.innerHTML = msgs.map(m => {
-      const text = (m.text_content || '🎙️ Audio').substring(0, 80) + (m.text_content && m.text_content.length > 80 ? '…' : '');
+      const rawText = String(m.text_content || '').trim()
+        || (m.photo_url ? 'Nouvelle image publiée' : m.audio_url ? 'Nouveau message vocal' : 'Nouvelle publication');
+      const text = escapeHtml(rawText.substring(0, 110)) + (rawText.length > 110 ? '…' : '');
       const heure = new Date(m.sent_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
       const label = TYPE_LABELS[m.msg_type] || 'Message';
       return `<div class="canal-preview-item">
-        <div class="cpi-dot ${m.msg_type}"></div>
+        <div class="cpi-dot ${escapeHtml(m.msg_type || 'message')}"></div>
         <div class="cpi-body">
           <div class="cpi-text">${text}</div>
-          <div class="cpi-meta"><span class="cpi-type">${label}</span><span class="cpi-time">${heure}</span></div>
+          <div class="cpi-meta"><span class="cpi-type">${escapeHtml(label)}</span><span class="cpi-time">${escapeHtml(heure)}</span></div>
         </div>
       </div>`;
     }).join('');

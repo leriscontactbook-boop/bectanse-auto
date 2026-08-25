@@ -58,8 +58,11 @@
 .member-fintech .app{grid-template-columns:220px minmax(0,1fr)}
 .member-fintech .app > main.main{margin-left:var(--sidebar-w)}
 .member-fintech .sidebar-brand{padding:20px 18px 16px;border-color:var(--fintech-line)!important}
-.member-fintech .sidebar-logo{color:#fff!important;font-size:19px;letter-spacing:.08em;text-shadow:none!important}
-.member-fintech .sidebar-logo::after{content:"  / AUTO";color:var(--signal);font-size:9px;letter-spacing:.16em}
+.member-fintech .sidebar-logo{display:flex;align-items:center;gap:10px;color:#fff!important;font-size:16px;letter-spacing:.035em;text-shadow:none!important}
+.member-fintech .sidebar-logo::before{content:"";width:30px;height:30px;flex:0 0 30px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:#050505 url('/static/icons/bectanse-app-icon-master.png?v=20260825') center/cover no-repeat;box-shadow:0 7px 18px rgba(255,90,18,.13)}
+.member-fintech .sidebar-logo::after{content:none}
+.member-fintech .m-logo{display:flex;align-items:center;gap:9px;color:#fff!important;font-family:Inter,Arial,sans-serif!important;font-size:12px!important;font-weight:800!important;letter-spacing:.02em!important}
+.member-fintech .m-logo::before{content:"";width:28px;height:28px;flex:0 0 28px;border-radius:8px;background:#050505 url('/static/icons/bectanse-app-icon-master.png?v=20260825') center/cover no-repeat}
 .member-fintech .sidebar-tagline{color:rgba(255,255,255,.32)!important;margin-top:5px}
 .member-fintech .member-card{
   margin:12px;
@@ -377,13 +380,11 @@
   position:relative;
   border:1px solid rgba(255,255,255,.18);
   border-radius:13px;
-  background:linear-gradient(145deg,#ff742d,#df4305);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+  background:#050505 url('/static/icons/bectanse-app-icon-master.png?v=20260825') center/cover no-repeat;
+  box-shadow:0 10px 26px rgba(255,90,18,.15);
 }
 .future-preview .os-brand-mark::before,
-.future-preview .os-brand-mark::after{content:"";position:absolute;background:#fff;border-radius:2px}
-.future-preview .os-brand-mark::before{width:17px;height:5px;left:10px;top:12px}
-.future-preview .os-brand-mark::after{width:5px;height:17px;right:9px;bottom:8px}
+.future-preview .os-brand-mark::after{content:none}
 .future-preview .os-nav-group{padding:30px 0 0}
 .future-preview .os-nav-title{
   padding:0 20px 13px;

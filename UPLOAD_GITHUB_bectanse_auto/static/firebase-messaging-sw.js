@@ -12,7 +12,7 @@ const messaging = firebase.messaging();
 
 // Notification en arrière-plan
 messaging.onBackgroundMessage(function(payload) {
-  const title = payload.notification?.title || 'Bectanse AUTO';
+  const title = payload.notification?.title || 'Bectanse Académie';
   const body  = payload.notification?.body  || '';
   const icon  = '/static/icons/icon-192.png';
   self.registration.showNotification(title, {

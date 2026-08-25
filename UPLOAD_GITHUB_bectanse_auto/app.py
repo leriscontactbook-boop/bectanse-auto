@@ -6903,6 +6903,12 @@ def api_canal_messages():
     if "member_code" not in session:
         return jsonify({"error": "non connecté"}), 401
     try:
+        def no_cache(payload):
+            response = jsonify(payload)
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            return response
+
         after = request.args.get("after", 0, type=int)
         before = request.args.get("before", 0, type=int)
         limit = request.args.get("limit", 50, type=int)
@@ -6945,7 +6951,7 @@ def api_canal_messages():
             conn.close()
             msgs = [{"id": r[0], "tg_msg_id": r[1], "text_content": r[2], "msg_type": r[3],
                     "photo_url": r[4], "audio_url": r[5], "edited": r[6], "sent_at": r[7]} for r in reversed(rows)]
-            return jsonify({
+            return no_cache({
                 "messages": msgs,
                 "has_more_older": has_more_older,
                 "cursor": msgs[0]["id"] if msgs else None
@@ -6953,7 +6959,7 @@ def api_canal_messages():
 
         msgs = [{"id":r[0],"tg_msg_id":r[1],"text_content":r[2],"msg_type":r[3],
                  "photo_url":r[4],"audio_url":r[5],"edited":r[6],"sent_at":r[7]} for r in rows]
-        return jsonify({"messages": msgs, "has_more_older": False, "cursor": None})
+        return no_cache({"messages": msgs, "has_more_older": False, "cursor": None})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
