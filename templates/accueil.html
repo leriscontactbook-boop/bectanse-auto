@@ -387,7 +387,7 @@ body.future-preview{
 }
 </style>
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260803os3">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260826m1">
 </head>
 <body class="member-fintech {% if modern_preview %}future-preview{% endif %}">
 {% if modern_preview %}
@@ -431,6 +431,53 @@ body.future-preview{
   </aside>
 
   <main class="os-main">
+    <section class="os-mobile-cockpit" aria-labelledby="os-mobile-title">
+      <header class="os-mobile-header">
+        <div>
+          <div class="os-mobile-eyebrow">Bectanse Command Center</div>
+          <h1 id="os-mobile-title"><span id="os-mobile-greeting">Bonjour</span>, {{ member.nom.split()[0] }}.</h1>
+          <p id="os-mobile-date">Ton espace est synchronisé</p>
+        </div>
+        <a class="os-mobile-avatar" href="/dashboard#section-profil" aria-label="Ouvrir mon profil">{{ member.nom[0] }}</a>
+      </header>
+
+      <article class="os-mobile-summary">
+        <div class="os-mobile-summary-top">
+          <span>Capital synchronisé</span>
+          <span class="os-mobile-live"><i></i> Temps réel</span>
+        </div>
+        <div class="os-mobile-balance-row">
+          <strong class="os-mobile-balance" data-capital="{{ member.capital }}">{{ member.capital }} €</strong>
+          <span class="os-mobile-account-type">Compte réel</span>
+        </div>
+
+        <div class="os-mobile-status-grid">
+          <a href="/dashboard#section-parametres" class="os-mobile-status">
+            <span class="os-mobile-status-icon">◎</span>
+            <span><small>Bectanse Auto</small><strong>{% if copy_actif %}Actif{% else %}Inactif{% endif %} · {{ params.get('plateforme', 'MT5') }}</strong></span>
+            <b class="{% if copy_actif %}is-on{% endif %}"></b>
+          </a>
+          <a href="/dashboard#section-profil" class="os-mobile-status">
+            <span class="os-mobile-status-icon">◷</span>
+            <span><small>Accès membre</small><strong>{% if statut_abo == 'expiré' %}Expiré{% elif jours_restants is not none %}{{ jours_restants }} jours{% else %}Actif{% endif %}</strong></span>
+            <b class="{% if statut_abo != 'expiré' %}is-on{% endif %}"></b>
+          </a>
+        </div>
+
+        <div class="os-mobile-summary-actions">
+          <a class="primary" href="/dashboard#section-parametres">Piloter le robot <span>→</span></a>
+          <a href="/analyse-ia">Analyse IA</a>
+        </div>
+      </article>
+
+      <nav class="os-mobile-launchers" aria-label="Accès rapides">
+        <a href="/academie"><span>PRG</span><strong>Académie</strong><small>Continuer</small></a>
+        <a href="/trader-lab"><span>LAB</span><strong>Trader Lab</strong><small>Analyser</small></a>
+        <a href="/canal"><span class="live">VIP</span><strong>Canal Live</strong><small>Consulter</small></a>
+        <a href="/journal"><span>JRN</span><strong>Journal</strong><small>Progresser</small></a>
+      </nav>
+    </section>
+
     <section class="os-overview" aria-labelledby="os-overview-title">
       <div class="os-overview-head">
         <h1 id="os-overview-title">Accueil</h1>
@@ -484,6 +531,9 @@ body.future-preview{
       <div class="os-chart-shell">
         <div id="tradingview_gold"></div>
       </div>
+      <button class="os-chart-toggle" type="button" aria-expanded="false" onclick="toggleMobileChart(this)">
+        <span>Développer le graphique</span><b>↗</b>
+      </button>
     </section>
 
     <div class="os-lower-grid">
@@ -949,10 +999,37 @@ function updateDate() {
   let greeting = 'Bonjour';
   if (h >= 18) greeting = 'Bonsoir';
   if (h < 5) greeting = 'Bonne nuit';
+  const mobileGreeting = document.getElementById('os-mobile-greeting');
+  if (mobileGreeting) mobileGreeting.textContent = greeting;
+  const mobileDate = document.getElementById('os-mobile-date');
+  if (mobileDate) mobileDate.textContent = formatDate(now);
   const heroGreeting = document.querySelector('.hero-greeting');
-  if (!heroGreeting) return;
-  const name = heroGreeting.querySelector('span').textContent;
-  heroGreeting.innerHTML = `${greeting}, <span>${name}</span>`;
+  if (heroGreeting) {
+    const name = heroGreeting.querySelector('span').textContent;
+    heroGreeting.innerHTML = `${greeting}, <span>${name}</span>`;
+  }
+}
+
+function formatMobileCapital() {
+  document.querySelectorAll('.os-mobile-balance[data-capital]').forEach(function(element) {
+    const raw = String(element.dataset.capital || '').replace(/\s/g, '').replace('€', '').replace(',', '.');
+    const amount = Number(raw);
+    if (!Number.isFinite(amount)) return;
+    element.textContent = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(amount) + ' €';
+  });
+}
+
+function toggleMobileChart(button) {
+  const panel = document.getElementById('market-card');
+  if (!panel) return;
+  const expanded = panel.classList.toggle('is-chart-expanded');
+  button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  button.querySelector('span').textContent = expanded ? 'Réduire le graphique' : 'Développer le graphique';
+  button.querySelector('b').textContent = expanded ? '↙' : '↗';
+  window.setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 320);
 }
 
 // ── GRAPHIQUE TRADINGVIEW — aperçu moderne intégré
@@ -1074,6 +1151,7 @@ document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
 
 // ── INIT
 updateDate();
+formatMobileCapital();
 updateMarket();
 initModernTradingView();
 loadEcoActu();

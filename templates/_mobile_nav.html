@@ -25,12 +25,12 @@
 
 {% set mobile_active = request.endpoint %}
 <nav class="m-univ-nav" aria-label="Navigation principale">
-  <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"><span class="mni">🏠</span><span>Accueil</span></a>
-  <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"><span class="mni">🎓</span><span>Académie</span></a>
-  <a class="m-univ-nav-item{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} active{% endif %}" href="/trader-lab"><span class="mni">📈</span><span>Trader Lab</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"><span class="mni">📡</span><span>Live</span></a>
-  <a class="m-univ-nav-item dashboard-anchor" data-dashboard-section="section-parametres" href="/dashboard#section-parametres"><span class="mni">⚙️</span><span>Robot</span></a>
-  <a class="m-univ-nav-item dashboard-anchor{% if mobile_active in ['dashboard','parrainage','faq','support'] %} active{% endif %}" data-dashboard-section="section-profil" href="/dashboard#section-profil"><span class="mni">👤</span><span>Profil</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"><span class="mni">⌂</span><span>Accueil</span></a>
+  <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"><span class="mni">▤</span><span>Académie</span></a>
+  <a class="m-univ-nav-item{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} active{% endif %}" href="/trader-lab"><span class="mni">↗</span><span>Trader Lab</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"><span class="mni">●</span><span>Live</span></a>
+  <a class="m-univ-nav-item dashboard-anchor" data-dashboard-section="section-parametres" href="/dashboard#section-parametres"><span class="mni">◎</span><span>Robot</span></a>
+  <a class="m-univ-nav-item dashboard-anchor{% if mobile_active in ['dashboard','parrainage','faq','support'] %} active{% endif %}" data-dashboard-section="section-profil" href="/dashboard#section-profil"><span class="mni">◉</span><span>Profil</span></a>
 </nav>
 <script>window.BECTANSE_PUSH_ELIGIBLE={{ 'false' if demo_mode|default(false) else 'true' }};</script>
 <script src="/static/push.js" defer></script>
