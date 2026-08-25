@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Mon abonnement — Bectanse Académie</title>
+  <meta name="theme-color" content="#070807">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#070807;--panel:#10120f;--panel2:#151814;--line:rgba(255,255,255,.09);--muted:#878b84;--text:#f5f6f2;--orange:#ff641e;--green:#61dd7b;--amber:#ffb42a;--red:#ff5d5d}
+    *{box-sizing:border-box}html{background:var(--bg);color-scheme:dark}body{margin:0;min-height:100svh;background:radial-gradient(circle at 82% 0,rgba(255,100,30,.12),transparent 27%),linear-gradient(180deg,#090a09,var(--bg) 42%);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden}
+    a{color:inherit}.top{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);background:rgba(7,8,7,.86);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}.top-in{max-width:1180px;height:72px;margin:auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between}.brand{font:900 20px/1 "Barlow Condensed",sans-serif;letter-spacing:.06em}.brand span{color:var(--orange)}.top nav{display:flex;gap:26px}.top nav a{color:#9b9f98;text-decoration:none;font-size:12px;font-weight:700}.top nav a.active,.top nav a:hover{color:#fff}
+    .shell{width:min(1120px,calc(100% - 40px));margin:auto;padding:58px 0 110px}.eyebrow{display:flex;align-items:center;gap:9px;color:var(--orange);font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}.eyebrow:before{content:"";width:28px;height:1px;background:var(--orange)}h1{max-width:760px;margin:14px 0 12px;font:900 clamp(42px,7vw,78px)/.88 "Barlow Condensed",sans-serif;letter-spacing:-.025em;text-transform:uppercase}.intro{max-width:620px;margin:0;color:#969a93;font-size:15px;line-height:1.7}
+    .status-card{position:relative;margin-top:34px;padding:27px;border:1px solid rgba(255,100,30,.23);border-radius:24px;background:linear-gradient(145deg,rgba(255,100,30,.09),rgba(15,18,14,.96) 44%);box-shadow:0 28px 80px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}.status-card:after{content:"";position:absolute;width:240px;height:240px;right:-105px;top:-125px;border:1px solid rgba(255,100,30,.16);border-radius:50%;box-shadow:0 0 0 36px rgba(255,100,30,.025),0 0 0 72px rgba(255,100,30,.018)}.status-head{position:relative;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.status-kicker{color:#8d918a;font-size:11px;font-weight:750;letter-spacing:.11em;text-transform:uppercase}.plan-name{margin-top:7px;font:800 38px/1 "Barlow Condensed",sans-serif;text-transform:uppercase}.state{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid rgba(97,221,123,.25);border-radius:999px;background:rgba(97,221,123,.07);color:#82ea96;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.state:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 13px currentColor}.state.warn{color:var(--amber);border-color:rgba(255,180,42,.26);background:rgba(255,180,42,.07)}.state.off{color:#9ca098;border-color:var(--line);background:rgba(255,255,255,.025)}
+    .billing-grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:25px}.billing-stat{min-height:88px;padding:15px;border:1px solid rgba(255,255,255,.07);border-radius:15px;background:rgba(5,6,5,.42)}.billing-stat small{display:block;color:#777c74;font-size:10px;font-weight:750;letter-spacing:.07em;text-transform:uppercase}.billing-stat strong{display:block;margin-top:8px;color:#f1f2ee;font-size:14px;line-height:1.35}.notice{position:relative;z-index:1;margin-top:14px;padding:13px 14px;border:1px solid rgba(255,180,42,.2);border-radius:13px;background:rgba(255,180,42,.055);color:#d5b05e;font-size:12px;line-height:1.5}.actions{position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-top:19px;flex-wrap:wrap}.button{min-height:45px;padding:0 17px;display:inline-flex;align-items:center;justify-content:center;gap:9px;border:1px solid transparent;border-radius:12px;background:linear-gradient(145deg,#ff762f,#e74c0c);box-shadow:0 12px 30px rgba(255,82,15,.2),inset 0 1px 0 rgba(255,255,255,.28);color:#fff;text-decoration:none;font:800 11px/1 Inter,sans-serif;letter-spacing:.045em;text-transform:uppercase;cursor:pointer;transition:.18s ease}.button:hover{transform:translateY(-1px);filter:brightness(1.06)}.button:disabled{cursor:wait;opacity:.62}.button.secondary{border-color:var(--line);background:#141713;box-shadow:none;color:#b8bcb4}.button svg{width:16px;height:16px}
+    .section-title{margin:54px 0 19px;display:flex;align-items:end;justify-content:space-between;gap:18px}.section-title h2{margin:0;font:800 32px/1 "Barlow Condensed",sans-serif;text-transform:uppercase}.section-title p{margin:0;color:#72766f;font-size:11px}.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.plan{position:relative;padding:22px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(150deg,#141713,#0c0e0c);overflow:hidden}.plan.featured{border-color:rgba(255,100,30,.42);box-shadow:0 22px 55px rgba(0,0,0,.28)}.plan.current:after{content:"FORMULE ACTUELLE";position:absolute;right:-36px;top:18px;width:150px;padding:6px 0;transform:rotate(38deg);background:var(--orange);color:#fff;text-align:center;font-size:8px;font-weight:900;letter-spacing:.08em}.plan-tag{color:#777b74;font-size:9px;font-weight:850;letter-spacing:.13em;text-transform:uppercase}.plan h3{margin:10px 0 0;font:800 29px/1 "Barlow Condensed",sans-serif;text-transform:uppercase}.price{margin:20px 0 4px;font:900 36px/1 "Barlow Condensed",sans-serif}.price small{color:#7d817a;font:600 12px Inter,sans-serif}.saving{min-height:17px;color:#ff8a51;font-size:10px;font-weight:750}.plan ul{min-height:106px;margin:20px 0;padding:0;list-style:none}.plan li{position:relative;margin:10px 0;padding-left:19px;color:#a5a9a1;font-size:11px;line-height:1.4}.plan li:before{content:"";position:absolute;left:0;top:4px;width:8px;height:5px;border-left:1.5px solid var(--green);border-bottom:1.5px solid var(--green);transform:rotate(-45deg)}.plan .button{width:100%}
+    .secure{margin-top:18px;padding:17px 19px;display:flex;align-items:center;gap:13px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.018);color:#858981;font-size:11px;line-height:1.5}.secure svg{width:22px;flex:none;color:var(--green)}.toast{position:fixed;left:50%;bottom:28px;z-index:2147483200;max-width:calc(100% - 34px);padding:12px 16px;transform:translate(-50%,30px);opacity:0;border:1px solid rgba(255,93,93,.25);border-radius:12px;background:#241111;color:#ff9a9a;font-size:12px;font-weight:700;pointer-events:none;transition:.22s}.toast.show{transform:translate(-50%,0);opacity:1}
+    @media(max-width:760px){.top{display:none}.shell{width:min(100% - 26px,620px);padding:33px 0 108px}.eyebrow{font-size:9px}h1{font-size:46px;max-width:345px}.intro{font-size:13px;line-height:1.6}.status-card{margin-top:25px;padding:19px;border-radius:20px}.status-head{align-items:center}.plan-name{font-size:30px}.state{padding:8px 9px;font-size:8px}.billing-grid{grid-template-columns:1fr 1fr}.billing-stat:last-child{grid-column:1/-1}.billing-stat{min-height:76px;padding:13px}.actions{display:grid;grid-template-columns:1fr}.actions .button{width:100%}.section-title{margin-top:40px;align-items:start;flex-direction:column;gap:6px}.section-title h2{font-size:28px}.plans{grid-template-columns:1fr;gap:11px}.plan{padding:19px}.plan ul{min-height:0}.secure{align-items:flex-start}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="top-in"><div class="brand">BECTANSE <span>ACADÉMIE</span></div><nav><a href="/accueil">Accueil</a><a href="/academie">Académie</a><a href="/trader-lab">Trader Lab</a><a class="active" href="/abonnement">Mon abonnement</a><a href="/dashboard">Profil</a></nav></div></header>
+  <main class="shell">
+    <div class="eyebrow">Espace de gestion sécurisé</div>
+    <h1>Mon abonnement.</h1>
+    <p class="intro">Retrouve ton accès, ton échéance et tes factures au même endroit. Les modifications de paiement sont traitées directement par Stripe.</p>
+
+    {% set status_labels = {'active':'Actif','trialing':'Essai actif','past_due':'Paiement à régulariser','unpaid':'Paiement échoué','canceled':'Résilié','paused':'Suspendu','legacy':'Accès actif' if has_academy_access else 'Sans abonnement'} %}
+    <section class="status-card">
+      <div class="status-head">
+        <div><div class="status-kicker">Accès Bectanse Académie</div><div class="plan-name">{{ current_plan.label if current_plan else ('Accès historique' if has_academy_access else 'Mode Explorer') }}</div></div>
+        <span class="state{% if billing_status == 'past_due' %} warn{% elif not has_academy_access %} off{% endif %}">{{ status_labels.get(billing_status, 'Actif' if has_academy_access else 'Inactif') }}</span>
+      </div>
+      <div class="billing-grid">
+        <div class="billing-stat"><small>Compte</small><strong>{{ member.code }}</strong></div>
+        <div class="billing-stat"><small>{% if cancel_at_period_end %}Accès disponible jusqu’au{% elif has_academy_access %}Prochaine échéance{% else %}Statut d’accès{% endif %}</small><strong>{% if renewal_date %}{{ renewal_date.strftime('%d/%m/%Y') }}{% elif has_academy_access %}Accès historique{% else %}Observation uniquement{% endif %}</strong></div>
+        <div class="billing-stat"><small>Renouvellement</small><strong>{% if cancel_at_period_end %}Arrêt programmé{% elif billing_status in ['active','trialing'] %}Automatique{% elif has_academy_access %}Gestion historique{% else %}Non actif{% endif %}</strong></div>
+      </div>
+      {% if cancel_at_period_end %}<div class="notice">Ta résiliation est programmée. Ton accès reste disponible jusqu’à la date indiquée, puis passera automatiquement en mode Explorer.</div>{% elif billing_status == 'past_due' %}<div class="notice">Stripe n’a pas pu encaisser la dernière échéance. Mets à jour ton moyen de paiement pour éviter l’interruption de l’accès.</div>{% endif %}
+      <div class="actions">
+        {% if stripe_managed %}<button class="button" type="button" data-open-portal><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>Gérer mon abonnement</button>{% else %}<a class="button" href="/vip">Choisir un abonnement</a>{% endif %}
+        <a class="button secondary" href="/support">Besoin d’aide</a>
+      </div>
+    </section>
+
+    <div class="section-title"><h2>Les trois formules</h2><p>Un seul abonnement actif par membre</p></div>
+    <section class="plans">
+      {% for plan in plans %}
+      <article class="plan{% if plan.id == '3_months' %} featured{% endif %}{% if current_plan and current_plan.id == plan.id and has_academy_access %} current{% endif %}">
+        <div class="plan-tag">{% if plan.id == '1_month' %}Flexible{% elif plan.id == '3_months' %}Le plus choisi{% else %}Meilleure valeur{% endif %}</div>
+        <h3>{{ plan.label }}</h3>
+        <div class="price">{{ (plan.amount_cents // 100)|int }} € <small>{% if plan.id == '1_month' %}/ mois{% elif plan.id == '3_months' %}/ 3 mois{% else %}/ an{% endif %}</small></div>
+        <div class="saving">{% if plan.id == '3_months' %}500 € économisés sur 3 mois{% elif plan.id == '1_year' %}2 000 € économisés sur 12 mois{% else %}Sans engagement longue durée{% endif %}</div>
+        <ul><li>Accès complet à l’Académie</li><li>Canal VIP et Bectanse Progress</li><li>Outils Trader Lab et Analyse IA</li></ul>
+        {% if current_plan and current_plan.id == plan.id and has_academy_access %}<button class="button secondary" disabled>Formule actuelle</button>{% elif stripe_managed and has_academy_access %}<button class="button secondary" type="button" data-open-portal>Changer de formule</button>{% else %}<a class="button{% if plan.id != '3_months' %} secondary{% endif %}" href="{{ plan.payment_link }}">Choisir {{ plan.label }}</a>{% endif %}
+      </article>
+      {% endfor %}
+    </section>
+    <div class="secure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Paiement, factures, changement de carte et résiliation sont gérés dans l’environnement sécurisé de Stripe. Aucune donnée bancaire n’est stockée par Bectanse Académie.</span></div>
+  </main>
+  <div class="toast" id="billingToast" role="alert"></div>
+  {% include "_mobile_nav.html" %}
+  <script>
+    (function(){
+      var toast=document.getElementById('billingToast');
+      function fail(message){toast.textContent=message;toast.classList.add('show');setTimeout(function(){toast.classList.remove('show')},4000)}
+      document.querySelectorAll('[data-open-portal]').forEach(function(button){button.addEventListener('click',async function(){
+        var original=button.textContent;button.disabled=true;button.textContent='Ouverture sécurisée…';
+        try{var response=await fetch('/api/billing/portal',{method:'POST',headers:{'X-Requested-With':'BectanseApp'}});var data=await response.json();if(data.ok&&data.url){location.href=data.url;return}if(data.fallback_url){location.href=data.fallback_url;return}throw new Error(data.error||'Portail indisponible')}catch(error){fail(error.message||'Le portail est momentanément indisponible.');button.disabled=false;button.textContent=original}
+      })});
+    })();
+  </script>
+</body>
+</html>
