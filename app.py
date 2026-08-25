@@ -7,6 +7,7 @@ from flask import send_from_directory, Flask, render_template, request, redirect
 from werkzeug.utils import secure_filename
 import pg8000.native
 from cryptography.fernet import Fernet, InvalidToken
+from academy_features import ensure_growth_schema, register_growth_features
 
 def _required_secret(name):
     value = os.environ.get(name, "").strip()
@@ -404,13 +405,24 @@ def init_db():
                     accepted_at       TIMESTAMP DEFAULT NOW()
                 )
             """)
+            ensure_growth_schema(conn)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
-                ("deleted","BOOLEAN","FALSE")
+                ("deleted","BOOLEAN","FALSE"),
+                ("push_notified_at","TIMESTAMP","NULL")
             ]:
                 try:
                     conn.run(f"ALTER TABLE canal_messages ADD COLUMN IF NOT EXISTS {ccol} {ctyp} DEFAULT {cdef}")
+                except: pass
+            for pcol, pdef in [
+                ("updated_at", "TIMESTAMP DEFAULT NOW()"),
+                ("last_delivery_at", "TIMESTAMP"),
+                ("failure_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("last_error", "TEXT NOT NULL DEFAULT ''"),
+            ]:
+                try:
+                    conn.run(f"ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS {pcol} {pdef}")
                 except: pass
             for col, typ, default in [
                 ("copy_actif","BOOLEAN","TRUE"),
@@ -866,8 +878,10 @@ def send_webpush_notification(subscription_info, title, body, url="/accueil"):
             subscription_info=subscription_info,
             data=_json.dumps({"title": title, "body": body, "url": url, "icon": "/static/icons/icon-192.png"}),
             vapid_private_key=VAPID_PRIVATE_KEY,
-            vapid_claims=VAPID_CLAIMS,
-            timeout=10
+            vapid_claims=dict(VAPID_CLAIMS),
+            timeout=10,
+            ttl=86400,
+            headers={"Urgency": "high"}
         )
         return True
     except Exception as e:
@@ -891,20 +905,8 @@ def send_fcm_push(tokens, title, body, url="/accueil"):
         except: pass
 
 def send_push_to_all_fcm(title, body, url="/accueil"):
-    """Envoie une notification Web Push à tous les membres abonnés."""
-    try:
-        import json as _json
-        conn = get_conn()
-        rows = conn.run("SELECT subscription FROM push_tokens WHERE subscription IS NOT NULL")
-        conn.close()
-        for row in rows:
-            try:
-                sub = _json.loads(row[0]) if row[0] else None
-                if sub:
-                    threading.Thread(target=send_webpush_notification, args=(sub, title, body, url), daemon=True).start()
-            except: pass
-    except Exception as e:
-        app.logger.error(f"send_push_to_all_fcm: {e}")
+    """Compatibilité historique : utilise désormais le stockage Web Push actif."""
+    return send_push_to_all(title, body, url)
 
 
 def send_telegram(text, reply_markup=None, chat_id=None):
@@ -1235,18 +1237,7 @@ def service_worker():
 @app.route("/formation")
 @login_required
 def formation():
-    code = session["member_code"]
-    member = get_member(code)
-    if not member:
-        return redirect(url_for("login"))
-    demo_mode = _current_demo_mode(code, member)
-    # En mode demo : ne pas envoyer les vraies URLs au client
-    if demo_mode:
-        return render_template("formation.html", member=member,
-            demo_mode=True,
-            pdfs=[],
-            videos=[])
-    return render_template("formation.html", member=member, demo_mode=False)
+    return redirect(url_for("academie"))
 
 
 @app.route("/expire")
@@ -6394,7 +6385,7 @@ def _save_push_subscription(data):
         conn.run("""INSERT INTO push_subscriptions (member_code, endpoint, p256dh, auth)
             VALUES (:code, :endpoint, :p256dh, :auth)
             ON CONFLICT (endpoint) DO UPDATE SET member_code=:code,
-            p256dh=:p256dh, auth=:auth""",
+            p256dh=:p256dh, auth=:auth, updated_at=NOW(), failure_count=0, last_error=''""",
             code=code, endpoint=endpoint, p256dh=p256dh, auth=auth_key)
         conn.close()
         return jsonify({"ok": True})
@@ -6490,30 +6481,39 @@ def send_push_to_all(title, body, url="/canal"):
                     subscription_info={"endpoint": ep, "keys": {"p256dh": p256dh, "auth": auth_key}},
                     data=payload,
                     vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS,
-                    timeout=10
+                    vapid_claims=dict(VAPID_CLAIMS),
+                    timeout=10,
+                    ttl=86400,
+                    headers={"Urgency": "high"}
                 )
-                return ep, True, False
+                return ep, True, False, ""
             except WebPushException as ex:
                 status = ex.response.status_code if ex.response is not None else None
                 response_body = ex.response.text if ex.response is not None else ""
                 invalid_vapid = status == 400 and "VapidPkHashMismatch" in response_body
-                return ep, False, status in (404, 410) or invalid_vapid
+                return ep, False, status in (404, 410) or invalid_vapid, f"HTTP {status or 'inconnu'}"
             except Exception as error:
                 app.logger.warning("Push global %s: %s", _member_code, error)
-                return ep, False, False
+                return ep, False, False, str(error)[:220]
 
         with ThreadPoolExecutor(max_workers=min(12, len(subs))) as pool:
             deliveries = list(pool.map(deliver, subs))
-        result["delivered"] = sum(1 for _, ok, _ in deliveries if ok)
+        result["delivered"] = sum(1 for _, ok, _, _ in deliveries if ok)
         result["failed"] = result["registered"] - result["delivered"]
-        dead = [endpoint for endpoint, _, expired in deliveries if expired]
-        if dead:
-            conn2 = get_conn()
-            for ep in dead:
-                try:
+        dead = [endpoint for endpoint, _, expired, _ in deliveries if expired]
+        conn2 = get_conn()
+        try:
+            for ep, delivered, expired, delivery_error in deliveries:
+                if expired:
                     conn2.run("DELETE FROM push_subscriptions WHERE endpoint=:ep", ep=ep)
-                except: pass
+                elif delivered:
+                    conn2.run("""UPDATE push_subscriptions SET last_delivery_at=NOW(),
+                        updated_at=NOW(), failure_count=0, last_error='' WHERE endpoint=:ep""", ep=ep)
+                else:
+                    conn2.run("""UPDATE push_subscriptions SET updated_at=NOW(),
+                        failure_count=failure_count+1, last_error=:error WHERE endpoint=:ep""",
+                        ep=ep, error=delivery_error)
+        finally:
             conn2.close()
         return result
     except Exception as e:
@@ -6540,16 +6540,34 @@ def send_push_to_member(member_code, title, body, url="/accueil"):
                         "keys": {"p256dh": p256dh, "auth": auth_key}},
                     data=payload,
                     vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS,
-                    timeout=10
+                    vapid_claims=dict(VAPID_CLAIMS),
+                    timeout=10,
+                    ttl=86400,
+                    headers={"Urgency": "high"}
                 )
                 result["delivered"] += 1
+                delivery_error = ""
+                try:
+                    conn = get_conn()
+                    conn.run("""UPDATE push_subscriptions SET last_delivery_at=NOW(),
+                        updated_at=NOW(), failure_count=0, last_error='' WHERE endpoint=:endpoint""",
+                        endpoint=endpoint)
+                    conn.close()
+                except Exception: pass
             except WebPushException as error:
                 result["failed"] += 1
                 status = error.response.status_code if error.response is not None else None
                 response_body = error.response.text if error.response is not None else ""
                 if status in (404, 410) or (status == 400 and "VapidPkHashMismatch" in response_body):
                     dead.append(endpoint)
+                else:
+                    try:
+                        conn = get_conn()
+                        conn.run("""UPDATE push_subscriptions SET updated_at=NOW(),
+                            failure_count=failure_count+1,last_error=:error WHERE endpoint=:endpoint""",
+                            endpoint=endpoint, error=f"HTTP {status or 'inconnu'}")
+                        conn.close()
+                    except Exception: pass
                 app.logger.warning("Push membre %s: HTTP %s", member_code, status)
             except Exception as error:
                 result["failed"] += 1
@@ -6564,6 +6582,46 @@ def send_push_to_member(member_code, title, body, url="/accueil"):
     except Exception as error:
         app.logger.error("Push individuel %s: %s", member_code, error)
         return result
+
+def _dispatch_canal_push(tg_msg_id, msg_type, text_content):
+    """Déclenche une seule notification par publication VIP, quel que soit son chemin d'entrée."""
+    conn = None
+    try:
+        conn = get_conn()
+        claimed = conn.run("""UPDATE canal_messages SET push_notified_at=NOW()
+            WHERE tg_msg_id=:mid AND push_notified_at IS NULL RETURNING id""", mid=tg_msg_id)
+        if not claimed:
+            return {"registered": 0, "delivered": 0, "failed": 0, "members": 0, "skipped": True}
+    except Exception as error:
+        app.logger.error("Claim push Canal VIP %s: %s", tg_msg_id, error)
+        return {"registered": 0, "delivered": 0, "failed": 0, "members": 0, "error": str(error)}
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+    labels = {
+        "signal": "📊 Nouveau signal VIP",
+        "resultat": "✅ Nouveau résultat VIP",
+        "alerte": "🚨 Alerte VIP prioritaire",
+        "annonce": "📢 Annonce Canal VIP",
+        "audio": "🎙️ Nouveau vocal VIP",
+        "message": "💬 Nouveau message VIP",
+    }
+    clean_preview = " ".join(str(text_content or "").split())
+    preview = clean_preview[:110] + ("…" if len(clean_preview) > 110 else "")
+    if not preview:
+        preview = "Une nouvelle publication est disponible dans ton espace membre."
+    result = send_push_to_all(labels.get(msg_type, "💬 Nouveau message VIP"), preview, "/canal")
+    result["skipped"] = False
+    if result.get("registered", 0) and not result.get("delivered", 0):
+        try:
+            conn = get_conn()
+            conn.run("UPDATE canal_messages SET push_notified_at=NULL WHERE tg_msg_id=:mid", mid=tg_msg_id)
+            conn.close()
+        except Exception: pass
+    app.logger.info("Push Canal VIP %s: %s", tg_msg_id, result)
+    return result
 
 # ── CANAL VIP ─────────────────────────────────────────────────────────────────
 
@@ -6680,12 +6738,14 @@ def canal_webhook():
                 mid=tg_msg_id, txt=text_content, typ=msg_type, photo=photo_url, audio=audio_url
             )
         conn.close()
-        # Web Push si nouveau message
-        if not edited and text_content:
-            TYPE_LABELS = {"signal":"📊 Signal","resultat":"✅ Résultat","alerte":"🚨 Alerte","annonce":"📢 Annonce","message":"💬 Canal VIP"}
-            label = TYPE_LABELS.get(msg_type, "💬 Canal VIP")
-            preview = text_content[:80] + ("…" if len(text_content) > 80 else "")
-            threading.Thread(target=send_push_to_all_fcm, args=(label, preview, "/canal"), daemon=True).start()
+        # Web Push prioritaire si nouveau message. Le claim atomique empêche les doublons
+        # quand une publication existe à la fois dans Telegram et dans l'administration.
+        if not edited:
+            threading.Thread(
+                target=_dispatch_canal_push,
+                args=(tg_msg_id, msg_type, text_content),
+                daemon=True
+            ).start()
     except Exception as e:
         app.logger.error(f"canal_webhook: {e}")
     return jsonify({"ok": True})
@@ -6839,6 +6899,8 @@ def api_canal_publier():
                     )
                     file_path = r2.json()["result"]["file_path"]
                     photo_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{file_path}"
+            else:
+                return jsonify({"error": res.get("description", "Telegram error")}), 502
         else:
             # Envoyer texte sur Telegram
             r = requests.post(
@@ -6861,7 +6923,8 @@ def api_canal_publier():
             mid=tg_msg_id, txt=text, typ=msg_type, photo=photo_url
         )
         conn.close()
-        return jsonify({"ok": True})
+        push_result = _dispatch_canal_push(tg_msg_id, msg_type, text)
+        return jsonify({"ok": True, "push": push_result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -7078,6 +7141,16 @@ def check_and_send_relances():
         app.logger.info(f"check_relances: {sent} emails envoyés")
     except Exception as e:
         app.logger.error(f"check_and_send_relances: {e}")
+
+register_growth_features(
+    app=app,
+    get_conn=get_conn,
+    get_member=get_member,
+    login_required=login_required,
+    academy_access_required=academy_access_required,
+    current_demo_mode=_current_demo_mode,
+    admin_required=admin_required,
+)
 
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 // Bectanse AUTO — Service Worker PWA + Web Push
-const CACHE = 'bectanse-auto-v7';
+const CACHE = 'bectanse-auto-v8';
 const ASSETS = ['/', '/dashboard', '/static/manifest.json'];
 const BADGE_DB = 'bectanse-notification-state';
 const BADGE_STORE = 'state';
@@ -92,7 +92,9 @@ self.addEventListener('push', e => {
       badge: '/static/icons/icon-192.png',
       vibrate: [200, 100, 200],
       tag: data.tag || ('bectanse-' + (data.url || 'notification')),
-      renotify: false,
+      renotify: true,
+      silent: false,
+      timestamp: Date.now(),
       data: { url: data.url, badgeCount }
     });
   })());
