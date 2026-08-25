@@ -1,13 +1,13 @@
 {
-  "name": "Bectanse AUTO",
-  "short_name": "Bectanse AUTO",
-  "description": "Copy trading automatique — Ton espace membre",
+  "name": "Bectanse Académie",
+  "short_name": "Bectanse",
+  "description": "Application officielle de Bectanse Académie",
   "id": "/",
   "scope": "/",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A0A0F",
-  "theme_color": "#5B21B6",
+  "background_color": "#050505",
+  "theme_color": "#050505",
   "orientation": "portrait",
   "icons": [
     {

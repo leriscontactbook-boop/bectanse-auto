@@ -1,5 +1,5 @@
-// Bectanse AUTO — Service Worker PWA + Web Push
-const CACHE = 'bectanse-auto-v8';
+// Bectanse Académie — Service Worker PWA + Web Push
+const CACHE = 'bectanse-academie-v9';
 const ASSETS = ['/', '/dashboard', '/static/manifest.json'];
 const BADGE_DB = 'bectanse-notification-state';
 const BADGE_STORE = 'state';
@@ -79,7 +79,7 @@ self.addEventListener('fetch', e => {
 
 // ── WEB PUSH NOTIFICATIONS ──────────────────────────────────────────────────
 self.addEventListener('push', e => {
-  let data = { title: 'Bectanse AUTO', body: 'Nouveau message sur le Canal VIP', url: '/canal' };
+  let data = { title: 'Bectanse Académie', body: 'Nouveau message sur le Canal VIP', url: '/canal' };
   try {
     if (e.data) data = { ...data, ...JSON.parse(e.data.text()) };
   } catch {}
