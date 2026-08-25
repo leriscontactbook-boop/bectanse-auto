@@ -1,54 +1,149 @@
+{# Navigation mobile Bectanse — pictogrammes vectoriels issus de Lucide Icons. #}
+{% macro nav_icon(name) -%}
+<svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  {% if name == 'home' %}
+  <path d="m3 10 9-7 9 7"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9 21v-7h6v7"></path>
+  {% elif name == 'academy' %}
+  <path d="M2 4.5h6a4 4 0 0 1 4 4V21a3 3 0 0 0-3-3H2z"></path><path d="M22 4.5h-6a4 4 0 0 0-4 4V21a3 3 0 0 1 3-3h7z"></path>
+  {% elif name == 'lab' %}
+  <path d="M4 19V5"></path><path d="M4 19h16"></path><path d="m7 15 4-4 3 3 5-7"></path><path d="M16 7h3v3"></path>
+  {% elif name == 'live' %}
+  <circle cx="12" cy="12" r="2"></circle><path d="M8.5 8.5a5 5 0 0 0 0 7"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M5.6 5.6a9 9 0 0 0 0 12.8"></path><path d="M18.4 5.6a9 9 0 0 1 0 12.8"></path>
+  {% elif name == 'more' %}
+  <rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><rect x="14" y="14" width="7" height="7" rx="2"></rect>
+  {% elif name == 'bot' %}
+  <rect x="4" y="7" width="16" height="13" rx="3"></rect><path d="M12 3v4"></path><path d="M8 12h.01"></path><path d="M16 12h.01"></path><path d="M9 16h6"></path><path d="M2 12h2"></path><path d="M20 12h2"></path>
+  {% elif name == 'profile' %}
+  <circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path>
+  {% elif name == 'analysis' %}
+  <path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="m7 15 3-3 2 2 5-5"></path>
+  {% elif name == 'calculator' %}
+  <rect x="4" y="2" width="16" height="20" rx="2"></rect><path d="M8 6h8"></path><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path>
+  {% elif name == 'simulator' %}
+  <path d="M9 3h6"></path><path d="M10 9V3"></path><path d="M14 9V3"></path><path d="m8 9-4.5 8.5A2.4 2.4 0 0 0 5.6 21h12.8a2.4 2.4 0 0 0 2.1-3.5L16 9"></path><path d="M6.5 15h11"></path>
+  {% elif name == 'journal' %}
+  <path d="M6 3h12a2 2 0 0 1 2 2v16H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M8 3v18"></path><path d="M12 8h4"></path><path d="M12 12h4"></path>
+  {% elif name == 'score' %}
+  <path d="M3.5 19a9 9 0 1 1 17 0"></path><path d="m12 14 4-5"></path><circle cx="12" cy="14" r="1.5"></circle>
+  {% elif name == 'referral' %}
+  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path>
+  {% elif name == 'support' %}
+  <path d="M4 14a8 8 0 0 1 16 0"></path><path d="M18 19c0 1.1-.9 2-2 2h-3"></path><path d="M4 14v3a2 2 0 0 0 2 2h1v-7H6a2 2 0 0 0-2 2Z"></path><path d="M20 14v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2Z"></path>
+  {% elif name == 'faq' %}
+  <circle cx="12" cy="12" r="9"></circle><path d="M9.7 9a2.4 2.4 0 1 1 3.8 1.9c-.9.6-1.5 1.1-1.5 2.3"></path><path d="M12 17h.01"></path>
+  {% elif name == 'close' %}
+  <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+  {% endif %}
+</svg>
+{%- endmacro %}
+
 <style>
-  .m-univ-nav{display:none}
+  .m-univ-nav,.m-app-sheet,.m-app-sheet-backdrop{display:none}
   @media(max-width:768px){
+    :root{--m-app-nav-height:76px}
+    html{scroll-padding-bottom:calc(var(--m-app-nav-height) + env(safe-area-inset-bottom) + 16px)}
+    body{padding-bottom:calc(var(--m-app-nav-height) + env(safe-area-inset-bottom) + 18px)!important}
+    body.m-app-nav-open{overflow:hidden!important;touch-action:none}
+    .m-univ-nav,.m-univ-nav *,.m-app-sheet,.m-app-sheet *{box-sizing:border-box}
     .m-univ-nav{
-      display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1000;
-      height:calc(68px + env(safe-area-inset-bottom));
-      padding:0 4px env(safe-area-inset-bottom);box-sizing:border-box;
-      overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;
-      scrollbar-width:none;-webkit-overflow-scrolling:touch;
-      background:rgba(3,4,3,.98);border-top:1px solid rgba(255,101,0,.48);
+      display:grid!important;visibility:visible!important;opacity:1!important;
+      grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;
+      position:fixed!important;left:0!important;right:0!important;bottom:0!important;
+      width:100%!important;height:calc(var(--m-app-nav-height) + env(safe-area-inset-bottom))!important;
+      margin:0!important;padding:5px 6px env(safe-area-inset-bottom)!important;
+      overflow:visible!important;isolation:isolate;z-index:2147483000!important;
+      border:0!important;border-top:1px solid rgba(255,255,255,.08)!important;
+      border-radius:0!important;background:rgba(5,6,5,.965)!important;
+      box-shadow:0 -18px 55px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.025)!important;
+      backdrop-filter:blur(26px) saturate(145%)!important;-webkit-backdrop-filter:blur(26px) saturate(145%)!important;
     }
-    .m-univ-nav::-webkit-scrollbar{display:none}
+    .m-univ-nav::before{content:"";position:absolute;left:50%;top:-1px;width:58px;height:2px;transform:translateX(-50%);border-radius:0 0 99px 99px;background:linear-gradient(90deg,transparent,#ff641e,transparent);opacity:.72}
     .m-univ-nav-item{
-      flex:1 0 64px;height:68px;display:flex;flex-direction:column;
-      align-items:center;justify-content:center;gap:3px;text-decoration:none;
-      color:#656762;font-family:'Barlow Condensed',Arial,sans-serif;
-      font-size:11px;font-weight:800;line-height:1;text-transform:uppercase;
-      white-space:nowrap;letter-spacing:.02em;
+      appearance:none!important;-webkit-appearance:none!important;min-width:0!important;height:66px!important;
+      margin:0!important;padding:5px 2px 4px!important;display:flex!important;flex-direction:column!important;
+      align-items:center!important;justify-content:center!important;gap:4px!important;
+      border:0!important;border-radius:14px!important;outline:0;background:transparent!important;
+      color:#777b74!important;text-decoration:none!important;white-space:nowrap!important;
+      font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+      font-size:9px!important;font-weight:750!important;line-height:1!important;
+      letter-spacing:.01em!important;text-transform:none!important;cursor:pointer;
+      -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+      transition:color .2s ease,background .2s ease,transform .16s ease!important;
     }
-    .m-univ-nav-item .mni{font-size:27px;line-height:30px;filter:grayscale(.28)}
-    .m-univ-nav-item.active,.m-univ-nav-item.gold{color:#ff6500}
-    .m-univ-nav-item.active .mni{filter:none}
+    .m-univ-nav-item:active{transform:scale(.94)}
+    .m-univ-nav-item:focus-visible{box-shadow:inset 0 0 0 2px rgba(255,100,30,.9)}
+    .m-app-icon-shell{position:relative;width:32px;height:32px;display:grid;place-items:center;border-radius:10px;color:#9a9e96;background:linear-gradient(145deg,#171a16,#0d0f0d);border:1px solid rgba(255,255,255,.075);box-shadow:inset 0 1px 0 rgba(255,255,255,.055);transition:color .22s ease,border-color .22s ease,background .22s ease,box-shadow .22s ease,transform .22s ease}
+    .m-app-icon{width:20px;height:20px;display:block;overflow:visible}
+    .m-univ-nav-item.active{color:#fff!important;background:linear-gradient(180deg,rgba(255,100,30,.08),transparent 78%)!important}
+    .m-univ-nav-item.active .m-app-icon-shell,.m-univ-nav-item[aria-expanded="true"] .m-app-icon-shell{color:#fff;background:linear-gradient(145deg,#ff762f,#e84d0b);border-color:rgba(255,151,102,.75);box-shadow:0 7px 22px rgba(255,87,18,.28),inset 0 1px 0 rgba(255,255,255,.38);transform:translateY(-2px)}
+    .m-univ-nav-item.active .m-app-icon-shell::after{content:"";position:absolute;bottom:-7px;left:50%;width:18px;height:2px;transform:translateX(-50%);border-radius:99px;background:#ff641e;box-shadow:0 0 10px rgba(255,100,30,.85)}
+    .m-app-live-pulse{position:absolute;right:-2px;top:-2px;width:8px;height:8px;border:2px solid #090a09;border-radius:50%;background:#64dc82;box-shadow:0 0 0 0 rgba(100,220,130,.55);animation:mAppPulse 2.2s ease-out infinite}
+    @keyframes mAppPulse{0%{box-shadow:0 0 0 0 rgba(100,220,130,.5)}65%,100%{box-shadow:0 0 0 7px rgba(100,220,130,0)}}
+    .m-app-sheet-backdrop{display:block;position:fixed;inset:0;z-index:2147482997;background:rgba(0,0,0,.72);opacity:0;visibility:hidden;pointer-events:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:opacity .28s ease,visibility .28s ease}
+    .m-app-sheet-backdrop.is-open{opacity:1;visibility:visible;pointer-events:auto}
+    .m-app-sheet{display:flex;flex-direction:column;position:fixed;left:8px;right:8px;bottom:calc(var(--m-app-nav-height) + env(safe-area-inset-bottom) + 8px);z-index:2147482999;max-height:min(68dvh,590px);overflow:hidden;border:1px solid rgba(255,255,255,.11);border-radius:25px;background:linear-gradient(155deg,rgba(22,25,21,.985),rgba(7,9,7,.995) 68%);box-shadow:0 30px 90px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.07);transform:translateY(calc(100% + var(--m-app-nav-height) + 32px));opacity:0;visibility:hidden;transition:transform .34s cubic-bezier(.2,.82,.24,1),opacity .24s ease,visibility .34s ease}
+    .m-app-sheet.is-open{transform:translateY(var(--m-app-sheet-drag,0px));opacity:1;visibility:visible}
+    .m-app-sheet::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 82% 0,rgba(255,100,30,.14),transparent 34%),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:auto,28px 28px,28px 28px}
+    .m-app-sheet-head{position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 18px 12px;touch-action:none}
+    .m-app-sheet-grip{position:absolute;top:7px;left:50%;width:38px;height:4px;transform:translateX(-50%);border-radius:99px;background:#4a4e47}
+    .m-app-sheet-kicker{display:block;margin-bottom:3px;color:#ff7a38;font:800 9px/1 Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase}
+    .m-app-sheet-title{margin:0;color:#fff;font:800 22px/1.05 'Barlow Condensed',Inter,sans-serif;letter-spacing:.02em}
+    .m-app-sheet-close{width:38px;height:38px;display:grid;place-items:center;flex:none;border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#b7bbb3;background:#111410;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .m-app-sheet-close .m-app-icon{width:19px;height:19px}
+    .m-app-sheet-scroll{position:relative;padding:3px 14px 18px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+    .m-app-sheet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+    .m-app-tool{min-width:0;min-height:91px;padding:11px 7px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(255,255,255,.075);border-radius:16px;color:#c4c8c0;background:linear-gradient(145deg,rgba(25,28,24,.9),rgba(11,13,11,.94));text-align:center;text-decoration:none;font:750 10px/1.15 Inter,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.035);transition:transform .16s ease,border-color .2s ease,color .2s ease,background .2s ease;-webkit-tap-highlight-color:transparent}
+    .m-app-tool:active{transform:scale(.96)}
+    .m-app-tool .m-app-icon-shell{width:38px;height:38px;border-radius:12px;color:#aeb2aa}
+    .m-app-tool .m-app-icon{width:20px;height:20px}
+    .m-app-tool.active{color:#fff;border-color:rgba(255,100,30,.35);background:linear-gradient(145deg,rgba(255,100,30,.14),rgba(14,16,13,.96))}
+    .m-app-tool.active .m-app-icon-shell{color:#ff8143;border-color:rgba(255,100,30,.35);background:rgba(255,100,30,.08)}
+    .m-app-sheet-foot{margin-top:12px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(255,100,30,.14);border-radius:14px;background:rgba(255,100,30,.045)}
+    .m-app-sheet-foot strong{display:block;color:#f4f5f1;font:800 11px/1.15 Inter,sans-serif}.m-app-sheet-foot small{display:block;margin-top:4px;color:#777c74;font:600 9px/1.3 Inter,sans-serif}
+    .m-app-sheet-foot a{flex:none;padding:8px 10px;border-radius:9px;color:#fff;background:#e95111;text-decoration:none;font:800 9px/1 Inter,sans-serif;text-transform:uppercase}
   }
+  @media(max-width:350px){.m-univ-nav{padding-left:1px!important;padding-right:1px!important}.m-univ-nav-item{font-size:8px!important}.m-app-icon-shell{width:29px;height:29px}.m-app-icon{width:18px;height:18px}.m-app-sheet-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(prefers-reduced-motion:reduce){.m-univ-nav *,.m-app-sheet,.m-app-sheet *,.m-app-sheet-backdrop{animation:none!important;transition:none!important}}
 </style>
 
 {% set mobile_active = request.endpoint %}
-<nav class="m-univ-nav" aria-label="Navigation principale">
-  <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"><span class="mni">⌂</span><span>Accueil</span></a>
-  <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"><span class="mni">▤</span><span>Académie</span></a>
-  <a class="m-univ-nav-item{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} active{% endif %}" href="/trader-lab"><span class="mni">↗</span><span>Trader Lab</span></a>
-  <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"><span class="mni">●</span><span>Live</span></a>
-  <a class="m-univ-nav-item dashboard-anchor" data-dashboard-section="section-parametres" href="/dashboard#section-parametres"><span class="mni">◎</span><span>Robot</span></a>
-  <a class="m-univ-nav-item dashboard-anchor{% if mobile_active in ['dashboard','parrainage','faq','support'] %} active{% endif %}" data-dashboard-section="section-profil" href="/dashboard#section-profil"><span class="mni">◉</span><span>Profil</span></a>
+{% set more_active = mobile_active in ['dashboard','parrainage','support','offres'] %}
+<nav class="m-univ-nav" aria-label="Navigation principale de l’application">
+  <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"{% if mobile_active == 'accueil' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('home') }}</span><span>Accueil</span></a>
+  <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"{% if mobile_active in ['academie','formation'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('academy') }}</span><span>Académie</span></a>
+  <a class="m-univ-nav-item{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} active{% endif %}" href="/trader-lab"{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('lab') }}</span><span>Trader Lab</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"{% if mobile_active == 'canal' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('live') }}<i class="m-app-live-pulse" aria-hidden="true"></i></span><span>Live</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'faq' %} active{% endif %}" href="/faq"{% if mobile_active == 'faq' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('faq') }}</span><span>FAQ</span></a>
+  <button class="m-univ-nav-item m-app-more{% if more_active %} active{% endif %}" type="button" aria-controls="mAppSheet" aria-expanded="false"><span class="m-app-icon-shell">{{ nav_icon('more') }}</span><span>Plus</span></button>
 </nav>
+
+<div class="m-app-sheet-backdrop" data-m-app-close aria-hidden="true"></div>
+<section class="m-app-sheet" id="mAppSheet" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mAppSheetTitle" tabindex="-1">
+  <header class="m-app-sheet-head"><span class="m-app-sheet-grip" aria-hidden="true"></span><div><span class="m-app-sheet-kicker">Bectanse Command Center</span><h2 class="m-app-sheet-title" id="mAppSheetTitle">Tous les outils</h2></div><button class="m-app-sheet-close" type="button" data-m-app-close aria-label="Fermer le menu">{{ nav_icon('close') }}</button></header>
+  <div class="m-app-sheet-scroll">
+    <div class="m-app-sheet-grid">
+      <a class="m-app-tool dashboard-anchor{% if mobile_active == 'dashboard' %} active{% endif %}" data-dashboard-section="section-profil" href="/dashboard#section-profil"><span class="m-app-icon-shell">{{ nav_icon('profile') }}</span><span>Mon profil</span></a>
+      <a class="m-app-tool{% if mobile_active == 'analyse_ia' %} active{% endif %}" href="/analyse-ia"><span class="m-app-icon-shell">{{ nav_icon('analysis') }}</span><span>Analyse IA</span></a>
+      <a class="m-app-tool{% if mobile_active == 'calculateur' %} active{% endif %}" href="/calculateur"><span class="m-app-icon-shell">{{ nav_icon('calculator') }}</span><span>Calculateur</span></a>
+      <a class="m-app-tool{% if mobile_active == 'simulateur' %} active{% endif %}" href="/simulateur"><span class="m-app-icon-shell">{{ nav_icon('simulator') }}</span><span>Simulateur</span></a>
+      <a class="m-app-tool{% if mobile_active == 'journal' %} active{% endif %}" href="/journal"><span class="m-app-icon-shell">{{ nav_icon('journal') }}</span><span>Journal</span></a>
+      <a class="m-app-tool{% if mobile_active == 'trade_score' %} active{% endif %}" href="/trade-score"><span class="m-app-icon-shell">{{ nav_icon('score') }}</span><span>Trade Score</span></a>
+      <a class="m-app-tool{% if mobile_active == 'parrainage' %} active{% endif %}" href="/parrainage"><span class="m-app-icon-shell">{{ nav_icon('referral') }}</span><span>Parrainage</span></a>
+      <a class="m-app-tool{% if mobile_active == 'support' %} active{% endif %}" href="/support"><span class="m-app-icon-shell">{{ nav_icon('support') }}</span><span>Support</span></a>
+    </div>
+    {% if demo_mode|default(false) %}<div class="m-app-sheet-foot"><div><strong>Débloquer toutes les sections</strong><small>Découvre l’accès complet à l’Académie.</small></div><a href="/vip">Voir l’accès</a></div>{% else %}<div class="m-app-sheet-foot"><div><strong>Transparence du système</strong><small>Méthode, limites et sécurité de l’Analyse IA.</small></div><a href="/centre-confiance">Consulter</a></div>{% endif %}
+  </div>
+</section>
+
 <script>window.BECTANSE_PUSH_ELIGIBLE={{ 'false' if demo_mode|default(false) else 'true' }};</script>
 <script src="/static/push.js" defer></script>
-
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    var nav = document.querySelector('.m-univ-nav');
-    function syncDashboardAnchor() {
-      if (!nav || {{ 'true' if mobile_active == 'dashboard' else 'false' }} !== true) return;
-      var target = location.hash === '#section-parametres' ? 'section-parametres' : 'section-profil';
-      nav.querySelectorAll('.dashboard-anchor').forEach(function (item) {
-        item.classList.toggle('active', item.dataset.dashboardSection === target);
-      });
-    }
-    syncDashboardAnchor();
-    window.addEventListener('hashchange', syncDashboardAnchor);
-    var active = nav && nav.querySelector('.active');
-    if (!nav || !active || window.innerWidth > 768) return;
-    nav.scrollLeft = Math.max(0, active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2);
+    var nav=document.querySelector('.m-univ-nav'),sheet=document.getElementById('mAppSheet'),backdrop=document.querySelector('.m-app-sheet-backdrop'),trigger=nav&&nav.querySelector('.m-app-more'),previousFocus=null;
+    function syncDashboardAnchor(){if(!sheet||{{ 'true' if mobile_active == 'dashboard' else 'false' }}!==true)return;var target=location.hash==='#section-parametres'?'section-parametres':'section-profil';sheet.querySelectorAll('.dashboard-anchor').forEach(function(item){item.classList.toggle('active',item.dataset.dashboardSection===target)})}
+    function openSheet(){if(!sheet||!backdrop||!trigger)return;previousFocus=document.activeElement;sheet.style.removeProperty('--m-app-sheet-drag');sheet.classList.add('is-open');backdrop.classList.add('is-open');sheet.setAttribute('aria-hidden','false');trigger.setAttribute('aria-expanded','true');document.body.classList.add('m-app-nav-open');window.setTimeout(function(){sheet.focus({preventScroll:true})},40)}
+    function closeSheet(){if(!sheet||!backdrop||!trigger)return;sheet.classList.remove('is-open');backdrop.classList.remove('is-open');sheet.setAttribute('aria-hidden','true');trigger.setAttribute('aria-expanded','false');sheet.style.removeProperty('--m-app-sheet-drag');document.body.classList.remove('m-app-nav-open');if(previousFocus&&previousFocus.focus)previousFocus.focus({preventScroll:true})}
+    trigger&&trigger.addEventListener('click',function(){sheet.classList.contains('is-open')?closeSheet():openSheet()});document.querySelectorAll('[data-m-app-close]').forEach(function(el){el.addEventListener('click',closeSheet)});document.addEventListener('keydown',function(event){if(event.key==='Escape'&&sheet&&sheet.classList.contains('is-open'))closeSheet()});window.addEventListener('hashchange',syncDashboardAnchor);syncDashboardAnchor();
+    var head=sheet&&sheet.querySelector('.m-app-sheet-head'),dragStart=0,dragY=0;head&&head.addEventListener('touchstart',function(event){dragStart=event.touches[0].clientY;dragY=0},{passive:true});head&&head.addEventListener('touchmove',function(event){dragY=Math.max(0,event.touches[0].clientY-dragStart);sheet.style.setProperty('--m-app-sheet-drag',dragY+'px')},{passive:true});head&&head.addEventListener('touchend',function(){if(dragY>72)closeSheet();else sheet.style.removeProperty('--m-app-sheet-drag');dragY=0});
   });
 </script>
