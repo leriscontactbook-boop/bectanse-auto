@@ -1120,25 +1120,50 @@ def parrainage():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    # Stats parrainage
+    # Le compteur et les gains sont crédités sur le compte du parrain au moment
+    # où le filleul est validé. L'ancienne requête additionnait par erreur les
+    # compteurs des filleuls et pouvait donc afficher 0 € malgré un solde réel.
+    recent_referrals = []
+    conn = None
     try:
         conn = get_conn()
-        rows = conn.run("SELECT COUNT(*), COALESCE(SUM(filleuls_count)*50,0) FROM members WHERE parrain_code=:c AND actif=TRUE", c=code)
-        total_filleuls = rows[0][0] if rows else 0
-        gains = rows[0][1] if rows else 0
-        conn.close()
-        niveau = "Standard"
-        if total_filleuls >= 20: niveau = "ELITE 🐐"
+        rows = conn.run("""SELECT COALESCE(filleuls_count,0), COALESCE(gains_parrainage,0)
+                           FROM members WHERE UPPER(code)=UPPER(:code)""", code=code)
+        total_filleuls = int(rows[0][0] or 0) if rows else 0
+        gains = int(rows[0][1] or 0) if rows else 0
+        referrals = conn.run("""SELECT nom, created_at
+                                FROM members
+                                WHERE UPPER(parrain_code)=UPPER(:code)
+                                ORDER BY created_at DESC LIMIT 6""", code=code)
+        for nom, created_at in referrals:
+            parts = str(nom or "Membre Bectanse").strip().split()
+            display_name = parts[0]
+            if len(parts) > 1 and parts[-1]:
+                display_name += f" {parts[-1][0].upper()}."
+            recent_referrals.append({"nom": display_name, "date": created_at})
+        niveau = "Starter"
+        if total_filleuls >= 20: niveau = "Elite"
         elif total_filleuls >= 10: niveau = "Ambassador"
         elif total_filleuls >= 5: niveau = "Bronze"
         parrain_stats = {"total": total_filleuls, "gains": gains, "niveau": niveau}
-    except:
-        parrain_stats = {"total": 0, "gains": 0, "niveau": "Standard"}
-    return render_template("parrainage.html", member=member, parrain_stats=parrain_stats)
+    except Exception as error:
+        app.logger.error("Chargement parrainage %s: %s", code, error)
+        parrain_stats = {
+            "total": int(member.get("filleuls_count") or 0),
+            "gains": int(member.get("gains_parrainage") or 0),
+            "niveau": "Starter"
+        }
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+    return render_template("parrainage.html", member=member, parrain_stats=parrain_stats,
+                           recent_referrals=recent_referrals)
 
 @app.route("/rejoindre/<parrain_code>")
 def rejoindre(parrain_code):
     """Landing page parrainage — accessible sans connexion"""
+    conn = None
     try:
         conn = get_conn()
         rows = conn.run("SELECT nom FROM members WHERE code=:c AND actif=TRUE", c=parrain_code.upper())
@@ -1285,23 +1310,49 @@ def activer_prospect():
 def save_paiement():
     """Sauvegarde les infos de paiement du membre pour recevoir ses commissions"""
     code = session["member_code"]
-    data = request.get_json()
-    ptype = data.get("type","")
+    data = request.get_json(silent=True) or {}
+    ptype = str(data.get("type", "")).strip().lower()
+    if ptype not in {"virement", "crypto"}:
+        return jsonify({"ok": False, "error": "Mode de paiement invalide."}), 400
+
+    titulaire = str(data.get("titulaire", "")).strip()[:120]
+    iban = re.sub(r"\s+", "", str(data.get("iban", "")).upper())[:34]
+    bic = re.sub(r"\s+", "", str(data.get("bic", "")).upper())[:11]
+    reseau = str(data.get("reseau", "")).strip().upper()
+    adresse = str(data.get("adresse", "")).strip()[:220]
+
+    if ptype == "virement":
+        if len(titulaire) < 2:
+            return jsonify({"ok": False, "error": "Indique le nom complet du titulaire."}), 400
+        if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{11,30}", iban):
+            return jsonify({"ok": False, "error": "Le format de l’IBAN n’est pas valide."}), 400
+        if not re.fullmatch(r"[A-Z0-9]{8}(?:[A-Z0-9]{3})?", bic):
+            return jsonify({"ok": False, "error": "Le format du BIC/SWIFT n’est pas valide."}), 400
+    else:
+        allowed_networks = {"TRC20", "ERC20", "BEP20", "BTC", "ETH"}
+        if reseau not in allowed_networks:
+            return jsonify({"ok": False, "error": "Réseau crypto non pris en charge."}), 400
+        if len(adresse) < 15:
+            return jsonify({"ok": False, "error": "L’adresse du wallet semble incomplète."}), 400
     try:
         conn = get_conn()
         if ptype == "virement":
             conn.run("""UPDATE members SET paiement_type=:t, paiement_iban=:i,
                        paiement_bic=:b, paiement_titulaire=:ti WHERE code=:c""",
-                     t="virement", i=_encrypt_value(data.get("iban","")), b=_encrypt_value(data.get("bic","")),
-                     ti=_encrypt_value(data.get("titulaire","")), c=code)
-        elif ptype == "crypto":
+                     t="virement", i=_encrypt_value(iban), b=_encrypt_value(bic),
+                     ti=_encrypt_value(titulaire), c=code)
+        else:
             conn.run("""UPDATE members SET paiement_type=:t, paiement_crypto_reseau=:r,
                        paiement_crypto_adresse=:a WHERE code=:c""",
-                     t="crypto", r=data.get("reseau",""), a=_encrypt_value(data.get("adresse","")), c=code)
-        conn.close()
-        return jsonify({"ok": True})
+                     t="crypto", r=reseau, a=_encrypt_value(adresse), c=code)
+        return jsonify({"ok": True, "type": ptype})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+        app.logger.error("Sauvegarde paiement parrainage %s: %s", code, e)
+        return jsonify({"ok": False, "error": "Enregistrement impossible pour le moment."}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
 
 @app.route("/sw.js")
 def service_worker():
