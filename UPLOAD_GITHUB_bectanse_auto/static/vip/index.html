@@ -19,7 +19,7 @@
       --max:1160px;--radius:28px;
     }
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth;background:var(--bg)}
+    html{scroll-behavior:smooth;background:var(--bg);overflow-x:hidden}
     body{margin:0;background:
       radial-gradient(circle at 92% 6%,rgba(255,100,30,.12),transparent 28%),
       radial-gradient(circle at 4% 62%,rgba(105,185,255,.055),transparent 25%),
@@ -135,6 +135,14 @@
       .proof-scroll .proof-photo-media{height:auto;padding:5px}.proof-scroll .proof-scroll-hint{font-size:8px;letter-spacing:.06em}.proof-scroll .proof-scroll-count{font-size:10px}
     }
     @media(prefers-reduced-motion:reduce){.life-track{animation:none}.audio-card.is-playing .voice-wave i{animation:none}.proof-scroll .proof-photo-card{transition:none}.proof-scroll .proof-scroll-hint svg{animation:none}}
+    .mind-choice{position:relative;overflow:hidden;padding:96px 20px 88px;background:radial-gradient(circle at 20% 58%,rgba(39,167,255,.1),transparent 31%),radial-gradient(circle at 80% 58%,rgba(255,100,30,.12),transparent 31%),#030403}.mind-inner{width:min(1040px,100%);margin:auto;text-align:center}.mind-eyebrow{display:inline-flex;align-items:center;gap:8px;margin-bottom:17px;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}.mind-eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--orange);box-shadow:0 0 14px var(--orange)}
+    .mind-title{max-width:900px;margin:0 auto 34px;font-size:clamp(38px,5.2vw,64px);line-height:.98;letter-spacing:-.05em}.mind-title em{display:block;color:var(--orange);font-style:normal}.mind-axis{width:min(980px,100%);margin:0 auto 11px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.mind-axis-item{padding:13px 16px;border:1px solid rgba(255,255,255,.11);border-radius:15px;background:rgba(255,255,255,.025);text-align:left}.mind-axis-item:last-child{text-align:right}.mind-axis-item b{display:block;font-size:12px}.mind-axis-item small{display:block;margin-top:4px;color:var(--muted);font-size:9px}.mind-axis-item.blue b{color:#74c6ff}.mind-axis-item.orange b{color:var(--orange)}
+    .mind-stage{position:relative;width:min(980px,100%);margin:auto;overflow:hidden;border:1px solid rgba(255,255,255,.11);border-radius:29px;background:#020302;box-shadow:0 38px 100px rgba(0,0,0,.62)}.mind-stage>img{display:block;width:100%;aspect-ratio:16/8.2;object-fit:contain;opacity:.92}.mind-stage:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(2,3,2,.32),transparent 26% 74%,rgba(2,3,2,.32))}.mind-streams{position:absolute;inset:0;z-index:4;pointer-events:none}.mind-stream{position:absolute;top:13%;bottom:7%;width:150px;overflow:hidden;mask-image:linear-gradient(180deg,transparent,#000 15%,#000 85%,transparent)}.mind-stream.left{left:18px}.mind-stream.right{right:18px;width:205px}.mind-stream-track{display:flex;flex-direction:column;gap:9px}.mind-stream.left .mind-stream-track{animation:mindDown 14s linear infinite}.mind-stream.right .mind-stream-track{animation:mindUp 14s linear infinite}
+    .mind-app{display:flex;align-items:center;gap:9px;min-height:40px;padding:8px 10px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(4,5,4,.76);box-shadow:0 10px 28px rgba(0,0,0,.35);backdrop-filter:blur(12px);color:rgba(255,255,255,.68);font-size:9px;font-weight:800;text-align:left}.mind-app i{width:24px;height:24px;display:grid;place-items:center;flex:0 0 24px;border-radius:7px;color:#fff;font-size:9px;font-style:normal;font-weight:950}.mind-app.instagram i{background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcaf45)}.mind-app.tiktok i{background:#080808;box-shadow:inset 2px 0 #25f4ee,inset -2px 0 #fe2c55}.mind-app.youtube i{background:#ff0033}.mind-app.netflix i{background:#151515;color:#e50914}.mind-app.build{border-color:rgba(255,100,30,.24);color:rgba(255,255,255,.86)}.mind-app.build i{background:linear-gradient(135deg,var(--orange),#ff3c00);box-shadow:0 0 14px rgba(255,100,30,.22)}
+    .mind-pulse{position:absolute;z-index:3;top:50%;width:9px;height:9px;border-radius:50%;transform:translateY(-50%)}.mind-pulse.blue{left:8%;background:#27a7ff;box-shadow:0 0 11px #27a7ff,0 0 30px rgba(39,167,255,.9);animation:blueThought 5.8s ease-in-out infinite}.mind-pulse.orange{left:51%;background:var(--orange);box-shadow:0 0 11px var(--orange),0 0 32px rgba(255,100,30,.95);animation:orangeDecision 5.8s ease-in-out infinite}.mind-verdict{max-width:790px;margin:31px auto 0;color:var(--muted);font-size:clamp(20px,2.7vw,30px);line-height:1.4}.mind-verdict strong{color:#fff}.mind-verdict em{color:var(--orange);font-style:normal}
+    @keyframes mindDown{from{transform:translateY(-49%)}to{transform:translateY(0)}}@keyframes mindUp{from{transform:translateY(0)}to{transform:translateY(-49%)}}@keyframes blueThought{0%{left:7%;opacity:0}12%{opacity:1}44%{left:48%;opacity:1}49%,100%{left:48%;opacity:0}}@keyframes orangeDecision{0%,42%{left:51%;opacity:0;transform:translateY(-50%) scale(.7)}50%{opacity:1}84%{left:91%;opacity:1;transform:translateY(-50%) scale(1.25)}90%,100%{left:91%;opacity:0}}
+    @media(max-width:700px){.mind-choice{padding:70px 12px}.mind-title{font-size:clamp(34px,10vw,46px);margin-bottom:24px}.mind-axis-item{padding:10px}.mind-axis-item b{font-size:10px}.mind-axis-item small{font-size:7px}.mind-stage>img{aspect-ratio:auto;object-fit:contain}.mind-stage:after{background:linear-gradient(180deg,transparent 35%,rgba(2,3,2,.88) 66%,#020302)}.mind-streams{position:relative;inset:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px}.mind-stream{position:relative;inset:auto!important;width:auto!important;height:176px;mask-image:linear-gradient(180deg,transparent,#000 14%,#000 86%,transparent)}.mind-app{min-height:34px;padding:6px;font-size:7px;gap:6px}.mind-app i{width:20px;height:20px;flex-basis:20px;font-size:7px}.mind-pulse{display:none}.mind-verdict{font-size:18px;margin-top:23px}}
+    @media(prefers-reduced-motion:reduce){.mind-stream-track,.mind-pulse{animation:none!important}}
   </style>
 </head>
 <body>
@@ -401,11 +409,41 @@
       <div class="proof-image-modal-shell"><img src="/static/vip/assets/warren-dashboard-1.webp" alt="Capture de témoignage agrandie"><p>Capture affichée intégralement — fais défiler pour lire tous les détails.</p></div>
     </div>
 
+    <section class="mind-choice" id="declic">
+      <div class="mind-inner">
+        <div class="mind-eyebrow"><i></i>Le déclic commence ici</div>
+        <h2 class="mind-title">Le même téléphone, les mêmes 24 heures<em>Deux trajectoires</em></h2>
+        <div class="mind-axis">
+          <div class="mind-axis-item blue"><b>Consommer</b><small>Scroller · regarder · recommencer</small></div>
+          <div class="mind-axis-item orange"><b>Construire</b><small>Apprendre · agir · progresser</small></div>
+        </div>
+        <div class="mind-stage">
+          <img src="/static/vip/assets/bectanse-brain-choice-v1.webp" alt="Deux trajectoires symbolisées par un cerveau bleu et orange" loading="lazy" decoding="async">
+          <span class="mind-pulse blue" aria-hidden="true"></span><span class="mind-pulse orange" aria-hidden="true"></span>
+          <div class="mind-streams">
+            <div class="mind-stream left" aria-label="Habitudes de consommation">
+              <div class="mind-stream-track">
+                <span class="mind-app instagram"><i>◎</i>Instagram</span><span class="mind-app tiktok"><i>♪</i>TikTok</span><span class="mind-app youtube"><i>▶</i>YouTube</span><span class="mind-app netflix"><i>N</i>Netflix</span>
+                <span class="mind-app instagram"><i>◎</i>Instagram</span><span class="mind-app tiktok"><i>♪</i>TikTok</span><span class="mind-app youtube"><i>▶</i>YouTube</span><span class="mind-app netflix"><i>N</i>Netflix</span>
+              </div>
+            </div>
+            <div class="mind-stream right" aria-label="Actions de construction">
+              <div class="mind-stream-track">
+                <span class="mind-app build"><i>01</i>Se former</span><span class="mind-app build"><i>02</i>Appliquer un plan</span><span class="mind-app build"><i>03</i>Mesurer ses progrès</span><span class="mind-app build"><i>04</i>Rejoindre Bectanse</span>
+                <span class="mind-app build"><i>01</i>Se former</span><span class="mind-app build"><i>02</i>Appliquer un plan</span><span class="mind-app build"><i>03</i>Mesurer ses progrès</span><span class="mind-app build"><i>04</i>Rejoindre Bectanse</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mind-verdict">Ton téléphone peut <em>t’aider à construire quelque chose de concret</em><br>ou simplement <strong>occuper tes journées</strong></p>
+      </div>
+    </section>
+
     <section class="section decision-zone" id="decision">
       <div class="wrap">
         <div class="decision-head">
           <div class="eyebrow">Le moment de décider</div>
-          <h2>Dans 30 jours, tu auras encore dépensé.<em>Mais qu’auras-tu construit ?</em></h2>
+          <h2>Dans 30 jours, tu auras encore dépensé<em>Mais qu’auras-tu construit ?</em></h2>
           <p>Tu n’as pas besoin d’une dépense de plus. La vraie question est de savoir si ton prochain paiement finance une habitude passagère… ou des connaissances et un cadre conçus pour te faire progresser.</p>
         </div>
 
