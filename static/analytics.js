@@ -30,6 +30,15 @@
     }).catch(function () {});
   }
   window.bectanseTrack = track;
+  document.querySelectorAll('a[href^="/abonnement/checkout/"]').forEach(function (link) {
+    try {
+      const destination = new URL(link.getAttribute('href'), location.origin);
+      if (attribution.source) destination.searchParams.set('utm_source', attribution.source);
+      if (attribution.medium) destination.searchParams.set('utm_medium', attribution.medium);
+      if (attribution.campaign) destination.searchParams.set('utm_campaign', attribution.campaign);
+      link.setAttribute('href', destination.pathname + destination.search);
+    } catch (_) {}
+  });
   const labelFor = el => (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 100);
   document.addEventListener('click', function (event) {
     const el = event.target.closest('a,button');
@@ -40,7 +49,7 @@
     let eventName = 'cta_click';
     if (combined.includes('t.me/') || combined.includes('telegram')) eventName = 'telegram_click';
     else if (href.includes('/inscription')) eventName = 'registration_start';
-    else if (combined.includes('stripe') || combined.includes('paiement') || combined.includes('payer')) eventName = 'checkout_start';
+    else if (href.includes('/abonnement/checkout/') || combined.includes('stripe') || combined.includes('paiement') || combined.includes('payer')) eventName = 'checkout_start';
     else if (combined.includes('explor')) eventName = 'app_explore';
     else if (combined.includes('notification')) eventName = 'notification_interest';
     track(eventName, {label: label, destination: href.split('?')[0]});

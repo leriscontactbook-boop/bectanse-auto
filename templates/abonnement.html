@@ -54,7 +54,7 @@
         <div class="price">{{ (plan.amount_cents // 100)|int }} € <small>{% if plan.id == '1_month' %}/ mois{% elif plan.id == '3_months' %}/ 3 mois{% else %}/ an{% endif %}</small></div>
         <div class="saving">{% if plan.id == '3_months' %}500 € économisés sur 3 mois{% elif plan.id == '1_year' %}2 000 € économisés sur 12 mois{% else %}Sans engagement longue durée{% endif %}</div>
         <ul><li>Accès complet à l’Académie</li><li>Canal VIP et Bectanse Progress</li><li>Outils Trader Lab et Analyse IA</li></ul>
-        {% if current_plan and current_plan.id == plan.id and has_academy_access %}<button class="button secondary" disabled>Formule actuelle</button>{% elif stripe_managed and has_academy_access %}<button class="button secondary" type="button" data-open-portal>Changer de formule</button>{% else %}<a class="button{% if plan.id != '3_months' %} secondary{% endif %}" href="{{ plan.payment_link }}">Choisir {{ plan.label }}</a>{% endif %}
+        {% if current_plan and current_plan.id == plan.id and has_academy_access %}<button class="button secondary" disabled>Formule actuelle</button>{% elif stripe_managed and has_academy_access %}<button class="button secondary" type="button" data-open-portal>Changer de formule</button>{% else %}<a class="button{% if plan.id != '3_months' %} secondary{% endif %}" href="/abonnement/checkout/{{ plan.id }}">Choisir {{ plan.label }}</a>{% endif %}
       </article>
       {% endfor %}
     </section>

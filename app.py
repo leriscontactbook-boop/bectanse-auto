@@ -8,6 +8,16 @@ from werkzeug.utils import secure_filename
 import pg8000.native
 from cryptography.fernet import Fernet, InvalidToken
 from academy_features import ensure_growth_schema, register_growth_features
+from marketing_automation import (
+    ensure_marketing_schema,
+    mark_checkout_expired,
+    mark_marketing_conversion,
+    record_checkout_start,
+    record_checkout_session,
+    register_marketing_routes,
+    run_marketing_automation,
+    upsert_marketing_contact_for_member,
+)
 
 def _required_secret(name):
     value = os.environ.get(name, "").strip()
@@ -272,6 +282,10 @@ ACADEMY_SUBSCRIPTION_PLANS = {
 }
 ACADEMY_PLAN_BY_PAYMENT_LINK = {
     plan["payment_link_id"]: (price_id, plan)
+    for price_id, plan in ACADEMY_SUBSCRIPTION_PLANS.items()
+}
+ACADEMY_PLAN_BY_ID = {
+    plan["id"]: (price_id, plan)
     for price_id, plan in ACADEMY_SUBSCRIPTION_PLANS.items()
 }
 ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "")
@@ -540,6 +554,7 @@ def init_db():
             conn.run("""CREATE INDEX IF NOT EXISTS stripe_academy_events_status_idx
                          ON stripe_academy_events (status, created_at DESC)""")
             ensure_growth_schema(conn)
+            ensure_marketing_schema(conn)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -3234,6 +3249,11 @@ def analytics_event():
             VALUES (:visitor_id, :session_id, :member_code, :event_name, :page_path, :source,
                     :medium, :campaign, :referrer_host, :device_type, :browser, :properties)""",
             **{**payload, "properties": json.dumps(properties, ensure_ascii=False)})
+        if event_name == "checkout_start" and member_code:
+            record_checkout_start(
+                conn, member_code, properties.get("destination", ""),
+                source=source, medium=medium, campaign=campaign,
+            )
     except Exception as exc:
         app.logger.error("Analytics storage failed: %s", exc)
         return jsonify({"ok": False}), 500
@@ -3262,8 +3282,8 @@ def admin_api_analytics():
         registrations = scalar("SELECT COUNT(*) FROM analytics_events WHERE created_at>=:since AND event_name='registration_complete'")
         explorer_activations = scalar("""SELECT COUNT(*) FROM prospect_email_verifications
             WHERE verified_at>=:since AND status='verified' AND source='explorer'""")
-        checkout_starts = scalar("""SELECT COUNT(DISTINCT visitor_id) FROM analytics_events
-            WHERE created_at>=:since AND event_name='checkout_start'""")
+        checkout_starts = scalar("""SELECT COUNT(*) FROM marketing_checkout_intents
+            WHERE started_at>=:since""")
         confirmed_payments = scalar("""SELECT COUNT(*) FROM stripe_academy_events
             WHERE processed_at>=:since AND status='processed'
               AND event_type='checkout.session.completed'""")
@@ -4163,6 +4183,81 @@ def analyse_ia_run():
                         "balance": None}), 502
 
 
+@app.route("/abonnement/checkout/<plan_id>")
+def academy_subscription_checkout(plan_id):
+    """Crée un Checkout Stripe traçable pour récupérer les abandons identifiés."""
+    plan_entry = ACADEMY_PLAN_BY_ID.get(str(plan_id))
+    if not plan_entry:
+        return redirect("/vip#offres")
+    if "member_code" not in session:
+        session["pending_academy_plan"] = str(plan_id)
+        session["login_notice"] = (
+            "Crée ou connecte ton compte Explorer pour sécuriser le paiement "
+            "et rattacher automatiquement l’abonnement."
+        )
+        return redirect(url_for("login", checkout="identification", plan=plan_id))
+    if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
+        return redirect("/vip?checkout=indisponible#offres")
+
+    code = str(session["member_code"])
+    price_id, plan = plan_entry
+    conn = get_conn()
+    try:
+        rows = conn.run("""SELECT email,nom,COALESCE(stripe_subscription_id,''),
+            COALESCE(billing_status,''),COALESCE(billing_cancel_at_period_end,FALSE)
+            FROM members WHERE code=:code AND email_verified_at IS NOT NULL""", code=code)
+    finally:
+        conn.close()
+    if not rows or "@" not in str(rows[0][0] or ""):
+        session["login_notice"] = "Confirme d’abord ton adresse e-mail pour continuer vers Stripe."
+        return redirect(url_for("login"))
+    email, member_name, subscription_id, billing_status, cancel_at_period_end = rows[0]
+    if subscription_id and billing_status in {"active", "trialing"} and not cancel_at_period_end:
+        return redirect(url_for("abonnement"))
+
+    root = request.url_root.rstrip("/")
+    form = {
+        "mode": "subscription",
+        "success_url": STRIPE_PAYMENT_SUCCESS_URL,
+        "cancel_url": root + "/vip?checkout=cancelled#offres",
+        "client_reference_id": code,
+        "customer_email": str(email).strip().lower(),
+        "metadata[member_code]": code,
+        "metadata[academy_plan_id]": str(plan_id),
+        "subscription_data[metadata][member_code]": code,
+        "subscription_data[metadata][academy_plan_id]": str(plan_id),
+        "line_items[0][price]": price_id,
+        "line_items[0][quantity]": "1",
+        "billing_address_collection": "auto",
+    }
+    try:
+        stripe_response = requests.post(
+            "https://api.stripe.com/v1/checkout/sessions",
+            auth=(STRIPE_SECRET_KEY, ""), data=form, timeout=25,
+        )
+        stripe_data = stripe_response.json()
+        if not stripe_response.ok:
+            raise RuntimeError(stripe_data.get("error", {}).get("message", "Checkout indisponible"))
+        checkout_url = str(stripe_data.get("url") or "")
+        checkout_id = str(stripe_data.get("id") or "")
+        if not checkout_url.startswith("https://checkout.stripe.com/") or not checkout_id:
+            raise RuntimeError("Réponse Stripe incomplète")
+        conn = get_conn()
+        try:
+            record_checkout_session(
+                conn, code, checkout_id, destination=checkout_url,
+                source=str(request.args.get("utm_source", "direct"))[:100],
+                medium=str(request.args.get("utm_medium", ""))[:100],
+                campaign=str(request.args.get("utm_campaign", ""))[:120],
+            )
+        finally:
+            conn.close()
+        return redirect(checkout_url, code=303)
+    except Exception as error:
+        app.logger.error("Création abonnement Stripe %s %s: %s", code, plan_id, error)
+        return redirect("/vip?checkout=error#offres")
+
+
 @app.route("/api/analyse-ia/checkout", methods=["POST"])
 def analyse_ia_checkout():
     code, is_admin = _analysis_identity()
@@ -4296,6 +4391,9 @@ def _stripe_subscription_context(event_type, stripe_object):
     payment_link_id = _stripe_id(obj.get("payment_link"))
     if not price_id and payment_link_id:
         price_id = (ACADEMY_PLAN_BY_PAYMENT_LINK.get(payment_link_id) or ("", {}))[0]
+    if not price_id:
+        academy_plan_id = str((obj.get("metadata") or {}).get("academy_plan_id", ""))
+        price_id = (ACADEMY_PLAN_BY_ID.get(academy_plan_id) or ("", {}))[0]
     plan = ACADEMY_SUBSCRIPTION_PLANS.get(price_id)
 
     customer_details = obj.get("customer_details") or {}
@@ -4420,6 +4518,7 @@ def _process_academy_stripe_event(event):
                 price_id=context["price_id"], status=status, period_end=context["period_end"],
                 cancel_at_period_end=context["cancel_at_period_end"], code=member_code)
             _grant_member_beta_credits(conn, member_code)
+            mark_marketing_conversion(conn, member_code, member_email, event_id)
         elif status == "past_due":
             conn.run("""UPDATE members SET billing_status='past_due',
                 stripe_customer_id=CASE WHEN :customer<>'' THEN :customer ELSE stripe_customer_id END,
@@ -4472,6 +4571,7 @@ def stripe_analysis_credits_webhook():
         stripe_object = (event.get("data") or {}).get("object") or {}
         academy_event_types = {
             "checkout.session.completed",
+            "checkout.session.expired",
             "customer.subscription.created",
             "customer.subscription.updated",
             "customer.subscription.deleted",
@@ -4480,6 +4580,13 @@ def stripe_analysis_credits_webhook():
             "invoice.paid",
             "invoice.payment_failed",
         }
+        if event_type == "checkout.session.expired":
+            conn = get_conn()
+            try:
+                mark_checkout_expired(conn, str(stripe_object.get("id", "")))
+            finally:
+                conn.close()
+            return jsonify({"ok": True, "handled": True, "status": "checkout_expired"})
         if (event_type in academy_event_types and
                 (event_type != "checkout.session.completed" or stripe_object.get("mode") == "subscription")):
             result = _process_academy_stripe_event(event)
@@ -4561,7 +4668,7 @@ def login():
     if "analysis_account_code" in session:
         return redirect(url_for("analyse_ia"))
     error = None
-    notice = None
+    notice = session.pop("login_notice", None)
     # L'accès Explorer exige toujours une adresse confirmée. Aucun contournement
     # vers le compte démo partagé n'est autorisé si le prestataire e-mail est indisponible.
     explorer_gate_enabled = True
@@ -4627,6 +4734,9 @@ def login():
                 conn.run("UPDATE members SET last_login=NOW() WHERE code=:c", c=code)
                 conn.close()
             except: pass
+            pending_plan = session.pop("pending_academy_plan", "")
+            if pending_plan in ACADEMY_PLAN_BY_ID:
+                return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
             return redirect(url_for("accueil"))
     return render_template("login.html", error=error, notice=notice,
                            explorer_gate_enabled=explorer_gate_enabled)
@@ -4651,6 +4761,7 @@ def confirm_explorer_email(token):
         conn.run("""UPDATE prospect_email_verifications SET status='verified', verified_at=NOW(),
                     account_code=:code WHERE token_hash=:token_hash""",
                  code=member_code, token_hash=token_hash)
+        upsert_marketing_contact_for_member(conn, member_code)
         conn.close()
         sync_result = sync_brevo_prospect_contact(email, prenom, "Explorer confirmé")
         if not sync_result.get("ok"):
@@ -4665,6 +4776,9 @@ def confirm_explorer_email(token):
         session.pop("analysis_account_code", None)
         session.permanent = True
         session["member_code"] = member_code
+        pending_plan = session.pop("pending_academy_plan", "")
+        if pending_plan in ACADEMY_PLAN_BY_ID:
+            return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
         return redirect(url_for("accueil"))
     except Exception as exc:
         app.logger.error("Confirmation prospect Explorer: %s", exc)
@@ -5059,6 +5173,7 @@ def confirm_member_registration(token):
         conn.run("""UPDATE prospect_email_verifications SET status='verified',
             verified_at=NOW(),account_code=:code,payload='' WHERE token_hash=:token""",
             code=code, token=token_hash)
+        upsert_marketing_contact_for_member(conn, code)
         conn.run("COMMIT")
     except Exception as error:
         try: conn.run("ROLLBACK")
@@ -5084,6 +5199,9 @@ def confirm_member_registration(token):
     session.clear()
     session.permanent = True
     session["member_code"] = code
+    pending_plan = session.pop("pending_academy_plan", "")
+    if pending_plan in ACADEMY_PLAN_BY_ID:
+        return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
     return redirect(url_for("accueil"))
 
 @app.route("/admin/api/brevo/sync-members", methods=["POST"])
@@ -6156,22 +6274,8 @@ def job_relances_quotidiennes():
             expiry_date = date_fin.date() if hasattr(date_fin, "date") else date_fin
             delta = (expiry_date - today).days
 
-            # ── EMAILS : J-7, J-2, J0 puis une fois/semaine pendant 4 semaines.
-            if email:
-                try:
-                    conn2 = get_conn()
-                    stage = _renewal_stage_for_member(
-                        conn2, code, expiry_date, delta
-                    )
-                    conn2.close()
-                    if stage and _send_claimed_renewal_email(
-                        code, nom, email.strip(), expiry_date, stage
-                    ):
-                        emails_sent += 1
-                except Exception as email_error:
-                    app.logger.error(
-                        "relance email %s: %s", code, email_error
-                    )
+            # Les e-mails sont maintenant pilotés par le moteur marketing unifié.
+            # Cette tâche conserve uniquement les alertes dans l'app et Telegram.
 
             # ── BANNIÈRE APP avant expiration
             if delta in [7, 2, 0]:
@@ -7732,6 +7836,27 @@ register_growth_features(
     current_demo_mode=_current_demo_mode,
     admin_required=admin_required,
 )
+register_marketing_routes(
+    app=app,
+    get_conn=get_conn,
+    send_email=send_brevo_membre,
+    action_token=_action_token,
+    action_payload=_action_payload,
+    admin_required=admin_required,
+)
+
+
+def job_marketing_lifecycle():
+    """Exécute les parcours Brevo avec verrouillage et plafonds en base."""
+    try:
+        result = run_marketing_automation(
+            get_conn=get_conn,
+            send_email=send_brevo_membre,
+            action_token=_action_token,
+        )
+        app.logger.info("marketing lifecycle: %s", result)
+    except Exception as error:
+        app.logger.error("marketing lifecycle: %s", error)
 
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
@@ -7756,6 +7881,12 @@ def _startup():
             job_relances_quotidiennes, 'cron', hour=9, minute=0,
             id='member_daily_reminders', replace_existing=True,
             coalesce=True, max_instances=1, misfire_grace_time=3600
+        )
+        scheduler.add_job(
+            job_marketing_lifecycle, 'interval', minutes=30,
+            id='marketing_lifecycle', replace_existing=True,
+            next_run_time=_paris_now() + timedelta(minutes=3),
+            coalesce=True, max_instances=1, misfire_grace_time=900
         )
         scheduler.add_job(
             enforce_member_access_state, 'interval', minutes=5,
