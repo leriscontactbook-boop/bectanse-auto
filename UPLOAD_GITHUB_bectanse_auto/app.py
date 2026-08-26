@@ -1596,6 +1596,17 @@ def _admin_request_allowed():
     return bool(supplied) and hmac.compare_digest(str(supplied), str(ADMIN_KEY))
 
 
+def _safe_admin_next(candidate):
+    """Conserve uniquement une destination interne à l'administration."""
+    target = str(candidate or "").strip()
+    if not target:
+        return "/admin-panel"
+    parsed = urlparse(target)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/admin"):
+        return "/admin-panel"
+    return target
+
+
 @app.before_request
 def inject_server_side_admin_credential():
     """Compatibilité des anciennes routes sans jamais renvoyer la clé au navigateur."""
@@ -1614,36 +1625,47 @@ def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not _admin_request_allowed():
+            if request.method == "GET" and request.accept_mimetypes.accept_html:
+                destination = request.full_path.rstrip("?")
+                return redirect(url_for("admin_panel", next=destination))
             return jsonify({"ok": False, "error": "Non autorisé"}), 403
         return f(*args, **kwargs)
     return decorated
 
 @app.route("/admin-panel")
 def admin_panel():
+    next_path = _safe_admin_next(request.args.get("next"))
     if not _admin_session_valid():
-        return render_template("admin_login.html")
+        return render_template("admin_login.html", next_path=next_path)
+    if next_path != "/admin-panel":
+        return redirect(next_path)
     return render_template("admin_panel.html", admin_key="")
 
 @app.route("/admin-panel/login", methods=["POST"])
 def admin_panel_login():
     key = request.form.get("key","")
+    next_path = _safe_admin_next(request.form.get("next"))
     remote = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
     now = time.time()
     with _ADMIN_LOGIN_LOCK:
         recent = [stamp for stamp in _ADMIN_LOGIN_ATTEMPTS.get(remote, []) if now - stamp < 900]
         if len(recent) >= 5:
-            return render_template("admin_login.html", error="Trop de tentatives. Réessaie dans 15 minutes."), 429
+            return render_template(
+                "admin_login.html",
+                error="Trop de tentatives. Réessaie dans 15 minutes.",
+                next_path=next_path,
+            ), 429
     if hmac.compare_digest(str(key), str(ADMIN_KEY)):
         session.clear()
         session["admin_authenticated"] = True
         session.permanent = True
         with _ADMIN_LOGIN_LOCK:
             _ADMIN_LOGIN_ATTEMPTS.pop(remote, None)
-        return redirect("/admin-panel")
+        return redirect(next_path)
     with _ADMIN_LOGIN_LOCK:
         recent.append(now)
         _ADMIN_LOGIN_ATTEMPTS[remote] = recent
-    return render_template("admin_login.html", error="Clé incorrecte")
+    return render_template("admin_login.html", error="Clé incorrecte", next_path=next_path)
 
 
 @app.route("/admin-panel/logout", methods=["POST"])

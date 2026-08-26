@@ -26,6 +26,7 @@ input:focus{border-color:#5B21B6}
   <div class="logo">B€CTAN$€</div>
   <div class="sub">Espace Administrateur</div>
   <form method="POST" action="/admin-panel/login">
+    <input type="hidden" name="next" value="{{ next_path or '/admin-panel' }}">
     <label>Clé d'accès admin</label>
     <input type="password" name="key" placeholder="••••••••••••••••••••" autofocus>
     <button class="btn" type="submit">Accéder →</button>
