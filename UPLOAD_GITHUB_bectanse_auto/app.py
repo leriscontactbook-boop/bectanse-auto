@@ -3260,6 +3260,15 @@ def admin_api_analytics():
         visitors = scalar("SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE created_at>=:since AND event_name='page_view'")
         sessions_count = scalar("SELECT COUNT(DISTINCT session_id) FROM analytics_events WHERE created_at>=:since AND event_name='page_view'")
         registrations = scalar("SELECT COUNT(*) FROM analytics_events WHERE created_at>=:since AND event_name='registration_complete'")
+        explorer_activations = scalar("""SELECT COUNT(*) FROM prospect_email_verifications
+            WHERE verified_at>=:since AND status='verified' AND source='explorer'""")
+        checkout_starts = scalar("""SELECT COUNT(DISTINCT visitor_id) FROM analytics_events
+            WHERE created_at>=:since AND event_name='checkout_start'""")
+        confirmed_payments = scalar("""SELECT COUNT(*) FROM stripe_academy_events
+            WHERE processed_at>=:since AND status='processed'
+              AND event_type='checkout.session.completed'""")
+        confirmed_renewals = scalar("""SELECT COUNT(*) FROM stripe_academy_events
+            WHERE processed_at>=:since AND status='processed' AND event_type='invoice.paid'""")
         cta_clicks = scalar("SELECT COUNT(*) FROM analytics_events WHERE created_at>=:since AND event_name IN ('cta_click','telegram_click','registration_start','checkout_start','app_explore')")
         trend_rows = conn.run("""SELECT DATE(created_at), COUNT(*), COUNT(DISTINCT visitor_id)
             FROM analytics_events WHERE created_at>=:since AND event_name='page_view'
@@ -3271,21 +3280,19 @@ def admin_api_analytics():
                 WHERE created_at>=:since AND event_name='page_view'
                 GROUP BY {column} ORDER BY COUNT(*) DESC LIMIT 8""", since=since)
             return [{"label": str(r[0] or "Inconnu"), "value": int(r[1])} for r in rows]
-        funnel_events = [
-            ("Visiteurs", "event_name='page_view'"),
-            ("Intérêt", "event_name IN ('app_explore','registration_start')"),
-            ("Formulaire", "event_name='registration_submit'"),
-            ("Inscription", "event_name='registration_complete'"),
-            ("Paiement", "event_name IN ('checkout_start','checkout_complete')")
+        funnel = [
+            {"label": "Acquisition · visiteurs", "value": visitors},
+            {"label": "Activation · Explorer confirmés", "value": explorer_activations},
+            {"label": "Vente · checkouts initiés", "value": checkout_starts},
+            {"label": "Vente · paiements Stripe confirmés", "value": confirmed_payments},
         ]
-        funnel = []
-        for label, clause in funnel_events:
-            value = scalar(f"SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE created_at>=:since AND {clause}")
-            funnel.append({"label": label, "value": value})
         return jsonify({
             "ok": True, "period": period, "posthog_connected": bool(POSTHOG_PROJECT_KEY),
             "kpis": {"visits": visits, "visitors": visitors, "sessions": sessions_count,
-                     "registrations": registrations, "conversion_rate": round((registrations / visitors * 100) if visitors else 0, 1),
+                     "registrations": registrations, "explorer_activations": explorer_activations,
+                     "checkout_starts": checkout_starts, "confirmed_payments": confirmed_payments,
+                     "confirmed_renewals": confirmed_renewals,
+                     "conversion_rate": round((confirmed_payments / visitors * 100) if visitors else 0, 1),
                      "cta_clicks": cta_clicks},
             "trend": [{"date": r[0].isoformat(), "visits": int(r[1]), "visitors": int(r[2])} for r in trend_rows],
             "pages": grouped("page_path"), "sources": grouped("source"), "devices": grouped("device_type"),
