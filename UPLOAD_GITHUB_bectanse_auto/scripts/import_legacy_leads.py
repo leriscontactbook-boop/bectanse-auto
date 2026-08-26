@@ -12,9 +12,6 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import app
-from marketing_automation import ensure_marketing_schema, sync_marketing_segments
-
 
 SUSPICIOUS_DOMAINS = {
     "gmai.com", "gamil.com", "glail.com", "gmail.con", "gmail.fr",
@@ -123,10 +120,39 @@ def read_records(paths):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("files", nargs="+", help="Exports CSV des anciens formulaires")
+    parser.add_argument("files", nargs="*", help="Exports CSV des anciens formulaires")
     parser.add_argument("--apply", action="store_true", help="Appliquer réellement l'import")
+    parser.add_argument("--export-jsonl", action="store_true",
+                        help="Préparer un flux nettoyé pour l'import distant")
+    parser.add_argument("--stdin-jsonl", action="store_true",
+                        help="Lire le flux nettoyé depuis l'entrée standard")
     args = parser.parse_args()
-    records, stats = read_records(args.files)
+    if args.stdin_jsonl:
+        records = {}
+        stats = {"raw_rows": 0, "empty_email": 0, "invalid_syntax": 0,
+                 "test_rows": 0, "suspicious_domain": 0, "duplicates": 0}
+        for line in sys.stdin:
+            item = json.loads(line)
+            if "_meta" in item:
+                stats.update(item["_meta"])
+                continue
+            if item.get("collected_at"):
+                item["collected_at"] = datetime.fromisoformat(item["collected_at"])
+            records[item["email"]] = item
+    else:
+        if not args.files:
+            parser.error("Indique au moins un fichier CSV")
+        records, stats = read_records(args.files)
+    if args.export_jsonl:
+        print(json.dumps({"_meta": stats}, ensure_ascii=False))
+        for record in records.values():
+            serializable = dict(record)
+            if serializable.get("collected_at"):
+                serializable["collected_at"] = serializable["collected_at"].isoformat()
+            print(json.dumps(serializable, ensure_ascii=False))
+        return
+    import app
+    from marketing_automation import ensure_marketing_schema, sync_marketing_segments
     conn = app.get_conn()
     try:
         ensure_marketing_schema(conn)
