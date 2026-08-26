@@ -728,7 +728,10 @@ def _legacy_delivery_health(conn):
         SELECT event_type,COUNT(*) FROM marketing_email_events
         WHERE journey='legacy_reactivation' AND event_at>NOW()-INTERVAL '24 hours'
         GROUP BY event_type""")}
-    hard = sum(counts.get(name, 0) for name in ("hardbounce", "invalid", "blocked"))
+    # Une adresse déjà bloquée par Brevo (désinscription historique ou liste
+    # repoussoir) est immédiatement supprimée du parcours, mais ne constitue
+    # pas un hard bounce susceptible de dégrader la réputation d'envoi.
+    hard = sum(counts.get(name, 0) for name in ("hardbounce", "invalid"))
     spam = counts.get("spam", 0)
     unsubscribed = counts.get("unsubscribed", 0)
     health = {"sent": sent, "hard": hard, "spam": spam, "unsubscribed": unsubscribed}
@@ -938,7 +941,7 @@ def _marketing_dashboard_data(conn):
         "legacy_suppressed": int(conn.run("""SELECT COUNT(*) FROM marketing_legacy_leads
             WHERE status='suppressed' OR unsubscribed_at IS NOT NULL""")[0][0] or 0),
         "hard_bounces_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
-            WHERE event_type IN ('hardbounce','invalid','blocked')
+            WHERE event_type IN ('hardbounce','invalid')
               AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
         "clicks_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
             WHERE event_type='click' AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
