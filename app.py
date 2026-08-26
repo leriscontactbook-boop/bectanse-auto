@@ -5913,7 +5913,10 @@ def send_transactional_email(to_email, subject, html_content):
 def send_brevo_membre(to_email, to_name, subject, html_content, tag):
     import urllib.request as _ur, os as _os
     brevo_key = _os.environ.get("BREVO_KEY", "")
+    is_marketing = str(tag or "").startswith("marketing-")
     if not brevo_key:
+        if is_marketing:
+            return {"ok": False, "error": "Brevo indisponible pour un envoi marketing"}
         app.logger.info("BREVO_KEY non definie — utilisation du relais transactionnel")
         return send_transactional_email(to_email, subject, html_content)
     try:
@@ -5930,7 +5933,11 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
         )
         credits = email_plan.get("credits")
         if credits is not None and int(credits) <= 0:
+            if is_marketing:
+                return {"ok": False, "error": "Crédits Brevo épuisés"}
             return send_transactional_email(to_email, subject, html_content)
+        if is_marketing and credits is not None and int(credits) <= 2500:
+            return {"ok": False, "error": "Réserve Brevo de 2 500 e-mails atteinte"}
         p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Bectanse Académie"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
         r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
         with _ur.urlopen(r,timeout=10) as response:
@@ -5938,6 +5945,8 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
         return {"ok": True, "message_id": payload.get("messageId", "")}
     except Exception as e:
         app.logger.error("Brevo: %s",e)
+        if is_marketing:
+            return {"ok": False, "error": str(e)[:500]}
         fallback = send_transactional_email(to_email, subject, html_content)
         if not fallback.get("ok"):
             fallback["error"] = str(e)[:500]

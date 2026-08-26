@@ -6,9 +6,12 @@ restent auditables dans l'administration Bectanse.
 """
 
 import csv
+import hashlib
+import hmac
 import html
 import io
 import json
+import os
 import re
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
@@ -362,6 +365,12 @@ def ensure_marketing_schema(conn):
         sent_at TIMESTAMP,
         UNIQUE (member_code, journey, stage, reference_key)
     )""")
+    conn.run("""ALTER TABLE marketing_email_log
+        ADD COLUMN IF NOT EXISTS provider_status TEXT NOT NULL DEFAULT ''""")
+    conn.run("""ALTER TABLE marketing_email_log
+        ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP""")
+    conn.run("""ALTER TABLE marketing_email_log
+        ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP""")
     conn.run("""CREATE INDEX IF NOT EXISTS marketing_email_log_status_idx
         ON marketing_email_log (status, sent_at DESC, created_at DESC)""")
     conn.run("""CREATE TABLE IF NOT EXISTS marketing_settings (
@@ -373,6 +382,14 @@ def ensure_marketing_schema(conn):
         batch_limit INTEGER NOT NULL DEFAULT 30,
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     )""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS legacy_campaign_enabled BOOLEAN NOT NULL DEFAULT FALSE""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS legacy_daily_limit INTEGER NOT NULL DEFAULT 1000""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS legacy_started_at TIMESTAMP""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS legacy_paused_reason TEXT NOT NULL DEFAULT ''""")
     conn.run("""INSERT INTO marketing_settings (id) VALUES (1)
         ON CONFLICT (id) DO NOTHING""")
     conn.run("""CREATE TABLE IF NOT EXISTS marketing_legacy_leads (
@@ -386,8 +403,36 @@ def ensure_marketing_schema(conn):
         unsubscribed_at TIMESTAMP,
         last_contact_at TIMESTAMP
     )""")
+    conn.run("""ALTER TABLE marketing_legacy_leads
+        ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''""")
+    conn.run("""ALTER TABLE marketing_legacy_leads
+        ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT ''""")
+    conn.run("""ALTER TABLE marketing_legacy_leads
+        ADD COLUMN IF NOT EXISTS collected_at TIMESTAMP""")
+    conn.run("""ALTER TABLE marketing_legacy_leads
+        ADD COLUMN IF NOT EXISTS consent_basis TEXT NOT NULL DEFAULT 'demande-formulaire'""")
+    conn.run("""ALTER TABLE marketing_legacy_leads
+        ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP""")
+    conn.run("""ALTER TABLE marketing_legacy_leads
+        ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP""")
+    conn.run("""ALTER TABLE marketing_legacy_leads
+        ADD COLUMN IF NOT EXISTS bounced_at TIMESTAMP""")
     conn.run("""CREATE UNIQUE INDEX IF NOT EXISTS marketing_legacy_leads_email_idx
         ON marketing_legacy_leads (LOWER(email))""")
+    conn.run("""CREATE TABLE IF NOT EXISTS marketing_email_events (
+        id BIGSERIAL PRIMARY KEY,
+        event_hash TEXT UNIQUE NOT NULL,
+        recipient_email TEXT NOT NULL DEFAULT '',
+        event_type TEXT NOT NULL,
+        provider_message_id TEXT NOT NULL DEFAULT '',
+        journey TEXT NOT NULL DEFAULT '',
+        stage TEXT NOT NULL DEFAULT '',
+        event_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        payload TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )""")
+    conn.run("""CREATE INDEX IF NOT EXISTS marketing_email_events_type_idx
+        ON marketing_email_events (event_type,event_at DESC)""")
 
 
 def sync_marketing_segments(conn):
@@ -656,12 +701,49 @@ def _legacy_lead_candidate(conn, contact):
     if segment != "legacy_lead":
         return None
     age_hours = (_now() - created_at).total_seconds() / 3600
+    lead_id = int(code[5:])
+    engagement = conn.run("""SELECT clicked_at FROM marketing_legacy_leads
+        WHERE id=:id AND status='active' AND unsubscribed_at IS NULL""", id=lead_id)
+    if not engagement:
+        return None
+    clicked_at = engagement[0][0]
     for content in LEGACY_LEAD_STAGES:
+        # Le troisième message est réservé aux personnes qui ont réellement
+        # cliqué. Les autres reçoivent les deux prises de contact annoncées,
+        # puis la séquence s'arrête pour préserver la délivrabilité.
+        if content["stage"] == "reveil-3" and not clicked_at:
+            continue
         if age_hours >= content["delay_hours"] and not _already_sent(
                 conn, code, "legacy_reactivation", content["stage"], "2025-relaunch"):
             return ("legacy_reactivation", content, "2025-relaunch",
                     created_at + timedelta(hours=content["delay_hours"]))
     return None
+
+
+def _legacy_delivery_health(conn):
+    sent = int(conn.run("""SELECT COUNT(*) FROM marketing_email_log
+        WHERE journey='legacy_reactivation' AND status='sent'
+          AND sent_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0)
+    counts = {str(row[0]).lower(): int(row[1]) for row in conn.run("""
+        SELECT event_type,COUNT(*) FROM marketing_email_events
+        WHERE journey='legacy_reactivation' AND event_at>NOW()-INTERVAL '24 hours'
+        GROUP BY event_type""")}
+    hard = sum(counts.get(name, 0) for name in ("hardbounce", "invalid", "blocked"))
+    spam = counts.get("spam", 0)
+    unsubscribed = counts.get("unsubscribed", 0)
+    health = {"sent": sent, "hard": hard, "spam": spam, "unsubscribed": unsubscribed}
+    if sent < 50:
+        return True, "", health
+    hard_rate = hard * 100 / sent
+    spam_rate = spam * 100 / sent
+    unsubscribe_rate = unsubscribed * 100 / sent
+    if hard_rate >= 1.5:
+        return False, f"Pause automatique: rebonds définitifs {hard_rate:.2f}%", health
+    if unsubscribe_rate >= 0.8:
+        return False, f"Pause automatique: désabonnements {unsubscribe_rate:.2f}%", health
+    if spam_rate >= 0.1:
+        return False, f"Pause automatique: plaintes {spam_rate:.2f}%", health
+    return True, "", health
 
 
 def _claim_email(conn, contact, journey, content, reference, due_at):
@@ -685,8 +767,11 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
         ensure_marketing_schema(conn)
         sync_marketing_segments(conn)
         settings = conn.run("""SELECT enabled,daily_send_limit,weekly_contact_limit,
-            min_gap_hours,batch_limit FROM marketing_settings WHERE id=1""")[0]
-        enabled, daily_limit, weekly_limit, min_gap, batch_limit = settings
+            min_gap_hours,batch_limit,legacy_campaign_enabled,legacy_daily_limit,
+            legacy_started_at,legacy_paused_reason FROM marketing_settings WHERE id=1""")[0]
+        (enabled, daily_limit, weekly_limit, min_gap, batch_limit,
+         legacy_enabled, legacy_daily_limit, legacy_started_at,
+         legacy_paused_reason) = settings
         if not enabled and not dry_run:
             return {"ok": True, "paused": True, "sent": 0, "candidates": []}
         hour = datetime.now(PARIS_TZ).hour
@@ -695,6 +780,23 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
         sent_today = int(conn.run("""SELECT COUNT(*) FROM marketing_email_log
             WHERE status='sent' AND sent_at>=CURRENT_DATE""")[0][0] or 0)
         remaining = max(0, min(int(batch_limit), int(daily_limit) - sent_today))
+        legacy_sent_today = int(conn.run("""SELECT COUNT(*) FROM marketing_email_log
+            WHERE journey='legacy_reactivation' AND status='sent'
+              AND sent_at>=CURRENT_DATE""")[0][0] or 0)
+        legacy_remaining = 0
+        if legacy_enabled:
+            healthy, pause_reason, _health = _legacy_delivery_health(conn)
+            if not healthy:
+                conn.run("""UPDATE marketing_settings SET legacy_campaign_enabled=FALSE,
+                    legacy_paused_reason=:reason,updated_at=NOW() WHERE id=1""",
+                    reason=pause_reason)
+                legacy_enabled = False
+                legacy_paused_reason = pause_reason
+            else:
+                start = legacy_started_at or _now()
+                ramp_day = max(0, (_now().date() - start.date()).days)
+                ramp_limit = 300 if ramp_day == 0 else 700 if ramp_day == 1 else int(legacy_daily_limit)
+                legacy_remaining = max(0, min(int(legacy_daily_limit), ramp_limit) - legacy_sent_today)
         contacts = conn.run("""SELECT mc.member_code,mc.email,mc.first_name,mc.segment,
             COALESCE(m.created_at,mc.created_at),m.date_fin,m.billing_status,
             m.stripe_subscription_id,m.billing_cancel_at_period_end
@@ -713,9 +815,12 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             FROM prospect_email_verifications
             WHERE source='explorer' AND status='pending' AND expires_at>NOW()
             ORDER BY created_at""")
-        contacts = list(contacts) + list(legacy_rows) + list(pending_rows)
+        # Une confirmation Explorer en attente doit toujours passer avant une
+        # ancienne séquence de reconquête portant sur la même adresse.
+        contacts = list(contacts) + list(pending_rows) + list(legacy_rows)
         candidates = []
         seen_emails = set()
+        legacy_selected = 0
         for contact in contacts:
             if len(candidates) >= (int(batch_limit) if dry_run else remaining):
                 break
@@ -727,6 +832,9 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             # de toute relance émise depuis un ancien code BCT dupliqué.
             if contact[3] in {"active", "suspended"}:
                 continue
+            if contact[3] == "legacy_lead":
+                if not legacy_enabled or legacy_selected >= legacy_remaining:
+                    continue
             if not _contact_rate_allowed(conn, contact[0], int(weekly_limit), int(min_gap)):
                 continue
             candidate = _checkout_candidate(conn, contact)
@@ -741,6 +849,8 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             if candidate:
                 journey, content, reference, due_at = candidate
                 candidates.append((contact, journey, content, reference, due_at))
+                if journey == "legacy_reactivation":
+                    legacy_selected += 1
         if dry_run:
             return {"ok": True, "dry_run": True, "sent": 0,
                     "candidates": [{"member_code": c[0], "segment": c[3],
@@ -805,7 +915,9 @@ def _marketing_dashboard_data(conn):
         GROUP BY segment ORDER BY segment""")
     segments = {str(row[0]): int(row[1]) for row in segment_rows}
     settings = conn.run("""SELECT enabled,daily_send_limit,weekly_contact_limit,
-        min_gap_hours,batch_limit,updated_at FROM marketing_settings WHERE id=1""")[0]
+        min_gap_hours,batch_limit,updated_at,legacy_campaign_enabled,
+        legacy_daily_limit,legacy_started_at,legacy_paused_reason
+        FROM marketing_settings WHERE id=1""")[0]
     stats = {
         "sent_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_log
             WHERE status='sent' AND sent_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
@@ -821,6 +933,15 @@ def _marketing_dashboard_data(conn):
             WHERE unsubscribed_at IS NOT NULL""")[0][0] or 0),
         "legacy_leads": int(conn.run("""SELECT COUNT(*) FROM marketing_legacy_leads
             WHERE status='active' AND unsubscribed_at IS NULL""")[0][0] or 0),
+        "legacy_clicked": int(conn.run("""SELECT COUNT(*) FROM marketing_legacy_leads
+            WHERE clicked_at IS NOT NULL AND unsubscribed_at IS NULL""")[0][0] or 0),
+        "legacy_suppressed": int(conn.run("""SELECT COUNT(*) FROM marketing_legacy_leads
+            WHERE status='suppressed' OR unsubscribed_at IS NOT NULL""")[0][0] or 0),
+        "hard_bounces_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
+            WHERE event_type IN ('hardbounce','invalid','blocked')
+              AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
+        "clicks_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
+            WHERE event_type='click' AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
     }
     recent = conn.run("""SELECT l.sent_at,l.member_code,c.first_name,l.journey,l.stage,
         l.status,l.error FROM marketing_email_log l
@@ -829,7 +950,109 @@ def _marketing_dashboard_data(conn):
     return segments, settings, stats, recent
 
 
+def _normalize_brevo_event(value):
+    key = re.sub(r"[^a-z]", "", str(value or "").lower())
+    aliases = {
+        "hardbounce": "hardbounce", "softbounce": "softbounce",
+        "delivered": "delivered", "click": "click", "clicked": "click",
+        "spam": "spam", "complaint": "spam", "invalid": "invalid",
+        "blocked": "blocked", "unsubscribed": "unsubscribed",
+        "opened": "opened", "uniqueopened": "opened", "deferred": "deferred",
+        "sent": "sent", "request": "sent",
+    }
+    return aliases.get(key, key[:40])
+
+
+def _brevo_tags(payload):
+    tags = payload.get("tags", payload.get("tag", []))
+    if isinstance(tags, str):
+        try:
+            parsed = json.loads(tags)
+            tags = parsed if isinstance(parsed, list) else [tags]
+        except Exception:
+            tags = [tags]
+    return [str(tag)[:160] for tag in (tags or [])]
+
+
+def _record_brevo_events(conn, payload):
+    events = payload if isinstance(payload, list) else [payload]
+    accepted = 0
+    for item in events:
+        if not isinstance(item, dict):
+            continue
+        tags = _brevo_tags(item)
+        if not any(tag.startswith("marketing-") for tag in tags):
+            continue
+        email = str(item.get("email") or item.get("to") or "").strip().lower()[:254]
+        if "@" not in email:
+            continue
+        event_type = _normalize_brevo_event(item.get("event") or item.get("type"))
+        if not event_type:
+            continue
+        provider_id = str(item.get("message-id") or item.get("messageId") or "")[:250]
+        canonical = json.dumps(item, sort_keys=True, ensure_ascii=False, default=str)
+        event_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        log_rows = conn.run("""SELECT id,journey,stage FROM marketing_email_log
+            WHERE LOWER(recipient_email)=LOWER(:email)
+            ORDER BY CASE WHEN provider_message_id<>'' AND provider_message_id=:provider THEN 0 ELSE 1 END,
+                created_at DESC LIMIT 1""", email=email, provider=provider_id)
+        journey = str(log_rows[0][1]) if log_rows else ""
+        stage = str(log_rows[0][2]) if log_rows else ""
+        inserted = conn.run("""INSERT INTO marketing_email_events
+            (event_hash,recipient_email,event_type,provider_message_id,journey,stage,payload)
+            VALUES (:hash,:email,:event,:provider,:journey,:stage,:payload)
+            ON CONFLICT (event_hash) DO NOTHING RETURNING id""",
+            hash=event_hash, email=email, event=event_type, provider=provider_id,
+            journey=journey, stage=stage, payload=canonical[:4000])
+        if not inserted:
+            continue
+        accepted += 1
+        if log_rows:
+            log_id = int(log_rows[0][0])
+            if event_type == "delivered":
+                conn.run("""UPDATE marketing_email_log SET provider_status='delivered',
+                    delivered_at=COALESCE(delivered_at,NOW()) WHERE id=:id""", id=log_id)
+            elif event_type == "click":
+                conn.run("""UPDATE marketing_email_log SET provider_status='clicked',
+                    clicked_at=COALESCE(clicked_at,NOW()) WHERE id=:id""", id=log_id)
+            elif event_type in {"hardbounce", "softbounce", "invalid", "blocked", "spam", "unsubscribed"}:
+                conn.run("""UPDATE marketing_email_log SET provider_status=:status
+                    WHERE id=:id""", status=event_type, id=log_id)
+        if event_type == "delivered":
+            conn.run("""UPDATE marketing_legacy_leads SET delivered_at=COALESCE(delivered_at,NOW())
+                WHERE LOWER(email)=LOWER(:email)""", email=email)
+        elif event_type == "click":
+            conn.run("""UPDATE marketing_legacy_leads SET clicked_at=COALESCE(clicked_at,NOW())
+                WHERE LOWER(email)=LOWER(:email) AND status='active'""", email=email)
+        elif event_type in {"hardbounce", "invalid", "blocked", "spam", "unsubscribed"}:
+            conn.run("""UPDATE marketing_legacy_leads SET status='suppressed',
+                unsubscribed_at=COALESCE(unsubscribed_at,NOW()),bounced_at=CASE
+                    WHEN :event IN ('hardbounce','invalid','blocked') THEN COALESCE(bounced_at,NOW())
+                    ELSE bounced_at END WHERE LOWER(email)=LOWER(:email)""",
+                event=event_type, email=email)
+            conn.run("""UPDATE marketing_contacts SET unsubscribed_at=COALESCE(unsubscribed_at,NOW()),
+                updated_at=NOW() WHERE LOWER(email)=LOWER(:email)""", email=email)
+    return accepted
+
+
 def register_marketing_routes(app, get_conn, send_email, action_token, action_payload, admin_required):
+    @app.route("/webhooks/brevo/marketing", methods=["POST"])
+    def brevo_marketing_webhook():
+        secret = os.environ.get("BREVO_WEBHOOK_SECRET", "")
+        authorization = request.headers.get("Authorization", "")
+        if not secret or not hmac.compare_digest(authorization, "Bearer " + secret):
+            return jsonify({"ok": False}), 403
+        payload = request.get_json(silent=True)
+        if payload is None:
+            return jsonify({"ok": False, "error": "JSON invalide"}), 400
+        conn = get_conn()
+        try:
+            ensure_marketing_schema(conn)
+            accepted = _record_brevo_events(conn, payload)
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "accepted": accepted})
+
     @app.route("/admin/marketing")
     @admin_required
     def admin_marketing():
@@ -865,6 +1088,23 @@ def register_marketing_routes(app, get_conn, send_email, action_token, action_pa
         finally:
             conn.close()
         return jsonify({"ok": True, "enabled": enabled})
+
+    @app.route("/admin/marketing/legacy-toggle", methods=["POST"])
+    @admin_required
+    def admin_marketing_legacy_toggle():
+        data = request.get_json(silent=True) or {}
+        enabled = data.get("enabled") is True
+        conn = get_conn()
+        try:
+            ensure_marketing_schema(conn)
+            conn.run("""UPDATE marketing_settings SET legacy_campaign_enabled=:enabled,
+                legacy_started_at=CASE WHEN :enabled AND legacy_started_at IS NULL
+                    THEN NOW() ELSE legacy_started_at END,
+                legacy_paused_reason=CASE WHEN :enabled THEN '' ELSE 'Pause manuelle' END,
+                updated_at=NOW() WHERE id=1""", enabled=enabled)
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "legacy_campaign_enabled": enabled})
 
     @app.route("/admin/marketing/import-leads", methods=["POST"])
     @admin_required
