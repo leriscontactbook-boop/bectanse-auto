@@ -699,10 +699,11 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             COALESCE(m.created_at,mc.created_at),m.date_fin,m.billing_status,
             m.stripe_subscription_id,m.billing_cancel_at_period_end
             FROM marketing_contacts mc JOIN members m ON m.code=mc.member_code
-            WHERE mc.unsubscribed_at IS NULL AND mc.segment<>'suspended'
+            WHERE mc.unsubscribed_at IS NULL
               AND mc.email LIKE '%@%'
-            ORDER BY CASE mc.segment WHEN 'expiring' THEN 1 WHEN 'expired' THEN 2
-                WHEN 'explorer' THEN 3 ELSE 4 END,mc.created_at""")
+            ORDER BY CASE mc.segment WHEN 'suspended' THEN 0 WHEN 'active' THEN 1
+                WHEN 'expiring' THEN 2 WHEN 'expired' THEN 3
+                WHEN 'explorer' THEN 4 ELSE 5 END,mc.created_at""")
         legacy_rows = conn.run("""SELECT 'LEAD-'||id,email,first_name,'legacy_lead',
             imported_at,NULL,'','','' FROM marketing_legacy_leads
             WHERE status='active' AND unsubscribed_at IS NULL
@@ -714,9 +715,18 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             ORDER BY created_at""")
         contacts = list(contacts) + list(legacy_rows) + list(pending_rows)
         candidates = []
+        seen_emails = set()
         for contact in contacts:
             if len(candidates) >= (int(batch_limit) if dry_run else remaining):
                 break
+            normalized_email = str(contact[1] or "").strip().lower()
+            if not normalized_email or normalized_email in seen_emails:
+                continue
+            seen_emails.add(normalized_email)
+            # Un statut actif ou suspendu sur une adresse protège cette personne
+            # de toute relance émise depuis un ancien code BCT dupliqué.
+            if contact[3] in {"active", "suspended"}:
+                continue
             if not _contact_rate_allowed(conn, contact[0], int(weekly_limit), int(min_gap)):
                 continue
             candidate = _checkout_candidate(conn, contact)

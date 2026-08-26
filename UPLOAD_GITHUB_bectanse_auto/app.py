@@ -5931,7 +5931,7 @@ def send_brevo_membre(to_email, to_name, subject, html_content, tag):
         credits = email_plan.get("credits")
         if credits is not None and int(credits) <= 0:
             return send_transactional_email(to_email, subject, html_content)
-        p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Leris - Bectanse AUTO"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
+        p = json.dumps({"sender":{"email":"lerisluketo@bectanse-academie.com","name":"Bectanse Académie"},"to":[{"email":to_email,"name":to_name}],"subject":subject,"htmlContent":html_content,"tags":["bectanse-membre",tag]}).encode()
         r = _ur.Request("https://api.brevo.com/v3/smtp/email",data=p,headers={"api-key":brevo_key,"Content-Type":"application/json"})
         with _ur.urlopen(r,timeout=10) as response:
             payload = json.loads(response.read().decode("utf-8") or "{}")
