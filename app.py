@@ -8090,7 +8090,11 @@ register_marketing_routes(
     action_token=_action_token,
     action_payload=_action_payload,
     admin_required=admin_required,
+    notify_admin=send_telegram,
 )
+
+
+_marketing_job_alerted_at = 0.0
 
 
 def job_marketing_lifecycle():
@@ -8100,10 +8104,20 @@ def job_marketing_lifecycle():
             get_conn=get_conn,
             send_email=send_brevo_membre,
             action_token=_action_token,
+            notify_admin=send_telegram,
         )
         app.logger.info("marketing lifecycle: %s", result)
     except Exception as error:
+        global _marketing_job_alerted_at
         app.logger.error("marketing lifecycle: %s", error)
+        if time.time() - _marketing_job_alerted_at >= 6 * 60 * 60:
+            _marketing_job_alerted_at = time.time()
+            send_telegram(
+                "🚨 *AUTOMATISATION MARKETING*\n\n"
+                "Le moteur n'a pas terminé son dernier passage. "
+                f"Erreur : `{str(error)[:450]}`\n\n"
+                "Une nouvelle tentative sera lancée automatiquement dans 30 minutes."
+            )
 
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 

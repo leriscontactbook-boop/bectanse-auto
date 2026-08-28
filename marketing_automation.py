@@ -14,7 +14,7 @@ import json
 import os
 import re
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 
 from flask import jsonify, redirect, render_template, request, url_for
@@ -23,92 +23,189 @@ from flask import jsonify, redirect, render_template, request, url_for
 PARIS_TZ = ZoneInfo("Europe/Paris")
 BASE_URL = "https://acces.bectanse-academie.com"
 SUPPORT_URL = "https://t.me/m/PAt88QgeZDhk"
+MEMBER_ONBOARDING_START = datetime(2026, 8, 28)
 
 
 EXPLORER_STAGES = [
     {
         "stage": "jour-1", "delay_hours": 20,
-        "subject": "{prenom}, voici quoi regarder en premier",
-        "eyebrow": "TON PARCOURS EXPLORER",
-        "title": "Ne visite pas l’espace au hasard",
+        "subject": "{prenom}, pourquoi Bectanse existe vraiment",
+        "preheader": "L’histoire d’un système créé pour ne plus avancer seul face aux marchés",
+        "eyebrow": "LE DÉCLIC",
+        "title": "L’espace que Leris aurait aimé avoir à ses débuts",
         "body": [
-            "Ton accès Explorer est là pour te permettre de comprendre le système avant de prendre une décision",
-            "Commence par observer l’accueil, le Canal VIP, le Trader Lab et l’Analyse IA. Les espaces verrouillés te montrent exactement ce qui devient disponible avec un abonnement",
+            "Quand Leris a découvert les marchés, il n’avait ni parcours clair, ni outils réunis, ni équipe pour répondre à ses questions. Il a appris seul, avec ses erreurs et l’envie de comprendre",
+            "Bectanse Académie est née de ce manque. L’objectif n’est pas de te donner une nouvelle source d’informations, mais un environnement capable de te guider, de centraliser les bons outils et de t’éviter d’avancer seul",
         ],
-        "highlight": "Tu ne découvres pas une simple formation mais un environnement conçu pour apprendre, analyser et agir au même endroit",
-        "cta": "Découvrir l’application gratuitement",
+        "highlight": "Ton accès Explorer te permet d’observer ce système avant de décider s’il correspond à ce que tu veux construire",
+        "cta": "Découvrir l’histoire de Bectanse",
+        "target_url": BASE_URL + "/vip#histoire",
+        "hero_image": BASE_URL + "/static/vip/assets/founder-leris.webp",
+        "hero_alt": "Leris Luketo, fondateur de Bectanse Académie",
     },
     {
         "stage": "jour-3", "delay_hours": 68,
-        "subject": "Bectanse ne se limite pas à des signaux",
-        "eyebrow": "UN ÉCOSYSTÈME COMPLET",
-        "title": "Tout a été relié pour te faire progresser",
+        "subject": "Voici comment tout fonctionne ensemble",
+        "preheader": "Formation, application, outils et communauté suivent un seul parcours",
+        "eyebrow": "COMPRENDRE LE SYSTÈME",
+        "title": "Ce n’est pas une formation posée à côté de quelques outils",
         "body": [
-            "Une information seule ne change rien si tu ne sais pas quoi en faire",
-            "Bectanse réunit la formation, les outils de gestion du risque, le suivi, l’Analyse IA, le Canal VIP et Bectanse Auto dans une seule expérience",
+            "Une information isolée change rarement une façon de travailler. Il faut savoir quoi apprendre, comment préparer une décision, comment gérer le risque et comment mesurer ce qui a été appliqué",
+            "Bectanse réunit ce parcours dans la même application. La formation apporte les fondations, le Trader Lab structure la pratique, le Canal VIP relie la communauté et Bectanse Progress indique la prochaine étape",
         ],
-        "highlight": "L’objectif est de remplacer l’improvisation par un processus clair que tu peux répéter",
-        "cta": "Voir tout ce qui est inclus",
+        "highlight": "Chaque brique répond à un moment précis : comprendre, préparer, exécuter puis mesurer",
+        "cta": "Voir l’écosystème complet",
+        "target_url": BASE_URL + "/vip#formation",
+        "hero_image": BASE_URL + "/static/vip/assets/bectanse-auto-robot-phone-v2.png",
+        "hero_alt": "Application membre Bectanse Académie",
+        "proof_items": [
+            ("APPRENDRE", "Formation structurée"),
+            ("PRATIQUER", "Trader Lab"),
+            ("RESTER RELIÉ", "Canal VIP"),
+        ],
     },
     {
         "stage": "jour-5", "delay_hours": 116,
-        "subject": "Imagine ton quotidien avec le bon système",
-        "eyebrow": "AVANT DE CHOISIR",
-        "title": "Regarde comment chaque outil s’intègre à ton quotidien",
+        "subject": "À quoi servent vraiment les outils du Trader Lab",
+        "preheader": "Analyse IA, simulateur, journal, calculateur et Trade Score ont chacun un rôle précis",
+        "eyebrow": "LES OUTILS",
+        "title": "Transformer une idée en processus observable",
         "body": [
-            "L’application ne sert pas seulement à consulter du contenu. Elle centralise ton parcours, tes outils et les informations utiles au même endroit",
-            "Tu peux déjà parcourir l’interface en mode Explorer puis voir précisément ce que l’abonnement débloque",
+            "Le Trader Lab ne décide pas à ta place. Il t’aide à préparer un scénario, calculer ton risque, documenter ta décision et comparer le résultat à ton plan initial",
+            "Il réunit l’Analyse IA, le simulateur, le journal intelligent, le calculateur et le Trade Score. Ces outils complètent une formation de 500 pages, 21 phases, plus de 20 heures de contenu et six bonus",
         ],
-        "highlight": "Moins de dispersion, plus de structure et une expérience pensée pour mobile",
-        "cta": "Revoir l’expérience Bectanse",
+        "highlight": "L’objectif n’est pas de multiplier les écrans, mais de rendre ton processus plus clair et plus mesurable",
+        "cta": "Explorer le Trader Lab",
+        "target_url": BASE_URL + "/trader-lab",
+        "proof_items": [
+            ("PRÉPARER", "Analyse IA + simulateur"),
+            ("MESURER", "Journal + Trade Score"),
+            ("PROTÉGER", "Calculateur de risque"),
+        ],
     },
     {
         "stage": "jour-7", "delay_hours": 164,
-        "subject": "Ce que ton abonnement débloque vraiment",
-        "eyebrow": "LA VALEUR DU SYSTÈME",
-        "title": "Tu n’achètes pas une vidéo de plus",
+        "subject": "Ce qui change quand tu n’avances plus seul",
+        "preheader": "Le Canal VIP, les notifications et le support replacent l’humain au centre",
+        "eyebrow": "LA COMMUNAUTÉ",
+        "title": "Une académie doit aussi être un environnement humain",
         "body": [
-            "L’abonnement donne accès à une formation complète de plus de 500 pages, au Canal VIP, à Bectanse Auto, aux outils de calcul et de suivi ainsi qu’à l’accompagnement membre",
-            "Tu retrouves aussi le Trader Lab, le journal intelligent, les exercices de psychologie et l’Analyse IA dans le même espace",
+            "Le Canal VIP rassemble les messages, les alertes, les résultats et les explications dans l’application. Les notifications peuvent être reçues sur iPhone ou Android après autorisation du membre",
+            "À côté des outils, une équipe accompagne la prise en main et répond lorsque quelque chose n’est pas clair. Les témoignages vidéo et audio permettent aussi d’entendre les membres raconter leur expérience avec leurs propres mots",
         ],
-        "highlight": "Chaque élément a été pensé pour fonctionner avec les autres au lieu de rester isolé",
-        "cta": "Découvrir les formules",
+        "highlight": "La technologie structure le parcours. La communauté évite qu’il devienne froid ou impersonnel",
+        "cta": "Écouter les membres",
+        "target_url": BASE_URL + "/vip#temoignages",
+        "proof_items": [
+            ("CANAL VIP", "Messages et alertes"),
+            ("MOBILE", "iPhone et Android"),
+            ("HUMAIN", "Support et onboarding"),
+        ],
     },
     {
         "stage": "jour-10", "delay_hours": 236,
-        "subject": "Regarde les preuves avant de décider",
-        "eyebrow": "ILS L’ONT VÉCU",
-        "title": "Les témoignages racontent mieux le système que nous",
+        "subject": "Quatre résultats que tu peux vérifier toi-même",
+        "preheader": "Captures et messages vocaux sont disponibles dans leur format original",
+        "eyebrow": "LES RÉSULTATS DES MEMBRES",
+        "title": "Pas une promesse. Des expériences individuelles documentées",
         "body": [
-            "La présentation rassemble des retours audio, des captures de membres et les résultats documentés déjà partagés par l’Académie",
-            "Prends quelques minutes pour les regarder dans leur format original puis fais-toi ton propre avis",
+            "Les témoignages publiés présentent notamment Warren, passé de 200 à 850 euros en 21 jours, Julien avec 9 013 euros partagés, Angel avec 1 600 euros en une journée et Samuel avec 760 euros dès sa première journée",
+            "Leurs messages vocaux et leurs captures sont disponibles dans leur format original sur la présentation afin que tu puisses les écouter et les vérifier toi-même",
         ],
-        "highlight": "Aucune promesse automatique, seulement un environnement réel, des outils concrets et des preuves consultables",
-        "cta": "Voir les témoignages",
+        "highlight": "Ces expériences sont individuelles et ne constituent ni une promesse de gains ni une garantie de résultats futurs",
+        "cta": "Voir les captures et écouter les vocaux",
+        "target_url": BASE_URL + "/vip#temoignages",
+        "hero_image": BASE_URL + "/static/vip/assets/testimonial-proof-julien.jpg",
+        "hero_alt": "Capture de résultat partagée par Julien",
+        "proof_items": [
+            ("WARREN", "200 € → 850 € en 21 jours"),
+            ("JULIEN", "+9 013 € partagés"),
+            ("ANGEL", "+1 600 € en une journée"),
+            ("SAMUEL", "+760 € dès la première journée"),
+        ],
+        "disclaimer": "Résultats individuels présentés à titre de témoignage. Le trading comporte un risque de perte partielle ou totale du capital.",
     },
     {
         "stage": "jour-14", "delay_hours": 332,
-        "subject": "Quel accès correspond à ton objectif",
-        "eyebrow": "CHOISIR SANS SE TROMPER",
-        "title": "Un mois, trois mois ou un an",
+        "subject": "La vidéo documentée est toujours visible",
+        "preheader": "Regarde la preuve documentée dans son format original et fais-toi ton propre avis",
+        "eyebrow": "LA PREUVE DOCUMENTÉE",
+        "title": "Une vidéo vaut mieux qu’une longue promesse",
         "body": [
-            "La formule un mois permet de découvrir l’écosystème complet. Trois mois donnent le temps de construire une vraie routine et l’accès annuel accompagne une transformation plus profonde",
-            "Toutes les formules ouvrent le même environnement membre. La différence se joue sur la durée de ton accompagnement",
+            "La présentation contient la vidéo des stratégies utilisées par Leris pour générer 800 000 euros en cinq jours. Elle est accompagnée de son parcours jusqu’à plus de 4 millions d’euros générés sur les marchés",
+            "Cette preuve est accessible directement sur la page, dans son format original. Regarde-la tranquillement puis fais-toi ton propre avis sur l’expérience qui a conduit à la création de l’Académie",
         ],
-        "highlight": "Si tu hésites, le support peut t’aider à choisir selon ta situation sans te pousser vers une formule inutile",
-        "cta": "Comparer les accès",
+        "highlight": "Une performance passée ne garantit aucun résultat futur. Elle documente un parcours, pas une promesse faite au prochain membre",
+        "cta": "Regarder la vidéo originale",
+        "target_url": BASE_URL + "/vip#preuve",
+        "hero_image": BASE_URL + "/static/vip/assets/resultat-800k-poster.jpg",
+        "hero_alt": "Aperçu de la vidéo documentée des 800 000 euros en cinq jours",
+        "disclaimer": "Le trading comporte un risque de perte partielle ou totale du capital.",
+    },
+    {
+        "stage": "jour-18", "delay_hours": 428,
+        "subject": "Les réponses aux questions qu’on nous pose le plus",
+        "preheader": "Explorer, mobile, Bectanse Auto, activation Stripe et support humain",
+        "eyebrow": "LES OBJECTIONS",
+        "title": "Tu dois comprendre ce que tu rejoins avant de payer",
+        "body": [
+            "Le compte Explorer reste en lecture seule. Il permet de voir l’application, mais aucune opération premium ne peut être lancée tant qu’un abonnement n’a pas été confirmé",
+            "Bectanse Auto reste piloté selon tes paramètres. L’application fonctionne sur iPhone et Android, et l’accès membre se débloque uniquement après la confirmation réelle du paiement par Stripe",
+        ],
+        "highlight": "Si ta question est personnelle, le support peut vérifier ta situation avant que tu prennes une décision",
+        "cta": "Voir les réponses et les offres",
+        "target_url": BASE_URL + "/vip#offres",
+        "show_support": True,
     },
     {
         "stage": "jour-21", "delay_hours": 500,
-        "subject": "Ton espace Explorer reste ouvert",
-        "eyebrow": "À TON RYTHME",
-        "title": "La prochaine étape dépend de toi",
+        "subject": "Dans 30 jours, qu’auras-tu réellement construit ?",
+        "preheader": "Le même téléphone peut occuper tes journées ou soutenir une progression mesurable",
+        "eyebrow": "LA PROJECTION",
+        "title": "Consommer davantage ou construire quelque chose de durable",
         "body": [
-            "Tu as eu le temps de parcourir l’application et de comprendre ce qui est disponible derrière les sections verrouillées",
-            "Si tu veux maintenant passer de l’observation à l’utilisation complète, retrouve les offres et choisis le rythme qui te convient",
+            "Netflix, Spotify, les livraisons et les petites dépenses du quotidien disparaissent chaque mois sans laisser de méthode derrière elles",
+            "Bectanse propose une autre utilisation de ce budget : 500 pages de connaissances, 21 phases, une application, des outils de suivi et un accompagnement humain conçus pour t’aider à construire progressivement ton autonomie",
         ],
-        "highlight": "Ton compte BCT est déjà créé. Après un paiement confirmé, l’accès se débloque automatiquement sur ce même compte",
-        "cta": "Passer à l’accès complet",
+        "highlight": "Le site estime ces dépenses courantes à 330 euros par mois. La vraie question n’est pas seulement ce que coûte l’Académie, mais ce que ton argent construit pour toi",
+        "cta": "Comparer consommation et construction",
+        "target_url": BASE_URL + "/vip#decision",
+        "hero_image": BASE_URL + "/static/vip/assets/bectanse-brain-choice-v1.webp",
+        "hero_alt": "Deux trajectoires : consommer ou construire",
+    },
+    {
+        "stage": "jour-30", "delay_hours": 716,
+        "subject": "Ton compte est prêt. Il reste à choisir ton rythme",
+        "preheader": "Un mois, trois mois ou un an avec le même écosystème Bectanse",
+        "eyebrow": "PASSER À L’ACTION",
+        "title": "Tu n’as rien à recréer pour devenir membre",
+        "body": [
+            "Ton adresse est confirmée et ton code BCT existe déjà. Après un paiement Stripe confirmé, ce même compte passe automatiquement du mode Explorer à l’accès membre",
+            "Les formules affichées sont de 500 euros pour un mois, 1 000 euros pour trois mois et 4 000 euros pour un an. L’écosystème reste le même, seule la durée de l’accompagnement change",
+        ],
+        "highlight": "Choisis le temps dont tu as réellement besoin, pas la formule la plus impressionnante",
+        "cta": "Comparer les trois accompagnements",
+        "target_url": BASE_URL + "/vip#offres",
+        "proof_items": [
+            ("1 MOIS", "500 €"),
+            ("3 MOIS", "1 000 €"),
+            ("1 AN", "4 000 €"),
+        ],
+    },
+    {
+        "stage": "jour-38", "delay_hours": 908,
+        "subject": "{prenom}, est-ce qu’il te manque une réponse ?",
+        "preheader": "Un dernier message humain, sans faux compte à rebours ni pression inutile",
+        "eyebrow": "DERNIÈRE RELANCE",
+        "title": "Je préfère une décision claire à une décision forcée",
+        "body": [
+            "Tu as maintenant vu l’histoire, le système, les outils, les membres, les preuves et les formules. Si Bectanse correspond à ce que tu veux construire, ton compte Explorer peut être activé sans nouvelle inscription",
+            "Si ce n’est pas le bon moment, ton espace reste disponible. Et si une seule question te bloque encore, parle-nous avant de décider",
+        ],
+        "highlight": "Il n’y a pas de fausse urgence ici. La prochaine étape doit simplement être cohérente avec ton objectif",
+        "cta": "Revoir les accès Bectanse",
+        "target_url": BASE_URL + "/vip#offres",
+        "show_support": True,
     },
 ]
 
@@ -116,27 +213,93 @@ EXPLORER_STAGES = [
 EXPLORER_WEEKLY_CONTENT = [
     {
         "stage": "hebdo-systeme", "subject": "Ce que Bectanse remplace dans ton quotidien",
+        "preheader": "Un seul environnement pour apprendre, préparer, suivre et mesurer",
         "eyebrow": "UN SEUL ÉCOSYSTÈME", "title": "Arrête de disperser tes outils",
         "body": ["L’application rassemble la formation, le risque, les analyses, le suivi et le Canal VIP", "Ton compte Explorer te permet de revoir la structure autant que nécessaire avant de débloquer les fonctions membres"],
         "highlight": "Un environnement cohérent est plus utile qu’une accumulation de contenus isolés", "cta": "Revoir l’écosystème complet",
+        "target_url": BASE_URL + "/vip#formation",
     },
     {
         "stage": "hebdo-preuves", "subject": "Les preuves sont toujours visibles",
+        "preheader": "Captures, messages vocaux et vidéo restent consultables dans leur format original",
         "eyebrow": "TÉMOIGNAGES DOCUMENTÉS", "title": "Regarde les retours dans leur format original",
         "body": ["Les témoignages audio, les captures membres et la vidéo documentée sont consultables sur la présentation", "Prends le temps de vérifier ce qui est montré avant de décider si l’Académie correspond à ton objectif"],
         "highlight": "Les performances passées et témoignages ne garantissent aucun résultat futur. Le trading comporte un risque de perte", "cta": "Consulter les témoignages",
+        "target_url": BASE_URL + "/vip#temoignages",
     },
     {
         "stage": "hebdo-outils", "subject": "As-tu exploré les nouveaux outils Bectanse",
+        "preheader": "Analyse IA, journal, simulateur et psychologie complètent le parcours",
         "eyebrow": "TRADER LAB", "title": "Analyse, journal, simulateur et psychologie",
         "body": ["Le Trader Lab a été conçu pour transformer une idée en processus observable", "L’Analyse IA, le journal intelligent, le simulateur et les exercices psychologiques complètent la formation et l’accompagnement"],
         "highlight": "Les outils sont visibles en Explorer puis utilisables avec l’accès membre", "cta": "Découvrir le Trader Lab",
+        "target_url": BASE_URL + "/trader-lab",
     },
     {
         "stage": "hebdo-decision", "subject": "Ton compte est prêt si tu veux passer à l’action",
+        "preheader": "Le paiement confirmé active directement le code BCT que tu possèdes déjà",
         "eyebrow": "PROCHAINE ÉTAPE", "title": "Tu n’as rien à recréer",
         "body": ["Ton code BCT et ton adresse confirmée sont déjà reliés", "Lorsque Stripe confirme ton abonnement, le même compte passe automatiquement du mode Explorer à l’accès membre"],
         "highlight": "Choisis uniquement la durée qui correspond à ton rythme. Le support peut t’aider si nécessaire", "cta": "Comparer les abonnements",
+        "target_url": BASE_URL + "/vip#offres",
+        "show_support": True,
+    },
+]
+
+
+MEMBER_ONBOARDING_STAGES = [
+    {
+        "stage": "membre-jour-1", "delay_hours": 20,
+        "subject": "{prenom}, configure ton espace Bectanse en quelques minutes",
+        "eyebrow": "BIENVENUE DANS L'ACADÉMIE",
+        "title": "Commence avec une base propre",
+        "body": [
+            "Ton abonnement est actif et ton compte BCT est maintenant relié à l'ensemble de l'Académie",
+            "Installe l'application sur ton écran d'accueil, active les notifications puis vérifie ton profil afin de recevoir les informations importantes du Canal VIP",
+        ],
+        "highlight": "Ces premiers réglages évitent de manquer une alerte ou une mise à jour importante",
+        "cta": "Configurer mon espace membre",
+        "target_url": BASE_URL + "/accueil",
+    },
+    {
+        "stage": "membre-jour-3", "delay_hours": 68,
+        "subject": "Voici l'ordre conseillé pour utiliser l'Académie",
+        "eyebrow": "TON PARCOURS MEMBRE",
+        "title": "Ne consomme pas les contenus au hasard",
+        "body": [
+            "Commence par la méthode et la gestion du risque avant d'utiliser les outils plus avancés",
+            "La formation, les guides et le Canal VIP ont été organisés pour te permettre de construire une routine claire plutôt que d'accumuler des informations",
+        ],
+        "highlight": "La progression vient de la répétition d'un processus cohérent, pas du nombre de pages ouvertes",
+        "cta": "Continuer mon parcours",
+        "target_url": BASE_URL + "/academie",
+    },
+    {
+        "stage": "membre-jour-7", "delay_hours": 164,
+        "subject": "As-tu déjà utilisé le Trader Lab",
+        "eyebrow": "PASSER DE LA THÉORIE À LA PRATIQUE",
+        "title": "Utilise les outils autour d'un même plan",
+        "body": [
+            "Le Trader Lab réunit l'Analyse IA, le journal intelligent, le simulateur, le calculateur et le Trade Score",
+            "Ces outils ne remplacent pas ta décision. Ils servent à structurer ton analyse, ton risque et ton suivi",
+        ],
+        "highlight": "Teste un scénario, documente-le puis compare le résultat à ton plan initial",
+        "cta": "Ouvrir le Trader Lab",
+        "target_url": BASE_URL + "/trader-lab",
+    },
+    {
+        "stage": "membre-jour-14", "delay_hours": 332,
+        "subject": "Deux semaines dans Bectanse, fais le point",
+        "eyebrow": "CONSTRUIRE UNE ROUTINE DURABLE",
+        "title": "Ta psychologie mérite autant d'attention que ta technique",
+        "body": [
+            "Après deux semaines, vérifie ce que tu consultes vraiment, ce que tu appliques et ce qui te fait encore hésiter",
+            "L'espace psychologie, le journal et le support sont là pour t'aider à identifier les décisions répétitives qui freinent ta progression",
+        ],
+        "highlight": "Si un élément de l'application ou de ton accès n'est pas clair, contacte le support directement depuis ton espace",
+        "cta": "Faire le point sur mon parcours",
+        "target_url": BASE_URL + "/dashboard#section-profil",
+        "show_support": True,
     },
 ]
 
@@ -375,7 +538,7 @@ def ensure_marketing_schema(conn):
         ON marketing_email_log (status, sent_at DESC, created_at DESC)""")
     conn.run("""CREATE TABLE IF NOT EXISTS marketing_settings (
         id INTEGER PRIMARY KEY CHECK (id=1),
-        enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        enabled BOOLEAN NOT NULL DEFAULT TRUE,
         daily_send_limit INTEGER NOT NULL DEFAULT 180,
         weekly_contact_limit INTEGER NOT NULL DEFAULT 4,
         min_gap_hours INTEGER NOT NULL DEFAULT 20,
@@ -383,13 +546,24 @@ def ensure_marketing_schema(conn):
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     )""")
     conn.run("""ALTER TABLE marketing_settings
-        ADD COLUMN IF NOT EXISTS legacy_campaign_enabled BOOLEAN NOT NULL DEFAULT FALSE""")
+        ADD COLUMN IF NOT EXISTS legacy_campaign_enabled BOOLEAN NOT NULL DEFAULT TRUE""")
+    conn.run("""ALTER TABLE marketing_settings ALTER COLUMN enabled SET DEFAULT TRUE""")
+    conn.run("""ALTER TABLE marketing_settings
+        ALTER COLUMN legacy_campaign_enabled SET DEFAULT TRUE""")
     conn.run("""ALTER TABLE marketing_settings
         ADD COLUMN IF NOT EXISTS legacy_daily_limit INTEGER NOT NULL DEFAULT 1000""")
     conn.run("""ALTER TABLE marketing_settings
         ADD COLUMN IF NOT EXISTS legacy_started_at TIMESTAMP""")
     conn.run("""ALTER TABLE marketing_settings
         ADD COLUMN IF NOT EXISTS legacy_paused_reason TEXT NOT NULL DEFAULT ''""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMP""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS last_success_at TIMESTAMP""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS last_error TEXT NOT NULL DEFAULT ''""")
+    conn.run("""ALTER TABLE marketing_settings
+        ADD COLUMN IF NOT EXISTS last_sent_count INTEGER NOT NULL DEFAULT 0""")
     conn.run("""INSERT INTO marketing_settings (id) VALUES (1)
         ON CONFLICT (id) DO NOTHING""")
     conn.run("""CREATE TABLE IF NOT EXISTS marketing_legacy_leads (
@@ -433,6 +607,45 @@ def ensure_marketing_schema(conn):
     )""")
     conn.run("""CREATE INDEX IF NOT EXISTS marketing_email_events_type_idx
         ON marketing_email_events (event_type,event_at DESC)""")
+    conn.run("""CREATE TABLE IF NOT EXISTS marketing_problem_alerts (
+        alert_key TEXT PRIMARY KEY,
+        last_sent_at TIMESTAMP,
+        occurrences INTEGER NOT NULL DEFAULT 0,
+        last_message TEXT NOT NULL DEFAULT '',
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )""")
+
+
+def _notify_marketing_problem(conn, notify_admin, alert_key, message,
+                              cooldown_hours=6):
+    """Alerte l'administrateur une seule fois par incident et par période."""
+    if not notify_admin:
+        return False
+    rows = conn.run("""SELECT last_sent_at FROM marketing_problem_alerts
+        WHERE alert_key=:key""", key=alert_key)
+    last_sent_at = rows[0][0] if rows else None
+    should_send = not last_sent_at or (_now() - last_sent_at) >= timedelta(
+        hours=cooldown_hours)
+    conn.run("""INSERT INTO marketing_problem_alerts
+        (alert_key,last_sent_at,occurrences,last_message,updated_at)
+        VALUES (:key,:sent,1,:message,NOW())
+        ON CONFLICT (alert_key) DO UPDATE SET
+            last_sent_at=CASE WHEN :send THEN NOW()
+                ELSE marketing_problem_alerts.last_sent_at END,
+            occurrences=marketing_problem_alerts.occurrences+1,
+            last_message=:message,updated_at=NOW()""",
+        key=alert_key, sent=_now() if should_send else None,
+        send=should_send, message=str(message)[:1000])
+    if not should_send:
+        return False
+    try:
+        notify_admin(
+            "🚨 *AUTOMATISATION MARKETING*\n\n" + str(message)[:900] +
+            "\n\nAucune action n'est nécessaire si le problème disparaît au prochain passage."
+        )
+        return True
+    except Exception:
+        return False
 
 
 def sync_marketing_segments(conn):
@@ -558,40 +771,172 @@ def _utm_url(journey, stage, anchor=""):
     return f"{BASE_URL}/vip?{query}{suffix}"
 
 
+def _tracked_email_url(raw_url, journey, stage):
+    """Ajoute le suivi e-mail sans casser le chemin, les paramètres ou l’ancre."""
+    parts = urlsplit(raw_url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update({
+        "utm_source": "brevo",
+        "utm_medium": "email",
+        "utm_campaign": "bectanse_" + journey.replace("_", "-"),
+        "utm_content": stage,
+    })
+    return urlunsplit((parts.scheme, parts.netloc, parts.path,
+                       urlencode(query), parts.fragment))
+
+
+def _email_header():
+    return f"""<table role='presentation' cellspacing='0' cellpadding='0' border='0'>
+      <tr><td style='padding-right:11px'>
+        <img src='{BASE_URL}/static/icons/bectanse-app-icon-master.png' width='42' height='42'
+          alt='Bectanse Académie' style='display:block;width:42px;height:42px;border:0;border-radius:11px'>
+      </td><td style='font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:900;letter-spacing:.8px;color:#ffffff'>
+        BECTANSE<br><span style='font-size:12px;letter-spacing:2.4px;color:#ff6a1f'>ACADÉMIE</span>
+      </td></tr>
+    </table>"""
+
+
+def _email_hero(content):
+    source = content.get("hero_image")
+    if not source:
+        return ""
+    safe_source = html.escape(source, quote=True)
+    safe_alt = html.escape(content.get("hero_alt", "Bectanse Académie"), quote=True)
+    return f"""<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
+      style='width:100%;margin:0 0 26px'><tr><td>
+      <img src='{safe_source}' width='572' alt='{safe_alt}' class='mail-image'
+        style='display:block;width:100%;max-width:572px;height:auto;border:0;border-radius:17px;background:#171a17'>
+    </td></tr></table>"""
+
+
+def _email_proof_cards(content):
+    items = content.get("proof_items") or []
+    if not items:
+        return ""
+    rows = []
+    for label, value in items:
+        rows.append(f"""<tr><td style='padding:12px 14px;border-bottom:1px solid #292d28'>
+          <span style='display:block;margin-bottom:4px;color:#ff7b3d;font-size:9px;line-height:1.3;font-weight:900;letter-spacing:1.3px'>{html.escape(label)}</span>
+          <strong style='display:block;color:#f4f5f2;font-size:14px;line-height:1.45'>{html.escape(value)}</strong>
+        </td></tr>""")
+    return f"""<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
+      style='width:100%;margin:5px 0 25px;border:1px solid #292d28;border-radius:14px;background:#131613'>
+      {''.join(rows)}
+    </table>"""
+
+
+def _email_cta(label, url):
+    safe_label = html.escape(label)
+    safe_url = html.escape(url, quote=True)
+    return f"""<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
+      style='width:100%'><tr><td align='center' bgcolor='#ff641f' class='mail-cta'
+      style='border-radius:13px;background:#ff641f'>
+      <a href='{safe_url}' style='display:block;padding:17px 18px;color:#ffffff;text-decoration:none;
+        text-align:center;font-size:15px;line-height:1.25;font-weight:900'>{safe_label}&nbsp;&nbsp;→</a>
+    </td></tr></table>"""
+
+
+def _email_signature(show_support=False):
+    support = ""
+    if show_support:
+        support = ("<p style='margin:16px 0 0;color:#8d928a;font-size:12px;line-height:1.55'>"
+                   "Une question précise&nbsp;? <a href='" + SUPPORT_URL + "' "
+                   "style='color:#ff8b54;text-decoration:none;font-weight:700'>Parler au support</a></p>")
+    return f"""<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
+      style='width:100%;margin-top:28px'><tr><td style='padding-top:22px;border-top:1px solid #292d28'>
+      <p style='margin:0;color:#f4f5f2;font-size:13px;line-height:1.55;font-weight:800'>Leris Luketo</p>
+      <p style='margin:2px 0 0;color:#70756e;font-size:11px;line-height:1.55'>Fondateur de Bectanse Académie</p>
+      {support}
+    </td></tr></table>"""
+
+
+def _email_footer(unsubscribe_url):
+    safe_url = html.escape(unsubscribe_url, quote=True)
+    return f"""<tr><td align='center' style='padding:24px 16px 8px;color:#575b55;
+      font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.65'>
+      Bectanse Académie · LERIS CORP FZCO<br>
+      Message lié à ton inscription ou à ta relation membre
+    </td></tr>
+    <tr><td align='center' style='padding:0 16px 22px;font-family:Arial,Helvetica,sans-serif;
+      font-size:9px;line-height:1.5'>
+      <a href='{safe_url}' style='color:#4f534d;text-decoration:underline'>se désinscrire</a>
+    </td></tr>"""
+
+
+def _personalized_subject(template, first_name):
+    clean_name = str(first_name or "").strip()
+    if clean_name:
+        return template.format(prenom=clean_name)
+    return template.replace("{prenom}, ", "").replace("{prenom}", "Bonjour").strip()
+
+
 def _email_html(prenom, content, journey, stage, unsubscribe_url):
-    safe_name = html.escape(prenom or "Bonjour")
+    clean_name = str(prenom or "").strip()
+    greeting = "Bonjour" + (" " + html.escape(clean_name) if clean_name else "")
+    cta_url = _tracked_email_url(
+        content.get("target_url") or _utm_url(
+            journey, stage,
+            "offres" if journey not in {"explorer", "legacy_reactivation"} else "capture",
+        ),
+        journey,
+        stage,
+    )
     paragraphs = "".join(
-        f"<p style='margin:0 0 15px;color:#c8c8c8;font-size:15px;line-height:1.72'>{html.escape(text)}</p>"
+        f"<p style='margin:0 0 17px;color:#c8cbc6;font-size:15px;line-height:1.72'>{html.escape(text)}</p>"
         for text in content["body"]
     )
-    cta_url = content.get("target_url") or _utm_url(
-        journey, stage, "offres" if journey not in {"explorer", "legacy_reactivation"} else "capture")
+    disclaimer = ""
+    if content.get("disclaimer"):
+        disclaimer = ("<p style='margin:17px 0 0;color:#777c74;font-size:10px;line-height:1.55'>"
+                      + html.escape(content["disclaimer"]) + "</p>")
+    preheader = html.escape(content.get("preheader") or content["highlight"])
     return f"""<!doctype html><html lang='fr'><head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width,initial-scale=1'></head>
-<body style='margin:0;background:#080908;font-family:Arial,Helvetica,sans-serif;color:#fff'>
-<div style='display:none;max-height:0;overflow:hidden;color:#080908'>{html.escape(content['highlight'])}</div>
-<div style='max-width:620px;margin:0 auto;padding:28px 16px'>
-  <div style='padding:18px 8px 26px;text-align:center'>
-    <div style='font-size:22px;font-weight:900;letter-spacing:1px'>BECTANSE <span style='color:#ff641f'>ACADÉMIE</span></div>
-  </div>
-  <div style='background:#111310;border:1px solid #2b2e29;border-radius:24px;overflow:hidden'>
-    <div style='height:4px;background:linear-gradient(90deg,#ff4d16,#ff9b20)'></div>
-    <div style='padding:34px 28px'>
-      <div style='color:#ff7a36;font-size:11px;letter-spacing:1.7px;font-weight:800;margin-bottom:12px'>{html.escape(content['eyebrow'])}</div>
-      <p style='margin:0 0 8px;color:#8c9189;font-size:14px'>Bonjour {safe_name}</p>
-      <h1 style='margin:0 0 22px;font-size:29px;line-height:1.12;color:#fff'>{html.escape(content['title'])}</h1>
-      {paragraphs}
-      <div style='margin:24px 0;padding:18px;border-radius:14px;background:#171a16;border-left:3px solid #ff641f;color:#f0f0ef;font-size:14px;line-height:1.65'>{html.escape(content['highlight'])}</div>
-      <a href='{cta_url}' style='display:block;padding:16px 18px;border-radius:13px;background:#ff641f;color:#fff;text-decoration:none;text-align:center;font-weight:900;font-size:15px'>{html.escape(content['cta'])} →</a>
-      <p style='margin:18px 0 0;text-align:center;color:#8d918a;font-size:12px'>Une question&nbsp;? <a href='{SUPPORT_URL}' style='color:#ff8a50;text-decoration:none'>Parler au support</a></p>
-    </div>
-  </div>
-  <div style='padding:24px 16px;text-align:center;color:#686c66;font-size:11px;line-height:1.65'>
-    Bectanse Académie · LERIS CORP FZCO<br>
-    Tu reçois ce message à la suite de ton inscription ou de ta relation membre<br>
-    <a href='{unsubscribe_url}' style='color:#8b8f88'>Gérer mes préférences ou arrêter ces e-mails</a>
-  </div>
-</div></body></html>"""
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<meta name='x-apple-disable-message-reformatting'>
+<meta name='color-scheme' content='dark'><meta name='supported-color-schemes' content='dark'>
+<style>
+  body,table,td,a{{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}}
+  table,td{{mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:separate}}
+  img{{-ms-interpolation-mode:bicubic}}
+  @media(max-width:620px){{
+    .mail-shell{{padding:12px 9px!important}}
+    .mail-body{{padding:27px 20px!important}}
+    .mail-title{{font-size:31px!important;line-height:1.06!important}}
+    .mail-cta a{{font-size:14px!important;padding:16px 13px!important}}
+    .mail-image{{border-radius:13px!important}}
+  }}
+</style></head>
+<body style='margin:0;padding:0;background:#050605;font-family:Arial,Helvetica,sans-serif;color:#ffffff'>
+<div style='display:none!important;visibility:hidden;mso-hide:all;max-height:0;max-width:0;
+  overflow:hidden;opacity:0;color:transparent'>{preheader}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
+  style='width:100%;background:#050605'><tr><td align='center'>
+  <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' class='mail-shell'
+    style='width:100%;max-width:640px;padding:28px 16px'>
+    <tr><td align='center' style='padding:12px 8px 24px'>{_email_header()}</td></tr>
+    <tr><td style='border:1px solid #292d28;border-radius:24px;background:#101210;overflow:hidden'>
+      <div style='height:4px;line-height:4px;font-size:4px;background:#ff641f'>&nbsp;</div>
+      <div class='mail-body' style='padding:38px 34px'>
+        <div style='display:inline-block;margin:0 0 15px;padding:7px 10px;border:1px solid #4b2b1d;
+          border-radius:999px;background:#1b120e;color:#ff864c;font-size:10px;line-height:1.3;
+          letter-spacing:1.5px;font-weight:900'>{html.escape(content['eyebrow'])}</div>
+        <p style='margin:0 0 9px;color:#888e86;font-size:14px;line-height:1.5'>{greeting}</p>
+        <h1 class='mail-title' style='margin:0 0 24px;color:#ffffff;font-size:36px;line-height:1.04;
+          letter-spacing:-1.1px'>{html.escape(content['title'])}</h1>
+        {_email_hero(content)}
+        {paragraphs}
+        {_email_proof_cards(content)}
+        <div style='margin:26px 0;padding:19px 20px;border:1px solid #343a32;border-left:4px solid #ff641f;
+          border-radius:15px;background:#161916;color:#f1f2ef;font-size:14px;line-height:1.62;font-weight:700'>
+          {html.escape(content['highlight'])}</div>
+        {_email_cta(content['cta'], cta_url)}
+        {disclaimer}
+        {_email_signature(bool(content.get('show_support')))}
+      </div>
+    </td></tr>
+    {_email_footer(unsubscribe_url)}
+  </table>
+</td></tr></table></body></html>"""
 
 
 def _already_sent(conn, code, journey, stage, reference):
@@ -682,6 +1027,25 @@ def _explorer_candidate(conn, contact):
     return None
 
 
+def _member_onboarding_candidate(conn, contact):
+    code, _email, _first, segment, created_at = contact[:5]
+    if segment != "active":
+        return None
+    activated_at = contact[9] if len(contact) > 9 and contact[9] else created_at
+    # Ce parcours accompagne uniquement les nouvelles activations. Il ne doit
+    # pas réveiller rétroactivement tous les membres historiques.
+    if activated_at < MEMBER_ONBOARDING_START:
+        return None
+    age_hours = (_now() - activated_at).total_seconds() / 3600
+    reference = activated_at.date().isoformat() if hasattr(activated_at, "date") else str(activated_at)[:10]
+    for content in MEMBER_ONBOARDING_STAGES:
+        if age_hours >= content["delay_hours"] and not _already_sent(
+                conn, code, "member_onboarding", content["stage"], reference):
+            return ("member_onboarding", content, reference,
+                    activated_at + timedelta(hours=content["delay_hours"]))
+    return None
+
+
 def _pending_optin_candidate(conn, contact):
     code, _email, _first, segment, created_at = contact[:5]
     if segment != "pending_optin":
@@ -763,7 +1127,8 @@ def _claim_email(conn, contact, journey, content, reference, due_at):
         subject=content["subject"][:250], due_at=due_at)
 
 
-def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, force=False):
+def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
+                             force=False, notify_admin=None):
     """Sélectionne puis envoie au maximum un message pertinent par contact."""
     conn = get_conn()
     try:
@@ -776,7 +1141,18 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
          legacy_enabled, legacy_daily_limit, legacy_started_at,
          legacy_paused_reason) = settings
         if not enabled and not dry_run:
+            conn.run("""UPDATE marketing_settings SET last_run_at=NOW(),
+                last_error='Automatisation générale en pause',updated_at=NOW()
+                WHERE id=1""")
+            _notify_marketing_problem(
+                conn, notify_admin, "engine-paused",
+                "Le moteur général est en pause. Les parcours Explorer, panier, renouvellement et réactivation ne peuvent pas avancer.",
+                cooldown_hours=24,
+            )
             return {"ok": True, "paused": True, "sent": 0, "candidates": []}
+        if not dry_run:
+            conn.run("""UPDATE marketing_settings SET last_run_at=NOW(),updated_at=NOW()
+                WHERE id=1""")
         hour = datetime.now(PARIS_TZ).hour
         if not force and not dry_run and not 9 <= hour < 20:
             return {"ok": True, "outside_window": True, "sent": 0, "candidates": []}
@@ -793,6 +1169,11 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
                 conn.run("""UPDATE marketing_settings SET legacy_campaign_enabled=FALSE,
                     legacy_paused_reason=:reason,updated_at=NOW() WHERE id=1""",
                     reason=pause_reason)
+                _notify_marketing_problem(
+                    conn, notify_admin, "legacy-deliverability",
+                    "La campagne des anciens prospects a été suspendue automatiquement. " + pause_reason,
+                    cooldown_hours=24,
+                )
                 legacy_enabled = False
                 legacy_paused_reason = pause_reason
             else:
@@ -802,7 +1183,7 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
                 legacy_remaining = max(0, min(int(legacy_daily_limit), ramp_limit) - legacy_sent_today)
         contacts = conn.run("""SELECT mc.member_code,mc.email,mc.first_name,mc.segment,
             COALESCE(m.created_at,mc.created_at),m.date_fin,m.billing_status,
-            m.stripe_subscription_id,m.billing_cancel_at_period_end
+            m.stripe_subscription_id,m.billing_cancel_at_period_end,m.date_souscription
             FROM marketing_contacts mc JOIN members m ON m.code=mc.member_code
             WHERE mc.unsubscribed_at IS NULL
               AND mc.email LIKE '%@%'
@@ -833,7 +1214,7 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             seen_emails.add(normalized_email)
             # Un statut actif ou suspendu sur une adresse protège cette personne
             # de toute relance émise depuis un ancien code BCT dupliqué.
-            if contact[3] in {"active", "suspended"}:
+            if contact[3] == "suspended":
                 continue
             if contact[3] == "legacy_lead":
                 if not legacy_enabled or legacy_selected >= legacy_remaining:
@@ -843,6 +1224,8 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             candidate = _checkout_candidate(conn, contact)
             if not candidate:
                 candidate = _renewal_candidate(conn, contact)
+            if not candidate:
+                candidate = _member_onboarding_candidate(conn, contact)
             if not candidate:
                 candidate = _explorer_candidate(conn, contact)
             if not candidate:
@@ -866,6 +1249,7 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
     sent = 0
     failed = 0
     results = []
+    failure_errors = {}
     for contact, journey, content, reference, due_at in candidates:
         code, email, first_name = contact[0], contact[1], contact[2]
         conn = get_conn()
@@ -886,7 +1270,7 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
             lifetime_seconds=60 * 60 * 24 * 730,
         )
         unsubscribe_url = f"{BASE_URL}/email/preferences/{unsubscribe_token}"
-        subject = content["subject"].format(prenom=first_name or "Bonjour")
+        subject = _personalized_subject(content["subject"], first_name)
         body = _email_html(first_name, content, journey, content["stage"], unsubscribe_url)
         result = send_email(email, first_name or "Membre Bectanse", subject, body,
                             f"marketing-{journey}-{content['stage']}")
@@ -901,13 +1285,31 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False, 
                     conn.run("""UPDATE marketing_legacy_leads SET last_contact_at=NOW()
                         WHERE id=:id""", id=int(code[5:]))
             else:
+                error_text = str(result.get("error", "Erreur d'envoi"))[:500]
                 conn.run("""UPDATE marketing_email_log SET status='failed',error=:error
-                    WHERE id=:id""", error=str(result.get("error", "Erreur d'envoi"))[:500], id=log_id)
+                    WHERE id=:id""", error=error_text, id=log_id)
+                failure_errors[error_text] = failure_errors.get(error_text, 0) + 1
                 failed += 1
         finally:
             conn.close()
         results.append({"member_code": code, "journey": journey,
                         "stage": content["stage"], "ok": bool(result.get("ok"))})
+    conn = get_conn()
+    try:
+        error_summary = "; ".join(
+            f"{count}× {error}" for error, count in list(failure_errors.items())[:3]
+        )
+        conn.run("""UPDATE marketing_settings SET last_success_at=NOW(),
+            last_error=:error,last_sent_count=:sent,updated_at=NOW() WHERE id=1""",
+            error=error_summary[:1000], sent=sent)
+        if failed:
+            _notify_marketing_problem(
+                conn, notify_admin, "delivery-failed",
+                f"{failed} e-mail(s) n'ont pas pu être envoyés pendant le dernier passage. {error_summary}",
+                cooldown_hours=6,
+            )
+    finally:
+        conn.close()
     return {"ok": True, "sent": sent, "failed": failed, "candidates": results}
 
 
@@ -919,7 +1321,8 @@ def _marketing_dashboard_data(conn):
     segments = {str(row[0]): int(row[1]) for row in segment_rows}
     settings = conn.run("""SELECT enabled,daily_send_limit,weekly_contact_limit,
         min_gap_hours,batch_limit,updated_at,legacy_campaign_enabled,
-        legacy_daily_limit,legacy_started_at,legacy_paused_reason
+        legacy_daily_limit,legacy_started_at,legacy_paused_reason,
+        last_run_at,last_success_at,last_error,last_sent_count
         FROM marketing_settings WHERE id=1""")[0]
     stats = {
         "sent_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_log
@@ -1038,7 +1441,8 @@ def _record_brevo_events(conn, payload):
     return accepted
 
 
-def register_marketing_routes(app, get_conn, send_email, action_token, action_payload, admin_required):
+def register_marketing_routes(app, get_conn, send_email, action_token, action_payload,
+                              admin_required, notify_admin=None):
     @app.route("/webhooks/brevo/marketing", methods=["POST"])
     def brevo_marketing_webhook():
         secret = os.environ.get("BREVO_WEBHOOK_SECRET", "")
@@ -1067,7 +1471,8 @@ def register_marketing_routes(app, get_conn, send_email, action_token, action_pa
         return render_template("admin_marketing.html", segments=segments,
             settings=settings, stats=stats, recent=recent,
             explorer_stages=EXPLORER_STAGES, checkout_stages=CHECKOUT_STAGES,
-            reactivation_stages=REACTIVATION_STAGES)
+            reactivation_stages=REACTIVATION_STAGES,
+            member_stages=MEMBER_ONBOARDING_STAGES)
 
     @app.route("/admin/marketing/run", methods=["POST"])
     @admin_required
@@ -1075,7 +1480,8 @@ def register_marketing_routes(app, get_conn, send_email, action_token, action_pa
         data = request.get_json(silent=True) or {}
         result = run_marketing_automation(
             get_conn, send_email, action_token,
-            dry_run=bool(data.get("dry_run", True)), force=bool(data.get("force", False)))
+            dry_run=bool(data.get("dry_run", True)), force=bool(data.get("force", False)),
+            notify_admin=notify_admin)
         return jsonify(result)
 
     @app.route("/admin/marketing/toggle", methods=["POST"])
@@ -1146,6 +1552,11 @@ def register_marketing_routes(app, get_conn, send_email, action_token, action_pa
                     imported += 1
                 else:
                     duplicate += 1
+            if imported:
+                conn.run("""UPDATE marketing_settings SET enabled=TRUE,
+                    legacy_campaign_enabled=TRUE,
+                    legacy_started_at=COALESCE(legacy_started_at,NOW()),
+                    legacy_paused_reason='',updated_at=NOW() WHERE id=1""")
         finally:
             conn.close()
         return jsonify({"ok": True, "imported": imported, "duplicates": duplicate, "invalid": invalid})
