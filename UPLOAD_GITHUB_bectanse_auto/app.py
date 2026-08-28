@@ -3978,7 +3978,7 @@ def admin_api_analytics_visitors():
                      activity.first_seen,activity.last_seen,COALESCE(activity.source,'direct') AS source,
                      activity.landing_page,activity.last_page,
                      COALESCE(activity.device_type,'Inconnu') AS device_type,
-                     CASE WHEN historic.visitor_id IS NULL THEN FALSE ELSE TRUE END AS returning,
+                     CASE WHEN historic.visitor_id IS NULL THEN FALSE ELSE TRUE END AS is_returning,
                      CASE WHEN activity.member_code IS NULL THEN 'Visiteur anonyme'
                           WHEN COALESCE(m.access_level,'member') IN ('explorer','demo') THEN 'Explorer'
                           WHEN m.actif=TRUE AND (m.date_fin IS NULL OR m.date_fin>NOW()) THEN 'Membre actif'
@@ -3992,7 +3992,7 @@ def admin_api_analytics_visitors():
               ) historic ON TRUE
             )
             SELECT visitor_id,member_code,name,page_views,sessions,first_seen,last_seen,
-                   source,landing_page,last_page,device_type,returning,segment
+                   source,landing_page,last_page,device_type,is_returning,segment
             FROM enriched
             WHERE :query_text='' OR LOWER(visitor_id) LIKE :query
                OR LOWER(member_code) LIKE :query OR LOWER(name) LIKE :query
