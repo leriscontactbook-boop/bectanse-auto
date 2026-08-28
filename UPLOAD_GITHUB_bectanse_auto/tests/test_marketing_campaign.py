@@ -9,6 +9,7 @@ from marketing_automation import (
     _email_html,
     _explorer_candidate,
     _member_onboarding_candidate,
+    _legacy_delivery_health,
     _now,
     _personalized_subject,
 )
@@ -31,6 +32,19 @@ class _EmailParser(HTMLParser):
 class _NoQueryConnection:
     def run(self, sql, **params):
         raise AssertionError("Aucune requête ne doit être exécutée pour ce statut")
+
+
+class _DeliveryConnection:
+    def __init__(self, sent, events):
+        self.sent = sent
+        self.events = events
+
+    def run(self, sql, **params):
+        if "SELECT COUNT(*) FROM marketing_email_log" in sql:
+            return [[self.sent]]
+        if "SELECT event_type,COUNT(*) FROM marketing_email_events" in sql:
+            return [[name, count] for name, count in self.events.items()]
+        raise AssertionError("Requête de délivrabilité inattendue")
 
 
 class MarketingCampaignTests(unittest.TestCase):
@@ -95,6 +109,21 @@ class MarketingCampaignTests(unittest.TestCase):
         )
         self.assertIsNone(
             _member_onboarding_candidate(_NoQueryConnection(), contact))
+
+    def test_one_unsubscribe_on_small_sample_does_not_block_the_whole_base(self):
+        healthy, reason, health = _legacy_delivery_health(
+            _DeliveryConnection(50, {"unsubscribed": 1, "delivered": 47})
+        )
+        self.assertTrue(healthy)
+        self.assertEqual(reason, "")
+        self.assertEqual(health["unsubscribed"], 1)
+
+    def test_confirmed_unsubscribe_trend_still_pauses_reactivation(self):
+        healthy, reason, _health = _legacy_delivery_health(
+            _DeliveryConnection(250, {"unsubscribed": 3, "delivered": 240})
+        )
+        self.assertFalse(healthy)
+        self.assertIn("désabonnements", reason)
 
 
 if __name__ == "__main__":

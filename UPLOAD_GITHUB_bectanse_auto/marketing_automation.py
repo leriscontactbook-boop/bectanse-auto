@@ -1108,11 +1108,14 @@ def _legacy_delivery_health(conn):
     hard_rate = hard * 100 / sent
     spam_rate = spam * 100 / sent
     unsubscribe_rate = unsubscribed * 100 / sent
-    if hard_rate >= 1.5:
+    # Un seul désabonnement sur un très petit échantillon ne doit pas bloquer
+    # toute une base. Les taux deviennent décisionnels avec un volume minimum,
+    # tandis qu'une plainte spam reste toujours un signal d'arrêt immédiat.
+    if hard >= 3 and hard_rate >= 1.5:
         return False, f"Pause automatique: rebonds définitifs {hard_rate:.2f}%", health
-    if unsubscribe_rate >= 0.8:
+    if sent >= 200 and unsubscribed >= 3 and unsubscribe_rate >= 0.8:
         return False, f"Pause automatique: désabonnements {unsubscribe_rate:.2f}%", health
-    if spam_rate >= 0.1:
+    if spam >= 1 and spam_rate >= 0.1:
         return False, f"Pause automatique: plaintes {spam_rate:.2f}%", health
     return True, "", health
 
@@ -1154,6 +1157,19 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
                 cooldown_hours=24,
             )
             return {"ok": True, "paused": True, "sent": 0, "candidates": []}
+        if (not legacy_enabled and
+                str(legacy_paused_reason or "").startswith("Pause automatique:")):
+            recovered, _reason, _health = _legacy_delivery_health(conn)
+            if recovered:
+                conn.run("""UPDATE marketing_settings SET legacy_campaign_enabled=TRUE,
+                    legacy_paused_reason='',updated_at=NOW() WHERE id=1""")
+                legacy_enabled = True
+                legacy_paused_reason = ""
+                _notify_marketing_problem(
+                    conn, notify_admin, "legacy-recovered",
+                    "La santé d'envoi est revenue à un niveau normal. La campagne des anciens prospects reprend automatiquement.",
+                    cooldown_hours=24,
+                )
         if not dry_run:
             conn.run("""UPDATE marketing_settings SET last_run_at=NOW(),updated_at=NOW()
                 WHERE id=1""")
