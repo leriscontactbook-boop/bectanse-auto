@@ -429,6 +429,18 @@ def init_db():
             conn.run("""CREATE INDEX IF NOT EXISTS prospect_verification_status_idx
                          ON prospect_email_verifications (status, expires_at)""")
             conn.run("""
+                CREATE TABLE IF NOT EXISTS explorer_journey (
+                    member_code     TEXT PRIMARY KEY,
+                    welcome_seen_at TIMESTAMP,
+                    academy_seen_at TIMESTAMP,
+                    lab_seen_at     TIMESTAMP,
+                    trust_seen_at   TIMESTAMP,
+                    offer_seen_at   TIMESTAMP,
+                    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+            """)
+            conn.run("""
                 CREATE TABLE IF NOT EXISTS analysis_accounts (
                     code        TEXT PRIMARY KEY,
                     email       TEXT UNIQUE NOT NULL,
@@ -829,6 +841,98 @@ def _member_is_explorer(member):
         return False
     return (str(member.get("access_level") or "member").lower() in {"explorer", "demo"}
             or str(member.get("code") or "").upper() == "BCT-DEMO2026")
+
+
+EXPLORER_JOURNEY_STEPS = (
+    {
+        "id": "academy",
+        "column": "academy_seen_at",
+        "number": "01",
+        "label": "Comprendre la méthode",
+        "title": "Découvre comment l’Académie te fait progresser",
+        "description": "Parcours structuré, exercices et validation des acquis. Tu vois le système avant de prendre une décision.",
+        "duration": "2 min",
+        "href": "/academie",
+        "cta": "Découvrir l’Académie",
+        "icon": "academy",
+    },
+    {
+        "id": "lab",
+        "column": "lab_seen_at",
+        "number": "02",
+        "label": "Explorer les outils",
+        "title": "Entre dans le Trader Lab",
+        "description": "Analyse IA, simulateur, journal et Trade Score. Découvre comment chaque outil améliore la qualité des décisions.",
+        "duration": "2 min",
+        "href": "/trader-lab",
+        "cta": "Explorer le Trader Lab",
+        "icon": "lab",
+    },
+    {
+        "id": "trust",
+        "column": "trust_seen_at",
+        "number": "03",
+        "label": "Vérifier le système",
+        "title": "Regarde ce que le système fait vraiment",
+        "description": "Méthode, limites et sécurité. Pas de promesse floue, tu comprends précisément ce que tu rejoins.",
+        "duration": "1 min",
+        "href": "/centre-confiance",
+        "cta": "Ouvrir le centre de confiance",
+        "icon": "trust",
+    },
+    {
+        "id": "offer",
+        "column": "offer_seen_at",
+        "number": "04",
+        "label": "Choisir ton accès",
+        "title": "Débloque ton parcours complet",
+        "description": "Choisis la formule adaptée et transforme cet aperçu en véritable espace de progression personnel.",
+        "duration": "1 min",
+        "href": "/vip#offres",
+        "cta": "Voir les formules",
+        "icon": "unlock",
+    },
+)
+EXPLORER_STEP_COLUMNS = {step["id"]: step["column"] for step in EXPLORER_JOURNEY_STEPS}
+
+
+def _explorer_journey_state(conn, member_code, mark_welcome=False):
+    """Construit l'expérience guidée sans modifier les accès d'un membre payant."""
+    conn.run("""INSERT INTO explorer_journey (member_code, welcome_seen_at)
+        VALUES (:code, CASE WHEN :welcome THEN NOW() ELSE NULL END)
+        ON CONFLICT (member_code) DO UPDATE SET
+            welcome_seen_at=CASE WHEN :welcome THEN COALESCE(explorer_journey.welcome_seen_at,NOW())
+                                 ELSE explorer_journey.welcome_seen_at END,
+            updated_at=NOW()""", code=member_code, welcome=bool(mark_welcome))
+    rows = conn.run("""SELECT welcome_seen_at,academy_seen_at,lab_seen_at,trust_seen_at,offer_seen_at
+        FROM explorer_journey WHERE member_code=:code""", code=member_code)
+    values = rows[0] if rows else (None, None, None, None, None)
+    completed_by_id = {
+        "academy": bool(values[1]),
+        "lab": bool(values[2]),
+        "trust": bool(values[3]),
+        "offer": bool(values[4]),
+    }
+    steps = []
+    current_index = next(
+        (index for index, step in enumerate(EXPLORER_JOURNEY_STEPS)
+         if not completed_by_id[step["id"]]),
+        len(EXPLORER_JOURNEY_STEPS) - 1,
+    )
+    completed_count = sum(1 for done in completed_by_id.values() if done)
+    for index, definition in enumerate(EXPLORER_JOURNEY_STEPS):
+        step = dict(definition)
+        step["completed"] = completed_by_id[step["id"]]
+        step["current"] = index == current_index and not step["completed"]
+        step["locked"] = index > current_index and not step["completed"]
+        steps.append(step)
+    return {
+        "steps": steps,
+        "current": steps[current_index],
+        "completed_count": completed_count,
+        "progress": completed_count * 25,
+        "finished": completed_count == len(EXPLORER_JOURNEY_STEPS),
+    }
 
 
 def _member_has_academy_access(member):
@@ -1471,6 +1575,8 @@ def accueil():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
+    if _member_is_explorer(member):
+        return redirect(url_for("explorer_home"))
     raw_params = member.get("params") or {}
     # Fusionner avec les defaults pour les clés manquantes
     dp = default_params()
@@ -1510,6 +1616,115 @@ def accueil():
         demo_mode=demo_mode,
         modern_preview=modern_preview
     )
+
+
+@app.route("/explorer")
+@login_required
+def explorer_home():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        session.clear()
+        return redirect(url_for("login"))
+    if not _member_is_explorer(member):
+        return redirect(url_for("accueil"))
+    conn = get_conn()
+    try:
+        journey = _explorer_journey_state(conn, code, mark_welcome=True)
+    finally:
+        conn.close()
+    return render_template("explorer.html", member=member, demo_mode=True, journey=journey)
+
+
+@app.route("/api/explorer/progress", methods=["POST"])
+@login_required
+def explorer_progress():
+    code = session["member_code"]
+    member = get_member(code)
+    if not _member_is_explorer(member):
+        return jsonify({"ok": False, "error": "Ce parcours est réservé au mode Explorer."}), 403
+    data = request.get_json(silent=True) or {}
+    step_id = str(data.get("step", "")).strip().lower()
+    column = EXPLORER_STEP_COLUMNS.get(step_id)
+    if not column:
+        return jsonify({"ok": False, "error": "Étape inconnue."}), 400
+    conn = get_conn()
+    try:
+        conn.run("""INSERT INTO explorer_journey (member_code)
+            VALUES (:code) ON CONFLICT (member_code) DO NOTHING""", code=code)
+        conn.run(f"""UPDATE explorer_journey SET {column}=COALESCE({column},NOW()),
+            updated_at=NOW() WHERE member_code=:code""", code=code)
+        journey = _explorer_journey_state(conn, code)
+    finally:
+        conn.close()
+    return jsonify({
+        "ok": True,
+        "step": step_id,
+        "progress": journey["progress"],
+        "completed_count": journey["completed_count"],
+        "next_step": journey["current"]["id"] if not journey["finished"] else "complete",
+    })
+
+
+@app.route("/presentation-academie")
+@login_required
+def presentation_academie():
+    code = session["member_code"]
+    member = get_member(code)
+    if not member:
+        session.clear()
+        return redirect(url_for("login"))
+    explorer_account = _member_is_explorer(member)
+    if explorer_account:
+        conn = get_conn()
+        try:
+            conn.run("""INSERT INTO explorer_journey (member_code, academy_seen_at)
+                VALUES (:code,NOW()) ON CONFLICT (member_code) DO UPDATE SET
+                academy_seen_at=COALESCE(explorer_journey.academy_seen_at,NOW()),updated_at=NOW()""",
+                code=code)
+        finally:
+            conn.close()
+    return render_template("presentation_academie.html", member=member,
+                           demo_mode=_current_demo_mode(code, member),
+                           back_url="/explorer" if explorer_account else "/accueil")
+
+
+@app.route("/presentation-academie/telecharger")
+@login_required
+def download_presentation_academie():
+    return send_from_directory(
+        os.path.join(app.static_folder, "guides"),
+        "bectanse-academie-presentation.pdf",
+        as_attachment=True,
+        download_name="Bectanse-Academie-Presentation.pdf",
+    )
+
+
+@app.route("/preview-explorer")
+def preview_explorer():
+    """Aperçu local sans compte réel, inaccessible depuis le domaine public."""
+    if request.host.split(":", 1)[0] not in {"127.0.0.1", "localhost"}:
+        return "Introuvable", 404
+    preview_member = {
+        "code": "BCT-EXPLORER",
+        "nom": "Leris Explorer",
+        "email": "explorer@bectanse-academie.com",
+        "access_level": "explorer",
+    }
+    preview_steps = []
+    for index, definition in enumerate(EXPLORER_JOURNEY_STEPS):
+        step = dict(definition)
+        step.update({"completed": index == 0, "current": index == 1, "locked": index > 1})
+        preview_steps.append(step)
+    preview_journey = {
+        "steps": preview_steps,
+        "current": preview_steps[1],
+        "completed_count": 1,
+        "progress": 25,
+        "finished": False,
+    }
+    return render_template("explorer.html", member=preview_member,
+                           demo_mode=True, journey=preview_journey, preview_mode=True)
 
 
 @app.route("/preview-espace-membre")
@@ -3190,7 +3405,7 @@ ANALYTICS_EVENTS = {
     "registration_submit", "registration_complete", "checkout_start",
     "checkout_complete", "app_explore", "notification_interest",
     "notification_enabled", "login_success", "form_submit",
-    "analysis_start", "analysis_complete"
+    "analysis_start", "analysis_complete", "explorer_step", "explorer_offer_view"
 }
 
 def _analytics_client_info(user_agent):
@@ -4686,7 +4901,8 @@ def health():
 @app.route("/", methods=["GET","POST"])
 def login():
     if "member_code" in session:
-        return redirect(url_for("accueil"))
+        session_member = get_member(session.get("member_code", ""))
+        return redirect(url_for("explorer_home" if _member_is_explorer(session_member) else "accueil"))
     if "analysis_account_code" in session:
         return redirect(url_for("analyse_ia"))
     error = None
@@ -4759,7 +4975,7 @@ def login():
             pending_plan = session.pop("pending_academy_plan", "")
             if pending_plan in ACADEMY_PLAN_BY_ID:
                 return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
-            return redirect(url_for("accueil"))
+            return redirect(url_for("explorer_home" if _member_is_explorer(member) else "accueil"))
     return render_template("login.html", error=error, notice=notice,
                            explorer_gate_enabled=explorer_gate_enabled)
 
@@ -4801,7 +5017,7 @@ def confirm_explorer_email(token):
         pending_plan = session.pop("pending_academy_plan", "")
         if pending_plan in ACADEMY_PLAN_BY_ID:
             return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
-        return redirect(url_for("accueil"))
+        return redirect(url_for("explorer_home"))
     except Exception as exc:
         app.logger.error("Confirmation prospect Explorer: %s", exc)
         return render_template("login.html",
@@ -5224,7 +5440,7 @@ def confirm_member_registration(token):
     pending_plan = session.pop("pending_academy_plan", "")
     if pending_plan in ACADEMY_PLAN_BY_ID:
         return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
-    return redirect(url_for("accueil"))
+    return redirect(url_for("explorer_home"))
 
 @app.route("/admin/api/brevo/sync-members", methods=["POST"])
 def admin_sync_brevo_members():

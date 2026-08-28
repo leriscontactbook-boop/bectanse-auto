@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Présentation officielle — Bectanse Académie</title>
+  <meta name="theme-color" content="#070807">
+  <link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bar-height:68px;--nav-height:76px;--orange:#ff641e;--bg:#070807}*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);color:#f5f5f1;font-family:Inter,Arial,sans-serif}.doc-bar{position:fixed;inset:0 0 auto;z-index:1200;height:calc(var(--bar-height) + env(safe-area-inset-top));padding:env(safe-area-inset-top) 14px 0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.09);background:rgba(6,7,6,.97);box-shadow:0 12px 38px rgba(0,0,0,.36);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}.doc-close,.doc-download{min-height:42px;display:inline-flex;align-items:center;border-radius:11px;text-decoration:none;font-size:10px;font-weight:800}.doc-close{justify-self:start;padding:0 13px;border:1px solid rgba(255,255,255,.12);color:#f2f3ef;background:#121411}.doc-close svg{width:17px;height:17px;margin-right:7px}.doc-title{text-align:center;white-space:nowrap}.doc-title small{display:block;margin-bottom:3px;color:#ff7b3a;font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.doc-title strong{display:block;font:800 18px/1 'Barlow Condensed',Inter,sans-serif;letter-spacing:.035em}.doc-download{justify-self:end;padding:0 14px;color:#fff;background:linear-gradient(115deg,#e94d0b,#ff6e28);box-shadow:0 8px 22px rgba(255,85,18,.2)}.doc-stage{position:fixed;inset:calc(var(--bar-height) + env(safe-area-inset-top)) 0 0;padding:10px;background:radial-gradient(circle at 50% 0,rgba(255,100,30,.08),transparent 34%),#090a09}.doc-frame{width:100%;height:100%;display:block;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:#1a1b1a;box-shadow:0 20px 60px rgba(0,0,0,.42)}.doc-fallback{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:-1;width:min(90%,520px);padding:14px;border:1px solid rgba(255,100,30,.22);border-radius:12px;color:#aeb2aa;background:#111310;text-align:center;font-size:11px;line-height:1.5}.doc-fallback a{color:#ff7b3a;font-weight:800}@media(max-width:768px){.doc-bar{grid-template-columns:1fr auto;height:calc(62px + env(safe-area-inset-top));padding-inline:9px}.doc-title{display:none}.doc-close,.doc-download{min-height:40px;padding-inline:10px;font-size:9px}.doc-stage{top:calc(62px + env(safe-area-inset-top));bottom:calc(var(--nav-height) + env(safe-area-inset-bottom));padding:6px}.doc-frame{border-radius:10px}}@media(max-width:340px){.doc-close,.doc-download{font-size:8px;padding-inline:7px}}
+  </style>
+</head>
+<body>
+  <header class="doc-bar">
+    <a class="doc-close" href="{{ back_url }}" aria-label="Fermer la présentation et revenir au parcours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"></path></svg>Retour au parcours</a>
+    <div class="doc-title"><small>Dossier officiel</small><strong>Bectanse Académie</strong></div>
+    <a class="doc-download" href="/presentation-academie/telecharger">Télécharger le PDF</a>
+  </header>
+  <main class="doc-stage">
+    <iframe class="doc-frame" title="Présentation officielle Bectanse Académie" src="/static/guides/bectanse-academie-presentation.pdf#view=FitH&toolbar=1&navpanes=0"></iframe>
+    <div class="doc-fallback">Si le document ne s’affiche pas, <a href="/presentation-academie/telecharger">télécharge la présentation ici</a>.</div>
+  </main>
+  {% include "_mobile_nav.html" %}
+</body>
+</html>

@@ -119,9 +119,11 @@
 </style>
 
 {% set mobile_active = request.endpoint %}
+{% set explorer_account = member and ((member.get('access_level', 'member')|lower in ['explorer','demo']) or (member.get('code', '')|upper == 'BCT-DEMO2026')) %}
+{% set mobile_home_href = '/explorer' if explorer_account else '/accueil' %}
 {% set more_active = mobile_active in ['dashboard','guide_robot','parrainage','support','offres','abonnement'] %}
 <nav class="m-univ-nav" aria-label="Navigation principale de l’application">
-  <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="/accueil"{% if mobile_active == 'accueil' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('home') }}</span><span>Accueil</span></a>
+  <a class="m-univ-nav-item{% if mobile_active in ['accueil','explorer_home'] %} active{% endif %}" href="{{ mobile_home_href }}"{% if mobile_active in ['accueil','explorer_home'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('home') }}</span><span>{{ 'Explorer' if explorer_account else 'Accueil' }}</span></a>
   <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"{% if mobile_active in ['academie','formation'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('academy') }}</span><span>Académie</span></a>
   <a class="m-univ-nav-item{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} active{% endif %}" href="/trader-lab"{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('lab') }}</span><span>Trader Lab</span></a>
   <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"{% if mobile_active == 'canal' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('live') }}<i class="m-app-live-pulse" aria-hidden="true"></i></span><span>Live</span></a>
@@ -144,12 +146,26 @@
       <a class="m-app-tool{% if mobile_active == 'abonnement' %} active{% endif %}" href="/abonnement"><span class="m-app-icon-shell">{{ nav_icon('billing') }}</span><span>Mon abonnement</span></a>
       <a class="m-app-tool{% if mobile_active == 'support' %} active{% endif %}" href="/support"><span class="m-app-icon-shell">{{ nav_icon('support') }}</span><span>Support</span></a>
     </div>
-    {% if demo_mode|default(false) %}<div class="m-app-sheet-foot"><div><strong>Débloquer toutes les sections</strong><small>Découvre l’accès complet à l’Académie.</small></div><a href="/vip">Voir l’accès</a></div>{% else %}<div class="m-app-sheet-foot"><div><strong>Transparence du système</strong><small>Méthode, limites et sécurité de l’Analyse IA.</small></div><a href="/centre-confiance">Consulter</a></div>{% endif %}
+    {% if demo_mode|default(false) %}<div class="m-app-sheet-foot"><div><strong>{{ 'Ton parcours Explorer' if explorer_account else 'Débloquer toutes les sections' }}</strong><small>{{ 'Reprends la découverte guidée avant de choisir.' if explorer_account else 'Découvre l’accès complet à l’Académie.' }}</small></div><a href="{{ '/explorer' if explorer_account else '/vip' }}">{{ 'Continuer' if explorer_account else 'Voir l’accès' }}</a></div>{% else %}<div class="m-app-sheet-foot"><div><strong>Transparence du système</strong><small>Méthode, limites et sécurité de l’Analyse IA.</small></div><a href="/centre-confiance">Consulter</a></div>{% endif %}
   </div>
 </section>
 
 <script>window.BECTANSE_PUSH_ELIGIBLE={{ 'false' if demo_mode|default(false) else 'true' }};</script>
 <script src="/static/push.js" defer></script>
+{% if explorer_account and not preview_mode|default(false) %}
+<script>
+  document.addEventListener('DOMContentLoaded',function(){
+    var explorerStepByPath={'/academie':'academy','/trader-lab':'lab','/centre-confiance':'trust'};
+    var explorerStep=explorerStepByPath[location.pathname];
+    if(explorerStep)fetch('/api/explorer/progress',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({step:explorerStep})}).then(function(response){return response.ok?response.json():null}).then(function(data){if(data&&data.ok&&window.bectanseTrack)window.bectanseTrack('explorer_step',{step:explorerStep,progress:data.progress})}).catch(function(){});
+    document.addEventListener('click',function(event){
+      var upgradeLink=event.target.closest('a[href^="/vip"]');
+      if(!upgradeLink)return;
+      fetch('/api/explorer/progress',{method:'POST',credentials:'same-origin',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({step:'offer'})}).catch(function(){});
+    },true);
+  });
+</script>
+{% endif %}
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var nav=document.querySelector('.m-univ-nav'),sheet=document.getElementById('mAppSheet'),backdrop=document.querySelector('.m-app-sheet-backdrop'),trigger=nav&&nav.querySelector('.m-app-more'),previousFocus=null;
