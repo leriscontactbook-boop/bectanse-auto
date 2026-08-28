@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Mon parcours Explorer — Bectanse Académie</title>
+  <meta name="theme-color" content="#060706">
+  <meta name="description" content="Découvre Bectanse Académie à travers un parcours guidé avant de choisir ton accès.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/explorer-journey.css?v=20260828-1">
+</head>
+<body>
+{% macro explorer_icon(name) -%}
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  {% if name == 'academy' %}<path d="m3 9 9-5 9 5-9 5-9-5Z"></path><path d="M7 12.2V17c3 2.3 7 2.3 10 0v-4.8"></path><path d="M21 9v6"></path>
+  {% elif name == 'lab' %}<path d="M9 3h6"></path><path d="M10 9V3M14 9V3"></path><path d="m8 9-4.5 8.5A2.4 2.4 0 0 0 5.6 21h12.8a2.4 2.4 0 0 0 2.1-3.5L16 9"></path><path d="M6.5 15h11"></path>
+  {% elif name == 'trust' %}<path d="M12 3 4.5 6v5.3c0 4.7 3.1 8.3 7.5 9.7 4.4-1.4 7.5-5 7.5-9.7V6L12 3Z"></path><path d="m8.8 12 2.1 2.1 4.5-4.6"></path>
+  {% elif name == 'unlock' %}<rect x="4" y="10" width="16" height="11" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 7.8-1.2"></path><path d="M12 14v3"></path>
+  {% elif name == 'check' %}<path d="m5 12 4 4L19 6"></path>
+  {% elif name == 'arrow' %}<path d="M5 12h14M14 7l5 5-5 5"></path>
+  {% elif name == 'lock' %}<rect x="5" y="10" width="14" height="11" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+  {% endif %}
+</svg>
+{%- endmacro %}
+
+{% set first_name = (member.nom or 'Explorer').split(' ')[0] %}
+<div class="ex-app">
+  <header class="ex-topbar">
+    <a class="ex-brand" href="/explorer" aria-label="Bectanse Académie — Parcours Explorer">
+      <img src="/static/icons/bectanse-app-icon-master.png?v=20260825" alt="Bectanse Académie">
+      <span>BECTANSE <b>ACADÉMIE</b></span>
+    </a>
+    <div class="ex-top-actions">
+      <span class="ex-mode"><i></i> Mode Explorer</span>
+      <a class="ex-top-cta js-explorer-action" data-step="offer" href="/vip#offres">Débloquer</a>
+    </div>
+  </header>
+
+  <main class="ex-shell">
+    <section class="ex-hero">
+      <div class="ex-hero-grid" aria-hidden="true"></div>
+      <div class="ex-hero-copy">
+        <span class="ex-overline">TON ESPACE DE DÉCOUVERTE PERSONNEL</span>
+        <h1>{{ first_name }}, ne regarde pas tout au hasard.<br><em>Découvre ce qui peut vraiment changer ta façon d’avancer.</em></h1>
+        <p>Je t’ai préparé un parcours court. Quatre étapes pour comprendre la méthode, tester la logique des outils et décider avec toutes les informations en main.</p>
+        <div class="ex-hero-meta">
+          <span><b>4</b> étapes guidées</span>
+          <span><b>6</b> minutes environ</span>
+          <span><b>0 €</b> pour découvrir</span>
+        </div>
+      </div>
+      <div class="ex-orbit" aria-hidden="true">
+        <div class="ex-orbit-ring ring-one"></div><div class="ex-orbit-ring ring-two"></div>
+        <div class="ex-orbit-core"><img src="/static/icons/bectanse-app-icon-master.png?v=20260825" alt=""></div>
+        <span class="ex-orbit-node node-one"></span><span class="ex-orbit-node node-two"></span><span class="ex-orbit-node node-three"></span>
+        <strong>{{ journey.progress }}%</strong><small>PARCOURS</small>
+      </div>
+    </section>
+
+    <section class="ex-progress-card" aria-label="Progression du parcours Explorer">
+      <div class="ex-progress-head">
+        <div><span>Progression</span><strong>{{ journey.completed_count }} étape{{ 's' if journey.completed_count != 1 else '' }} sur 4</strong></div>
+        <b>{{ journey.progress }}%</b>
+      </div>
+      <div class="ex-progress-track"><i style="width:{{ journey.progress }}%"></i></div>
+      <p>Ton avancée est sauvegardée sur ton compte <b>{{ member.code }}</b></p>
+    </section>
+
+    <section class="ex-dossier">
+      <div class="ex-dossier-cover">
+        <img src="/static/guides/bectanse-academie-presentation-cover.jpg?v=20260828" alt="Couverture de la présentation officielle Bectanse Académie">
+        <span>10 PAGES</span>
+      </div>
+      <div class="ex-dossier-copy">
+        <span class="ex-section-kicker">COMMENCE PAR LA VISION D’ENSEMBLE</span>
+        <h2>Toute l’Académie.<br><em>Dans un dossier clair.</em></h2>
+        <p>Avant d’explorer chaque outil, découvre comment la formation, le Trader Lab, Bectanse Auto, le canal VIP et ton suivi personnel travaillent ensemble.</p>
+        <div class="ex-dossier-points"><span>Académie</span><span>Analyse IA</span><span>Web App</span><span>Canal VIP</span></div>
+        <div class="ex-dossier-actions">
+          <a class="ex-primary" href="/presentation-academie">Consulter la présentation {{ explorer_icon('arrow') }}</a>
+          <a class="ex-dossier-download" href="/presentation-academie/telecharger">Télécharger le PDF</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="ex-current" id="mission">
+      <div class="ex-section-kicker">{{ 'TON PARCOURS EST TERMINÉ' if journey.finished else 'TA PROCHAINE MISSION' }}</div>
+      <article class="ex-mission-card">
+        <div class="ex-mission-number">{{ journey.current.number }}</div>
+        <div class="ex-mission-icon">{{ explorer_icon(journey.current.icon) }}</div>
+        <div class="ex-mission-copy">
+          <span>{{ journey.current.label }} · {{ journey.current.duration }}</span>
+          <h2>{{ journey.current.title }}</h2>
+          <p>{{ journey.current.description }}</p>
+          <a class="ex-primary js-explorer-action" data-step="{{ journey.current.id }}" href="{{ journey.current.href }}">
+            {{ journey.current.cta }} {{ explorer_icon('arrow') }}
+          </a>
+        </div>
+        <div class="ex-mission-status"><i></i> {{ 'Offres consultées' if journey.finished else 'À faire maintenant' }}</div>
+      </article>
+    </section>
+
+    <section class="ex-journey">
+      <div class="ex-section-title">
+        <div><span>LE FIL CONDUCTEUR</span><h2>Tu avances une étape à la fois</h2></div>
+        <p>Chaque écran répond à une question précise. Aucun catalogue interminable.</p>
+      </div>
+      <div class="ex-step-list">
+        {% for step in journey.steps %}
+        <article class="ex-step {{ 'is-done' if step.completed else ('is-current' if step.current else 'is-locked') }}">
+          <div class="ex-step-state">
+            {% if step.completed %}{{ explorer_icon('check') }}{% elif step.locked %}{{ explorer_icon('lock') }}{% else %}<span>{{ step.number }}</span>{% endif %}
+          </div>
+          <div class="ex-step-copy">
+            <small>{{ step.label }} · {{ step.duration }}</small>
+            <h3>{{ step.title }}</h3>
+            <p>{{ step.description }}</p>
+          </div>
+          {% if not step.locked %}
+          <a class="ex-step-link js-explorer-action" data-step="{{ step.id }}" href="{{ step.href }}">{{ 'Revoir' if step.completed else 'Commencer' }} {{ explorer_icon('arrow') }}</a>
+          {% else %}
+          <span class="ex-step-wait">Étape suivante</span>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="ex-unlock">
+      <div class="ex-unlock-copy">
+        <span class="ex-section-kicker">CE QUE TU OBSERVES AUJOURD’HUI</span>
+        <h2>Visible en Explorer.<br><em>Vivant avec ton accès.</em></h2>
+        <p>Le compte Explorer te permet de comprendre le système. L’accès membre transforme chaque module en outil personnel lié à ton code BCT.</p>
+        <a class="ex-secondary js-explorer-action" data-step="offer" href="/vip#offres">Comparer les formules {{ explorer_icon('arrow') }}</a>
+      </div>
+      <div class="ex-unlock-grid">
+        <article><span>01</span><b>Académie structurée</b><p>500+ pages, parcours, exercices et validation de progression.</p><i>APERÇU ACTIF</i></article>
+        <article><span>02</span><b>Trader Lab personnel</b><p>Analyse IA, simulation, journal et Trade Score reliés à ton compte.</p><i>VERROUILLÉ</i></article>
+        <article><span>03</span><b>Canal VIP en direct</b><p>Alertes, contexte et historique depuis l’application installée.</p><i>VERROUILLÉ</i></article>
+        <article><span>04</span><b>Accompagnement continu</b><p>Un système pensé pour apprendre, appliquer et mesurer tes progrès.</p><i>VERROUILLÉ</i></article>
+      </div>
+    </section>
+
+    <section class="ex-final">
+      <span>PRÊT À PASSER DE L’OBSERVATION À L’ACTION</span>
+      <h2>Ton espace existe déjà.<br>Il ne reste qu’à le débloquer.</h2>
+      <p>Tu conserves ton code BCT et ton parcours. Après confirmation du paiement, les fonctions réservées s’activent sur ton compte.</p>
+      <a class="ex-primary ex-primary-large js-explorer-action" data-step="offer" href="/vip#offres">Voir les accès Bectanse {{ explorer_icon('arrow') }}</a>
+      <small>Le trading comporte un risque de perte. L’Académie fournit des outils éducatifs et ne garantit aucun résultat financier.</small>
+    </section>
+  </main>
+
+  <div class="ex-mobile-action">
+    <div><small>{{ 'Parcours terminé' if journey.finished else 'Mission ' ~ journey.current.number }}</small><strong>{{ journey.current.label }}</strong></div>
+    <a class="js-explorer-action" data-step="{{ journey.current.id }}" href="{{ journey.current.href }}">{{ 'Voir les offres' if journey.finished else 'Continuer' }} {{ explorer_icon('arrow') }}</a>
+  </div>
+</div>
+
+{% include "_mobile_nav.html" %}
+<script>
+(function(){
+  var preview={{ 'true' if preview_mode|default(false) else 'false' }};
+  document.querySelectorAll('.js-explorer-action').forEach(function(link){
+    link.addEventListener('click',function(){
+      var step=link.dataset.step;
+      if(preview||!step)return;
+      fetch('/api/explorer/progress',{method:'POST',credentials:'same-origin',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({step:step})}).then(function(response){return response.ok?response.json():null}).then(function(data){
+        if(data&&data.ok&&window.bectanseTrack)window.bectanseTrack(step==='offer'?'explorer_offer_view':'explorer_step',{step:step,progress:data.progress});
+      }).catch(function(){});
+    },{passive:true});
+  });
+})();
+</script>
+</body>
+</html>
