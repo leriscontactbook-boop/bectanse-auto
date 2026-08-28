@@ -1157,7 +1157,7 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
                 cooldown_hours=24,
             )
             return {"ok": True, "paused": True, "sent": 0, "candidates": []}
-        if (not legacy_enabled and
+        if (not dry_run and not legacy_enabled and
                 str(legacy_paused_reason or "").startswith("Pause automatique:")):
             recovered, _reason, _health = _legacy_delivery_health(conn)
             if recovered:
