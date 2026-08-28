@@ -9,6 +9,7 @@ from marketing_automation import (
     _email_html,
     _explorer_candidate,
     _member_onboarding_candidate,
+    _now,
     _personalized_subject,
 )
 
@@ -33,6 +34,9 @@ class _NoQueryConnection:
 
 
 class MarketingCampaignTests(unittest.TestCase):
+    def test_internal_clock_matches_railway_utc_storage(self):
+        self.assertLess(abs((_now() - datetime.utcnow()).total_seconds()), 3)
+
     def test_explorer_sequence_has_ten_unique_ordered_stages(self):
         self.assertEqual(len(EXPLORER_STAGES), 10)
         self.assertEqual(len({item["stage"] for item in EXPLORER_STAGES}), 10)

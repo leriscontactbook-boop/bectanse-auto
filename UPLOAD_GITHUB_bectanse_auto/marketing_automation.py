@@ -21,6 +21,7 @@ from flask import jsonify, redirect, render_template, request, url_for
 
 
 PARIS_TZ = ZoneInfo("Europe/Paris")
+UTC_TZ = ZoneInfo("UTC")
 BASE_URL = "https://acces.bectanse-academie.com"
 SUPPORT_URL = "https://t.me/m/PAt88QgeZDhk"
 MEMBER_ONBOARDING_START = datetime(2026, 8, 28)
@@ -470,7 +471,10 @@ REACTIVATION_STAGES = [
 
 
 def _now():
-    return datetime.now(PARIS_TZ).replace(tzinfo=None)
+    # Les colonnes PostgreSQL historiques sont des TIMESTAMP sans fuseau et
+    # Railway enregistre NOW() en UTC. Les calculs doivent donc rester en UTC
+    # naïf ; seule la fenêtre d'envoi et l'affichage utilisent Europe/Paris.
+    return datetime.now(UTC_TZ).replace(tzinfo=None)
 
 
 def ensure_marketing_schema(conn):
@@ -1322,7 +1326,9 @@ def _marketing_dashboard_data(conn):
     settings = conn.run("""SELECT enabled,daily_send_limit,weekly_contact_limit,
         min_gap_hours,batch_limit,updated_at,legacy_campaign_enabled,
         legacy_daily_limit,legacy_started_at,legacy_paused_reason,
-        last_run_at,last_success_at,last_error,last_sent_count
+        last_run_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris',
+        last_success_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris',
+        last_error,last_sent_count
         FROM marketing_settings WHERE id=1""")[0]
     stats = {
         "sent_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_log
@@ -1349,7 +1355,8 @@ def _marketing_dashboard_data(conn):
         "clicks_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
             WHERE event_type='click' AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
     }
-    recent = conn.run("""SELECT l.sent_at,l.member_code,c.first_name,l.journey,l.stage,
+    recent = conn.run("""SELECT l.sent_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris',
+        l.member_code,c.first_name,l.journey,l.stage,
         l.status,l.error FROM marketing_email_log l
         LEFT JOIN marketing_contacts c ON c.member_code=l.member_code
         ORDER BY l.created_at DESC LIMIT 40""")
