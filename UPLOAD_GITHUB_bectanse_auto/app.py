@@ -396,6 +396,18 @@ def init_db():
             conn.run("CREATE INDEX IF NOT EXISTS analytics_events_date_idx ON analytics_events (created_at DESC)")
             conn.run("CREATE INDEX IF NOT EXISTS analytics_events_name_idx ON analytics_events (event_name, created_at DESC)")
             conn.run("CREATE INDEX IF NOT EXISTS analytics_events_visitor_idx ON analytics_events (visitor_id, created_at DESC)")
+            conn.run("CREATE INDEX IF NOT EXISTS analytics_events_session_idx ON analytics_events (session_id, created_at)")
+            try:
+                conn.run("ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS audience_segment TEXT NOT NULL DEFAULT 'anonymous'")
+                conn.run("CREATE INDEX IF NOT EXISTS analytics_events_segment_idx ON analytics_events (audience_segment, created_at DESC)")
+                conn.run("""UPDATE analytics_events events SET audience_segment=CASE
+                    WHEN COALESCE(members.access_level,'member') IN ('explorer','demo') THEN 'explorer'
+                    WHEN members.actif=TRUE AND (members.date_fin IS NULL OR members.date_fin>NOW()) THEN 'active_member'
+                    ELSE 'expired_member' END
+                    FROM members WHERE events.member_code=members.code
+                      AND events.member_code<>'' AND events.audience_segment='anonymous'""")
+            except Exception:
+                pass
             conn.run("""
                 CREATE TABLE IF NOT EXISTS renewal_email_log (
                     member_code         TEXT NOT NULL,
@@ -565,6 +577,22 @@ def init_db():
             """)
             conn.run("""CREATE INDEX IF NOT EXISTS stripe_academy_events_status_idx
                          ON stripe_academy_events (status, created_at DESC)""")
+            for stripe_col, stripe_type, stripe_default in [
+                ("stripe_object_id", "TEXT", "''"),
+                ("invoice_id", "TEXT", "''"),
+                ("subscription_id", "TEXT", "''"),
+                ("payment_status", "TEXT", "''"),
+                ("billing_reason", "TEXT", "''"),
+                ("amount_paid_cents", "INTEGER", "0"),
+                ("currency", "TEXT", "''"),
+            ]:
+                try:
+                    conn.run(
+                        f"ALTER TABLE stripe_academy_events ADD COLUMN IF NOT EXISTS "
+                        f"{stripe_col} {stripe_type} DEFAULT {stripe_default}"
+                    )
+                except Exception:
+                    pass
             ensure_growth_schema(conn)
             ensure_marketing_schema(conn)
             # Migration colonnes canal_messages
@@ -3405,7 +3433,8 @@ ANALYTICS_EVENTS = {
     "registration_submit", "registration_complete", "checkout_start",
     "checkout_complete", "app_explore", "notification_interest",
     "notification_enabled", "login_success", "form_submit",
-    "analysis_start", "analysis_complete", "explorer_step", "explorer_offer_view"
+    "analysis_start", "analysis_complete", "explorer_step", "explorer_offer_view",
+    "page_engaged", "scroll_depth", "page_exit", "media_play", "faq_open"
 }
 
 def _analytics_client_info(user_agent):
@@ -3434,7 +3463,8 @@ def _posthog_capture(payload):
             "medium": payload.get("medium", ""),
             "campaign": payload.get("campaign", ""),
             "device_type": payload.get("device_type", ""),
-            "browser": payload.get("browser", "")
+            "browser": payload.get("browser", ""),
+            "audience_segment": payload.get("audience_segment", "anonymous")
         })
         requests.post(
             f"{POSTHOG_HOST}/i/v0/e/",
@@ -3475,16 +3505,29 @@ def analytics_event():
         "visitor_id": visitor_id, "session_id": session_id, "member_code": member_code,
         "event_name": event_name, "page_path": page_path, "source": source,
         "medium": medium, "campaign": campaign, "referrer_host": referrer_host,
-        "device_type": device_type, "browser": browser, "properties": properties
+        "device_type": device_type, "browser": browser, "properties": properties,
+        "audience_segment": "anonymous",
     }
     conn = None
     try:
         conn = get_conn()
+        if member_code:
+            member_rows = conn.run("""SELECT COALESCE(access_level,'member'),actif,date_fin
+                FROM members WHERE code=:code LIMIT 1""", code=member_code)
+            if member_rows:
+                access_level, member_active, member_end = member_rows[0]
+                if str(access_level) in {"explorer", "demo"}:
+                    payload["audience_segment"] = "explorer"
+                elif bool(member_active) and (member_end is None or member_end > datetime.now()):
+                    payload["audience_segment"] = "active_member"
+                else:
+                    payload["audience_segment"] = "expired_member"
         conn.run("""INSERT INTO analytics_events
             (visitor_id, session_id, member_code, event_name, page_path, source, medium,
-             campaign, referrer_host, device_type, browser, properties)
+             campaign, referrer_host, device_type, browser, properties,audience_segment)
             VALUES (:visitor_id, :session_id, :member_code, :event_name, :page_path, :source,
-                    :medium, :campaign, :referrer_host, :device_type, :browser, :properties)""",
+                    :medium, :campaign, :referrer_host, :device_type, :browser, :properties,
+                    :audience_segment)""",
             **{**payload, "properties": json.dumps(properties, ensure_ascii=False)})
         if event_name == "checkout_start" and member_code:
             record_checkout_start(
@@ -3502,59 +3545,461 @@ def analytics_event():
         threading.Thread(target=_posthog_capture, args=(payload,), daemon=True).start()
     return ("", 204)
 
+def _analytics_period_window(period, now=None):
+    """Retourne des bornes UTC naïves, calculées selon les jours Europe/Paris."""
+    period = period if period in {"1d", "7d", "30d", "90d"} else "7d"
+    now_paris = now or datetime.now(PARIS_TZ)
+    if now_paris.tzinfo is None:
+        now_paris = now_paris.replace(tzinfo=PARIS_TZ)
+    else:
+        now_paris = now_paris.astimezone(PARIS_TZ)
+    if period == "1d":
+        since_paris = now_paris.replace(minute=0, second=0, microsecond=0) - timedelta(hours=23)
+        previous_since_paris = since_paris - timedelta(hours=24)
+        bucket = "hour"
+        label = "24 créneaux horaires"
+    else:
+        days = int(period[:-1])
+        start_day = now_paris.date() - timedelta(days=days - 1)
+        since_paris = datetime.combine(start_day, datetime.min.time(), tzinfo=PARIS_TZ)
+        previous_since_paris = since_paris - timedelta(days=days)
+        bucket = "day"
+        label = f"{days} jours calendaires"
+    previous_until_paris = previous_since_paris + (now_paris - since_paris)
+    utc = ZoneInfo("UTC")
+    to_db = lambda value: value.astimezone(utc).replace(tzinfo=None)
+    return {
+        "period": period,
+        "since": to_db(since_paris),
+        "until": to_db(now_paris),
+        "previous_since": to_db(previous_since_paris),
+        "previous_until": to_db(previous_until_paris),
+        "since_paris": since_paris,
+        "until_paris": now_paris,
+        "bucket": bucket,
+        "label": label,
+    }
+
+
+def _analytics_change(current, previous):
+    current = float(current or 0)
+    previous = float(previous or 0)
+    if previous == 0:
+        return None if current else 0.0
+    return round((current - previous) / previous * 100, 1)
+
+
+def _analytics_local_iso(value):
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(PARIS_TZ).isoformat(timespec="seconds")
+
+
+def _analytics_visitor_payload(rows):
+    return [{
+        "visitor_id": str(r[0]), "visitor_label": f"VIS-{str(r[0])[:8].upper()}",
+        "member_code": str(r[1] or ""), "name": str(r[2] or ""),
+        "page_views": int(r[3]), "sessions": int(r[4]),
+        "first_seen": _analytics_local_iso(r[5]), "last_seen": _analytics_local_iso(r[6]),
+        "source": str(r[7]), "landing_page": str(r[8] or "/"),
+        "last_page": str(r[9] or "/"), "device": str(r[10]),
+        "returning": bool(r[11]), "segment": str(r[12]),
+    } for r in rows]
+
+
 @app.route("/admin/api/analytics", methods=["GET"])
 def admin_api_analytics():
     if request.args.get("key", "") != ADMIN_KEY:
         return jsonify({"ok": False}), 403
-    period = request.args.get("period", "7d")
-    days = {"1d": 1, "7d": 7, "30d": 30, "90d": 90}.get(period, 7)
-    since = datetime.now() - timedelta(days=days)
+    window = _analytics_period_window(request.args.get("period", "7d"))
+    params = {"since": window["since"], "until": window["until"]}
+    previous_params = {
+        "since": window["previous_since"], "until": window["previous_until"]
+    }
     conn = None
     try:
         conn = get_conn()
-        scalar = lambda sql: int(conn.run(sql, since=since)[0][0] or 0)
-        visits = scalar("SELECT COUNT(*) FROM analytics_events WHERE created_at>=:since AND event_name='page_view'")
-        visitors = scalar("SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE created_at>=:since AND event_name='page_view'")
-        sessions_count = scalar("SELECT COUNT(DISTINCT session_id) FROM analytics_events WHERE created_at>=:since AND event_name='page_view'")
-        registrations = scalar("SELECT COUNT(*) FROM analytics_events WHERE created_at>=:since AND event_name='registration_complete'")
-        explorer_activations = scalar("""SELECT COUNT(*) FROM prospect_email_verifications
-            WHERE verified_at>=:since AND status='verified' AND source='explorer'""")
-        checkout_starts = scalar("""SELECT COUNT(*) FROM marketing_checkout_intents
-            WHERE started_at>=:since""")
-        confirmed_payments = scalar("""SELECT COUNT(*) FROM stripe_academy_events
-            WHERE processed_at>=:since AND status='processed'
-              AND event_type='checkout.session.completed'""")
-        confirmed_renewals = scalar("""SELECT COUNT(*) FROM stripe_academy_events
-            WHERE processed_at>=:since AND status='processed' AND event_type='invoice.paid'""")
-        cta_clicks = scalar("SELECT COUNT(*) FROM analytics_events WHERE created_at>=:since AND event_name IN ('cta_click','telegram_click','registration_start','checkout_start','app_explore')")
-        trend_rows = conn.run("""SELECT DATE(created_at), COUNT(*), COUNT(DISTINCT visitor_id)
-            FROM analytics_events WHERE created_at>=:since AND event_name='page_view'
-            GROUP BY DATE(created_at) ORDER BY DATE(created_at)""", since=since)
-        def grouped(column):
-            allowed = {"page_path", "source", "device_type"}
-            if column not in allowed: return []
-            rows = conn.run(f"""SELECT {column}, COUNT(*) FROM analytics_events
-                WHERE created_at>=:since AND event_name='page_view'
-                GROUP BY {column} ORDER BY COUNT(*) DESC LIMIT 8""", since=since)
-            return [{"label": str(r[0] or "Inconnu"), "value": int(r[1])} for r in rows]
-        funnel = [
-            {"label": "Acquisition · visiteurs", "value": visitors},
-            {"label": "Activation · Explorer confirmés", "value": explorer_activations},
-            {"label": "Vente · checkouts initiés", "value": checkout_starts},
-            {"label": "Vente · paiements Stripe confirmés", "value": confirmed_payments},
+
+        def scalar(sql, query_params=None):
+            return int(conn.run(sql, **(query_params or params))[0][0] or 0)
+
+        traffic_sql = """SELECT COUNT(*),COUNT(DISTINCT visitor_id),COUNT(DISTINCT session_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_view'"""
+        page_views, visitors, sessions_count = [int(x or 0) for x in conn.run(traffic_sql, **params)[0]]
+        previous_page_views, previous_visitors, previous_sessions = [
+            int(x or 0) for x in conn.run(traffic_sql, **previous_params)[0]
         ]
+        prospect_visitors = scalar("""SELECT COUNT(DISTINCT visitor_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_view'
+              AND audience_segment IN ('anonymous','explorer','expired_member')""")
+        previous_prospect_visitors = scalar("""SELECT COUNT(DISTINCT visitor_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_view'
+              AND audience_segment IN ('anonymous','explorer','expired_member')""", previous_params)
+        registrations = scalar("""SELECT COUNT(*) FROM analytics_events
+            WHERE created_at>=:since AND created_at<:until
+              AND event_name='registration_complete'""")
+        explorer_activations = scalar("""SELECT COUNT(*) FROM prospect_email_verifications
+            WHERE verified_at>=:since AND verified_at<:until
+              AND status='verified' AND source='explorer'""")
+        previous_explorer = scalar("""SELECT COUNT(*) FROM prospect_email_verifications
+            WHERE verified_at>=:since AND verified_at<:until
+              AND status='verified' AND source='explorer'""", previous_params)
+        checkout_starts = scalar("""SELECT COUNT(*) FROM marketing_checkout_intents
+            WHERE started_at>=:since AND started_at<:until AND stripe_session_id<>''""")
+        previous_checkouts = scalar("""SELECT COUNT(*) FROM marketing_checkout_intents
+            WHERE started_at>=:since AND started_at<:until AND stripe_session_id<>''""", previous_params)
+        cta_clicks = scalar("""SELECT COUNT(*) FROM analytics_events
+            WHERE created_at>=:since AND created_at<:until
+              AND event_name IN ('cta_click','telegram_click','registration_start',
+                                 'checkout_start','app_explore')""")
+
+        payment_sql = """WITH confirmed AS (
+              SELECT COALESCE(NULLIF(invoice_id,''),NULLIF(stripe_object_id,''),event_id) AS payment_key,
+                     MAX(amount_paid_cents) AS amount_paid_cents,
+                     BOOL_OR(event_type='invoice.paid' AND billing_reason='subscription_cycle') AS renewal
+              FROM stripe_academy_events
+              WHERE processed_at>=:since AND processed_at<:until AND status='processed'
+                AND (event_type='invoice.paid' OR
+                     (event_type='checkout.session.completed'
+                      AND payment_status IN ('paid','no_payment_required')))
+              GROUP BY 1
+            )
+            SELECT COUNT(*) FILTER (WHERE NOT renewal),COUNT(*) FILTER (WHERE renewal),
+                   COALESCE(SUM(amount_paid_cents),0) FROM confirmed"""
+        confirmed_payments, confirmed_renewals, revenue_cents = [
+            int(x or 0) for x in conn.run(payment_sql, **params)[0]
+        ]
+        previous_payments, previous_renewals, previous_revenue = [
+            int(x or 0) for x in conn.run(payment_sql, **previous_params)[0]
+        ]
+
+        session_row = conn.run("""WITH session_rollup AS (
+              SELECT session_id,COUNT(*) AS pages,MIN(created_at) AS first_seen,
+                     MAX(created_at) AS last_seen
+              FROM analytics_events
+              WHERE created_at>=:since AND created_at<:until AND event_name='page_view'
+              GROUP BY session_id
+            )
+            SELECT COALESCE(AVG(pages),0),
+                   COALESCE(100.0*COUNT(*) FILTER (WHERE pages=1)/NULLIF(COUNT(*),0),0),
+                   COALESCE(AVG(LEAST(EXTRACT(EPOCH FROM (last_seen-first_seen)),1800))
+                            FILTER (WHERE pages>1),0)
+            FROM session_rollup""", **params)[0]
+        pages_per_session = round(float(session_row[0] or 0), 2)
+        single_page_rate = round(float(session_row[1] or 0), 1)
+        avg_session_seconds = int(float(session_row[2] or 0))
+        returning_visitors = scalar("""SELECT COUNT(DISTINCT current_events.visitor_id)
+            FROM analytics_events current_events
+            WHERE current_events.created_at>=:since AND current_events.created_at<:until
+              AND current_events.event_name='page_view'
+              AND EXISTS (SELECT 1 FROM analytics_events historic
+                          WHERE historic.visitor_id=current_events.visitor_id
+                            AND historic.event_name='page_view'
+                            AND historic.created_at<:since)""")
+        identified_visitors = scalar("""SELECT COUNT(DISTINCT visitor_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_view' AND member_code<>''""")
+        active_member_visitors = scalar("""SELECT COUNT(DISTINCT visitor_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_view' AND audience_segment='active_member'""")
+        explorer_visitors = scalar("""SELECT COUNT(DISTINCT visitor_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_view' AND audience_segment='explorer'""")
+        expired_member_visitors = scalar("""SELECT COUNT(DISTINCT visitor_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_view' AND audience_segment='expired_member'""")
+        engaged_visitors = scalar("""SELECT COUNT(DISTINCT visitor_id)
+            FROM analytics_events WHERE created_at>=:since AND created_at<:until
+              AND event_name='page_engaged'""")
+        media_plays = scalar("""SELECT COUNT(*) FROM analytics_events
+            WHERE created_at>=:since AND created_at<:until AND event_name='media_play'""")
+        engagement_rows = conn.run("""SELECT event_name,properties FROM analytics_events
+            WHERE created_at>=:since AND created_at<:until
+              AND event_name IN ('page_exit','scroll_depth')""", **params)
+        active_durations = []
+        exit_scroll_depths = []
+        for event_name, raw_properties in engagement_rows:
+            try:
+                props = json.loads(raw_properties or "{}") if isinstance(raw_properties, str) else (raw_properties or {})
+            except Exception:
+                props = {}
+            if event_name == "page_exit":
+                try:
+                    active_durations.append(max(0, min(86400, int(props.get("active_seconds", 0)))))
+                    exit_scroll_depths.append(max(0, min(100, int(props.get("max_scroll", 0)))))
+                except (TypeError, ValueError):
+                    pass
+        avg_active_seconds = int(sum(active_durations) / len(active_durations)) if active_durations else 0
+        avg_scroll_depth = round(sum(exit_scroll_depths) / len(exit_scroll_depths), 1) if exit_scroll_depths else 0
+
+        bucket_sql = (
+            "DATE_TRUNC('hour', created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')"
+            if window["bucket"] == "hour" else
+            "DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')"
+        )
+        trend_rows = conn.run(f"""SELECT {bucket_sql} AS bucket,COUNT(*),
+                COUNT(DISTINCT visitor_id),COUNT(DISTINCT session_id)
+            FROM analytics_events
+            WHERE created_at>=:since AND created_at<:until AND event_name='page_view'
+            GROUP BY 1 ORDER BY 1""", **params)
+        measured_trend = {}
+        for row in trend_rows:
+            bucket = row[0]
+            label = bucket.isoformat(timespec="minutes") if isinstance(bucket, datetime) else bucket.isoformat()
+            measured_trend[label] = {"date": label, "page_views": int(row[1]),
+                                     "visitors": int(row[2]), "sessions": int(row[3])}
+        trend = []
+        if window["bucket"] == "hour":
+            cursor = window["since_paris"].replace(tzinfo=None)
+            final_bucket = window["until_paris"].replace(minute=0, second=0, microsecond=0, tzinfo=None)
+            while cursor <= final_bucket:
+                key = cursor.isoformat(timespec="minutes")
+                trend.append(measured_trend.get(key, {"date": key, "page_views": 0, "visitors": 0, "sessions": 0}))
+                cursor += timedelta(hours=1)
+        else:
+            cursor = window["since_paris"].date()
+            final_day = window["until_paris"].date()
+            while cursor <= final_day:
+                key = cursor.isoformat()
+                trend.append(measured_trend.get(key, {"date": key, "page_views": 0, "visitors": 0, "sessions": 0}))
+                cursor += timedelta(days=1)
+
+        def grouped(column, empty_label="Non renseigné", limit=8):
+            allowed = {"page_path", "source", "medium", "campaign", "device_type", "browser"}
+            if column not in allowed:
+                return []
+            rows = conn.run(f"""SELECT COALESCE(NULLIF({column},''),:empty_label),COUNT(*),
+                       COUNT(DISTINCT visitor_id),COUNT(DISTINCT session_id)
+                FROM analytics_events
+                WHERE created_at>=:since AND created_at<:until AND event_name='page_view'
+                GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT {int(limit)}""",
+                **params, empty_label=empty_label)
+            return [{"label": str(r[0]), "value": int(r[1]), "page_views": int(r[1]),
+                     "visitors": int(r[2]), "sessions": int(r[3])} for r in rows]
+
+        def session_edges(direction="entry"):
+            order = "ASC" if direction == "entry" else "DESC"
+            rows = conn.run(f"""WITH ranked AS (
+                  SELECT session_id,visitor_id,page_path,
+                         ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY created_at {order},id {order}) AS rank
+                  FROM analytics_events
+                  WHERE created_at>=:since AND created_at<:until AND event_name='page_view'
+                )
+                SELECT page_path,COUNT(*),COUNT(DISTINCT visitor_id)
+                FROM ranked WHERE rank=1 GROUP BY page_path ORDER BY COUNT(*) DESC LIMIT 8""", **params)
+            return [{"label": str(r[0] or "/"), "value": int(r[1]),
+                     "sessions": int(r[1]), "visitors": int(r[2])} for r in rows]
+
+        path_rows = conn.run("""WITH ordered AS (
+              SELECT session_id,page_path,
+                     LEAD(page_path) OVER (PARTITION BY session_id ORDER BY created_at,id) AS next_page
+              FROM analytics_events
+              WHERE created_at>=:since AND created_at<:until AND event_name='page_view'
+            )
+            SELECT page_path,next_page,COUNT(*) FROM ordered
+            WHERE next_page IS NOT NULL AND page_path<>next_page
+            GROUP BY page_path,next_page ORDER BY COUNT(*) DESC LIMIT 10""", **params)
+        paths = [{"label": f"{r[0]} → {r[1]}", "value": int(r[2])} for r in path_rows]
+
+        visitor_rows = conn.run("""WITH activity AS (
+              SELECT visitor_id,MAX(NULLIF(member_code,'')) AS member_code,
+                     COUNT(*) AS page_views,COUNT(DISTINCT session_id) AS sessions,
+                     MIN(created_at) AS first_seen,MAX(created_at) AS last_seen,
+                     (ARRAY_AGG(source ORDER BY created_at,id))[1] AS source,
+                     (ARRAY_AGG(page_path ORDER BY created_at,id))[1] AS landing_page,
+                     (ARRAY_AGG(page_path ORDER BY created_at DESC,id DESC))[1] AS last_page,
+                     (ARRAY_AGG(device_type ORDER BY created_at DESC,id DESC))[1] AS device_type
+              FROM analytics_events
+              WHERE created_at>=:since AND created_at<:until AND event_name='page_view'
+              GROUP BY visitor_id
+            )
+            SELECT activity.visitor_id,COALESCE(activity.member_code,''),COALESCE(m.nom,''),
+                   activity.page_views,activity.sessions,activity.first_seen,activity.last_seen,
+                   COALESCE(activity.source,'direct'),activity.landing_page,activity.last_page,
+                   COALESCE(activity.device_type,'Inconnu'),
+                   CASE WHEN historic.visitor_id IS NULL THEN FALSE ELSE TRUE END,
+                   CASE WHEN activity.member_code IS NULL THEN 'Visiteur anonyme'
+                        WHEN COALESCE(m.access_level,'member') IN ('explorer','demo') THEN 'Explorer'
+                        WHEN m.actif=TRUE AND (m.date_fin IS NULL OR m.date_fin>NOW()) THEN 'Membre actif'
+                        ELSE 'Membre expiré' END AS segment
+            FROM activity
+            LEFT JOIN members m ON m.code=activity.member_code
+            LEFT JOIN LATERAL (
+              SELECT prior.visitor_id FROM analytics_events prior
+              WHERE prior.visitor_id=activity.visitor_id AND prior.event_name='page_view'
+                AND prior.created_at<:since LIMIT 1
+            ) historic ON TRUE
+            ORDER BY activity.last_seen DESC LIMIT 51""", **params)
+        visitors_has_more = len(visitor_rows) > 50
+        visitor_activity = _analytics_visitor_payload(visitor_rows[:50])
+
+        funnel_values = [prospect_visitors, explorer_activations, checkout_starts, confirmed_payments]
+        funnel_labels = [
+            "Acquisition · prospects uniques", "Activation · Explorer confirmés",
+            "Intention · sessions Stripe créées", "Vente · nouveaux paiements confirmés",
+        ]
+        funnel = []
+        for index, (label, value) in enumerate(zip(funnel_labels, funnel_values)):
+            previous_value = funnel_values[index - 1] if index else prospect_visitors
+            funnel.append({
+                "label": label, "value": value,
+                "step_rate": round(value / previous_value * 100, 1) if previous_value else 0,
+                "global_rate": round(value / prospect_visitors * 100, 1) if prospect_visitors else 0,
+            })
+
+        changes = {
+            "page_views": _analytics_change(page_views, previous_page_views),
+            "visitors": _analytics_change(visitors, previous_visitors),
+            "prospect_visitors": _analytics_change(prospect_visitors, previous_prospect_visitors),
+            "sessions": _analytics_change(sessions_count, previous_sessions),
+            "explorer_activations": _analytics_change(explorer_activations, previous_explorer),
+            "checkout_starts": _analytics_change(checkout_starts, previous_checkouts),
+            "confirmed_payments": _analytics_change(confirmed_payments, previous_payments),
+            "confirmed_renewals": _analytics_change(confirmed_renewals, previous_renewals),
+            "revenue_cents": _analytics_change(revenue_cents, previous_revenue),
+        }
         return jsonify({
-            "ok": True, "period": period, "posthog_connected": bool(POSTHOG_PROJECT_KEY),
-            "kpis": {"visits": visits, "visitors": visitors, "sessions": sessions_count,
+            "ok": True, "period": window["period"], "posthog_connected": bool(POSTHOG_PROJECT_KEY),
+            "window": {"label": window["label"], "timezone": "Europe/Paris",
+                       "from": window["since_paris"].isoformat(timespec="minutes"),
+                       "to": window["until_paris"].isoformat(timespec="minutes"),
+                       "bucket": window["bucket"]},
+            "kpis": {"page_views": page_views, "visitors": visitors, "sessions": sessions_count,
                      "registrations": registrations, "explorer_activations": explorer_activations,
                      "checkout_starts": checkout_starts, "confirmed_payments": confirmed_payments,
-                     "confirmed_renewals": confirmed_renewals,
-                     "conversion_rate": round((confirmed_payments / visitors * 100) if visitors else 0, 1),
-                     "cta_clicks": cta_clicks},
-            "trend": [{"date": r[0].isoformat(), "visits": int(r[1]), "visitors": int(r[2])} for r in trend_rows],
-            "pages": grouped("page_path"), "sources": grouped("source"), "devices": grouped("device_type"),
-            "funnel": funnel
+                     "confirmed_renewals": confirmed_renewals, "revenue_cents": revenue_cents,
+                     "conversion_rate": round((confirmed_payments / prospect_visitors * 100) if prospect_visitors else 0, 2),
+                     "cta_clicks": cta_clicks, "pages_per_session": pages_per_session,
+                     "single_page_rate": single_page_rate,
+                     "avg_session_seconds": avg_session_seconds,
+                     "avg_active_seconds": avg_active_seconds,
+                     "avg_scroll_depth": avg_scroll_depth,
+                     "engaged_visitors": engaged_visitors,
+                     "media_plays": media_plays,
+                     "returning_visitors": returning_visitors,
+                     "new_visitors": max(0, visitors - returning_visitors),
+                     "prospect_visitors": prospect_visitors,
+                     "active_member_visitors": active_member_visitors,
+                     "explorer_visitors": explorer_visitors,
+                     "expired_member_visitors": expired_member_visitors,
+                     "identified_visitors": identified_visitors,
+                     "anonymous_visitors": max(0, visitors - identified_visitors)},
+            "changes": changes, "trend": trend,
+            "pages": grouped("page_path", "/"), "sources": grouped("source", "direct"),
+            "mediums": grouped("medium", "Non renseigné"),
+            "campaigns": grouped("campaign", "Sans campagne"),
+            "devices": grouped("device_type", "Inconnu"),
+            "browsers": grouped("browser", "Inconnu"),
+            "entry_pages": session_edges("entry"), "exit_pages": session_edges("exit"),
+            "paths": paths, "visitors": visitor_activity,
+            "visitors_has_more": visitors_has_more, "funnel": funnel,
         })
+    except Exception as exc:
+        app.logger.exception("Chargement statistiques détaillées")
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+@app.route("/admin/api/analytics/visitor/<visitor_id>", methods=["GET"])
+def admin_api_analytics_visitor(visitor_id):
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False}), 403
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", visitor_id):
+        return jsonify({"ok": False, "error": "Visiteur invalide"}), 400
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run("""SELECT event_name,page_path,source,medium,campaign,device_type,
+                   browser,properties,created_at,member_code
+            FROM analytics_events WHERE visitor_id=:visitor_id
+            ORDER BY created_at DESC,id DESC LIMIT 150""", visitor_id=visitor_id)
+        events = []
+        for row in rows:
+            try:
+                properties = json.loads(row[7] or "{}") if isinstance(row[7], str) else (row[7] or {})
+            except Exception:
+                properties = {}
+            events.append({
+                "event": str(row[0]), "page": str(row[1] or "/"),
+                "source": str(row[2] or "direct"), "medium": str(row[3] or ""),
+                "campaign": str(row[4] or ""), "device": str(row[5] or "Inconnu"),
+                "browser": str(row[6] or "Inconnu"), "properties": properties,
+                "at": _analytics_local_iso(row[8]), "member_code": str(row[9] or ""),
+            })
+        return jsonify({"ok": True, "visitor_id": visitor_id, "events": events})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
+
+
+@app.route("/admin/api/analytics/visitors", methods=["GET"])
+def admin_api_analytics_visitors():
+    if request.args.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False}), 403
+    window = _analytics_period_window(request.args.get("period", "7d"))
+    try:
+        page = max(1, min(100, int(request.args.get("page", "1") or 1)))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Pagination invalide"}), 400
+    query_text = str(request.args.get("q", "") or "").strip().lower()[:80]
+    params = {
+        "since": window["since"], "until": window["until"],
+        "query_text": query_text, "query": f"%{query_text}%",
+        "limit": 51, "offset": (page - 1) * 50,
+    }
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run("""WITH activity AS (
+              SELECT visitor_id,MAX(NULLIF(member_code,'')) AS member_code,
+                     COUNT(*) AS page_views,COUNT(DISTINCT session_id) AS sessions,
+                     MIN(created_at) AS first_seen,MAX(created_at) AS last_seen,
+                     (ARRAY_AGG(source ORDER BY created_at,id))[1] AS source,
+                     (ARRAY_AGG(page_path ORDER BY created_at,id))[1] AS landing_page,
+                     (ARRAY_AGG(page_path ORDER BY created_at DESC,id DESC))[1] AS last_page,
+                     (ARRAY_AGG(device_type ORDER BY created_at DESC,id DESC))[1] AS device_type
+              FROM analytics_events
+              WHERE created_at>=:since AND created_at<:until AND event_name='page_view'
+              GROUP BY visitor_id
+            ), enriched AS (
+              SELECT activity.visitor_id,COALESCE(activity.member_code,'') AS member_code,
+                     COALESCE(m.nom,'') AS name,activity.page_views,activity.sessions,
+                     activity.first_seen,activity.last_seen,COALESCE(activity.source,'direct') AS source,
+                     activity.landing_page,activity.last_page,
+                     COALESCE(activity.device_type,'Inconnu') AS device_type,
+                     CASE WHEN historic.visitor_id IS NULL THEN FALSE ELSE TRUE END AS returning,
+                     CASE WHEN activity.member_code IS NULL THEN 'Visiteur anonyme'
+                          WHEN COALESCE(m.access_level,'member') IN ('explorer','demo') THEN 'Explorer'
+                          WHEN m.actif=TRUE AND (m.date_fin IS NULL OR m.date_fin>NOW()) THEN 'Membre actif'
+                          ELSE 'Membre expiré' END AS segment
+              FROM activity
+              LEFT JOIN members m ON m.code=activity.member_code
+              LEFT JOIN LATERAL (
+                SELECT prior.visitor_id FROM analytics_events prior
+                WHERE prior.visitor_id=activity.visitor_id AND prior.event_name='page_view'
+                  AND prior.created_at<:since LIMIT 1
+              ) historic ON TRUE
+            )
+            SELECT visitor_id,member_code,name,page_views,sessions,first_seen,last_seen,
+                   source,landing_page,last_page,device_type,returning,segment
+            FROM enriched
+            WHERE :query_text='' OR LOWER(visitor_id) LIKE :query
+               OR LOWER(member_code) LIKE :query OR LOWER(name) LIKE :query
+            ORDER BY last_seen DESC LIMIT :limit OFFSET :offset""", **params)
+        has_more = len(rows) > 50
+        return jsonify({"ok": True, "page": page, "has_more": has_more,
+                        "visitors": _analytics_visitor_payload(rows[:50])})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
     finally:
@@ -4636,6 +5081,14 @@ def _stripe_subscription_context(event_type, stripe_object):
     customer_details = obj.get("customer_details") or {}
     email = str(customer_details.get("email") or obj.get("customer_email") or "").strip().lower()
     customer_name = str(customer_details.get("name") or "").strip()
+    stripe_object_id = _stripe_id(obj.get("id"))
+    invoice_id = _stripe_id(obj.get("invoice"))
+    if event_type.startswith("invoice.") and stripe_object_id.startswith("in_"):
+        invoice_id = stripe_object_id
+    payment_status = str(obj.get("payment_status") or "").lower()
+    billing_reason = str(obj.get("billing_reason") or "").lower()
+    amount_paid_cents = int(obj.get("amount_paid") or obj.get("amount_total") or 0)
+    currency = str(obj.get("currency") or "").lower()
     status = str(obj.get("status") or "").lower()
     if event_type == "checkout.session.completed":
         status = "active" if str(obj.get("payment_status", "")).lower() in {"paid", "no_payment_required"} else status
@@ -4664,6 +5117,12 @@ def _stripe_subscription_context(event_type, stripe_object):
         "plan": plan,
         "email": email,
         "customer_name": customer_name,
+        "stripe_object_id": stripe_object_id,
+        "invoice_id": invoice_id,
+        "payment_status": payment_status,
+        "billing_reason": billing_reason,
+        "amount_paid_cents": max(0, amount_paid_cents),
+        "currency": currency,
         "status": status,
         "period_end": period_end_dt,
         "cancel_at_period_end": bool(obj.get("cancel_at_period_end", False)),
@@ -4691,9 +5150,16 @@ def _process_academy_stripe_event(event):
     try:
         conn.run("BEGIN")
         inserted = conn.run("""INSERT INTO stripe_academy_events
-            (event_id,event_type,status) VALUES (:event_id,:event_type,'processing')
+            (event_id,event_type,status,stripe_object_id,invoice_id,subscription_id,
+             payment_status,billing_reason,amount_paid_cents,currency)
+            VALUES (:event_id,:event_type,'processing',:stripe_object_id,:invoice_id,
+                    :subscription_id,:payment_status,:billing_reason,:amount_paid_cents,:currency)
             ON CONFLICT (event_id) DO NOTHING RETURNING event_id""",
-            event_id=event_id, event_type=event_type)
+            event_id=event_id, event_type=event_type,
+            stripe_object_id=context["stripe_object_id"], invoice_id=context["invoice_id"],
+            subscription_id=context["subscription_id"], payment_status=context["payment_status"],
+            billing_reason=context["billing_reason"], amount_paid_cents=context["amount_paid_cents"],
+            currency=context["currency"])
         if not inserted:
             conn.run("ROLLBACK")
             return {"handled": True, "duplicate": True}
