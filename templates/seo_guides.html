@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>{{ seo.title }}</title>
+  <meta name="description" content="{{ seo.description }}">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <link rel="canonical" href="{{ site_url }}/guides">
+  <link rel="alternate" hreflang="fr" href="{{ site_url }}/guides">
+  <link rel="alternate" hreflang="x-default" href="{{ site_url }}/guides">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="Bectanse Académie">
+  <meta property="og:title" content="{{ seo.title }}">
+  <meta property="og:description" content="{{ seo.description }}">
+  <meta property="og:url" content="{{ site_url }}/guides">
+  <meta property="og:image" content="{{ site_url }}/static/vip/assets/bectanse-brain-choice-v1.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ seo.title }}">
+  <meta name="twitter:description" content="{{ seo.description }}">
+  <meta name="twitter:image" content="{{ site_url }}/static/vip/assets/bectanse-brain-choice-v1.png">
+  {% if google_verification %}<meta name="google-site-verification" content="{{ google_verification }}">{% endif %}
+  {% if bing_verification %}<meta name="msvalidate.01" content="{{ bing_verification }}">{% endif %}
+  <link rel="icon" href="/static/icons/bectanse-icon-v2-192.png">
+  <script type="application/ld+json">{{ json_ld|safe }}</script>
+  <style>
+    :root{--bg:#050605;--panel:#0d100e;--panel2:#121612;--line:rgba(255,255,255,.1);--text:#f5f7f3;--muted:#99a098;--orange:#ff641e;--green:#65dc82;--max:1120px}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;background:var(--bg)}body{margin:0;color:var(--text);background:radial-gradient(circle at 80% 4%,rgba(255,100,30,.14),transparent 28%),radial-gradient(circle at 0 55%,rgba(86,155,255,.06),transparent 25%),var(--bg);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{width:min(var(--max),calc(100% - 36px));margin:auto}
+    .nav{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(5,6,5,.88);backdrop-filter:blur(22px)}.nav-in{height:72px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none;font-weight:900}.brand img{width:39px;height:39px;border-radius:12px}.brand em{color:var(--orange);font-style:normal}.nav-links{display:flex;align-items:center;gap:18px}.nav-links a{color:#b8bdb7;text-decoration:none;font-size:12px;font-weight:800}.cta{display:inline-flex;align-items:center;justify-content:center;padding:13px 17px;border-radius:13px;background:linear-gradient(135deg,var(--orange),#ff3e00);color:#fff!important;text-decoration:none;font-size:11px!important;font-weight:900!important;text-transform:uppercase;letter-spacing:.06em;box-shadow:0 12px 35px rgba(255,100,30,.23)}
+    .hero{padding:105px 0 68px}.eyebrow{color:#ff9c6c;text-transform:uppercase;letter-spacing:.17em;font-size:10px;font-weight:900}.hero h1{max-width:900px;margin:16px 0 22px;font-size:clamp(48px,7.2vw,92px);line-height:.92;letter-spacing:-.055em}.hero h1 span{color:var(--orange)}.hero p{max-width:720px;margin:0;color:#c5cac3;font-size:clamp(16px,2vw,20px);line-height:1.65}.hero-stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:34px}.hero-stats span{padding:10px 13px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.025);color:var(--muted);font-size:11px;font-weight:800}
+    .guides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;padding-bottom:90px}.card{position:relative;overflow:hidden;min-height:330px;padding:29px;border:1px solid var(--line);border-radius:25px;background:linear-gradient(150deg,#141814,#090b09);text-decoration:none;color:#fff;transition:.25s}.card:before{content:"";position:absolute;inset:0 auto auto 0;width:95px;height:2px;background:var(--orange)}.card:hover{transform:translateY(-5px);border-color:rgba(255,100,30,.42);box-shadow:0 25px 60px rgba(0,0,0,.34)}.card-num{color:var(--orange);font-size:10px;font-weight:900;letter-spacing:.15em}.card h2{max-width:520px;margin:78px 0 13px;font-size:clamp(26px,3.5vw,39px);line-height:1.02;letter-spacing:-.035em}.card p{margin:0;color:var(--muted);font-size:13px;line-height:1.65}.card-foot{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:25px;color:#d7dbd5;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}.arrow{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(255,100,30,.1);color:var(--orange);font-size:18px}
+    .trust{margin-bottom:90px;padding:35px;border:1px solid rgba(101,220,130,.2);border-radius:26px;background:linear-gradient(135deg,rgba(101,220,130,.07),rgba(13,16,14,.95));display:grid;grid-template-columns:1fr auto;gap:30px;align-items:center}.trust h2{margin:0 0 10px;font-size:29px}.trust p{max-width:720px;margin:0;color:var(--muted);line-height:1.65}.footer{border-top:1px solid var(--line);padding:28px 0 40px;color:#737972;font-size:10px}.footer-in{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}.footer a{color:inherit}
+    @media(max-width:720px){.wrap{width:min(var(--max),calc(100% - 24px))}.nav-in{height:64px}.brand{font-size:12px}.brand img{width:34px;height:34px}.nav-links>a:not(.cta){display:none}.cta{padding:11px 12px}.hero{padding:70px 0 45px}.hero h1{font-size:49px}.guides{grid-template-columns:1fr;padding-bottom:58px}.card{min-height:285px;padding:23px}.card h2{margin-top:58px;font-size:31px}.trust{grid-template-columns:1fr;padding:25px;margin-bottom:60px}.trust .cta{width:100%}}
+  </style>
+</head>
+<body>
+  <header class="nav"><div class="wrap nav-in"><a class="brand" href="/vip"><img src="/static/icons/bectanse-app-icon-master.png" alt="Logo Bectanse Académie"><span>BECTANSE <em>ACADÉMIE</em></span></a><nav class="nav-links" aria-label="Navigation principale"><a href="/vip">Découvrir l’académie</a><a class="cta" href="/vip#capture">Explorer gratuitement</a></nav></div></header>
+  <main>
+    <section class="hero"><div class="wrap"><div class="eyebrow">Ressources gratuites · Bectanse Académie</div><h1>Comprendre avant<br><span>de prendre position</span></h1><p>Des guides accessibles et structurés pour travailler le XAU/USD, la gestion du risque, le journal de trading, la psychologie et l’utilisation responsable des outils d’analyse</p><div class="hero-stats"><span>{{ guides|length }} guides disponibles</span><span>Lecture gratuite</span><span>Contenu pédagogique</span><span>Aucune promesse de rendement</span></div></div></section>
+    <section class="wrap guides" aria-label="Guides trading Bectanse">
+      {% for slug, guide in guides.items() %}
+      <a class="card" href="/guides/{{ slug }}"><div class="card-num">GUIDE {{ "%02d"|format(loop.index) }}</div><h2>{{ guide.title }}</h2><p>{{ guide.description }}</p><div class="card-foot"><span>{{ guide.reading_minutes }} minutes de lecture</span><span class="arrow">→</span></div></a>
+      {% endfor %}
+    </section>
+    <section class="wrap trust"><div><h2>Tu veux voir la méthode dans un espace complet ?</h2><p>Découvre gratuitement l’application Bectanse Académie en mode Explorer. Tu peux observer le parcours, les outils et l’organisation avant de choisir un accompagnement.</p></div><a class="cta" href="/vip#capture">Créer mon accès Explorer</a></section>
+  </main>
+  <footer class="footer"><div class="wrap footer-in"><strong>BECTANSE ACADÉMIE</strong><span>Contenu éducatif · Le trading comporte un risque de perte</span><span><a href="/legal/mentions-legales">Mentions légales</a> · <a href="/legal/confidentialite">Confidentialité</a></span></div></footer>
+</body>
+</html>

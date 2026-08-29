@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>{{ guide.seo_title }}</title>
+  <meta name="description" content="{{ guide.description }}">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <link rel="canonical" href="{{ site_url }}/guides/{{ slug }}">
+  <link rel="alternate" hreflang="fr" href="{{ site_url }}/guides/{{ slug }}">
+  <link rel="alternate" hreflang="x-default" href="{{ site_url }}/guides/{{ slug }}">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="Bectanse Académie">
+  <meta property="og:title" content="{{ guide.title }}">
+  <meta property="og:description" content="{{ guide.description }}">
+  <meta property="og:url" content="{{ site_url }}/guides/{{ slug }}">
+  <meta property="og:image" content="{{ site_url }}/static/vip/assets/bectanse-brain-choice-v1.png">
+  <meta property="article:published_time" content="2026-08-29">
+  <meta property="article:modified_time" content="2026-08-29">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ guide.title }}">
+  <meta name="twitter:description" content="{{ guide.description }}">
+  <meta name="twitter:image" content="{{ site_url }}/static/vip/assets/bectanse-brain-choice-v1.png">
+  {% if google_verification %}<meta name="google-site-verification" content="{{ google_verification }}">{% endif %}
+  {% if bing_verification %}<meta name="msvalidate.01" content="{{ bing_verification }}">{% endif %}
+  <link rel="icon" href="/static/icons/bectanse-icon-v2-192.png">
+  <script type="application/ld+json">{{ json_ld|safe }}</script>
+  <style>
+    :root{--bg:#050605;--panel:#101410;--line:rgba(255,255,255,.1);--text:#f5f7f3;--muted:#9ca29a;--orange:#ff641e;--green:#65dc82;--max:1080px;--article:760px}*{box-sizing:border-box}html{scroll-behavior:smooth;background:var(--bg)}body{margin:0;color:var(--text);background:radial-gradient(circle at 84% 4%,rgba(255,100,30,.13),transparent 28%),var(--bg);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{width:min(var(--max),calc(100% - 36px));margin:auto}.nav{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(5,6,5,.88);backdrop-filter:blur(22px)}.nav-in{height:70px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none;font-weight:900}.brand img{width:38px;height:38px;border-radius:12px}.brand em{color:var(--orange);font-style:normal}.back{color:#bdc2bb;text-decoration:none;font-size:11px;font-weight:850}.back:hover{color:#fff}.cta{display:inline-flex;align-items:center;justify-content:center;padding:13px 17px;border-radius:13px;background:linear-gradient(135deg,var(--orange),#ff3e00);color:#fff;text-decoration:none;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;box-shadow:0 12px 35px rgba(255,100,30,.23)}
+    .breadcrumb{padding-top:37px;color:#737a72;font-size:10px}.breadcrumb a{color:#aeb4ad;text-decoration:none}.hero{padding:62px 0 55px}.eyebrow{color:#ff9c6c;text-transform:uppercase;letter-spacing:.17em;font-size:10px;font-weight:900}.hero h1{max-width:970px;margin:17px 0 22px;font-size:clamp(44px,6.8vw,82px);line-height:.94;letter-spacing:-.052em}.hero p{max-width:790px;margin:0;color:#c8cdc6;font-size:clamp(17px,2vw,21px);line-height:1.65}.meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:29px}.meta span{padding:9px 12px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:rgba(255,255,255,.025);font-size:10px;font-weight:800}
+    .article-layout{display:grid;grid-template-columns:minmax(0,var(--article)) 240px;gap:50px;align-items:start;padding-bottom:85px}.article{min-width:0}.intro{margin-bottom:42px;padding:24px;border:1px solid rgba(255,100,30,.26);border-left:3px solid var(--orange);border-radius:0 18px 18px 0;background:rgba(255,100,30,.055);color:#d4d8d2;font-size:17px;line-height:1.75}.article-section{margin-bottom:48px}.article h2{margin:0 0 18px;font-size:clamp(29px,4vw,41px);line-height:1.05;letter-spacing:-.035em}.article p{margin:0 0 17px;color:#b3b9b2;font-size:16px;line-height:1.82}.checklist{margin:55px 0;padding:29px;border:1px solid var(--line);border-radius:23px;background:linear-gradient(145deg,#131713,#090b09)}.checklist h2{font-size:29px}.checklist ul{list-style:none;margin:22px 0 0;padding:0;display:grid;gap:13px}.checklist li{display:flex;gap:11px;color:#c8cdc7;font-size:14px;line-height:1.5}.checklist li:before{content:"✓";display:grid;place-items:center;width:21px;height:21px;flex:0 0 21px;border-radius:50%;background:rgba(101,220,130,.12);color:var(--green);font-size:10px;font-weight:900}.faq{margin-top:55px}.faq h2{font-size:32px}.faq details{border-top:1px solid var(--line);padding:18px 0}.faq summary{cursor:pointer;color:#fff;font-weight:850;line-height:1.45}.faq details p{margin:13px 0 0;font-size:14px}.notice{margin-top:48px;padding:20px;border:1px solid rgba(255,255,255,.08);border-radius:15px;color:#858c84;font-size:11px;line-height:1.65}
+    .aside{position:sticky;top:100px;display:grid;gap:12px}.aside-card{padding:20px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}.aside-card small{display:block;color:var(--orange);font-size:8px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}.aside-card strong{display:block;margin:9px 0 7px;font-size:15px;line-height:1.35}.aside-card p{margin:0 0 15px;color:var(--muted);font-size:11px;line-height:1.55}.aside-card .cta{width:100%;padding:11px 10px;font-size:9px}.related{border-top:1px solid var(--line);padding:65px 0 85px}.related h2{margin:0 0 25px;font-size:35px}.related-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.related a{padding:20px;border:1px solid var(--line);border-radius:18px;background:var(--panel);color:#fff;text-decoration:none;line-height:1.4;font-weight:800}.related a span{display:block;margin-top:15px;color:var(--orange);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.footer{border-top:1px solid var(--line);padding:28px 0 40px;color:#737972;font-size:10px}.footer-in{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}.footer a{color:inherit}
+    @media(max-width:780px){.wrap{width:min(var(--max),calc(100% - 24px))}.nav-in{height:62px}.brand{font-size:11px}.brand img{width:33px;height:33px}.back{display:none}.hero{padding:44px 0 38px}.hero h1{font-size:45px}.hero p{font-size:16px}.article-layout{grid-template-columns:1fr;gap:35px;padding-bottom:55px}.intro{padding:20px;font-size:15px}.article p{font-size:15px}.aside{position:static;grid-row:1}.aside-card:not(:first-child){display:none}.related{padding:50px 0 65px}.related-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="nav"><div class="wrap nav-in"><a class="brand" href="/vip"><img src="/static/icons/bectanse-app-icon-master.png" alt="Logo Bectanse Académie"><span>BECTANSE <em>ACADÉMIE</em></span></a><a class="back" href="/guides">← Tous les guides</a><a class="cta" href="/vip#capture">Explorer gratuitement</a></div></header>
+  <main>
+    <div class="wrap breadcrumb"><a href="/vip">Bectanse Académie</a> / <a href="/guides">Guides</a> / {{ guide.eyebrow }}</div>
+    <section class="wrap hero"><div class="eyebrow">{{ guide.eyebrow }}</div><h1>{{ guide.title }}</h1><p>{{ guide.description }}</p><div class="meta"><span>{{ guide.reading_minutes }} minutes</span><span>Mis à jour le 29 août 2026</span><span>Contenu pédagogique</span></div></section>
+    <div class="wrap article-layout">
+      <article class="article"><div class="intro">{{ guide.intro }}</div>{% for section in guide.sections %}<section class="article-section"><h2>{{ section.title }}</h2>{% for paragraph in section.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</section>{% endfor %}<section class="checklist"><h2>La checklist à conserver</h2><ul>{% for item in guide.checklist %}<li>{{ item }}</li>{% endfor %}</ul></section><section class="faq"><h2>Questions fréquentes</h2>{% for question, answer in guide.faq %}<details><summary>{{ question }}</summary><p>{{ answer }}</p></details>{% endfor %}</section><div class="notice">Ce contenu est fourni à des fins éducatives. Il ne constitue pas un conseil financier personnalisé ni une garantie de résultat. Le trading comporte un risque de perte partielle ou totale du capital.</div></article>
+      <aside class="aside"><div class="aside-card"><small>Voir l’écosystème</small><strong>Découvre l’application en mode Explorer</strong><p>Observe les outils, le parcours et l’organisation avant de choisir un accompagnement.</p><a class="cta" href="/vip#capture">Créer mon accès</a></div>{% for other_slug, other in related %}<div class="aside-card"><small>Guide associé</small><strong>{{ other.title }}</strong><a class="cta" href="/guides/{{ other_slug }}">Lire le guide</a></div>{% endfor %}</aside>
+    </div>
+    <section class="related"><div class="wrap"><h2>Continuer à progresser</h2><div class="related-grid">{% for other_slug, other in related %}<a href="/guides/{{ other_slug }}">{{ other.title }}<span>Lire le guide →</span></a>{% endfor %}</div></div></section>
+  </main>
+  <footer class="footer"><div class="wrap footer-in"><strong>BECTANSE ACADÉMIE</strong><span>© 2026 LERIS CORP FZCO</span><span><a href="/legal/mentions-legales">Mentions légales</a> · <a href="/legal/confidentialite">Confidentialité</a></span></div></footer>
+</body>
+</html>
