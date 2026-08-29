@@ -18,6 +18,7 @@ from marketing_automation import (
     run_marketing_automation,
     upsert_marketing_contact_for_member,
 )
+from seo_features import register_seo_features, submit_indexnow_urls
 
 def _required_secret(name):
     value = os.environ.get(name, "").strip()
@@ -8558,6 +8559,11 @@ register_marketing_routes(
     admin_required=admin_required,
     notify_admin=send_telegram,
 )
+register_seo_features(
+    app=app,
+    admin_required=admin_required,
+    get_conn=get_conn,
+)
 
 
 _marketing_job_alerted_at = 0.0
@@ -8584,6 +8590,12 @@ def job_marketing_lifecycle():
                 f"Erreur : `{str(error)[:450]}`\n\n"
                 "Une nouvelle tentative sera lancée automatiquement dans 30 minutes."
             )
+
+
+def job_submit_indexnow():
+    """Notifie les moteurs une fois le nouveau déploiement devenu accessible."""
+    result = submit_indexnow_urls()
+    app.logger.info("IndexNow: %s", result)
 
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
@@ -8626,6 +8638,12 @@ def _startup():
             id='telegram_scheduled_posts', replace_existing=True,
             next_run_time=_paris_now(), coalesce=True, max_instances=1,
             misfire_grace_time=120
+        )
+        scheduler.add_job(
+            job_submit_indexnow, 'date',
+            run_date=_paris_now() + timedelta(minutes=3),
+            id='seo_indexnow_deploy', replace_existing=True,
+            misfire_grace_time=900
         )
         init_demo_account()
         scheduler.start()
