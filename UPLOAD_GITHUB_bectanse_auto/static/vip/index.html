@@ -33,11 +33,11 @@
       --max:1160px;--radius:28px;
     }
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth;background:var(--bg);overflow-x:hidden}
+    html{scroll-behavior:smooth;background:var(--bg);overflow-x:clip}
     body{margin:0;background:
       radial-gradient(circle at 92% 6%,rgba(255,100,30,.12),transparent 28%),
       radial-gradient(circle at 4% 62%,rgba(105,185,255,.055),transparent 25%),
-      var(--bg);color:var(--text);font-family:Inter,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+      var(--bg);color:var(--text);font-family:Inter,"Helvetica Neue",Arial,sans-serif;overflow-x:clip}
     body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.22;background-image:
       linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
       linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:42px 42px}
@@ -125,11 +125,12 @@
     .proof-scroll .proof-carousel-stage{position:sticky;top:76px;height:calc(100svh - 96px);min-height:590px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;padding:22px;border:1px solid rgba(255,100,30,.2);border-radius:28px;background:radial-gradient(circle at 50% 35%,rgba(255,100,30,.1),transparent 40%),linear-gradient(155deg,#121612,#070907);box-shadow:0 28px 80px rgba(0,0,0,.5);overflow:hidden}
     .proof-scroll .proof-carousel-head{width:min(100%,920px);margin:0 auto;align-items:center}
     .proof-scroll .proof-carousel-head p{max-width:500px}
-    .proof-scroll .proof-carousel-track{position:relative;display:block;width:min(100%,500px);height:100%;margin:0 auto;padding:0;overflow:hidden;scroll-snap-type:none;scrollbar-width:none}
+    .proof-scroll .proof-carousel-track{position:relative;display:block;width:min(100%,500px);height:100%;margin:0 auto;padding:0;overflow:hidden;scroll-snap-type:none;scrollbar-width:none;touch-action:pan-y pinch-zoom}
     .proof-scroll .proof-carousel-track::-webkit-scrollbar{display:none}
-    .proof-scroll .proof-photo-card{position:absolute;inset:0;width:100%;height:100%;display:grid;grid-template-rows:auto minmax(0,1fr);opacity:0;transform:translateY(9%) scale(.97);pointer-events:none;transition:opacity .38s ease,transform .58s cubic-bezier(.2,.8,.2,1);box-shadow:0 24px 55px rgba(0,0,0,.4)}
-    .proof-scroll .proof-photo-card.is-active{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;z-index:2}
-    .proof-scroll .proof-photo-card.is-before{transform:translateY(-9%) scale(.97)}
+    .proof-scroll .proof-photo-card{position:absolute;inset:0;width:100%;height:100%;display:grid;grid-template-rows:auto minmax(0,1fr);opacity:1;transform:translate3d(106%,0,0);pointer-events:none;will-change:transform;box-shadow:0 24px 55px rgba(0,0,0,.4)}
+    .proof-scroll .proof-photo-card.is-active{transform:translate3d(0,0,0);pointer-events:auto;z-index:2}
+    .proof-scroll .proof-photo-card.is-before{transform:translate3d(-106%,0,0)}
+    .proof-scroll .proof-photo-card.is-after{transform:translate3d(106%,0,0)}
     .proof-scroll .proof-photo-media{height:auto;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px;background:#030403;cursor:zoom-in}
     .proof-scroll .proof-photo-media img{width:100%;height:100%;object-fit:contain;object-position:center;display:block}
     .proof-scroll .proof-photo-media:after{content:"Appuie pour agrandir"}
@@ -139,7 +140,7 @@
     .proof-scroll .proof-scroll-count{color:#fff;font-size:11px;font-weight:950;letter-spacing:.13em}
     .proof-scroll .proof-scroll-count span{color:var(--orange)}
     .proof-scroll .proof-scroll-progress{height:3px;flex:1;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.09)}
-    .proof-scroll .proof-scroll-progress i{display:block;width:25%;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--orange),#ffb36b);transform-origin:left;transition:width .45s ease}
+    .proof-scroll .proof-scroll-progress i{display:block;width:25%;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--orange),#ffb36b);transform-origin:left;will-change:width}
     .proof-image-modal[hidden]{display:none}.proof-image-modal{position:fixed;inset:0;z-index:220;overflow:auto;padding:68px 12px 28px;background:rgba(0,0,0,.96);backdrop-filter:blur(16px)}.proof-image-modal-shell{width:min(100%,900px);margin:0 auto;position:relative}.proof-image-modal img{display:block;width:100%;height:auto;border-radius:18px;background:#050605;box-shadow:0 25px 90px rgba(0,0,0,.8)}.proof-image-close{position:fixed;z-index:2;right:18px;top:16px;width:43px;height:43px;border:1px solid rgba(255,255,255,.22);border-radius:50%;display:grid;place-items:center;background:rgba(14,16,14,.92);color:#fff;font-size:24px;line-height:1;cursor:pointer}.proof-image-modal p{margin:13px 4px 0;color:var(--muted);font-size:10px;text-align:center}.proof-image-modal-open{overflow:hidden}
     @keyframes scrollHint{50%{transform:translateY(4px)}}
     @media(max-width:780px){
@@ -149,7 +150,7 @@
       .proof-scroll .proof-carousel-track{width:100%;margin:0}.proof-scroll .proof-photo-member{padding:12px}.proof-scroll .proof-photo-member .audio-avatar{width:32px;height:32px}
       .proof-scroll .proof-photo-media{height:auto;padding:5px}.proof-scroll .proof-scroll-hint{font-size:8px;letter-spacing:.06em}.proof-scroll .proof-scroll-count{font-size:10px}
     }
-    @media(prefers-reduced-motion:reduce){.life-track{animation:none}.audio-card.is-playing .voice-wave i{animation:none}.proof-scroll .proof-photo-card{transition:none}.proof-scroll .proof-scroll-hint svg{animation:none}}
+    @media(prefers-reduced-motion:reduce){.life-track{animation:none}.audio-card.is-playing .voice-wave i{animation:none}.proof-scroll .proof-scroll-hint svg{animation:none}}
     .mind-choice{position:relative;overflow:hidden;padding:96px 20px 88px;background:radial-gradient(circle at 20% 58%,rgba(39,167,255,.1),transparent 31%),radial-gradient(circle at 80% 58%,rgba(255,100,30,.12),transparent 31%),#030403}.mind-inner{width:min(1040px,100%);margin:auto;text-align:center}.mind-eyebrow{display:inline-flex;align-items:center;gap:8px;margin-bottom:17px;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}.mind-eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--orange);box-shadow:0 0 14px var(--orange)}
     .mind-title{max-width:900px;margin:0 auto 34px;font-size:clamp(38px,5.2vw,64px);line-height:.98;letter-spacing:-.05em}.mind-title em{display:block;color:var(--orange);font-style:normal}.mind-axis{width:min(980px,100%);margin:0 auto 11px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.mind-axis-item{padding:13px 16px;border:1px solid rgba(255,255,255,.11);border-radius:15px;background:rgba(255,255,255,.025);text-align:left}.mind-axis-item:last-child{text-align:right}.mind-axis-item b{display:block;font-size:12px}.mind-axis-item small{display:block;margin-top:4px;color:var(--muted);font-size:9px}.mind-axis-item.blue b{color:#74c6ff}.mind-axis-item.orange b{color:var(--orange)}
     .mind-stage{position:relative;width:min(980px,100%);margin:auto;overflow:hidden;border:1px solid rgba(255,255,255,.11);border-radius:29px;background:#020302;box-shadow:0 38px 100px rgba(0,0,0,.62)}.mind-stage>img{display:block;width:100%;aspect-ratio:16/8.2;object-fit:contain;opacity:.92}.mind-stage:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(2,3,2,.32),transparent 26% 74%,rgba(2,3,2,.32))}.mind-streams{position:absolute;inset:0;z-index:4;pointer-events:none}.mind-stream{position:absolute;top:13%;bottom:7%;width:150px;overflow:hidden;mask-image:linear-gradient(180deg,transparent,#000 15%,#000 85%,transparent)}.mind-stream.left{left:18px}.mind-stream.right{right:18px;width:205px}.mind-stream-track{display:flex;flex-direction:column;gap:9px}.mind-stream.left .mind-stream-track{animation:mindDown 14s linear infinite}.mind-stream.right .mind-stream-track{animation:mindUp 14s linear infinite}
@@ -612,23 +613,38 @@
     var proofScroll=document.getElementById('proof-scroll');
     if(proofScroll){
       var proofCards=Array.from(proofScroll.querySelectorAll('.proof-photo-card'));
+      var proofStage=proofScroll.querySelector('.proof-carousel-stage');
       var proofCount=proofScroll.querySelector('.proof-scroll-count span');
       var proofProgress=proofScroll.querySelector('.proof-scroll-progress i');
       var currentProof=-1;
       function updateProofScroll(){
         var rect=proofScroll.getBoundingClientRect();
-        var range=Math.max(1,proofScroll.offsetHeight-window.innerHeight);
-        var progress=Math.max(0,Math.min(1,-rect.top/range));
-        var index=Math.min(proofCards.length-1,Math.floor(progress*proofCards.length));
-        if(index===currentProof)return;
-        currentProof=index;
+        var stickyTop=parseFloat(window.getComputedStyle(proofStage).top)||0;
+        var range=Math.max(1,proofScroll.offsetHeight-proofStage.offsetHeight);
+        var progress=Math.max(0,Math.min(1,(stickyTop-rect.top)/range));
+        var position=progress*Math.max(0,proofCards.length-1);
+        var index=Math.min(proofCards.length-1,Math.max(0,Math.round(position)));
         proofCards.forEach(function(card,cardIndex){
+          var distance=cardIndex-position;
+          var translate=Math.max(-106,Math.min(106,distance*106));
+          card.style.transform='translate3d('+translate+'%,0,0)';
+          card.style.zIndex=String(Math.max(1,10-Math.round(Math.abs(distance)*2)));
           card.classList.toggle('is-active',cardIndex===index);
           card.classList.toggle('is-before',cardIndex<index);
+          card.classList.toggle('is-after',cardIndex>index);
           card.setAttribute('aria-hidden',cardIndex===index?'false':'true');
+          var media=card.querySelector('.proof-photo-media');
+          if(media)media.setAttribute('tabindex',cardIndex===index?'0':'-1');
         });
+        proofScroll.setAttribute('data-active-proof',String(index+1));
+        proofScroll.setAttribute('data-proof-progress',progress.toFixed(3));
+        if(index===currentProof){
+          proofProgress.style.width=(25+progress*75)+'%';
+          return;
+        }
+        currentProof=index;
         proofCount.textContent=String(index+1).padStart(2,'0');
-        proofProgress.style.width=((index+1)/proofCards.length*100)+'%';
+        proofProgress.style.width=(25+progress*75)+'%';
       }
       var proofTicking=false;
       window.addEventListener('scroll',function(){

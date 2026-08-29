@@ -69,3 +69,19 @@ def test_vip_is_indexable_and_indexnow_key_is_public():
     assert b'og:image' in vip.data
     assert key_file.status_code == 200
     assert key_file.text == INDEXNOW_KEY
+
+
+def test_vip_testimonial_gallery_pins_and_maps_vertical_scroll_to_horizontal_slides():
+    client = bectanse_app.app.test_client()
+    vip = client.get("/vip")
+
+    assert vip.status_code == 200
+    html = vip.text
+    assert 'id="proof-scroll"' in html
+    assert "position:sticky" in html
+    assert "overflow-x:clip" in html
+    assert "touch-action:pan-y pinch-zoom" in html
+    assert "translate3d('+translate+'%,0,0)" in html
+    assert "proofScroll.offsetHeight-proofStage.offsetHeight" in html
+    assert "data-active-proof" in html
+    assert html.count('class="proof-photo-card') == 4
