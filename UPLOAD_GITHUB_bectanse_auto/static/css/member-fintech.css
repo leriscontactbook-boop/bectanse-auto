@@ -767,3 +767,41 @@
   .future-preview .os-mobile-live i{animation:none}
   .future-preview .os-chart-shell{transition:none}
 }
+
+.future-preview .os-explorer-banner{
+  position:relative;
+  isolation:isolate;
+  margin-bottom:18px;
+  padding:20px 22px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  overflow:hidden;
+  border:1px solid rgba(255,103,29,.32);
+  border-radius:18px;
+  background:linear-gradient(115deg,rgba(255,97,20,.12),rgba(16,19,15,.97) 46%,rgba(9,11,9,.99));
+  box-shadow:0 18px 50px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.04);
+}
+.future-preview .os-explorer-banner:after{content:"";position:absolute;z-index:-1;right:-65px;top:-110px;width:250px;height:250px;border:1px solid rgba(255,104,31,.13);border-radius:50%;box-shadow:0 0 0 35px rgba(255,104,31,.025),0 0 0 72px rgba(255,104,31,.017)}
+.future-preview .os-explorer-banner-copy>span{color:#ff7d3e;font-size:9px;font-weight:850;letter-spacing:.16em;text-transform:uppercase}
+.future-preview .os-explorer-banner h1{margin:7px 0 5px;color:#fff;font-size:22px;line-height:1.08;font-weight:850;letter-spacing:-.025em}
+.future-preview .os-explorer-banner p{max-width:720px;margin:0;color:#8e948b;font-size:11px;line-height:1.55}
+.future-preview .os-explorer-banner-actions{display:flex;align-items:center;gap:8px;flex:none}
+.future-preview .os-explorer-banner-actions a{min-height:41px;padding:0 14px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#c9cdc5;background:#121511;text-decoration:none;font-size:9px;font-weight:850;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.future-preview .os-explorer-banner-actions a.primary{border-color:#ff6318;color:#fff;background:linear-gradient(100deg,#d84700,#ff6a1a);box-shadow:0 10px 25px rgba(255,89,12,.16)}
+.future-preview .os-member-access.is-explorer{border-color:rgba(255,104,31,.3);background:linear-gradient(145deg,rgba(255,90,18,.12),rgba(255,90,18,.025))}
+.future-preview .os-member-access.is-explorer .os-access-progress span{width:25%}
+.future-preview .os-explorer-lock-panel{min-height:180px;padding:30px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px dashed rgba(255,103,29,.25);border-radius:14px;background:radial-gradient(circle at 50% 0,rgba(255,96,20,.1),transparent 55%),rgba(255,255,255,.012)}
+.future-preview .os-explorer-lock-panel span{color:#ff7e40;font-size:8px;font-weight:900;letter-spacing:.16em}
+.future-preview .os-explorer-lock-panel h3{margin:10px 0 5px;color:#fff;font-size:17px}
+.future-preview .os-explorer-lock-panel p{max-width:430px;margin:0;color:#737970;font-size:11px;line-height:1.55}
+
+@media(max-width:768px){
+  .future-preview .os-explorer-banner{margin-bottom:11px;padding:15px;display:block;border-radius:16px}
+  .future-preview .os-explorer-banner h1{font-size:19px}
+  .future-preview .os-explorer-banner p{font-size:10px}
+  .future-preview .os-explorer-banner-actions{display:grid;grid-template-columns:1fr 1fr;margin-top:13px}
+  .future-preview .os-explorer-banner-actions a{min-height:39px;padding:0 8px;font-size:8px;white-space:normal;text-align:center}
+  .future-preview .os-explorer-lock-panel{min-height:145px;padding:22px 16px}
+}

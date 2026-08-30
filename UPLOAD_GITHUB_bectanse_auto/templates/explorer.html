@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/explorer-journey.css?v=20260828-1">
+  <link rel="stylesheet" href="/static/css/explorer-journey.css?v=20260830-app1">
 </head>
 <body>
 {% macro explorer_icon(name) -%}
@@ -26,6 +26,7 @@
 {%- endmacro %}
 
 {% set first_name = (member.nom or 'Explorer').split(' ')[0] %}
+{% set explorer_app_href = '/preview-explorer-app' if preview_mode|default(false) else '/accueil' %}
 <div class="ex-app">
   <header class="ex-topbar">
     <a class="ex-brand" href="/explorer" aria-label="Bectanse Académie — Parcours Explorer">
@@ -34,6 +35,7 @@
     </a>
     <div class="ex-top-actions">
       <span class="ex-mode"><i></i> Mode Explorer</span>
+      <a class="ex-top-app" href="{{ explorer_app_href }}">Ouvrir l’application</a>
       <a class="ex-top-cta js-explorer-action" data-step="offer" href="/vip#offres">Débloquer</a>
     </div>
   </header>
@@ -45,6 +47,10 @@
         <span class="ex-overline">TON ESPACE DE DÉCOUVERTE PERSONNEL</span>
         <h1>{{ first_name }}, ne regarde pas tout au hasard.<br><em>Découvre ce qui peut vraiment changer ta façon d’avancer.</em></h1>
         <p>Je t’ai préparé un parcours court. Quatre étapes pour comprendre la méthode, tester la logique des outils et décider avec toutes les informations en main.</p>
+        <div class="ex-hero-actions">
+          <a class="ex-primary" href="{{ explorer_app_href }}">Entrer dans mon application {{ explorer_icon('arrow') }}</a>
+          <a class="ex-quiet-link" href="#mission">Suivre le parcours guidé</a>
+        </div>
         <div class="ex-hero-meta">
           <span><b>4</b> étapes guidées</span>
           <span><b>6</b> minutes environ</span>
@@ -56,6 +62,26 @@
         <div class="ex-orbit-core"><img src="/static/icons/bectanse-app-icon-master.png?v=20260825" alt=""></div>
         <span class="ex-orbit-node node-one"></span><span class="ex-orbit-node node-two"></span><span class="ex-orbit-node node-three"></span>
         <strong>{{ journey.progress }}%</strong><small>PARCOURS</small>
+      </div>
+    </section>
+
+    <section class="ex-app-access" aria-labelledby="ex-app-access-title">
+      <div class="ex-app-access-visual" aria-hidden="true">
+        <div class="ex-app-screen">
+          <div class="ex-app-screen-top"><i></i><i></i><i></i><span>XAU/USD · 15 min</span></div>
+          <div class="ex-app-chart"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="ex-app-lock">{{ explorer_icon('lock') }} FONCTIONS PREMIUM VERROUILLÉES</div>
+        </div>
+      </div>
+      <div class="ex-app-access-copy">
+        <span class="ex-section-kicker">CE N’EST PAS UNE SIMPLE PAGE DE PRÉSENTATION</span>
+        <h2>Entre dans la vraie application.<br><em>Observe tout avant de choisir.</em></h2>
+        <p>Tu peux parcourir l’accueil, consulter le graphique TradingView en direct et découvrir l’architecture des outils avec un compte de démonstration. Les données du compte sont fictives et chaque action réservée reste verrouillée jusqu’à l’activation d’un abonnement.</p>
+        <div class="ex-app-access-tags"><span>Application réelle</span><span>Lecture seule</span><span>Compte fictif</span></div>
+        <div class="ex-app-access-actions">
+          <a class="ex-primary" href="{{ explorer_app_href }}">Ouvrir mon application {{ explorer_icon('arrow') }}</a>
+          <a class="ex-quiet-link js-explorer-action" data-step="offer" href="/vip#offres">Voir les accès</a>
+        </div>
       </div>
     </section>
 

@@ -1604,18 +1604,17 @@ def accueil():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    if _member_is_explorer(member):
-        return redirect(url_for("explorer_home"))
+    explorer_account = _member_is_explorer(member)
     raw_params = member.get("params") or {}
     # Fusionner avec les defaults pour les clés manquantes
     dp = default_params()
     dp.update(raw_params)
     params = dp
-    copy_actif = member.get("copy_actif", True)
+    copy_actif = False if explorer_account else member.get("copy_actif", True)
     date_souscription = member.get("date_souscription")
     date_fin = member.get("date_fin")
     jours_restants = None
-    statut_abo = "actif"
+    statut_abo = "explorer" if explorer_account else "actif"
     if date_fin:
         from datetime import datetime
         now = datetime.now()
@@ -1629,11 +1628,20 @@ def accueil():
     notif_lue     = member.get("notif_lue", True)
     afficher_notif = bool(notif_type and notif_message and not notif_lue)
     demo_mode = _current_demo_mode(code, member)
+    # Un Explorer découvre la véritable application avec un portefeuille visuel
+    # fictif. Aucune donnée métier n'est modifiée et les actions premium restent
+    # protégées côté serveur par academy_access_required.
+    display_member = dict(member)
+    if explorer_account:
+        display_member["capital"] = "10 000"
+        date_souscription = None
+        date_fin = None
+        jours_restants = None
     # Direction artistique fintech validée : la logique et les données restent
     # identiques, seule la présentation de l'espace membre est modernisée.
     modern_preview = True
     return render_template("accueil.html",
-        member=member, params=params,
+        member=display_member, params=params,
         copy_actif=copy_actif,
         date_souscription=date_souscription,
         date_fin=date_fin,
@@ -1643,6 +1651,7 @@ def accueil():
         notif_message=notif_message,
         afficher_notif=afficher_notif,
         demo_mode=demo_mode,
+        explorer_account=explorer_account,
         modern_preview=modern_preview
     )
 
@@ -1783,6 +1792,41 @@ def preview_espace_membre():
         notif_message=member["notif_message"],
         afficher_notif=True,
         demo_mode=True,
+        modern_preview=True,
+    )
+
+
+@app.route("/preview-explorer-app")
+def preview_explorer_app():
+    """Aperçu local de la vraie application en mode Explorer."""
+    if request.host.split(":", 1)[0] not in {"127.0.0.1", "localhost"}:
+        return "Aperçu local uniquement", 404
+    member = {
+        "code": "BCT-EXPLORER",
+        "nom": "Leris Explorer",
+        "email": "explorer@bectanse-academie.com",
+        "capital": "10 000",
+        "copy_actif": False,
+        "access_level": "explorer",
+        "notif_type": "",
+        "notif_message": "",
+        "notif_lue": True,
+    }
+    return render_template(
+        "accueil.html",
+        member=member,
+        params=default_params(),
+        copy_actif=False,
+        date_souscription=None,
+        date_fin=None,
+        jours_restants=None,
+        statut_abo="explorer",
+        notif_type="",
+        notif_message="",
+        afficher_notif=False,
+        demo_mode=True,
+        explorer_account=True,
+        preview_mode=True,
         modern_preview=True,
     )
 
@@ -5368,8 +5412,7 @@ def health():
 @app.route("/", methods=["GET","POST"])
 def login():
     if "member_code" in session:
-        session_member = get_member(session.get("member_code", ""))
-        return redirect(url_for("explorer_home" if _member_is_explorer(session_member) else "accueil"))
+        return redirect(url_for("accueil"))
     if "analysis_account_code" in session:
         return redirect(url_for("analyse_ia"))
     error = None
@@ -5442,7 +5485,7 @@ def login():
             pending_plan = session.pop("pending_academy_plan", "")
             if pending_plan in ACADEMY_PLAN_BY_ID:
                 return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
-            return redirect(url_for("explorer_home" if _member_is_explorer(member) else "accueil"))
+            return redirect(url_for("accueil"))
     return render_template("login.html", error=error, notice=notice,
                            explorer_gate_enabled=explorer_gate_enabled)
 

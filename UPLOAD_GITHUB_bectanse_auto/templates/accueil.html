@@ -388,13 +388,13 @@ body.future-preview{
 }
 </style>
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260826m1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260830-explorer1">
 </head>
 <body class="member-fintech {% if modern_preview %}future-preview{% endif %}">
 {% if modern_preview %}
 <div class="os-app">
   <aside class="os-sidebar">
-    <a class="os-brand" href="/accueil" aria-label="Bectanse Auto — Accueil">
+    <a class="os-brand" href="/accueil" aria-label="Bectanse Académie — Accueil">
       <span class="os-brand-mark" aria-hidden="true"></span>
       <span>BECTANSE <strong>ACADÉMIE</strong></span>
     </a>
@@ -421,52 +421,65 @@ body.future-preview{
       </nav>
     </div>
 
-    <div class="os-member-access">
-      <div class="os-access-kicker">Accès membre actif</div>
+    <div class="os-member-access{% if explorer_account|default(false) %} is-explorer{% endif %}">
+      <div class="os-access-kicker">{{ 'Mode Explorer' if explorer_account|default(false) else 'Accès membre actif' }}</div>
       <div class="os-access-name">{{ member.nom }}</div>
-      <div class="os-access-meta">Copy Trading synchronisé</div>
+      <div class="os-access-meta">{{ 'Application visible en lecture seule' if explorer_account|default(false) else 'Copy Trading synchronisé' }}</div>
       <div class="os-access-progress"><span></span></div>
-      <div class="os-access-days"><span>{% if statut_abo == 'expiré' %}Accès expiré{% else %}{{ jours_restants }} jours restants{% endif %}</span><strong>{% if copy_actif %}Actif{% else %}Inactif{% endif %}</strong></div>
+      <div class="os-access-days"><span>{% if explorer_account|default(false) %}Compte gratuit{% elif statut_abo == 'expiré' %}Accès expiré{% else %}{{ jours_restants }} jours restants{% endif %}</span><strong>{% if explorer_account|default(false) %}Verrouillé{% elif copy_actif %}Actif{% else %}Inactif{% endif %}</strong></div>
     </div>
     <a class="os-logout" href="/logout">Déconnexion</a>
   </aside>
 
   <main class="os-main">
+    {% if explorer_account|default(false) %}
+    <section class="os-explorer-banner" aria-labelledby="os-explorer-banner-title">
+      <div class="os-explorer-banner-copy">
+        <span>MODE EXPLORER · APPLICATION RÉELLE</span>
+        <h1 id="os-explorer-banner-title">Tu es bien dans l’application Bectanse</h1>
+        <p>Explore l’interface et le graphique en direct avec un compte fictif. Les outils réservés restent verrouillés jusqu’à l’activation de ton accès.</p>
+      </div>
+      <div class="os-explorer-banner-actions">
+        <a href="/explorer">Continuer mon parcours</a>
+        <a class="primary" href="/vip#offres">Débloquer l’accès</a>
+      </div>
+    </section>
+    {% endif %}
     <section class="os-mobile-cockpit" aria-labelledby="os-mobile-title">
       <header class="os-mobile-header">
         <div>
           <div class="os-mobile-eyebrow">Bectanse Command Center</div>
           <h1 id="os-mobile-title"><span id="os-mobile-greeting">Bonjour</span>, {{ member.nom.split()[0] }}.</h1>
-          <p id="os-mobile-date">Ton espace est synchronisé</p>
+          <p id="os-mobile-date">{{ 'Ton application Explorer est prête' if explorer_account|default(false) else 'Ton espace est synchronisé' }}</p>
         </div>
         <a class="os-mobile-avatar" href="/dashboard#section-profil" aria-label="Ouvrir mon profil">{{ member.nom[0] }}</a>
       </header>
 
       <article class="os-mobile-summary">
         <div class="os-mobile-summary-top">
-          <span>Capital synchronisé</span>
-          <span class="os-mobile-live"><i></i> Temps réel</span>
+          <span>{{ 'Capital de démonstration' if explorer_account|default(false) else 'Capital synchronisé' }}</span>
+          <span class="os-mobile-live"><i></i> {{ 'Aperçu' if explorer_account|default(false) else 'Temps réel' }}</span>
         </div>
         <div class="os-mobile-balance-row">
           <strong class="os-mobile-balance" data-capital="{{ member.capital }}">{{ member.capital }} €</strong>
-          <span class="os-mobile-account-type">Compte réel</span>
+          <span class="os-mobile-account-type">{{ 'Compte fictif' if explorer_account|default(false) else 'Compte réel' }}</span>
         </div>
 
         <div class="os-mobile-status-grid">
           <a href="/dashboard#section-parametres" class="os-mobile-status">
             <span class="os-mobile-status-icon">◎</span>
-            <span><small>Bectanse Auto</small><strong>{% if copy_actif %}Actif{% else %}Inactif{% endif %} · {{ params.get('plateforme', 'MT5') }}</strong></span>
+            <span><small>Bectanse Auto</small><strong>{% if explorer_account|default(false) %}Verrouillé · MT5{% else %}{% if copy_actif %}Actif{% else %}Inactif{% endif %} · {{ params.get('plateforme', 'MT5') }}{% endif %}</strong></span>
             <b class="{% if copy_actif %}is-on{% endif %}"></b>
           </a>
           <a href="/dashboard#section-profil" class="os-mobile-status">
             <span class="os-mobile-status-icon">◷</span>
-            <span><small>Accès membre</small><strong>{% if statut_abo == 'expiré' %}Expiré{% elif jours_restants is not none %}{{ jours_restants }} jours{% else %}Actif{% endif %}</strong></span>
+            <span><small>Accès membre</small><strong>{% if explorer_account|default(false) %}Mode Explorer{% elif statut_abo == 'expiré' %}Expiré{% elif jours_restants is not none %}{{ jours_restants }} jours{% else %}Actif{% endif %}</strong></span>
             <b class="{% if statut_abo != 'expiré' %}is-on{% endif %}"></b>
           </a>
         </div>
 
         <div class="os-mobile-summary-actions">
-          <a class="primary" href="/dashboard#section-parametres">Piloter le robot <span>→</span></a>
+          <a class="primary" href="{{ '/explorer' if explorer_account|default(false) else '/dashboard#section-parametres' }}">{{ 'Continuer le parcours' if explorer_account|default(false) else 'Piloter le robot' }} <span>→</span></a>
           <a href="/analyse-ia">Analyse IA</a>
         </div>
       </article>
@@ -484,7 +497,7 @@ body.future-preview{
         <h1 id="os-overview-title">Accueil</h1>
         <div class="os-overview-actions">
           <a class="os-overview-action" href="/academie">Académie</a>
-          <a class="os-overview-action primary" href="/dashboard">Gérer Bectanse Auto</a>
+          <a class="os-overview-action primary" href="{{ '/vip#offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon accès' if explorer_account|default(false) else 'Gérer Bectanse Auto' }}</a>
           <span class="os-overview-avatar" aria-label="Profil de {{ member.nom }}">{{ member.nom[0] }}</span>
         </div>
       </div>
@@ -492,11 +505,11 @@ body.future-preview{
       <div class="os-overview-grid">
         <article class="os-overview-card">
           <div class="os-overview-card-top">
-            <span class="os-overview-label">Capital configuré</span>
-            <span class="os-overview-pill">Compte réel</span>
+            <span class="os-overview-label">{{ 'Capital de démonstration' if explorer_account|default(false) else 'Capital configuré' }}</span>
+            <span class="os-overview-pill">{{ 'Compte fictif' if explorer_account|default(false) else 'Compte réel' }}</span>
           </div>
           <div class="os-overview-value">{{ member.capital }} €</div>
-          <div class="os-overview-meta is-live">Synchronisé avec ton compte</div>
+          <div class="os-overview-meta{% if not explorer_account|default(false) %} is-live{% endif %}">{{ 'Données fictives pour découvrir l’interface' if explorer_account|default(false) else 'Synchronisé avec ton compte' }}</div>
         </article>
 
         <article class="os-overview-card">
@@ -504,17 +517,17 @@ body.future-preview{
             <span class="os-overview-label">Bectanse Auto</span>
             <span class="os-overview-pill">MT5</span>
           </div>
-          <div class="os-overview-value">{% if copy_actif %}Actif{% else %}Inactif{% endif %}</div>
-          <div class="os-overview-meta {% if copy_actif %}is-live{% endif %}">{% if copy_actif %}Robot connecté en temps réel{% else %}Robot actuellement désactivé{% endif %}</div>
+          <div class="os-overview-value">{% if explorer_account|default(false) %}Verrouillé{% elif copy_actif %}Actif{% else %}Inactif{% endif %}</div>
+          <div class="os-overview-meta {% if copy_actif and not explorer_account|default(false) %}is-live{% endif %}">{% if explorer_account|default(false) %}Activation disponible avec un abonnement{% elif copy_actif %}Robot connecté en temps réel{% else %}Robot actuellement désactivé{% endif %}</div>
         </article>
 
         <article class="os-overview-card">
           <div class="os-overview-card-top">
             <span class="os-overview-label">Accès membre</span>
-            <span class="os-overview-pill">{% if statut_abo == 'expiré' %}Expiré{% else %}Actif{% endif %}</span>
+            <span class="os-overview-pill">{% if explorer_account|default(false) %}Gratuit{% elif statut_abo == 'expiré' %}Expiré{% else %}Actif{% endif %}</span>
           </div>
-          <div class="os-overview-value">{% if statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</div>
-          {% if date_fin %}<div class="os-overview-meta">Expiration le {{ date_fin.strftime('%d/%m/%Y') }}</div>{% endif %}
+          <div class="os-overview-value">{% if explorer_account|default(false) %}Explorer{% elif statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</div>
+          {% if explorer_account|default(false) %}<div class="os-overview-meta">Navigation en lecture seule</div>{% elif date_fin %}<div class="os-overview-meta">Expiration le {{ date_fin.strftime('%d/%m/%Y') }}</div>{% endif %}
         </article>
       </div>
     </section>
@@ -541,20 +554,29 @@ body.future-preview{
       <section class="os-panel os-account-panel">
         <div class="os-panel-heading">
           <div class="os-engine-mark">AUTO</div>
-          <div><h2>Mon compte</h2><p><span>●</span> SYSTÈME {% if copy_actif %}ACTIF{% else %}INACTIF{% endif %} · synchronisation en temps réel</p></div>
+          <div><h2>{{ 'Compte Explorer' if explorer_account|default(false) else 'Mon compte' }}</h2><p><span>●</span> SYSTÈME {% if explorer_account|default(false) %}VERROUILLÉ · APERÇU FICTIF{% elif copy_actif %}ACTIF{% else %}INACTIF{% endif %}{% if not explorer_account|default(false) %} · synchronisation en temps réel{% endif %}</p></div>
         </div>
-        <div class="os-account-row"><span>Copy Trading</span><strong class="os-good">{% if copy_actif %}Actif{% else %}Inactif{% endif %}</strong></div>
-        <div class="os-account-row"><span>Capital</span><strong>{{ member.capital }} €</strong></div>
+        <div class="os-account-row"><span>Bectanse Auto</span><strong class="{% if copy_actif and not explorer_account|default(false) %}os-good{% endif %}">{% if explorer_account|default(false) %}Verrouillé{% elif copy_actif %}Actif{% else %}Inactif{% endif %}</strong></div>
+        <div class="os-account-row"><span>Capital</span><strong>{{ member.capital }} €{% if explorer_account|default(false) %} · démo{% endif %}</strong></div>
         {% if date_fin %}<div class="os-account-row"><span>Expiration</span><strong>{{ date_fin.strftime('%d/%m/%Y') }}</strong></div>{% endif %}
-        <div class="os-account-row"><span>Jours restants</span><strong class="os-good">{% if statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</strong></div>
+        <div class="os-account-row"><span>Accès</span><strong class="{% if not explorer_account|default(false) %}os-good{% endif %}">{% if explorer_account|default(false) %}Lecture seule{% elif statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</strong></div>
         {% if afficher_notif or notif_message %}<div class="os-personal-message" id="notif-inline"><b>Message personnel</b>{{ notif_message }}<button onclick="dismissNotif()">Marquer comme lu</button></div>{% endif %}
-        <a class="os-action" href="/dashboard">Configurer mes paramètres →</a>
+        <a class="os-action" href="{{ '/vip#offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon compte' if explorer_account|default(false) else 'Configurer mes paramètres' }} →</a>
       </section>
 
       <section class="os-panel os-channel-panel">
-        <div class="os-panel-title-row"><div><h2>Canal VIP</h2><p>Aperçu des derniers messages</p></div><strong>LIVE</strong></div>
+        <div class="os-panel-title-row"><div><h2>Canal VIP</h2><p>{{ 'Section visible, contenu réservé aux membres' if explorer_account|default(false) else 'Aperçu des derniers messages' }}</p></div><strong>{{ 'VERROUILLÉ' if explorer_account|default(false) else 'LIVE' }}</strong></div>
+        {% if explorer_account|default(false) %}
+        <div class="os-explorer-lock-panel">
+          <span>CANAL PRIVÉ</span>
+          <h3>Les alertes restent protégées</h3>
+          <p>Tu peux découvrir l’organisation de l’application. L’historique et les nouvelles publications se débloquent avec ton accès membre.</p>
+        </div>
+        <a class="os-feed-link" href="/vip#offres">Découvrir les accès →</a>
+        {% else %}
         <div id="canal-preview-list"><div class="os-loading">Chargement...</div></div>
         <a class="os-feed-link" href="/canal">Voir tout le canal →</a>
+        {% endif %}
       </section>
     </div>
 
@@ -566,7 +588,7 @@ body.future-preview{
 </div>
 <script src="https://s3.tradingview.com/tv.js"></script>
 {% else %}
-{% if demo_mode %}
+{% if demo_mode and not modern_preview %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
   <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
   <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
@@ -1392,7 +1414,7 @@ checkPwaPrompt();
 
 <script src="/static/push.js"></script>
 
-{% if demo_mode %}
+{% if demo_mode and not modern_preview %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
   <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
   <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>

@@ -81,6 +81,32 @@ class AccessModelTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/vip")
 
+    def test_personal_explorer_can_open_real_application_in_read_only_mode(self):
+        self._login()
+        explorer = {
+            "code": "BCT-FREE0001", "nom": "Leris Explorer",
+            "email": "explorer@example.com", "access_level": "explorer",
+            "actif": True, "capital": "—", "copy_actif": False,
+            "params": {}, "notif_lue": True,
+        }
+        with patch.object(app, "enforce_member_access_state"), \
+             patch.object(app, "get_member", return_value=explorer):
+            response = self.client.get("/accueil")
+        self.assertEqual(response.status_code, 200)
+        page = response.get_data(as_text=True)
+        self.assertIn("Tu es bien dans l’application Bectanse", page)
+        self.assertIn("Compte fictif", page)
+        self.assertIn("10 000 €", page)
+        self.assertIn("Débloquer l’accès", page)
+
+    def test_returning_explorer_login_opens_application_not_only_journey(self):
+        self._login()
+        explorer = {"code": "BCT-FREE0001", "access_level": "explorer", "actif": True}
+        with patch.object(app, "get_member", return_value=explorer):
+            response = self.client.get("/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/accueil")
+
     def test_legacy_shared_demo_session_must_create_an_individual_account(self):
         self._login("BCT-DEMO2026")
         response = self.client.get("/accueil")

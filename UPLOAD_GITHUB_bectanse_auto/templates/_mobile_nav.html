@@ -120,10 +120,10 @@
 
 {% set mobile_active = request.endpoint %}
 {% set explorer_account = member and ((member.get('access_level', 'member')|lower in ['explorer','demo']) or (member.get('code', '')|upper == 'BCT-DEMO2026')) %}
-{% set mobile_home_href = '/explorer' if explorer_account else '/accueil' %}
-{% set more_active = mobile_active in ['dashboard','guide_robot','parrainage','support','offres','abonnement'] %}
+{% set mobile_home_href = '/accueil' %}
+{% set more_active = mobile_active in ['dashboard','guide_robot','parrainage','support','offres','abonnement','explorer_home'] %}
 <nav class="m-univ-nav" aria-label="Navigation principale de l’application">
-  <a class="m-univ-nav-item{% if mobile_active in ['accueil','explorer_home'] %} active{% endif %}" href="{{ mobile_home_href }}"{% if mobile_active in ['accueil','explorer_home'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('home') }}</span><span>{{ 'Explorer' if explorer_account else 'Accueil' }}</span></a>
+  <a class="m-univ-nav-item{% if mobile_active == 'accueil' %} active{% endif %}" href="{{ mobile_home_href }}"{% if mobile_active == 'accueil' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('home') }}</span><span>Accueil</span></a>
   <a class="m-univ-nav-item{% if mobile_active in ['academie','formation'] %} active{% endif %}" href="/academie"{% if mobile_active in ['academie','formation'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('academy') }}</span><span>Académie</span></a>
   <a class="m-univ-nav-item{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} active{% endif %}" href="/trader-lab"{% if mobile_active in ['trader_lab','analyse_ia','simulateur','journal','trade_score','calculateur','trust_center'] %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('lab') }}</span><span>Trader Lab</span></a>
   <a class="m-univ-nav-item{% if mobile_active == 'canal' %} active{% endif %}" href="/canal"{% if mobile_active == 'canal' %} aria-current="page"{% endif %}><span class="m-app-icon-shell">{{ nav_icon('live') }}<i class="m-app-live-pulse" aria-hidden="true"></i></span><span>Live</span></a>
@@ -136,6 +136,7 @@
   <header class="m-app-sheet-head"><span class="m-app-sheet-grip" aria-hidden="true"></span><div><span class="m-app-sheet-kicker">Bectanse Command Center</span><h2 class="m-app-sheet-title" id="mAppSheetTitle">Tous les outils</h2></div><button class="m-app-sheet-close" type="button" data-m-app-close aria-label="Fermer le menu">{{ nav_icon('close') }}</button></header>
   <div class="m-app-sheet-scroll">
     <div class="m-app-sheet-grid">
+      {% if explorer_account %}<a class="m-app-tool{% if mobile_active == 'explorer_home' %} active{% endif %}" href="/explorer"><span class="m-app-icon-shell">{{ nav_icon('academy') }}</span><span>Mon parcours</span></a>{% endif %}
       <a class="m-app-tool dashboard-anchor{% if mobile_active == 'dashboard' %} active{% endif %}" data-dashboard-section="section-profil" href="/dashboard#section-profil"><span class="m-app-icon-shell">{{ nav_icon('profile') }}</span><span>Mon profil</span></a>
       <a class="m-app-tool{% if mobile_active == 'analyse_ia' %} active{% endif %}" href="/analyse-ia"><span class="m-app-icon-shell">{{ nav_icon('analysis') }}</span><span>Analyse IA</span></a>
       <a class="m-app-tool{% if mobile_active == 'calculateur' %} active{% endif %}" href="/calculateur"><span class="m-app-icon-shell">{{ nav_icon('calculator') }}</span><span>Calculateur</span></a>
