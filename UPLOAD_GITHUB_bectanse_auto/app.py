@@ -748,6 +748,12 @@ def init_db():
                 channel_id           INTEGER NOT NULL REFERENCES telegram_channels(id) ON DELETE CASCADE,
                 PRIMARY KEY (post_id, channel_id)
             )""")
+            conn.run("""CREATE TABLE IF NOT EXISTS telegram_admin_publication_drafts (
+                chat_id              TEXT PRIMARY KEY,
+                step                 TEXT NOT NULL,
+                payload              TEXT NOT NULL DEFAULT '{}',
+                updated_at           TIMESTAMP DEFAULT NOW()
+            )""")
             if ECO_CANAL:
                 conn.run(
                     """INSERT INTO telegram_channels (name, chat_id, active, deleted)
@@ -6163,6 +6169,388 @@ def admin_add():
 
 # ── BOT TELEGRAM WEBHOOK ──────────────────────────────────────────────────────
 
+BOT_PUBLICATION_INITIAL_PAYLOAD = {
+    "message": "",
+    "image_url": "",
+    "button_text": "",
+    "button_url": "",
+}
+
+
+def _load_bot_publication_draft(chat_id):
+    """Relit le brouillon Telegram privé de l'admin."""
+    conn = None
+    try:
+        conn = get_conn()
+        rows = conn.run(
+            """SELECT step, payload FROM telegram_admin_publication_drafts
+               WHERE chat_id=:chat_id""",
+            chat_id=str(chat_id)
+        )
+        if not rows:
+            return None
+        step, raw_payload = rows[0]
+        try:
+            payload = json.loads(raw_payload or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        return {"step": str(step), "payload": payload if isinstance(payload, dict) else {}}
+    except Exception as error:
+        app.logger.error("lecture brouillon publication Telegram: %s", error)
+        return None
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _save_bot_publication_draft(chat_id, step, payload):
+    """Conserve le parcours même si le service redémarre entre deux réponses."""
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            """INSERT INTO telegram_admin_publication_drafts
+               (chat_id, step, payload, updated_at)
+               VALUES (:chat_id, :step, :payload, NOW())
+               ON CONFLICT (chat_id) DO UPDATE
+               SET step=:step, payload=:payload, updated_at=NOW()""",
+            chat_id=str(chat_id), step=str(step),
+            payload=json.dumps(payload or {}, ensure_ascii=False)
+        )
+        return True
+    except Exception as error:
+        app.logger.error("enregistrement brouillon publication Telegram: %s", error)
+        return False
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _clear_bot_publication_draft(chat_id):
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run(
+            "DELETE FROM telegram_admin_publication_drafts WHERE chat_id=:chat_id",
+            chat_id=str(chat_id)
+        )
+    except Exception as error:
+        app.logger.error("suppression brouillon publication Telegram: %s", error)
+    finally:
+        if conn:
+            try: conn.close()
+            except: pass
+
+
+def _answer_bot_callback(callback_id, text=""):
+    if not callback_id:
+        return
+    payload = {"callback_query_id": callback_id}
+    if text:
+        payload["text"] = text[:180]
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+            json=payload, timeout=5
+        )
+    except Exception:
+        pass
+
+
+def _bot_publication_type_markup():
+    return {"inline_keyboard": [
+        [
+            {"text": "🖼 photo + texte", "callback_data": "publication_type_photo"},
+            {"text": "✍️ texte", "callback_data": "publication_type_text"},
+        ],
+        [{"text": "annuler", "callback_data": "publication_cancel"}],
+    ]}
+
+
+def _bot_publication_button_prompt(chat_id):
+    bot_send(
+        chat_id,
+        "quel texte veux-tu afficher sur le bouton ?\n\n"
+        "exemple : REJOINDRE BECTANSE ACADÉMIE",
+        {"inline_keyboard": [[
+            {"text": "publier sans bouton", "callback_data": "publication_no_button"},
+            {"text": "annuler", "callback_data": "publication_cancel"},
+        ]]}
+    )
+
+
+def _begin_bot_publication(chat_id):
+    payload = dict(BOT_PUBLICATION_INITIAL_PAYLOAD)
+    if not _save_bot_publication_draft(chat_id, "choose_type", payload):
+        bot_send(chat_id, "je n'arrive pas à ouvrir le créateur pour le moment, réessaie dans quelques secondes")
+        return
+    bot_send(
+        chat_id,
+        "on crée une publication pour le canal public\n\n"
+        "choisis simplement le format",
+        _bot_publication_type_markup()
+    )
+
+
+def _valid_bot_button_url(value):
+    try:
+        parsed = urlparse(str(value or "").strip())
+        return parsed.scheme == "https" and bool(parsed.netloc)
+    except Exception:
+        return False
+
+
+def _bot_publication_preview_markup(payload):
+    button_text = str(payload.get("button_text") or "").strip()
+    button_url = str(payload.get("button_url") or "").strip()
+    if button_text and button_url:
+        return {"inline_keyboard": [[{"text": button_text, "url": button_url}]]}
+    return None
+
+
+def _send_bot_publication_preview(chat_id, payload):
+    """Affiche dans le bot privé le même post et le même CTA que sur le canal."""
+    text = str(payload.get("message") or "").strip()
+    image_url = str(payload.get("image_url") or "").strip()
+    markup = _bot_publication_preview_markup(payload)
+    if image_url:
+        preview_sent = bot_send_photo(
+            chat_id, image_url, caption=text, reply_markup=markup
+        )
+    else:
+        preview_sent = bot_send(chat_id, text, reply_markup=markup)
+    if not preview_sent:
+        bot_send(chat_id, "l'aperçu n'a pas pu être chargé, ton brouillon est conservé")
+        return False
+    bot_send(
+        chat_id,
+        "voilà le rendu final\n\n"
+        "le canal reste masqué ici et le robot recréera ce post proprement sur le canal public",
+        {"inline_keyboard": [
+            [{"text": "🚀 publier maintenant", "callback_data": "publication_confirm"}],
+            [
+                {"text": "✏️ recommencer", "callback_data": "publication_restart"},
+                {"text": "annuler", "callback_data": "publication_cancel"},
+            ],
+        ]}
+    )
+    return True
+
+
+def _finish_bot_publication_content(chat_id, payload):
+    if not _save_bot_publication_draft(chat_id, "await_button_text", payload):
+        bot_send(chat_id, "je n'ai pas pu conserver le brouillon, réessaie avec /publication")
+        return
+    _bot_publication_button_prompt(chat_id)
+
+
+def _handle_bot_publication_message(chat_id, message, state):
+    """Traite les réponses texte ou photo du créateur privé."""
+    step = str(state.get("step") or "")
+    payload = dict(state.get("payload") or {})
+    text = str(message.get("text") or "").strip()
+    caption = str(message.get("caption") or "").strip()
+    photos = message.get("photo") or []
+    document = message.get("document") or {}
+
+    if step == "await_photo":
+        file_id = ""
+        if photos:
+            file_id = str(photos[-1].get("file_id") or "")
+        elif str(document.get("mime_type") or "").startswith("image/"):
+            file_id = str(document.get("file_id") or "")
+        if not file_id:
+            bot_send(chat_id, "envoie-moi directement la photo que tu veux publier")
+            return True
+        bot_send(chat_id, "je prépare l'image…")
+        image_url = tg_download_and_upload(file_id, BOT_TOKEN, "image")
+        if not image_url:
+            bot_send(chat_id, "je n'ai pas pu enregistrer cette image, renvoie-la une seconde fois")
+            return True
+        payload["image_url"] = image_url
+        if caption:
+            if len(caption) > 1024:
+                bot_send(chat_id, "le texte sous une photo est limité à 1 024 caractères")
+                return True
+            payload["message"] = caption
+            _finish_bot_publication_content(chat_id, payload)
+        else:
+            _save_bot_publication_draft(chat_id, "await_caption", payload)
+            bot_send(
+                chat_id,
+                "image reçue\n\nécris maintenant le texte qui ira dessous",
+                {"inline_keyboard": [[
+                    {"text": "continuer sans texte", "callback_data": "publication_skip_caption"},
+                    {"text": "annuler", "callback_data": "publication_cancel"},
+                ]]}
+            )
+        return True
+
+    if step == "await_text":
+        if not text:
+            bot_send(chat_id, "écris le message que tu veux publier")
+            return True
+        if len(text) > 4096:
+            bot_send(chat_id, "ce message dépasse la limite Telegram de 4 096 caractères")
+            return True
+        payload["message"] = text
+        _finish_bot_publication_content(chat_id, payload)
+        return True
+
+    if step == "await_caption":
+        if not text:
+            bot_send(chat_id, "écris le texte ou clique sur continuer sans texte")
+            return True
+        if len(text) > 1024:
+            bot_send(chat_id, "le texte sous une photo est limité à 1 024 caractères")
+            return True
+        payload["message"] = text
+        _finish_bot_publication_content(chat_id, payload)
+        return True
+
+    if step == "await_button_text":
+        if not text:
+            _bot_publication_button_prompt(chat_id)
+            return True
+        if len(text) > 80:
+            bot_send(chat_id, "le texte du bouton doit rester court, 80 caractères maximum")
+            return True
+        payload["button_text"] = text
+        _save_bot_publication_draft(chat_id, "await_button_url", payload)
+        bot_send(
+            chat_id,
+            "envoie maintenant le lien HTTPS du bouton\n\n"
+            "exemple : https://acces.bectanse-academie.com/"
+        )
+        return True
+
+    if step == "await_button_url":
+        if not _valid_bot_button_url(text):
+            bot_send(chat_id, "le lien doit commencer par https:// puis contenir une adresse valide")
+            return True
+        payload["button_url"] = text
+        _save_bot_publication_draft(chat_id, "awaiting_confirmation", payload)
+        _send_bot_publication_preview(chat_id, payload)
+        return True
+
+    if step in {"choose_type", "awaiting_confirmation", "sending"}:
+        bot_send(chat_id, "utilise les boutons affichés juste au-dessus ou tape /annuler")
+        return True
+    return False
+
+
+def _publish_bot_publication(chat_id, callback_id):
+    state = _load_bot_publication_draft(chat_id)
+    if not state or state.get("step") != "awaiting_confirmation":
+        _answer_bot_callback(callback_id, "ce brouillon n'est plus disponible")
+        return
+    payload = dict(state.get("payload") or {})
+    if not _save_bot_publication_draft(chat_id, "sending", payload):
+        _answer_bot_callback(callback_id, "impossible de verrouiller l'envoi")
+        return
+    _answer_bot_callback(callback_id, "publication en cours…")
+    post = {
+        "id": None,
+        "message": str(payload.get("message") or "").strip(),
+        "image_url": str(payload.get("image_url") or "").strip(),
+        "post_type": "message",
+        "button_text": str(payload.get("button_text") or "").strip(),
+        "button_url": str(payload.get("button_url") or "").strip(),
+        "disable_notification": False,
+        # Le bot admin n'expose aucun choix de destination. Un post neuf est
+        # publié uniquement sur le canal public principal configuré.
+        "publish_all_channels": False,
+        "channel": ECO_CANAL,
+    }
+    slot_key = f"telegram-bot-immediate-{_paris_now().strftime('%Y%m%d-%H%M%S-%f')}"
+    delivery = _send_saved_post_to_channels(post, slot_key, "bot-immediate")
+    if delivery.get("sent"):
+        _clear_bot_publication_draft(chat_id)
+        bot_send(
+            chat_id,
+            "c'est publié ✅\n\nle message et son bouton sont maintenant visibles sur le canal public",
+            {"inline_keyboard": [[
+                {"text": "créer un autre post", "callback_data": "publication_start"}
+            ]]}
+        )
+        return
+    _save_bot_publication_draft(chat_id, "awaiting_confirmation", payload)
+    bot_send(
+        chat_id,
+        "l'envoi n'a pas été confirmé par Telegram\n\nle brouillon est conservé, tu peux réessayer",
+        {"inline_keyboard": [[
+            {"text": "réessayer l'envoi", "callback_data": "publication_confirm"},
+            {"text": "annuler", "callback_data": "publication_cancel"},
+        ]]}
+    )
+
+
+def _handle_bot_publication_callback(chat_id, cb_data, callback_id):
+    if cb_data in {"publication_start", "publication_restart"}:
+        _answer_bot_callback(callback_id)
+        _begin_bot_publication(chat_id)
+        return True
+    if cb_data == "publication_cancel":
+        _clear_bot_publication_draft(chat_id)
+        _answer_bot_callback(callback_id, "brouillon annulé")
+        bot_send(
+            chat_id, "brouillon annulé",
+            {"inline_keyboard": [[
+                {"text": "créer une publication", "callback_data": "publication_start"}
+            ]]}
+        )
+        return True
+    state = _load_bot_publication_draft(chat_id)
+    if not state:
+        _answer_bot_callback(callback_id, "ouvre un nouveau brouillon")
+        _begin_bot_publication(chat_id)
+        return True
+    payload = dict(state.get("payload") or {})
+    step = str(state.get("step") or "")
+    if cb_data == "publication_type_photo":
+        if step != "choose_type":
+            _answer_bot_callback(callback_id, "ce bouton n'est plus actif")
+            return True
+        _save_bot_publication_draft(chat_id, "await_photo", payload)
+        _answer_bot_callback(callback_id)
+        bot_send(chat_id, "envoie-moi la photo, tu peux déjà ajouter sa légende si tu veux")
+        return True
+    if cb_data == "publication_type_text":
+        if step != "choose_type":
+            _answer_bot_callback(callback_id, "ce bouton n'est plus actif")
+            return True
+        _save_bot_publication_draft(chat_id, "await_text", payload)
+        _answer_bot_callback(callback_id)
+        bot_send(chat_id, "écris le message exactement comme tu veux le voir sur Telegram")
+        return True
+    if cb_data == "publication_skip_caption":
+        if step != "await_caption" or not payload.get("image_url"):
+            _answer_bot_callback(callback_id, "ce bouton n'est plus actif")
+            return True
+        payload["message"] = ""
+        _answer_bot_callback(callback_id)
+        _finish_bot_publication_content(chat_id, payload)
+        return True
+    if cb_data == "publication_no_button":
+        if step != "await_button_text" or not (
+            payload.get("message") or payload.get("image_url")
+        ):
+            _answer_bot_callback(callback_id, "ce bouton n'est plus actif")
+            return True
+        payload["button_text"] = ""
+        payload["button_url"] = ""
+        _save_bot_publication_draft(chat_id, "awaiting_confirmation", payload)
+        _answer_bot_callback(callback_id)
+        _send_bot_publication_preview(chat_id, payload)
+        return True
+    if cb_data == "publication_confirm":
+        _publish_bot_publication(chat_id, callback_id)
+        return True
+    return False
+
+
 @app.route("/bot-webhook", methods=["POST"])
 def bot_webhook():
     """Reçoit les messages/commandes du bot Telegram"""
@@ -6183,7 +6571,27 @@ def bot_webhook():
             if chat_id != ADMIN_ID:
                 return jsonify({"ok": True})
 
-            if text == "/membres" or text == "/liste":
+            command = text.split("@", 1)[0].lower() if text.startswith("/") else ""
+            if command == "/annuler":
+                _clear_bot_publication_draft(chat_id)
+                bot_send(
+                    chat_id, "brouillon annulé",
+                    {"inline_keyboard": [[
+                        {"text": "créer une publication", "callback_data": "publication_start"}
+                    ]]}
+                )
+
+            elif command == "/publication":
+                _begin_bot_publication(chat_id)
+
+            elif command in {"/start", "/aide"}:
+                handle_aide(chat_id)
+
+            elif (state := _load_bot_publication_draft(chat_id)) and \
+                    _handle_bot_publication_message(chat_id, message, state):
+                pass
+
+            elif text == "/membres" or text == "/liste":
                 handle_liste_membres(chat_id)
 
             elif text == "/stats":
@@ -6192,9 +6600,6 @@ def bot_webhook():
             elif text.startswith("/supprimer "):
                 code = text.replace("/supprimer ", "").strip().upper()
                 handle_supprimer(chat_id, code)
-
-            elif text == "/start" or text == "/aide":
-                handle_aide(chat_id)
 
             elif text.startswith("/alerte "):
                 contenu = text[8:].strip()
@@ -6250,21 +6655,21 @@ def bot_webhook():
             if chat_id != ADMIN_ID:
                 return jsonify({"ok": True})
 
-            if cb_data.startswith("del_confirm_"):
+            if cb_data.startswith("publication_"):
+                _handle_bot_publication_callback(chat_id, cb_data, cb_id)
+
+            elif cb_data.startswith("del_confirm_"):
                 code = cb_data.replace("del_confirm_", "")
                 handle_supprimer(chat_id, code, confirmed=True)
                 # Répondre au callback
-                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-                    json={"callback_query_id": cb_id, "text": "✅ Membre supprimé"}, timeout=5)
+                _answer_bot_callback(cb_id, "✅ Membre supprimé")
 
             elif cb_data.startswith("del_cancel_"):
-                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-                    json={"callback_query_id": cb_id, "text": "❌ Annulé"}, timeout=5)
+                _answer_bot_callback(cb_id, "❌ Annulé")
 
             elif cb_data == "liste_membres":
                 handle_liste_membres(chat_id)
-                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-                    json={"callback_query_id": cb_id}, timeout=5)
+                _answer_bot_callback(cb_id)
 
     except Exception as e:
         app.logger.error(f"bot_webhook: {e}")
@@ -6277,9 +6682,31 @@ def bot_send(chat_id, text, reply_markup=None):
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json=payload, timeout=5)
-    except: pass
+        response = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=payload, timeout=10
+        )
+        return bool(response.json().get("ok"))
+    except Exception as error:
+        app.logger.error("bot_send: %s", error)
+        return False
+
+
+def bot_send_photo(chat_id, image_url, caption="", reply_markup=None):
+    payload = {"chat_id": chat_id, "photo": image_url, "parse_mode": "Markdown"}
+    if caption:
+        payload["caption"] = caption
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+            json=payload, timeout=20
+        )
+        return bool(response.json().get("ok"))
+    except Exception as error:
+        app.logger.error("bot_send_photo: %s", error)
+        return False
 
 
 def handle_prolonger(chat_id, code, jours):
@@ -6424,6 +6851,9 @@ def handle_aide(chat_id):
     msg = (
         "🤖 *Bectanse AUTO — Bot Admin*\n\n"
         "📋 *Commandes disponibles :*\n\n"
+        "📣 *Publication sur le canal public*\n"
+        "/publication — Créer un texte ou une photo avec un vrai bouton cliquable\n"
+        "/annuler — Fermer le brouillon en cours\n\n"
         "📊 *Gestion membres*\n"
         "/membres — Liste tous les membres\n"
         "/stats — Statistiques générales\n"
@@ -6439,9 +6869,10 @@ def handle_aide(chat_id):
         "/message BCT-XXXXXXXX TEXTE — Fonctionne aussi en individuel\n\n"
         "💡 Exemple : /alerte BUY XAUUSD — Entrée 2345 TP 2360"
     )
-    markup = {"inline_keyboard": [[
-        {"text": "📋 Voir les membres", "callback_data": "liste_membres"}
-    ]]}
+    markup = {"inline_keyboard": [
+        [{"text": "📣 créer une publication", "callback_data": "publication_start"}],
+        [{"text": "📋 voir les membres", "callback_data": "liste_membres"}],
+    ]}
     bot_send(chat_id, msg, markup)
 
 
@@ -6545,7 +6976,18 @@ def register_webhook():
         webhook_url = "https://bectanse-auto.up.railway.app/bot-webhook"
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
-            json={"url": webhook_url},
+            json={"url": webhook_url, "allowed_updates": ["message", "callback_query"]},
+            timeout=10
+        )
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/setMyCommands",
+            json={"commands": [
+                {"command": "publication", "description": "Créer un post avec bouton"},
+                {"command": "annuler", "description": "Annuler le brouillon en cours"},
+                {"command": "membres", "description": "Voir les membres"},
+                {"command": "stats", "description": "Voir les statistiques"},
+                {"command": "aide", "description": "Ouvrir le menu principal"},
+            ]},
             timeout=10
         )
     except: pass

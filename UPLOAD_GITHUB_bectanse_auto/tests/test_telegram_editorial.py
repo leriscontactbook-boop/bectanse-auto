@@ -447,6 +447,84 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         self.assertEqual(targets, [{"id": 1, "name": "Académie", "chat_id": "@academie"}])
         self.assertIn("id = ANY", conn.run.call_args.args[0])
 
+    def test_control_center_publication_command_opens_the_private_creator(self):
+        client = app.app.test_client()
+        with patch.object(app, "_save_bot_publication_draft", return_value=True) as save, \
+             patch.object(app, "bot_send", return_value=True) as send:
+            response = client.post("/bot-webhook", json={
+                "message": {
+                    "chat": {"id": int(app.ADMIN_ID)},
+                    "text": "/publication",
+                }
+            })
+
+        self.assertEqual(response.status_code, 200)
+        save.assert_called_once_with(
+            app.ADMIN_ID, "choose_type", app.BOT_PUBLICATION_INITIAL_PAYLOAD
+        )
+        markup = send.call_args.args[2]
+        callbacks = {
+            button["callback_data"]
+            for row in markup["inline_keyboard"] for button in row
+        }
+        self.assertIn("publication_type_photo", callbacks)
+        self.assertIn("publication_type_text", callbacks)
+
+    def test_control_center_accepts_a_photo_and_keeps_the_channel_hidden(self):
+        state = {
+            "step": "await_photo",
+            "payload": dict(app.BOT_PUBLICATION_INITIAL_PAYLOAD),
+        }
+        with patch.object(
+            app, "tg_download_and_upload",
+            return_value="https://res.cloudinary.com/demo/post.webp"
+        ), patch.object(app, "_finish_bot_publication_content") as finish, \
+             patch.object(app, "bot_send", return_value=True):
+            handled = app._handle_bot_publication_message(
+                app.ADMIN_ID,
+                {
+                    "photo": [{"file_id": "small"}, {"file_id": "large"}],
+                    "caption": "Londres est en mouvement",
+                },
+                state,
+            )
+
+        self.assertTrue(handled)
+        payload = finish.call_args.args[1]
+        self.assertEqual(payload["message"], "Londres est en mouvement")
+        self.assertTrue(payload["image_url"].startswith("https://"))
+        self.assertNotIn("channel", payload)
+
+    def test_control_center_requires_a_secure_cta_url(self):
+        self.assertTrue(app._valid_bot_button_url("https://acces.bectanse-academie.com/"))
+        self.assertTrue(app._valid_bot_button_url("https://t.me/bectanse_support"))
+        self.assertFalse(app._valid_bot_button_url("http://example.com"))
+        self.assertFalse(app._valid_bot_button_url("example.com"))
+
+    def test_control_center_confirm_publishes_only_to_the_hidden_public_channel(self):
+        payload = {
+            "message": "Message mentor",
+            "image_url": "https://res.cloudinary.com/demo/post.webp",
+            "button_text": "REJOINDRE BECTANSE ACADÉMIE",
+            "button_url": "https://acces.bectanse-academie.com/",
+        }
+        delivery = {"total": 1, "sent": 1, "sent_now": 1, "failed": 0}
+        with patch.object(app, "_load_bot_publication_draft", return_value={
+            "step": "awaiting_confirmation", "payload": payload
+        }), patch.object(app, "_save_bot_publication_draft", return_value=True), \
+             patch.object(app, "_send_saved_post_to_channels", return_value=delivery) as send, \
+             patch.object(app, "_clear_bot_publication_draft") as clear, \
+             patch.object(app, "_answer_bot_callback"), \
+             patch.object(app, "bot_send", return_value=True):
+            app._publish_bot_publication(app.ADMIN_ID, "callback-1")
+
+        post = send.call_args.args[0]
+        self.assertEqual(post["channel"], app.ECO_CANAL)
+        self.assertFalse(post["publish_all_channels"])
+        self.assertNotIn("channel_ids", post)
+        self.assertEqual(send.call_args.args[2], "bot-immediate")
+        clear.assert_called_once_with(app.ADMIN_ID)
+
     def test_local_preview_renders_with_styles_and_demo_mode(self):
         client = app.app.test_client()
         response = client.get("/preview-admin-telegram", headers={"Host": "127.0.0.1:5000"})
