@@ -1,0 +1,246 @@
+{
+  "campaign": "La décision se prend ce soir",
+  "timezone": "Europe/Paris",
+  "channel": "@BECTANSE_ACADEMIE",
+  "period": {
+    "start": "2026-08-31",
+    "end": "2026-09-06"
+  },
+  "links": {
+    "site": "https://acces.bectanse-academie.com/",
+    "support": "https://telegram.me/Lerisluketobot?start=w58453064"
+  },
+  "posts": [
+    {
+      "source_key": "prospect-w36-2026-08-31-0905",
+      "name": "Lundi — Londres sans forcer",
+      "scheduled_for": "2026-08-31T09:05:00",
+      "post_type": "message",
+      "message": "Ce matin Londres sera un peu différente : le Royaume-Uni est en jour férié.\n\nÇa ne veut pas dire qu’il ne se passera rien. Ça veut juste dire qu’on ne va pas inventer un trade parce qu’on veut absolument commencer la semaine.\n\nRegarde la liquidité, attends ton niveau et laisse le marché venir à toi.",
+      "button_text": "Voir le cadre Bectanse",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-08-31-1830",
+      "name": "Lundi — sondage patience",
+      "scheduled_for": "2026-08-31T18:30:00",
+      "post_type": "poll",
+      "poll_question": "Quand le marché ne te donne rien de propre, tu fais quoi ?",
+      "poll_options": [
+        "j’attends mon setup",
+        "je finis par forcer une entrée",
+        "je coupe les écrans",
+        "je ne sais pas encore"
+      ]
+    },
+    {
+      "source_key": "prospect-w36-2026-08-31-2100",
+      "name": "Lundi 21h — nouveau mois",
+      "scheduled_for": "2026-08-31T21:00:00",
+      "post_type": "message",
+      "message": "Demain un nouveau mois commence.\n\nTu peux entrer en septembre comme tu as terminé août, ou décider que cette fois tu avances avec un vrai cadre.\n\nPas besoin d’être prêt à 100 %. Il faut juste arrêter de remettre le premier pas à plus tard. On démarre demain.",
+      "image_path": "/static/telegram-visuals/cta-21h-rejoins-bectanse-academie-2026-09.webp",
+      "button_text": "Découvrir Bectanse Académie",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-01-0930",
+      "name": "Mardi — le mois ne fera rien à ta place",
+      "scheduled_for": "2026-09-01T09:30:00",
+      "post_type": "message",
+      "message": "Septembre est là. Mais un nouveau mois ne change rien tout seul.\n\nCe qui peut changer, c’est la décision que tu prends après avoir lu ce message. Apprendre sérieusement, mieux gérer ton argent, arrêter de commencer puis disparaître au bout de trois jours.\n\nFais de ce mois celui où tu tiens enfin la parole que tu t’es donnée.",
+      "image_path": "/static/vip/assets/story-desert-lv.jpg",
+      "button_text": "Voir par où commencer",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-01-1535",
+      "name": "Mardi — JOLTS et ISM à 16h",
+      "scheduled_for": "2026-09-01T15:35:00",
+      "post_type": "message",
+      "message": "Petit rappel avant 16h : les chiffres JOLTS et l’ISM manufacturier américain sortent au même moment.\n\nSur l’or et le dollar, une bougie rapide peut te donner l’impression que tu rates quelque chose. C’est souvent là que les mauvaises décisions commencent.\n\nSi ton scénario n’était pas prêt avant la publication, laisse passer le premier mouvement.",
+      "image_path": "/static/telegram-visuals/03-annonce-economique-majeure-v2.webp",
+      "button_text": "Découvrir notre méthode",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-01-2100",
+      "name": "Mardi 21h — arrêter de regarder",
+      "scheduled_for": "2026-09-01T21:00:00",
+      "post_type": "message",
+      "message": "Tu peux continuer à regarder les autres progresser et te dire que tu commenceras quand tu auras plus de temps.\n\nOu tu peux nous écrire ce soir, poser tes questions et savoir exactement comment démarrer demain.\n\nLe bon moment ne tombe pas du ciel. Il se crée.",
+      "image_path": "/static/telegram-visuals/cta-21h-rejoins-bectanse-academie-2026-09.webp",
+      "button_text": "Parler avec l’équipe",
+      "button_link": "support"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-02-1000",
+      "name": "Mercredi — ne reste pas seul",
+      "scheduled_for": "2026-09-02T10:00:00",
+      "post_type": "message",
+      "message": "On perd énormément de temps quand on veut tout comprendre seul.\n\nUn cadre ne trade pas à ta place. Il t’évite surtout de tourner en rond, de changer de méthode chaque semaine et de répéter les mêmes erreurs sans les voir.\n\nLe but n’est pas de dépendre de quelqu’un. Le but, c’est d’apprendre à décider avec plus de clarté.",
+      "image_path": "/static/vip/assets/story-villa.jpg",
+      "button_text": "Voir l’accompagnement",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-02-1400",
+      "name": "Mercredi — ADP avant publication",
+      "scheduled_for": "2026-09-02T14:00:00",
+      "post_type": "message",
+      "message": "Le rapport ADP sur l’emploi privé américain arrive cet après-midi.\n\nCe n’est pas un signal d’achat ou de vente. C’est une information capable de changer le rythme du dollar et donc de l’or.\n\nAvant une statistique, ton avantage ne vient pas de la prédiction. Il vient du risque que tu refuses de dépasser.",
+      "image_path": "/static/telegram-visuals/03-annonce-economique-majeure-v2.webp",
+      "button_text": "Apprendre à mieux préparer",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-02-2100",
+      "name": "Mercredi 21h — rester bloqué",
+      "scheduled_for": "2026-09-02T21:00:00",
+      "post_type": "message",
+      "message": "Si tu es bloqué depuis des semaines, ce n’est peut-être pas un manque de potentiel.\n\nC’est parfois juste le manque d’un plan clair et de personnes capables de te dire quand tu t’égares.\n\nViens nous parler ce soir. Demain, tu peux déjà travailler avec une direction au lieu d’avancer au hasard.",
+      "image_path": "/static/telegram-visuals/cta-21h-rejoins-bectanse-academie-2026-09.webp",
+      "button_text": "Voir comment ça marche",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-03-0930",
+      "name": "Jeudi — quiz après une perte",
+      "scheduled_for": "2026-09-03T09:30:00",
+      "post_type": "quiz",
+      "poll_question": "Après une perte proprement exécutée, quelle est la meilleure réaction ?",
+      "poll_options": [
+        "doubler la prochaine position",
+        "changer immédiatement de stratégie",
+        "vérifier le plan puis accepter le résultat",
+        "reprendre un trade pour se refaire"
+      ],
+      "poll_correct_option_ids": [2],
+      "poll_explanation": "Une perte prévue par le plan n’est pas une urgence à réparer. On contrôle l’exécution avant de juger la stratégie."
+    },
+    {
+      "source_key": "prospect-w36-2026-09-03-1410",
+      "name": "Jeudi — double rendez-vous US",
+      "scheduled_for": "2026-09-03T14:10:00",
+      "post_type": "message",
+      "message": "Deux rendez-vous américains aujourd’hui : productivité à 14h30, puis ISM services à 16h.\n\nLe piège, c’est de croire que plus il y a d’actualité, plus il faut trader. Non. Plus il y a de volatilité, plus ton plan doit être simple.\n\nUn niveau, une invalidation, un risque. Si l’un des trois manque, tu regardes.",
+      "image_path": "/static/telegram-visuals/03-annonce-economique-majeure-v2.webp",
+      "button_text": "Voir le cadre Bectanse",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-03-2100",
+      "name": "Jeudi 21h — poser ses questions",
+      "scheduled_for": "2026-09-03T21:00:00",
+      "post_type": "message",
+      "message": "Tu n’as pas besoin d’avoir toutes les réponses pour commencer.\n\nTu as besoin de savoir qui peut répondre quand tu bloques et quel chemin suivre demain matin.\n\nSi quelque chose te retient encore, écris-nous. Une vraie conversation vaut mieux qu’une semaine de plus à hésiter.",
+      "image_path": "/static/telegram-visuals/cta-21h-rejoins-bectanse-academie-2026-09.webp",
+      "button_text": "Poser ma question",
+      "button_link": "support"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-04-0900",
+      "name": "Vendredi — calme avant NFP",
+      "scheduled_for": "2026-09-04T09:00:00",
+      "post_type": "message",
+      "message": "Aujourd’hui, le marché de l’emploi américain sera au centre de la journée.\n\nAvant de penser au mouvement que tu pourrais gagner, pense d’abord à celui que tu refuses de subir. C’est moins spectaculaire, mais c’est comme ça qu’on reste assez longtemps dans le jeu pour progresser.\n\nLe calme de ce matin fait partie du plan.",
+      "button_text": "Découvrir notre approche",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-04-1410",
+      "name": "Vendredi — NFP à 14h30",
+      "scheduled_for": "2026-09-04T14:10:00",
+      "post_type": "message",
+      "message": "NFP à 14h30. C’est l’un des moments les plus suivis de la semaine sur le dollar et l’or.\n\nNe confonds pas vitesse et opportunité. La première réaction peut être brutale, puis complètement reprise.\n\nSi tu n’as pas l’habitude de ce type de publication, tu n’as rien à prouver aujourd’hui. Observer proprement est déjà une bonne décision.",
+      "image_path": "/static/telegram-visuals/03-annonce-economique-majeure-v2.webp",
+      "button_text": "Mieux comprendre le marché",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-04-1830",
+      "name": "Vendredi — sondage NFP",
+      "scheduled_for": "2026-09-04T18:30:00",
+      "post_type": "poll",
+      "poll_question": "Sur une grosse annonce comme le NFP, tu te reconnais où ?",
+      "poll_options": [
+        "j’ai un plan et je le respecte",
+        "j’entre souvent trop vite",
+        "je préfère observer",
+        "je découvre encore ces annonces"
+      ]
+    },
+    {
+      "source_key": "prospect-w36-2026-09-04-2100",
+      "name": "Vendredi 21h — préparer lundi",
+      "scheduled_for": "2026-09-04T21:00:00",
+      "post_type": "message",
+      "message": "La semaine de marché se termine, mais c’est justement le bon moment pour préparer la suivante sans pression.\n\nTu peux profiter du week-end pour comprendre le système, poser tes questions et arriver lundi avec autre chose qu’une simple envie de réussir.\n\nUne méthode. Un plan. Des personnes qui avancent avec toi.",
+      "image_path": "/static/telegram-visuals/cta-21h-rejoins-bectanse-academie-2026-09.webp",
+      "button_text": "Préparer ma prochaine semaine",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-05-1130",
+      "name": "Samedi — pourquoi tu veux réussir",
+      "scheduled_for": "2026-09-05T11:30:00",
+      "post_type": "message",
+      "message": "Le but n’est pas de regarder une vie qui te plaît sur ton téléphone. Le but, c’est de construire la tienne.\n\nÇa passe par des décisions parfois invisibles : travailler quand personne ne regarde, recommencer après une mauvaise semaine, rester discipliné quand l’excitation disparaît.\n\nN’oublie jamais pourquoi tu as commencé.",
+      "image_path": "/static/vip/assets/story-jet-ski.jpg",
+      "button_text": "Construire mon plan",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-05-1800",
+      "name": "Samedi — sondage vrai blocage",
+      "scheduled_for": "2026-09-05T18:00:00",
+      "post_type": "poll",
+      "poll_question": "Qu’est-ce qui te bloque vraiment aujourd’hui ?",
+      "poll_options": [
+        "je manque de méthode",
+        "j’ai peur de perdre",
+        "je ne suis pas régulier",
+        "je n’ai pas encore commencé"
+      ]
+    },
+    {
+      "source_key": "prospect-w36-2026-09-05-2100",
+      "name": "Samedi 21h — discussion directe",
+      "scheduled_for": "2026-09-05T21:00:00",
+      "post_type": "message",
+      "message": "Le week-end est souvent le moment où tu te dis que lundi tu vas tout reprendre sérieusement.\n\nCette fois, ne garde pas ça dans ta tête. Parle-nous de ta situation et de ce que tu cherches vraiment. On te dira honnêtement si Bectanse peut t’aider et comment.\n\nPas de pression. Juste une discussion claire.",
+      "image_path": "/static/telegram-visuals/cta-21h-rejoins-bectanse-academie-2026-09.webp",
+      "button_text": "Parler avec le support",
+      "button_link": "support"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-06-1200",
+      "name": "Dimanche — personne ne viendra décider",
+      "scheduled_for": "2026-09-06T12:00:00",
+      "post_type": "message",
+      "message": "Personne ne viendra prendre les décisions difficiles à ta place.\n\nJe peux te montrer le cadre, te transmettre ce que j’ai appris et t’éviter certains détours. Mais le moment où tu arrêtes d’attendre, il t’appartient.\n\nSi tu veux que la semaine prochaine soit différente, commence par lui donner une direction aujourd’hui.",
+      "image_path": "/static/vip/assets/founder-leris.webp",
+      "button_text": "Voir le parcours Bectanse",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-06-1830",
+      "name": "Dimanche — préparer sa semaine",
+      "scheduled_for": "2026-09-06T18:30:00",
+      "post_type": "message",
+      "message": "Ce soir, prends vingt minutes pour préparer ta semaine.\n\nChoisis tes horaires. Note le risque maximum que tu accepteras. Décide aussi ce que tu feras si le marché ne te donne rien.\n\nUn bon lundi commence rarement lundi matin. Il commence maintenant, quand personne ne te regarde.",
+      "button_text": "Préparer la semaine avec nous",
+      "button_link": "site"
+    },
+    {
+      "source_key": "prospect-w36-2026-09-06-2100",
+      "name": "Dimanche 21h — décision finale",
+      "scheduled_for": "2026-09-06T21:00:00",
+      "post_type": "message",
+      "message": "Demain le marché repart. Et toi, tu repars comment ?\n\nAvec les mêmes doutes, les mêmes vidéos enregistrées et la même promesse de commencer plus tard ?\n\nOu avec un cadre, une méthode et une équipe qui sait où elle va ?\n\nLa décision se prend ce soir. On t’attend chez Bectanse Académie.",
+      "image_path": "/static/telegram-visuals/cta-21h-rejoins-bectanse-academie-2026-09.webp",
+      "button_text": "Rejoindre Bectanse Académie",
+      "button_link": "support"
+    }
+  ]
+}

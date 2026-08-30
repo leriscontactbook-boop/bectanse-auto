@@ -439,6 +439,7 @@ function updatePreview() {
   $('char-count').textContent = `${message.length.toLocaleString('fr-FR')} / ${max.toLocaleString('fr-FR')}`;
   $('char-count').style.color = message.length > max ? '#fb7185' : '';
   $('telegram-preview-message').innerHTML = telegramMarkup(message);
+  $('telegram-preview-message').hidden = postType === 'message' && !message && Boolean(currentImageUrl);
 
   const question = $('poll-question').value.trim();
   const explanation = $('poll-explanation').value.trim();
@@ -551,7 +552,7 @@ async function savePost(event) {
   const payload = formPayload();
   const max = currentImageUrl ? 1024 : 4096;
   if (!payload.name) return showToast('Ajoute un nom interne.', 'error');
-  if (payload.post_type === 'message' && !payload.message) return showToast('Ajoute le message Telegram.', 'error');
+  if (payload.post_type === 'message' && !payload.message && !currentImageUrl) return showToast('Ajoute un message ou une image.', 'error');
   if (payload.post_type === 'message' && payload.message.length > max) return showToast(`Le message dépasse la limite de ${max} caractères.`, 'error');
   if (payload.post_type !== 'message' && !payload.poll_question) return showToast('Ajoute la question.', 'error');
   if (payload.post_type !== 'message' && (payload.poll_options.length < 2 || payload.poll_options.some(option => !option))) {
@@ -595,6 +596,63 @@ async function savePost(event) {
   } finally {
     submit.disabled = false;
     $('save-label').textContent = $('post-id').value ? 'Mettre à jour' : 'Enregistrer le post';
+  }
+}
+
+function validateImmediatePayload(payload) {
+  const max = currentImageUrl ? 1024 : 4096;
+  if (payload.post_type === 'message' && !payload.message && !currentImageUrl) return 'Ajoute un message ou une image.';
+  if (payload.post_type === 'message' && payload.message.length > max) return `Le message dépasse la limite de ${max} caractères.`;
+  if (payload.post_type !== 'message' && !payload.poll_question) return 'Ajoute la question.';
+  if (payload.post_type !== 'message' && (payload.poll_options.length < 2 || payload.poll_options.some(option => !option))) {
+    return 'Renseigne au moins deux réponses sans laisser de ligne vide.';
+  }
+  if (payload.post_type === 'quiz' && !payload.poll_correct_option_ids.length) return 'Coche au moins une bonne réponse.';
+  if ((payload.button_text && !payload.button_url) || (!payload.button_text && payload.button_url)) {
+    return 'Renseigne le texte et le lien du bouton ensemble.';
+  }
+  if (!payload.publish_all_channels && !payload.channel_ids.length) return 'Choisis au moins un canal destinataire.';
+  return '';
+}
+
+async function sendImmediate() {
+  const payload = formPayload();
+  payload.name = payload.name || 'Publication immédiate';
+  const error = validateImmediatePayload(payload);
+  if (error) return showToast(error, 'error');
+
+  const targetChannels = payload.publish_all_channels
+    ? channels.filter(channel => channel.active)
+    : channels.filter(channel => payload.channel_ids.includes(Number(channel.id)));
+  const targetNames = targetChannels.map(channel => channel.name).join(', ');
+  const targetLabel = targetNames || `${targetChannels.length} canal${targetChannels.length > 1 ? 'aux' : ''}`;
+  if (!window.confirm(`Envoyer maintenant sur ${targetLabel} ?\n\nLe message partira tout de suite et ne sera pas ajouté au planning.`)) return;
+
+  const button = $('send-immediate');
+  button.disabled = true;
+  $('send-immediate-label').textContent = 'Envoi en cours…';
+  try {
+    if (PREVIEW_MODE) {
+      previewHistory.unshift({
+        name:payload.name, post_kind:'manual-immediate', status:'sent',
+        content:payload.message || payload.poll_question, sent_at:new Date().toISOString()
+      });
+      showToast('Simulation réussie : aucun message réel n’a été envoyé.');
+      renderHistory(previewHistory);
+      return;
+    }
+    const response = await fetch('/admin/api/telegram/send-immediate', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    const data = await readJson(response);
+    const sent = data.delivery?.sent || 0;
+    showToast(`Message envoyé et confirmé sur ${sent} canal${sent > 1 ? 'aux' : ''}.`);
+    await loadHistory();
+  } catch (sendError) {
+    showToast(sendError.message, 'error');
+  } finally {
+    button.disabled = false;
+    $('send-immediate-label').textContent = 'Envoyer maintenant';
   }
 }
 
@@ -936,6 +994,7 @@ function exportPreviewCsv() {
 }
 
 $('post-form').addEventListener('submit', savePost);
+$('send-immediate').addEventListener('click', sendImmediate);
 $('reset-form').addEventListener('click', resetForm);
 $('cancel-edit').addEventListener('click', resetForm);
 $('schedule-type').addEventListener('change', setScheduleVisibility);

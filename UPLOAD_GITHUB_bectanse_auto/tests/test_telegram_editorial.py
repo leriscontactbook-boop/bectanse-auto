@@ -152,6 +152,32 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         self.assertEqual(post.call_args.kwargs["data"]["caption"], "Légende de test")
         self.assertIn("Découvrir", post.call_args.kwargs["data"]["reply_markup"])
 
+    def test_scheduled_send_supports_an_image_without_caption(self):
+        claim_conn = Mock()
+        claim_conn.run.return_value = [["telegram-image-only"]]
+        finish_conn = Mock()
+        response = Mock(status_code=200)
+        response.json.return_value = {"ok": True, "result": {"message_id": 679}}
+        image_response = Mock(status_code=200)
+        image_response.headers = {"Content-Type": "image/webp"}
+        image_response.content = b"fake-webp"
+        image_response.raise_for_status.return_value = None
+
+        with patch.object(app, "ECO_BOT_TOKEN", "test-token"), \
+             patch.object(app, "get_conn", side_effect=[claim_conn, finish_conn]), \
+             patch.object(app.requests, "get", return_value=image_response), \
+             patch.object(app.requests, "post", return_value=response) as post:
+            sent = app._send_scheduled_telegram(
+                "", "telegram-image-only", "manual-immediate",
+                image_url="https://res.cloudinary.com/demo/image.webp",
+                channel="@test-channel", button_text="Découvrir",
+                button_url="https://example.com"
+            )
+
+        self.assertTrue(sent)
+        self.assertIn("sendPhoto", post.call_args.args[0])
+        self.assertNotIn("caption", post.call_args.kwargs["data"])
+
     def test_quiz_payload_creates_a_native_clickable_telegram_quiz(self):
         claim_conn = Mock()
         claim_conn.run.return_value = [["telegram-quiz-test"]]
@@ -352,6 +378,74 @@ class TelegramEditorialCalendarTests(unittest.TestCase):
         self.assertIn("Centre de commande", page)
         self.assertIn("Bectanse Visual Catalog", page)
         self.assertIn("save-library-upload", page)
+        self.assertIn("send-immediate", page)
+
+    def test_immediate_post_sends_an_unsaved_photo_with_a_real_button(self):
+        client = app.app.test_client()
+        delivery = {"total": 1, "sent": 1, "sent_now": 1, "failed": 0, "channels": []}
+        with patch.object(app, "_send_saved_post_to_channels", return_value=delivery) as send:
+            response = client.post("/admin/api/telegram/send-immediate", json={
+                "key": app.ADMIN_KEY,
+                "name": "Annonce ponctuelle",
+                "message": "Londres est en mouvement",
+                "image_url": "https://res.cloudinary.com/demo/london.webp",
+                "post_type": "message",
+                "button_text": "Voir le plan Londres",
+                "button_url": "https://acces.bectanse-academie.com/",
+                "publish_all_channels": False,
+                "channel_ids": [1],
+                "channel": "@BECTANSE_ACADEMIE",
+            })
+
+        self.assertEqual(response.status_code, 200)
+        post = send.call_args.args[0]
+        self.assertIsNone(post["id"])
+        self.assertEqual(post["button_text"], "Voir le plan Londres")
+        self.assertEqual(post["channel_ids"], [1])
+        self.assertEqual(send.call_args.args[2], "manual-immediate")
+
+    def test_immediate_post_accepts_an_image_without_caption(self):
+        payload = app._validate_immediate_telegram_payload({
+            "message": "",
+            "image_url": "https://res.cloudinary.com/demo/cta.webp",
+            "post_type": "message",
+            "button_text": "Rejoindre Bectanse",
+            "button_url": "https://acces.bectanse-academie.com/",
+            "publish_all_channels": False,
+            "channel_ids": [1],
+            "channel": "@BECTANSE_ACADEMIE",
+        })
+        self.assertEqual(payload["message"], "")
+        self.assertTrue(payload["image_url"].startswith("https://"))
+
+    def test_immediate_post_rejects_an_incomplete_button(self):
+        client = app.app.test_client()
+        response = client.post("/admin/api/telegram/send-immediate", json={
+            "key": app.ADMIN_KEY,
+            "message": "Message ponctuel",
+            "post_type": "message",
+            "button_text": "Découvrir",
+            "button_url": "",
+            "publish_all_channels": False,
+            "channel_ids": [1],
+            "channel": "@BECTANSE_ACADEMIE",
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("ensemble", response.get_json()["error"])
+
+    def test_immediate_targets_are_resolved_from_selected_channel_ids(self):
+        conn = Mock()
+        conn.run.return_value = [[1, "Académie", "@academie"]]
+        with patch.object(app, "get_conn", return_value=conn):
+            targets = app._resolve_telegram_targets(post={
+                "id": None,
+                "channel_ids": [1],
+                "publish_all_channels": False,
+                "channel": "@fallback",
+            })
+
+        self.assertEqual(targets, [{"id": 1, "name": "Académie", "chat_id": "@academie"}])
+        self.assertIn("id = ANY", conn.run.call_args.args[0])
 
     def test_local_preview_renders_with_styles_and_demo_mode(self):
         client = app.app.test_client()

@@ -2398,8 +2398,8 @@ def _validate_telegram_post_payload(data):
     if post_type not in {"message", "quiz", "poll"}:
         raise ValueError("Le format doit être message, quiz ou sondage")
     if post_type == "message":
-        if not message:
-            raise ValueError("Le message Telegram est obligatoire")
+        if not message and not image_url:
+            raise ValueError("Ajoute un message ou une image")
         if image_url and not image_url.startswith("https://"):
             raise ValueError("L’image doit utiliser une adresse HTTPS")
         max_length = 1024 if image_url else 4096
@@ -2508,6 +2508,18 @@ def _validate_telegram_post_payload(data):
         "disable_notification": bool(data.get("disable_notification", False)),
         "enabled": bool(data.get("enabled", True))
     }
+
+
+def _validate_immediate_telegram_payload(data):
+    """Valide un contenu ponctuel sans l'ajouter au planning."""
+    immediate_data = dict(data or {})
+    immediate_data.update({
+        "name": str(immediate_data.get("name") or "Publication immédiate").strip(),
+        "schedule_type": "once",
+        "scheduled_for": _paris_now().isoformat(),
+        "enabled": True,
+    })
+    return _validate_telegram_post_payload(immediate_data)
 
 
 TELEGRAM_CSV_COLUMNS = [
@@ -3413,6 +3425,28 @@ def admin_api_telegram_post_send_now(post_id):
         if update_conn:
             try: update_conn.close()
             except: pass
+    return jsonify({"ok": True, "delivery": delivery})
+
+
+@app.route("/admin/api/telegram/send-immediate", methods=["POST"])
+def admin_api_telegram_send_immediate():
+    data = request.get_json(silent=True) or {}
+    if data.get("key", "") != ADMIN_KEY:
+        return jsonify({"ok": False, "error": "Non autorisé"}), 403
+    try:
+        post = _validate_immediate_telegram_payload(data)
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+    post["id"] = None
+    slot_key = f"telegram-immediate-{_paris_now().strftime('%Y%m%d-%H%M%S-%f')}"
+    delivery = _send_saved_post_to_channels(post, slot_key, "manual-immediate")
+    if not delivery["sent"]:
+        return jsonify({
+            "ok": False,
+            "error": "Aucun canal n’a confirmé l’envoi",
+            "delivery": delivery,
+        }), 502
     return jsonify({"ok": True, "delivery": delivery})
 
 
@@ -7272,10 +7306,10 @@ def _send_scheduled_telegram(
     post_type = post_type if post_type in {"message", "quiz", "poll"} else "message"
     if post_type == "message":
         max_length = 1024 if image_url else 4096
-        if not text or len(text) > max_length:
+        if (not text and not image_url) or len(text) > max_length:
             app.logger.error(f"Publication Telegram invalide : limite {max_length} caractères")
             return False
-        claim_content = text
+        claim_content = text or f"[image] {image_url}"
     else:
         poll_options = _payload_list(poll_options)
         poll_correct_option_ids = [
@@ -7331,7 +7365,9 @@ def _send_scheduled_telegram(
                 payload["parse_mode"] = "Markdown"
                 if image_url:
                     endpoint = "sendPhoto"
-                    payload.update({"photo": image_url, "caption": text})
+                    payload["photo"] = image_url
+                    if text:
+                        payload["caption"] = text
                 else:
                     endpoint = "sendMessage"
                     payload.update({"text": text, "disable_web_page_preview": True})
@@ -7384,6 +7420,15 @@ def _resolve_telegram_targets(post=None, publish_all_channels=False, fallback_ch
                 """SELECT id, name, chat_id FROM telegram_channels
                    WHERE active=TRUE AND deleted=FALSE ORDER BY id"""
             )
+        elif post.get("channel_ids"):
+            channel_ids = sorted({int(channel_id) for channel_id in post["channel_ids"]})
+            rows = conn.run(
+                """SELECT id, name, chat_id FROM telegram_channels
+                   WHERE id = ANY(:channel_ids)
+                     AND active=TRUE AND deleted=FALSE
+                   ORDER BY id""",
+                channel_ids=channel_ids
+            )
         elif post.get("id"):
             rows = conn.run(
                 """SELECT channels.id, channels.name, channels.chat_id
@@ -7396,7 +7441,7 @@ def _resolve_telegram_targets(post=None, publish_all_channels=False, fallback_ch
             )
         else:
             rows = []
-        registry_checked = use_all or bool(post.get("id"))
+        registry_checked = use_all or bool(post.get("channel_ids")) or bool(post.get("id"))
         targets = [
             {"id": int(channel_id), "name": name, "chat_id": chat_id}
             for channel_id, name, chat_id in rows

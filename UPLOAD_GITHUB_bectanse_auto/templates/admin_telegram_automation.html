@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/admin-telegram-automation.css?v=20260809-v3">
+  <link rel="stylesheet" href="/static/css/admin-telegram-automation.css?v=20260830-v5">
 </head>
 <body data-admin-key="{{ admin_key|e }}" data-preview-mode="{{ 'true' if preview_mode else 'false' }}">
   <div class="ambient" aria-hidden="true"></div>
@@ -243,8 +243,10 @@
 
         <div class="form-actions">
           <button class="button button-ghost" type="button" id="cancel-edit" hidden>Annuler</button>
+          <button class="button button-instant" type="button" id="send-immediate"><span id="send-immediate-label">Envoyer maintenant</span> ↗</button>
           <button class="button button-primary" type="submit"><span id="save-label">Enregistrer le post</span> →</button>
         </div>
+        <p class="instant-send-help"><span>⚡</span> « Envoyer maintenant » publie le contenu affiché sans l’ajouter au planning. Le bouton est un vrai bouton Telegram cliquable.</p>
       </form>
 
       <aside class="preview-column">
@@ -326,7 +328,7 @@
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/static/admin-telegram-automation.js?v=20260809-v3" defer></script>
+  <script src="/static/admin-telegram-automation.js?v=20260830-v5" defer></script>
   <script src="/static/source-guard.js" defer></script>
 </body>
 </html>
