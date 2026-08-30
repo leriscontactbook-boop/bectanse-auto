@@ -1,4 +1,4 @@
-import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re
+import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re, html as html_lib
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
@@ -6789,18 +6789,78 @@ def brevo_email_delivery_available():
     return available
 
 
+def _premium_transactional_email(eyebrow, title, paragraphs, cta_label,
+                                 cta_url, preheader="", code="", note="",
+                                 accent="#ff5a1f"):
+    """Gabarit transactionnel robuste, lisible dans Gmail, Outlook et Apple Mail."""
+    safe = lambda value: html_lib.escape(str(value or ""), quote=True)
+    body = "".join(
+        "<p style='margin:0 0 17px;color:#b9bdb5;font-size:15px;line-height:1.72'>"
+        + safe(paragraph) + "</p>"
+        for paragraph in paragraphs
+    )
+    code_block = ""
+    if code:
+        code_block = (
+            "<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' "
+            "style='width:100%;margin:25px 0'><tr><td align='center' bgcolor='#090a09' "
+            "style='padding:21px 14px;border:1px solid " + safe(accent) + ";background:#090a09'>"
+            "<span style='display:block;margin-bottom:8px;color:#777c74;font-size:9px;line-height:1.4;"
+            "font-weight:800;letter-spacing:1.5px;text-transform:uppercase'>Code personnel</span>"
+            "<strong style='display:block;color:#f5f2eb;font-family:Courier New,monospace;font-size:26px;"
+            "line-height:1.2;letter-spacing:3px'>" + safe(code) + "</strong></td></tr></table>"
+        )
+    note_block = ""
+    if note:
+        note_block = (
+            "<p style='margin:19px 0 0;color:#6f746c;font-size:11px;line-height:1.6'>"
+            + safe(note) + "</p>"
+        )
+    return """<!doctype html><html lang='fr'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<meta name='x-apple-disable-message-reformatting'>
+<meta name='color-scheme' content='dark'><meta name='supported-color-schemes' content='dark'>
+<style>
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:separate}
+img{-ms-interpolation-mode:bicubic}
+@media(max-width:620px){.mail-shell{padding:10px 8px!important}.mail-body{padding:28px 20px!important}.mail-title{font-size:31px!important;line-height:1.04!important}.mail-cta a{padding:16px 12px!important;font-size:13px!important}.brand-copy{font-size:17px!important}}
+</style></head>
+<body style='margin:0;padding:0;background:#060706;font-family:Arial,Helvetica,sans-serif;color:#f5f2eb'>
+<div style='display:none!important;visibility:hidden;mso-hide:all;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent'>""" + safe(preheader or title) + "&zwnj;&nbsp;&zwnj;&nbsp;</div>" + """
+<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' bgcolor='#060706' style='width:100%;background:#060706'><tr><td align='center'>
+<table role='presentation' width='660' cellspacing='0' cellpadding='0' border='0' class='mail-shell' style='width:100%;max-width:660px;padding:30px 16px'>
+<tr><td style='padding:7px 5px 24px'>
+<table role='presentation' cellspacing='0' cellpadding='0' border='0'><tr>
+<td style='padding-right:12px'><img src='https://acces.bectanse-academie.com/static/icons/bectanse-app-icon-master.png' width='44' height='44' alt='Bectanse Académie' style='display:block;width:44px;height:44px;border:0;border-radius:11px'></td>
+<td class='brand-copy' style='color:#f5f2eb;font-size:19px;line-height:1.05;font-weight:900;letter-spacing:.6px'>BECTANSE<br><span style='color:#ff6a32;font-size:11px;line-height:1.3;letter-spacing:2.1px'>ACADÉMIE</span></td>
+</tr></table></td></tr>
+<tr><td bgcolor='#101210' style='overflow:hidden;border:1px solid #292c28;background:#101210'>
+<div style='height:3px;line-height:3px;font-size:3px;background:""" + safe(accent) + "'>&nbsp;</div>" + """
+<div class='mail-body' style='padding:42px 38px'>
+<p style='margin:0 0 15px;color:""" + safe(accent) + ";font-size:10px;line-height:1.4;font-weight:900;letter-spacing:1.9px;text-transform:uppercase'>" + safe(eyebrow) + "</p>" + """
+<h1 class='mail-title' style='margin:0 0 25px;color:#f5f2eb;font-size:38px;line-height:1.02;letter-spacing:-1.2px'>""" + safe(title) + "</h1>" + body + code_block + """
+<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='width:100%;margin-top:26px'><tr><td align='center' bgcolor='""" + safe(accent) + "' class='mail-cta' style='background:" + safe(accent) + "'>" + """
+<a href='""" + safe(cta_url) + "' style='display:block;padding:18px 15px;color:#ffffff;text-align:center;text-decoration:none;font-size:14px;line-height:1.25;font-weight:900;letter-spacing:.5px'>" + safe(cta_label) + "&nbsp;&nbsp;→</a>" + """
+</td></tr></table>""" + note_block + """
+<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='width:100%;margin-top:30px'><tr><td style='padding-top:20px;border-top:1px solid #292c28'>
+<p style='margin:0;color:#f2f0e9;font-size:12px;line-height:1.5;font-weight:800'>Bectanse Académie</p>
+<p style='margin:3px 0 0;color:#666b63;font-size:10px;line-height:1.5'>L’écosystème membre de LERIS CORP FZCO</p>
+</td></tr></table>
+</div></td></tr>
+<tr><td align='center' style='padding:22px 14px;color:#50544e;font-size:9px;line-height:1.6'>© 2026 Bectanse Académie · LERIS CORP FZCO</td></tr>
+</table></td></tr></table></body></html>"""
+
+
 def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
     """Envoie uniquement l'e-mail technique de double opt-in prospect."""
     import urllib.request as _ur
-    html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
-        "<div style='max-width:580px;margin:0 auto;padding:28px 18px'>"
-        "<div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
-        "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE ACADÉMIE</p>"
-        "<h1 style='margin:0 0 14px;font-size:27px'>Confirme ton adresse e-mail</h1>"
-        "<p style='margin:0 0 24px;color:#b7b7b7;line-height:1.6'>Un clic suffit pour ouvrir immédiatement l’espace Explorer en lecture seule.</p>"
-        "<a href='"+confirmation_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>CONFIRMER ET EXPLORER →</a>"
-        "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Ce lien expire dans 24 heures. Si tu n’as pas demandé cet accès, ignore simplement cet e-mail.</p>"
-        "</div></div></body></html>")
+    html = _premium_transactional_email(
+        "Bectanse Explorer", "Confirme ton adresse e-mail",
+        ["Un clic suffit pour ouvrir immédiatement l’espace Explorer en lecture seule."],
+        "Confirmer et explorer", confirmation_url,
+        preheader="Confirme ton adresse et ouvre ton espace Explorer",
+        note="Ce lien expire dans 24 heures. Si tu n’as pas demandé cet accès, ignore simplement cet e-mail.")
     subject = "Confirme ton accès Explorer — Bectanse Académie"
     if not brevo_email_delivery_available():
         return send_transactional_email(to_email, subject, html)
@@ -6829,14 +6889,12 @@ def send_brevo_prospect_verification(to_email, to_name, confirmation_url):
 def send_brevo_member_verification(to_email, to_name, confirmation_url):
     """Valide l'adresse avant de créer le compte membre et de stocker le contact."""
     import urllib.request as _ur
-    html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
-        "<div style='max-width:580px;margin:0 auto;padding:28px 18px'><div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
-        "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE ACADÉMIE</p>"
-        "<h1 style='margin:0 0 14px;font-size:27px'>Confirme ton inscription</h1>"
-        "<p style='margin:0 0 24px;color:#b7b7b7;line-height:1.6'>Nous devons vérifier ton adresse avant de créer ton code BCT personnel et d’activer ton espace.</p>"
-        "<a href='"+confirmation_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>CONFIRMER MON ADRESSE →</a>"
-        "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Lien sécurisé, utilisable une seule fois et valable 24 heures.</p>"
-        "</div></div></body></html>")
+    html = _premium_transactional_email(
+        "Bectanse Académie", "Confirme ton inscription",
+        ["Nous devons vérifier ton adresse avant de créer ton code BCT personnel et d’activer ton espace."],
+        "Confirmer mon adresse", confirmation_url,
+        preheader="Dernière étape avant la création de ton espace",
+        note="Lien sécurisé, utilisable une seule fois et valable 24 heures.")
     subject = "Confirme ton inscription — Bectanse Académie"
     if not brevo_email_delivery_available():
         return send_transactional_email(to_email, subject, html)
@@ -6864,15 +6922,13 @@ def send_brevo_explorer_ready(to_email, to_name, member_code):
     """Remet le code BCT permanent uniquement après le double opt-in Explorer."""
     import urllib.request as _ur
     login_url = "https://acces.bectanse-academie.com/"
-    html = ("<!doctype html><html><body style='margin:0;background:#090909;font-family:Arial,sans-serif;color:#fff'>"
-        "<div style='max-width:580px;margin:0 auto;padding:28px 18px'><div style='border:1px solid #332014;border-radius:22px;background:#111;padding:34px'>"
-        "<p style='margin:0 0 10px;color:#ff6a00;font-weight:800;font-size:12px;letter-spacing:1.4px'>BECTANSE EXPLORER</p>"
-        "<h1 style='margin:0 0 14px;font-size:27px'>Ton espace d’observation est prêt</h1>"
-        "<p style='color:#aaa;line-height:1.6'>Conserve ce code personnel pour te reconnecter sur tous tes appareils :</p>"
-        "<div style='margin:22px 0;padding:18px;text-align:center;border:1px solid #ff6a00;border-radius:12px;color:#fff;font-size:25px;font-weight:900;letter-spacing:2px'>"+member_code+"</div>"
-        "<a href='"+login_url+"' style='display:block;text-align:center;background:#ff6a00;color:#fff;text-decoration:none;font-weight:800;padding:16px;border-radius:12px'>OUVRIR MON ESPACE →</a>"
-        "<p style='margin:20px 0 0;color:#777;font-size:12px;line-height:1.5'>Ton compte Explorer est gratuit et en lecture seule. Les fonctionnalités membres se débloquent depuis la présentation complète.</p>"
-        "</div></div></body></html>")
+    html = _premium_transactional_email(
+        "Bectanse Explorer", "Ton espace d’observation est prêt",
+        ["Conserve ce code personnel pour te reconnecter sur tous tes appareils :"],
+        "Ouvrir mon espace", login_url,
+        preheader="Ton code Explorer personnel est prêt",
+        code=member_code,
+        note="Ton compte Explorer est gratuit et en lecture seule. Les fonctionnalités membres se débloquent depuis la présentation complète.")
     subject = "Ton code Explorer Bectanse"
     if not brevo_email_delivery_available():
         return send_transactional_email(to_email, subject, html)
@@ -6921,26 +6977,13 @@ def sync_brevo_prospect_contact(email, prenom="", source="Explorer"):
         return {"ok": False, "error": str(error)[:500]}
 
 def email_bienvenue_membre(prenom, email, code_acces):
-    html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
-        "<div style='max-width:600px;margin:0 auto;'>"
-        "<div style='background:#FF6A00;padding:20px;border-radius:0 0 16px 16px;margin-bottom:8px;'>"
-        "<span style='font-size:20px;font-weight:900;color:#fff;'>BectanseAUTO</span></div>"
-        "<div style='background:#111;border-radius:16px;padding:32px;margin-bottom:8px;'>"
-        "<p style='color:#FF6A00;font-size:11px;text-transform:uppercase;font-weight:700;margin:0 0 8px;'>Bienvenue dans la famille</p>"
-        "<h1 style='color:#fff;font-size:26px;font-weight:900;margin:0 0 16px;'>Bienvenue, "+prenom+".<br>Ton acc&egrave;s est pr&ecirc;t.</h1>"
-        "<p style='color:rgba(255,255,255,.7);font-size:15px;line-height:1.8;margin:0 0 20px;'>Tu fais maintenant partie des <strong style='color:#fff;'>5000+ membres</strong> Bectanse AUTO.</p>"
-        "<div style='background:#0b0b0b;border:2px solid #FF6A00;border-radius:14px;padding:24px;text-align:center;margin-bottom:20px;'>"
-        "<p style='color:#FF6A00;font-size:11px;text-transform:uppercase;font-weight:700;margin:0 0 10px;'>Ton code d'acc&egrave;s</p>"
-        "<p style='color:#fff;font-size:32px;font-weight:900;letter-spacing:4px;font-family:monospace;margin:0 0 8px;'>"+code_acces+"</p>"
-        "<p style='color:rgba(255,255,255,.4);font-size:12px;margin:0;'>Conserve ce code pour te connecter</p>"
-        "</div>"
-        "<p style='color:rgba(255,255,255,.7);font-size:14px;margin:0;'>Connecte-toi sur <strong style='color:#fff;'>acces.bectanse-academie.com</strong> et entre ce code.</p>"
-        "</div>"
-        "<div style='text-align:center;padding:20px 0;'>"
-        "<a href='https://acces.bectanse-academie.com' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Acc&eacute;der &agrave; mon espace &rarr;</a>"
-        "</div>"
-        "<p style='text-align:center;color:rgba(255,255,255,.2);font-size:11px;'>&copy; 2026 Bectanse Acad&eacute;mie &mdash; LERIS CORP FZCO, Dubai</p>"
-        "</div></body></html>")
+    html = _premium_transactional_email(
+        "Bienvenue dans la famille", f"Bienvenue, {prenom}. Ton accès est prêt.",
+        ["Tu fais maintenant partie des 5000+ membres Bectanse AUTO.",
+         "Connecte-toi sur acces.bectanse-academie.com et entre ce code."],
+        "Accéder à mon espace", "https://acces.bectanse-academie.com",
+        preheader=f"Bienvenue {prenom}, ton accès Bectanse est prêt",
+        code=code_acces, note="Conserve ce code pour te connecter.")
     send_brevo_membre(email, prenom, "Bienvenue "+prenom+" - Ton code Bectanse AUTO", html, "bienvenue")
 
 RENEWAL_STAGE_CONTENT = {
@@ -6960,20 +7003,12 @@ def email_relance_expiration(prenom, email, stage):
         return {"ok": False, "error": "etape inconnue"}
     subject, titre, corps, couleur = RENEWAL_STAGE_CONTENT[stage]
     subject = f"{prenom}, {subject[:1].lower()}{subject[1:]}"
-    html = ("<!DOCTYPE html><html><head><meta charset=UTF-8></head><body style='background:#0b0b0b;font-family:Arial;margin:0;padding:20px;'>"
-        "<div style='max-width:600px;margin:0 auto;'>"
-        "<div style='background:"+couleur+";padding:20px;border-radius:0 0 16px 16px;margin-bottom:8px;'>"
-        "<span style='font-size:20px;font-weight:900;color:#fff;'>BectanseAUTO</span></div>"
-        "<div style='background:#111;border-radius:16px;padding:32px;margin-bottom:8px;'>"
-        "<h1 style='color:#fff;font-size:26px;font-weight:900;margin:0 0 16px;'>"+titre+"</h1>"
-        "<p style='color:rgba(255,255,255,.7);font-size:15px;line-height:1.8;margin:0;'>"+corps+"</p>"
-        "</div>"
-        "<div style='text-align:center;padding:20px 0;'>"
-        "<a href='https://acces.bectanse-academie.com/vip' style='background:#FF6A00;color:#fff;font-size:16px;font-weight:800;text-decoration:none;padding:16px 36px;border-radius:12px;'>Renouveler mon acc&egrave;s &rarr;</a>"
-        "</div>"
-        "<p style='text-align:center;color:rgba(255,255,255,.45);font-size:12px;'>Besoin d’aide ? <a href='https://t.me/m/PAt88QgeZDhk' style='color:#FF6A00;'>Contacter le support</a></p>"
-        "<p style='text-align:center;color:rgba(255,255,255,.2);font-size:11px;'>&copy; 2026 Bectanse Acad&eacute;mie</p>"
-        "</div></body></html>")
+    html = _premium_transactional_email(
+        "Accès membre", titre, [corps], "Renouveler mon accès",
+        "https://acces.bectanse-academie.com/vip",
+        preheader=subject,
+        note="Besoin d’aide ? Le support Bectanse reste disponible depuis ton espace.",
+        accent=couleur)
     return send_brevo_membre(email, prenom, subject, html, f"renouvellement-{stage}")
 
 

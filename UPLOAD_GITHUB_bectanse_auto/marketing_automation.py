@@ -791,11 +791,11 @@ def _tracked_email_url(raw_url, journey, stage):
 
 def _email_header():
     return f"""<table role='presentation' cellspacing='0' cellpadding='0' border='0'>
-      <tr><td style='padding-right:11px'>
-        <img src='{BASE_URL}/static/icons/bectanse-app-icon-master.png' width='42' height='42'
-          alt='Bectanse Académie' style='display:block;width:42px;height:42px;border:0;border-radius:11px'>
-      </td><td style='font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:900;letter-spacing:.8px;color:#ffffff'>
-        BECTANSE<br><span style='font-size:12px;letter-spacing:2.4px;color:#ff6a1f'>ACADÉMIE</span>
+      <tr><td style='padding-right:12px'>
+        <img src='{BASE_URL}/static/icons/bectanse-app-icon-master.png' width='44' height='44'
+          alt='Bectanse Académie' style='display:block;width:44px;height:44px;border:0;border-radius:11px'>
+      </td><td class='brand-copy' style='font-family:Arial,Helvetica,sans-serif;font-size:19px;line-height:1.05;font-weight:900;letter-spacing:.6px;color:#f5f2eb'>
+        BECTANSE<br><span style='font-size:11px;line-height:1.3;letter-spacing:2.1px;color:#ff6a32'>ACADÉMIE</span>
       </td></tr>
     </table>"""
 
@@ -808,8 +808,8 @@ def _email_hero(content):
     safe_alt = html.escape(content.get("hero_alt", "Bectanse Académie"), quote=True)
     return f"""<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
       style='width:100%;margin:0 0 26px'><tr><td>
-      <img src='{safe_source}' width='572' alt='{safe_alt}' class='mail-image'
-        style='display:block;width:100%;max-width:572px;height:auto;border:0;border-radius:17px;background:#171a17'>
+      <img src='{safe_source}' width='582' alt='{safe_alt}' class='mail-image'
+        style='display:block;width:100%;max-width:582px;height:auto;border:0;border-radius:4px;background:#171a17'>
     </td></tr></table>"""
 
 
@@ -824,7 +824,7 @@ def _email_proof_cards(content):
           <strong style='display:block;color:#f4f5f2;font-size:14px;line-height:1.45'>{html.escape(value)}</strong>
         </td></tr>""")
     return f"""<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
-      style='width:100%;margin:5px 0 25px;border:1px solid #292d28;border-radius:14px;background:#131613'>
+      style='width:100%;margin:5px 0 25px;border:1px solid #292d28;background:#111311'>
       {''.join(rows)}
     </table>"""
 
@@ -834,7 +834,7 @@ def _email_cta(label, url):
     safe_url = html.escape(url, quote=True)
     return f"""<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
       style='width:100%'><tr><td align='center' bgcolor='#ff641f' class='mail-cta'
-      style='border-radius:13px;background:#ff641f'>
+      style='background:#ff5a1f'>
       <a href='{safe_url}' style='display:block;padding:17px 18px;color:#ffffff;text-decoration:none;
         text-align:center;font-size:15px;line-height:1.25;font-weight:900'>{safe_label}&nbsp;&nbsp;→</a>
     </td></tr></table>"""
@@ -903,35 +903,34 @@ def _email_html(prenom, content, journey, stage, unsubscribe_url):
   table,td{{mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:separate}}
   img{{-ms-interpolation-mode:bicubic}}
   @media(max-width:620px){{
-    .mail-shell{{padding:12px 9px!important}}
-    .mail-body{{padding:27px 20px!important}}
+    .mail-shell{{padding:10px 8px!important}}
+    .mail-body{{padding:28px 20px!important}}
     .mail-title{{font-size:31px!important;line-height:1.06!important}}
     .mail-cta a{{font-size:14px!important;padding:16px 13px!important}}
-    .mail-image{{border-radius:13px!important}}
+    .brand-copy{{font-size:17px!important}}
   }}
 </style></head>
-<body style='margin:0;padding:0;background:#050605;font-family:Arial,Helvetica,sans-serif;color:#ffffff'>
+<body style='margin:0;padding:0;background:#060706;font-family:Arial,Helvetica,sans-serif;color:#f5f2eb'>
 <div style='display:none!important;visibility:hidden;mso-hide:all;max-height:0;max-width:0;
   overflow:hidden;opacity:0;color:transparent'>{preheader}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
 <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'
-  style='width:100%;background:#050605'><tr><td align='center'>
-  <table role='presentation' width='640' cellspacing='0' cellpadding='0' border='0' class='mail-shell'
-    style='width:100%;max-width:640px;padding:28px 16px'>
-    <tr><td align='center' style='padding:12px 8px 24px'>{_email_header()}</td></tr>
-    <tr><td style='border:1px solid #292d28;border-radius:24px;background:#101210;overflow:hidden'>
-      <div style='height:4px;line-height:4px;font-size:4px;background:#ff641f'>&nbsp;</div>
-      <div class='mail-body' style='padding:38px 34px'>
-        <div style='display:inline-block;margin:0 0 15px;padding:7px 10px;border:1px solid #4b2b1d;
-          border-radius:999px;background:#1b120e;color:#ff864c;font-size:10px;line-height:1.3;
-          letter-spacing:1.5px;font-weight:900'>{html.escape(content['eyebrow'])}</div>
+  style='width:100%;background:#060706'><tr><td align='center'>
+  <table role='presentation' width='660' cellspacing='0' cellpadding='0' border='0' class='mail-shell'
+    style='width:100%;max-width:660px;padding:30px 16px'>
+    <tr><td style='padding:7px 5px 24px'>{_email_header()}</td></tr>
+    <tr><td style='border:1px solid #292c28;background:#101210;overflow:hidden'>
+      <div style='height:3px;line-height:3px;font-size:3px;background:#ff5a1f'>&nbsp;</div>
+      <div class='mail-body' style='padding:42px 38px'>
+        <div style='display:inline-block;margin:0 0 15px;color:#ff6a32;font-size:10px;line-height:1.3;
+          letter-spacing:1.9px;font-weight:900;text-transform:uppercase'>{html.escape(content['eyebrow'])}</div>
         <p style='margin:0 0 9px;color:#888e86;font-size:14px;line-height:1.5'>{greeting}</p>
-        <h1 class='mail-title' style='margin:0 0 24px;color:#ffffff;font-size:36px;line-height:1.04;
-          letter-spacing:-1.1px'>{html.escape(content['title'])}</h1>
+        <h1 class='mail-title' style='margin:0 0 25px;color:#f5f2eb;font-size:38px;line-height:1.02;
+          letter-spacing:-1.2px'>{html.escape(content['title'])}</h1>
         {_email_hero(content)}
         {paragraphs}
         {_email_proof_cards(content)}
-        <div style='margin:26px 0;padding:19px 20px;border:1px solid #343a32;border-left:4px solid #ff641f;
-          border-radius:15px;background:#161916;color:#f1f2ef;font-size:14px;line-height:1.62;font-weight:700'>
+        <div style='margin:27px 0;padding:19px 20px;border-top:1px solid #343a32;border-bottom:1px solid #343a32;border-left:3px solid #ff5a1f;
+          background:#141714;color:#f1f2ef;font-size:14px;line-height:1.62;font-weight:700'>
           {html.escape(content['highlight'])}</div>
         {_email_cta(content['cta'], cta_url)}
         {disclaimer}
