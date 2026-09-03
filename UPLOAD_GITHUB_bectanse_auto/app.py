@@ -578,6 +578,32 @@ def init_db():
             """)
             conn.run("""CREATE INDEX IF NOT EXISTS stripe_academy_events_status_idx
                          ON stripe_academy_events (status, created_at DESC)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS admin_payment_notifications (
+                    notification_key TEXT PRIMARY KEY,
+                    stripe_event_id  TEXT NOT NULL DEFAULT '',
+                    member_code      TEXT NOT NULL DEFAULT '',
+                    kind             TEXT NOT NULL,
+                    status           TEXT NOT NULL DEFAULT 'sending',
+                    attempts         INTEGER NOT NULL DEFAULT 1,
+                    error            TEXT NOT NULL DEFAULT '',
+                    created_at       TIMESTAMP DEFAULT NOW(),
+                    sent_at          TIMESTAMP
+                )
+            """)
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS admin_sensitive_access_log (
+                    id          BIGSERIAL PRIMARY KEY,
+                    member_code TEXT NOT NULL,
+                    action      TEXT NOT NULL,
+                    result      TEXT NOT NULL DEFAULT '',
+                    ip_address  TEXT NOT NULL DEFAULT '',
+                    user_agent  TEXT NOT NULL DEFAULT '',
+                    created_at  TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS admin_sensitive_access_member_idx
+                         ON admin_sensitive_access_log (member_code, created_at DESC)""")
             for stripe_col, stripe_type, stripe_default in [
                 ("stripe_object_id", "TEXT", "''"),
                 ("invoice_id", "TEXT", "''"),
@@ -1199,7 +1225,7 @@ def send_push_to_all_fcm(title, body, url="/accueil"):
 
 def send_telegram(text, reply_markup=None, chat_id=None):
     """Envoie un message Telegram — 3 tentatives, alerte si échec total."""
-    if not BOT_TOKEN: return
+    if not BOT_TOKEN: return False
     target = str(chat_id) if chat_id else str(ADMIN_ID)
     payload = {"chat_id": target, "text": text, "parse_mode": "Markdown"}
     if reply_markup: payload["reply_markup"] = reply_markup
@@ -1214,7 +1240,7 @@ def send_telegram(text, reply_markup=None, chat_id=None):
             )
             result = r.json()
             if result.get("ok"):
-                return  # Succès
+                return True
             # Erreur API Telegram
             err = result.get("description", "erreur inconnue")
             app.logger.error(f"Telegram tentative {attempt+1}: {err}")
@@ -1236,6 +1262,7 @@ def send_telegram(text, reply_markup=None, chat_id=None):
             timeout=10
         )
     except: pass
+    return False
 
 def login_required(f):
     @wraps(f)
@@ -1876,6 +1903,7 @@ def notif_lue():
 # ══════════════════════════════════════════════════════════════
 
 _ADMIN_LOGIN_ATTEMPTS = {}
+_ADMIN_CREDENTIAL_REVEALS = {}
 _ADMIN_LOGIN_LOCK = threading.Lock()
 
 
@@ -1928,9 +1956,13 @@ def admin_required(f):
 
 @app.route("/admin-panel")
 def admin_panel():
-    next_path = _safe_admin_next(request.args.get("next"))
     if not _admin_session_valid():
+        requested_destination = request.args.get("next")
+        if not requested_destination and request.args.get("member"):
+            requested_destination = request.full_path.rstrip("?")
+        next_path = _safe_admin_next(requested_destination)
         return render_template("admin_login.html", next_path=next_path)
+    next_path = _safe_admin_next(request.args.get("next"))
     if next_path != "/admin-panel":
         return redirect(next_path)
     return render_template("admin_panel.html", admin_key="")
@@ -4260,6 +4292,57 @@ def admin_api_membre_profil():
         return jsonify({"ok":False,"error":str(e)})
 
 
+@app.route("/admin/api/membre/mt-credentials", methods=["POST"])
+@admin_required
+def admin_api_membre_mt_credentials():
+    """Révèle temporairement le secret MT à un administrateur authentifié."""
+    data = request.get_json(silent=True) or {}
+    code = str(data.get("code") or "").strip().upper()
+    if not re.fullmatch(r"BCT-[A-Z0-9-]{4,40}", code):
+        return jsonify({"ok": False, "error": "Code membre invalide"}), 400
+
+    remote = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+    now = time.time()
+    with _ADMIN_LOGIN_LOCK:
+        recent = [stamp for stamp in _ADMIN_CREDENTIAL_REVEALS.get(remote, []) if now - stamp < 900]
+        if len(recent) >= 30:
+            return jsonify({"ok": False, "error": "Trop de consultations. Réessaie dans quelques minutes."}), 429
+        recent.append(now)
+        _ADMIN_CREDENTIAL_REVEALS[remote] = recent
+
+    conn = get_conn()
+    try:
+        rows = conn.run("SELECT params FROM members WHERE code=:code", code=code)
+        if not rows:
+            return jsonify({"ok": False, "error": "Membre introuvable"}), 404
+        raw_params = rows[0][0] or {}
+        params = json.loads(raw_params) if isinstance(raw_params, str) else raw_params
+        revealed = _reveal_params(params or {})
+        password = str(revealed.get("mt_password") or "")
+        result = "revealed" if password else "missing"
+        conn.run("""INSERT INTO admin_sensitive_access_log
+            (member_code,action,result,ip_address,user_agent)
+            VALUES (:code,'reveal_mt_password',:result,:ip,:agent)""",
+            code=code, result=result, ip=remote[:120],
+            agent=str(request.headers.get("User-Agent") or "")[:500])
+        response = jsonify({
+            "ok": True,
+            "mt_login": str(revealed.get("mt_login") or ""),
+            "mt_server": str(revealed.get("serveur") or ""),
+            "plateforme": str(revealed.get("plateforme") or "MT4"),
+            "mt_password": password,
+            "expires_in": 60,
+        })
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        return response
+    except Exception as error:
+        app.logger.error("Consultation identifiants MT %s: %s", code, error)
+        return jsonify({"ok": False, "error": "Impossible d’ouvrir les identifiants"}), 500
+    finally:
+        conn.close()
+
+
 # ── BECTANSE ANALYSE IA — BÊTA PRIVÉE ───────────────────────────────────────
 
 ANALYSIS_TIMEFRAMES = {"M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"}
@@ -5214,6 +5297,101 @@ def _stripe_subscription_context(event_type, stripe_object):
     }
 
 
+def _payment_admin_notification_identity(event_type, context):
+    """Retourne une clé stable afin qu'un paiement ne produise jamais deux alertes."""
+    subscription_id = str(context.get("subscription_id") or "")
+    object_id = str(context.get("stripe_object_id") or "")
+    invoice_id = str(context.get("invoice_id") or "")
+    if event_type == "checkout.session.completed" and context.get("payment_status") in {
+            "paid", "no_payment_required"}:
+        return "initial", f"academy-payment:initial:{subscription_id or object_id}"
+    if event_type == "invoice.paid":
+        reason = str(context.get("billing_reason") or "")
+        if reason == "subscription_cycle":
+            return "renewal", f"academy-payment:renewal:{invoice_id or object_id}"
+        if reason == "subscription_create":
+            return "initial", f"academy-payment:initial:{subscription_id or invoice_id or object_id}"
+    return "", ""
+
+
+def _telegram_safe(value):
+    """Neutralise les caractères qui cassent le Markdown historique de Telegram."""
+    return str(value or "—").replace("`", "'").replace("*", "").replace("_", " ")
+
+
+def _send_academy_payment_admin_notification(event_id, event_type, context, member_code):
+    """Alerte le Control Center après paiement, sans faire transiter le mot de passe MT."""
+    kind, notification_key = _payment_admin_notification_identity(event_type, context)
+    if not kind or not notification_key:
+        return False
+
+    conn = get_conn()
+    try:
+        claimed = conn.run("""INSERT INTO admin_payment_notifications
+            (notification_key,stripe_event_id,member_code,kind,status,attempts)
+            VALUES (:key,:event_id,:code,:kind,'sending',1)
+            ON CONFLICT (notification_key) DO UPDATE SET
+                stripe_event_id=EXCLUDED.stripe_event_id,
+                member_code=EXCLUDED.member_code,
+                status='sending',attempts=admin_payment_notifications.attempts+1,error=''
+            WHERE admin_payment_notifications.status='failed'
+               OR (admin_payment_notifications.status='sending'
+                   AND admin_payment_notifications.created_at < NOW() - INTERVAL '5 minutes')
+            RETURNING notification_key""",
+            key=notification_key, event_id=event_id, code=member_code, kind=kind)
+    finally:
+        conn.close()
+    if not claimed:
+        return False
+
+    member = get_member(member_code) or {}
+    params = member.get("params") or {}
+    plan = context.get("plan") or {}
+    amount_cents = int(context.get("amount_paid_cents") or plan.get("amount_cents") or 0)
+    amount = f"{amount_cents / 100:,.2f} €".replace(",", " ").replace(".", ",")
+    expiration = context.get("period_end") or member.get("date_fin")
+    expiration_text = expiration.strftime("%d/%m/%Y à %H:%M") if hasattr(expiration, "strftime") else "—"
+    title = "NOUVEL ABONNEMENT CONFIRMÉ" if kind == "initial" else "RENOUVELLEMENT CONFIRMÉ"
+    icon = "✅" if kind == "initial" else "🔄"
+    password_state = "Disponible dans la fiche admin sécurisée" if params.get("mt_password") else "Non renseigné"
+    message = (
+        f"{icon} *{title}*\n\n"
+        f"👤 *{_telegram_safe(member.get('nom'))}*\n"
+        f"🔑 Code : `{_telegram_safe(member_code)}`\n"
+        f"📧 `{_telegram_safe(member.get('email') or context.get('email'))}`\n"
+        f"📱 `{_telegram_safe(member.get('telephone'))}`\n"
+        f"✈️ {_telegram_safe(member.get('telegram'))}\n\n"
+        f"💳 *ABONNEMENT*\n"
+        f"  Formule : *{_telegram_safe(plan.get('label'))}*\n"
+        f"  Montant : *{amount}*\n"
+        f"  Accès jusqu'au : *{expiration_text}*\n\n"
+        f"📊 *COMPTE TRADING*\n"
+        f"  Plateforme : *{_telegram_safe(params.get('plateforme'))}*\n"
+        f"  Serveur : *{_telegram_safe(params.get('serveur'))}*\n"
+        f"  Login : `{_telegram_safe(params.get('mt_login'))}`\n"
+        f"  Mot de passe : {password_state}"
+    )
+    profile_url = (
+        "https://acces.bectanse-academie.com/admin-panel?member="
+        + re.sub(r"[^A-Za-z0-9-]", "", str(member_code))
+    )
+    sent = send_telegram(message, reply_markup={"inline_keyboard": [[{
+        "text": "🔐 Ouvrir la fiche sécurisée", "url": profile_url,
+    }]]})
+
+    conn = get_conn()
+    try:
+        conn.run("""UPDATE admin_payment_notifications SET status=:status,
+            error=:error,sent_at=CASE WHEN :sent THEN NOW() ELSE sent_at END
+            WHERE notification_key=:key""",
+            status="sent" if sent else "failed",
+            error="" if sent else "telegram_delivery_failed",
+            sent=bool(sent), key=notification_key)
+    finally:
+        conn.close()
+    return bool(sent)
+
+
 def _process_academy_stripe_event(event):
     """Rattache Stripe au compte BCT et applique l'accès de façon idempotente."""
     event_id = str(event.get("id", ""))
@@ -5345,6 +5523,11 @@ def _process_academy_stripe_event(event):
                 email_bienvenue_membre(member_name.split()[0], member_email, member_code)
         except Exception as notification_error:
             app.logger.error("Notification activation Stripe %s: %s", member_code, notification_error)
+        try:
+            _send_academy_payment_admin_notification(
+                event_id, event_type, context, member_code)
+        except Exception as telegram_error:
+            app.logger.error("Notification Telegram paiement Stripe %s: %s", member_code, telegram_error)
     return {"handled": True, "member_code": member_code, "status": context["status"]}
 
 

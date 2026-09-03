@@ -452,7 +452,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <div id="profil-content" style="margin-top:16px"></div>
     <div class="modal-actions" style="margin-top:20px">
       <button class="btn btn-purple" id="save-profil-admin" onclick="sauverProfilAdmin()">💾 Enregistrer</button>
-      <button class="btn btn-gold" onclick="document.getElementById('profil-modal').classList.remove('open')">Fermer</button>
+      <button class="btn btn-gold" onclick="fermerProfilAdmin()">Fermer</button>
     </div>
   </div>
 </div>
@@ -1031,7 +1031,13 @@ async function voirProfil(code) {
       </div>
       <div class="field"><label>Login MT</label><input id="ap-mt-login" value="${profilEscape(m.mt_login)}"></div>
       <div class="field"><label>Serveur MT</label><input id="ap-mt-server" value="${profilEscape(m.mt_server)}"></div>
-      <div class="field"><label>Nouveau mot de passe MT</label><input id="ap-mt-password" type="password" placeholder="${m.mt_password_masked ? '•••••• (inchangé si vide)' : 'Nouveau mot de passe (optionnel)'}"></div>
+      <div class="field"><label>Mot de passe MT</label>
+        <div style="display:flex;gap:7px;align-items:stretch">
+          <input id="ap-mt-password" type="password" autocomplete="new-password" placeholder="${m.mt_password_masked ? '•••••• (enregistré)' : 'Non renseigné'}">
+          <button class="btn btn-gold btn-sm" id="ap-reveal-password" type="button" onclick="afficherMotDePasseMT('${profilEscape(m.code)}')">Afficher 60 s</button>
+        </div>
+        <small id="ap-mt-password-status" style="display:block;margin-top:6px;color:rgba(255,255,255,.34);font-size:10px">${m.mt_password_masked ? 'Protégé dans la base, accessible uniquement ici' : 'Aucun mot de passe enregistré'}</small>
+      </div>
     </div>
 
     <div style="margin-top:12px;padding:12px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;background:rgba(255,255,255,0.02);font-size:12px;color:rgba(255,255,255,0.65)">
@@ -1041,6 +1047,67 @@ async function voirProfil(code) {
       <div><strong>Filleuls :</strong> ${profilEscape(m.filleuls_count)} · <strong>Gains :</strong> ${profilEscape(m.gains_parrainage)} €</div>
     </div>
   `;
+}
+
+let adminPasswordRevealTimer = null;
+async function afficherMotDePasseMT(code) {
+  const button = document.getElementById('ap-reveal-password');
+  const input = document.getElementById('ap-mt-password');
+  const status = document.getElementById('ap-mt-password-status');
+  if (!button || !input || !status) return;
+  button.disabled = true;
+  button.textContent = 'Ouverture...';
+  try {
+    const response = await fetch('/admin/api/membre/mt-credentials', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code})
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Accès impossible');
+    if (!data.mt_password) {
+      input.value = '';
+      input.type = 'password';
+      status.textContent = 'Aucun mot de passe MT enregistré sur ce profil';
+      toast('Identifiants MT incomplets', 'error');
+      return;
+    }
+    input.type = 'text';
+    input.value = data.mt_password;
+    input.dataset.revealedValue = data.mt_password;
+    status.textContent = 'Visible pendant 60 secondes · consultation enregistrée dans le journal de sécurité';
+    button.textContent = 'Masquer';
+    button.disabled = false;
+    button.onclick = masquerMotDePasseMT;
+    clearTimeout(adminPasswordRevealTimer);
+    adminPasswordRevealTimer = setTimeout(masquerMotDePasseMT, 60000);
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally {
+    if (button.disabled) {
+      button.disabled = false;
+      button.textContent = 'Afficher 60 s';
+    }
+  }
+}
+
+function masquerMotDePasseMT() {
+  const button = document.getElementById('ap-reveal-password');
+  const input = document.getElementById('ap-mt-password');
+  const status = document.getElementById('ap-mt-password-status');
+  if (input) {
+    input.type = 'password';
+    input.value = '';
+    delete input.dataset.revealedValue;
+  }
+  if (status) status.textContent = 'Mot de passe remasqué · clique sur Afficher pour le consulter à nouveau';
+  if (button) {
+    button.disabled = false;
+    button.textContent = 'Afficher 60 s';
+    button.onclick = () => afficherMotDePasseMT(window.__profilAdminCode || '');
+  }
+  clearTimeout(adminPasswordRevealTimer);
+  adminPasswordRevealTimer = null;
 }
 
 async function sauverProfilAdmin() {
@@ -1060,8 +1127,10 @@ async function sauverProfilAdmin() {
     mt_server: (document.getElementById('ap-mt-server').value || '').trim(),
   };
 
-  const mtPassword = (document.getElementById('ap-mt-password').value || '').trim();
-  if (mtPassword && !/^[*•xX]+$/.test(mtPassword)) payload.mt_password = mtPassword;
+  const passwordInput = document.getElementById('ap-mt-password');
+  const mtPassword = (passwordInput.value || '').trim();
+  const revealedValue = passwordInput.dataset.revealedValue || '';
+  if (mtPassword && mtPassword !== revealedValue && !/^[*•xX]+$/.test(mtPassword)) payload.mt_password = mtPassword;
 
   const btn = document.getElementById('save-profil-admin');
   btn.disabled = true;
@@ -1075,7 +1144,7 @@ async function sauverProfilAdmin() {
     const d = await r.json();
     if (d.ok) {
       toast('✅ Profil membre mis à jour');
-      document.getElementById('profil-modal').classList.remove('open');
+      fermerProfilAdmin();
       await actualiserGestionMembres();
       await loadMembres();
     } else {
@@ -1088,8 +1157,13 @@ async function sauverProfilAdmin() {
   btn.textContent = '💾 Enregistrer';
 }
 
+function fermerProfilAdmin() {
+  masquerMotDePasseMT();
+  document.getElementById('profil-modal').classList.remove('open');
+}
+
 function closeProfilModal(e) {
-  if (e.target.id === 'profil-modal') document.getElementById('profil-modal').classList.remove('open');
+  if (e.target.id === 'profil-modal') fermerProfilAdmin();
 }
 
 // ── TABLEAU DASHBOARD
@@ -1182,6 +1256,11 @@ function renderDashboardMembres(membres) {
 // ── INIT
 loadStats();
 loadDashboardMembres();
+const requestedMember = new URLSearchParams(window.location.search).get('member');
+if (requestedMember && /^BCT-[A-Z0-9-]{4,40}$/i.test(requestedMember)) {
+  showSection('membres');
+  voirProfil(requestedMember.toUpperCase());
+}
 </script>
 <script src="/static/source-guard.js" defer></script>
 </body>
