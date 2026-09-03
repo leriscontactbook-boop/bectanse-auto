@@ -264,6 +264,19 @@ class MarketingCampaignTests(unittest.TestCase):
         self.assertEqual(content["stage"], "jeudi-retour")
         self.assertEqual(reference, RENTREE2026_CODE)
 
+    def test_rentree2026_late_entry_receives_the_current_day_message(self):
+        current = datetime(2026, 9, 4, 10, 30)
+        explorer_contact = (
+            "BCT-NEW", "nouveau@example.com", "Nouveau", "explorer",
+            datetime(2026, 8, 20), None,
+        )
+        explorer_row = ("explorer", False, "", "", True, None, False)
+        with patch("marketing_automation._now", return_value=current):
+            candidate = _rentree2026_candidate(
+                _RentreeConnection(explorer_row), explorer_contact)
+        self.assertIsNotNone(candidate)
+        self.assertEqual(candidate[1]["stage"], "vendredi-experience")
+
     def test_rentree2026_is_closed_after_sunday_2359_paris(self):
         self.assertTrue(rentree2026_offer_active(datetime(2026, 9, 6, 21, 59)))
         self.assertFalse(rentree2026_offer_active(datetime(2026, 9, 6, 22, 0)))

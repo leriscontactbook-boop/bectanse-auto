@@ -1346,7 +1346,10 @@ def _rentree2026_candidate(conn, contact):
     now_utc = _now()
     now_paris = now_utc.replace(tzinfo=UTC_TZ).astimezone(PARIS_TZ)
     journey = "promo_rentree2026_expired" if audience == "expired_members" else "promo_rentree2026_explorer"
-    for content in RENTREE2026_STAGES[audience]:
+    # Une campagne datée doit toujours reprendre au message du jour. Un contact
+    # protégé par le délai anti-saturation ne reçoit donc pas, le lendemain, un
+    # message de lancement devenu obsolète.
+    for content in reversed(RENTREE2026_STAGES[audience]):
         send_date = datetime.strptime(content["send_on"], "%Y-%m-%d").date()
         due_local = datetime.combine(
             send_date,
