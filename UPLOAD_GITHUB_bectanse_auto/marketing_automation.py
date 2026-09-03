@@ -470,6 +470,102 @@ REACTIVATION_STAGES = [
 ]
 
 
+# Après la séquence de réactivation initiale, les anciens membres restent dans
+# un rendez-vous mensuel tant que leur accès est expiré. Les angles tournent
+# pour éviter de répéter indéfiniment le même argument commercial.
+EXPIRED_MONTHLY_CONTENT = [
+    {
+        "stage": "mensuel-nouveau-depart",
+        "subject": "{prenom}, et si ce mois marquait ton retour",
+        "preheader": "Ton ancien compte est conservé et peut être réactivé sans recommencer",
+        "eyebrow": "UN NOUVEAU MOIS COMMENCE",
+        "title": "Tu peux reprendre avec une structure plus solide",
+        "body": [
+            "Ton accès Bectanse n’est plus actif, mais ton compte, ton code et tes informations sont toujours conservés",
+            "Ce début de mois peut être l’occasion de retrouver un parcours clair, tes outils et la communauté sans recréer un nouvel espace",
+        ],
+        "highlight": "Un paiement Stripe confirmé réactive automatiquement ton compte existant",
+        "cta": "Redécouvrir les accès Bectanse",
+        "target_url": BASE_URL + "/vip#offres",
+    },
+    {
+        "stage": "mensuel-ecosysteme",
+        "subject": "L’Académie a encore évolué depuis ton départ",
+        "preheader": "Formation, Trader Lab, Canal VIP et suivi sont réunis dans la même application",
+        "eyebrow": "L’ÉCOSYSTÈME BECTANSE",
+        "title": "Ce que tu retrouves aujourd’hui n’est plus un simple espace de formation",
+        "body": [
+            "Bectanse Académie réunit désormais la formation, le Trader Lab, le Canal VIP, le suivi de progression et les outils de préparation dans la même application",
+            "Tu peux consulter la présentation complète avant de décider si ce nouvel environnement correspond davantage à ta façon d’avancer aujourd’hui",
+        ],
+        "highlight": "Ton ancien code reste associé à ton profil et à ton historique",
+        "cta": "Voir tout ce qui a changé",
+        "target_url": BASE_URL + "/vip#formation",
+    },
+    {
+        "stage": "mensuel-outils",
+        "subject": "As-tu vu les nouveaux outils du Trader Lab",
+        "preheader": "Analyse IA, simulateur, journal intelligent, psychologie et Trade Score",
+        "eyebrow": "TRADER LAB",
+        "title": "Des outils pour préparer, mesurer et corriger ton processus",
+        "body": [
+            "L’Analyse IA, le simulateur, le journal intelligent, le calculateur de risque et le Trade Score ont été ajoutés pour rendre chaque étape plus observable",
+            "Ces outils ne prennent pas les décisions à ta place. Ils t’aident à structurer un scénario, documenter ton exécution et comprendre ce que tu dois améliorer",
+        ],
+        "highlight": "Les outils sont réunis au même endroit avec la formation et le suivi membre",
+        "cta": "Découvrir le Trader Lab",
+        "target_url": BASE_URL + "/vip#formation",
+    },
+    {
+        "stage": "mensuel-preuves",
+        "subject": "Les membres racontent eux-mêmes leur expérience",
+        "preheader": "Captures, témoignages audio et vidéo sont consultables dans leur format original",
+        "eyebrow": "TÉMOIGNAGES DOCUMENTÉS",
+        "title": "Regarde les preuves avant de prendre une décision",
+        "body": [
+            "La présentation officielle rassemble les captures de membres, leurs témoignages audio et les vidéos documentées dans leur format original",
+            "Tu peux tout consulter librement, comparer ce qui existe aujourd’hui avec ce que tu avais connu et décider ensuite si tu souhaites revenir",
+        ],
+        "highlight": "Les expériences présentées sont individuelles et ne garantissent aucun résultat futur",
+        "cta": "Voir les témoignages membres",
+        "target_url": BASE_URL + "/vip#temoignages",
+        "disclaimer": "Le trading comporte un risque de perte partielle ou totale du capital.",
+    },
+    {
+        "stage": "mensuel-communaute",
+        "subject": "Tu n’es pas obligé de reprendre seul",
+        "preheader": "Canal VIP, notifications et accompagnement restent au centre de l’expérience",
+        "eyebrow": "L’ACCOMPAGNEMENT",
+        "title": "Revenir, c’est aussi retrouver une communauté",
+        "body": [
+            "Le Canal VIP, les notifications de l’application et le support permettent de rester relié aux informations importantes et aux évolutions de l’Académie",
+            "Si une question sur ton ancien compte ou ton retour te bloque, l’équipe peut vérifier ta situation avant que tu choisisses une formule",
+        ],
+        "highlight": "Tu peux demander une vérification de ton compte avant de renouveler",
+        "cta": "Revoir l’Académie",
+        "target_url": BASE_URL + "/vip#offres",
+        "show_support": True,
+    },
+    {
+        "stage": "mensuel-progression",
+        "subject": "Que veux-tu réellement construire ce mois-ci",
+        "preheader": "Une méthode, des outils et un suivi valent mieux qu’une nouvelle accumulation de contenu",
+        "eyebrow": "REPRENDRE AVEC UN PLAN",
+        "title": "Ton retour doit servir un objectif précis",
+        "body": [
+            "Revenir dans l’Académie n’a de sens que si tu utilises ce nouvel accès pour reconstruire une routine claire et mesurable",
+            "La formation, les exercices, le journal et les outils de risque sont organisés pour t’aider à transformer ce mois en véritable période de progression",
+        ],
+        "highlight": "Choisis la durée qui correspond à ton plan et reprends avec ton compte existant",
+        "cta": "Choisir mon rythme",
+        "target_url": BASE_URL + "/vip#offres",
+    },
+]
+
+EXPIRED_MONTHLY_WINDOW_DAYS = 7
+EXPIRED_MONTHLY_QUIET_DAYS = 3
+
+
 def _now():
     # Les colonnes PostgreSQL historiques sont des TIMESTAMP sans fuseau et
     # Railway enregistre NOW() en UTC. Les calculs doivent donc rester en UTC
@@ -997,6 +1093,28 @@ def _renewal_candidate(conn, contact):
     initial = REACTIVATION_STAGES[0]
     if not _already_sent(conn, code, "reactivation", initial["stage"], reference):
         return "reactivation", initial, reference, _now()
+
+    # Pendant la première semaine du mois, un ancien membre reçoit le rendez-vous
+    # mensuel s'il n'a pas déjà été contacté récemment. Cela permet de continuer
+    # la reconquête après J+30 sans concentrer plusieurs messages en quelques jours.
+    now = _now()
+    if now.day <= EXPIRED_MONTHLY_WINDOW_DAYS:
+        month_reference = now.strftime("%Y-%m")
+        content_index = (now.year * 12 + now.month) % len(EXPIRED_MONTHLY_CONTENT)
+        monthly_content = EXPIRED_MONTHLY_CONTENT[content_index]
+        monthly_sent = _already_sent(
+            conn, code, "reactivation_monthly",
+            monthly_content["stage"], month_reference,
+        )
+        if not monthly_sent:
+            latest_rows = conn.run("""SELECT MAX(sent_at) FROM marketing_email_log
+                WHERE member_code=:code AND status='sent'
+                  AND journey IN ('reactivation','reactivation_monthly')""", code=code)
+            latest_sent = latest_rows[0][0] if latest_rows else None
+            if not latest_sent or now - latest_sent >= timedelta(days=EXPIRED_MONTHLY_QUIET_DAYS):
+                return ("reactivation_monthly", monthly_content,
+                        month_reference, now)
+
     rows = conn.run("""SELECT sent_at FROM marketing_email_log
         WHERE member_code=:code AND journey='reactivation' AND stage='expire-0'
           AND reference_key=:reference AND status='sent' LIMIT 1""", code=code, reference=reference)

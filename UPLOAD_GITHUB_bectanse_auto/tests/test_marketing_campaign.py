@@ -1,9 +1,11 @@
 import unittest
 from datetime import datetime, timedelta
 from html.parser import HTMLParser
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
 from marketing_automation import (
+    EXPIRED_MONTHLY_CONTENT,
     EXPLORER_STAGES,
     MEMBER_ONBOARDING_START,
     _email_html,
@@ -12,6 +14,7 @@ from marketing_automation import (
     _legacy_delivery_health,
     _now,
     _personalized_subject,
+    _renewal_candidate,
 )
 
 
@@ -45,6 +48,26 @@ class _DeliveryConnection:
         if "SELECT event_type,COUNT(*) FROM marketing_email_events" in sql:
             return [[name, count] for name, count in self.events.items()]
         raise AssertionError("Requête de délivrabilité inattendue")
+
+
+class _MonthlyReactivationConnection:
+    def __init__(self, latest_sent, monthly_already_sent=False):
+        self.latest_sent = latest_sent
+        self.monthly_already_sent = monthly_already_sent
+
+    def run(self, sql, **params):
+        compact = " ".join(sql.split())
+        if compact.startswith("SELECT 1 FROM marketing_email_log"):
+            if params["journey"] == "reactivation" and params["stage"] == "expire-0":
+                return [[1]]
+            if params["journey"] == "reactivation_monthly":
+                return [[1]] if self.monthly_already_sent else []
+            return [[1]]
+        if compact.startswith("SELECT MAX(sent_at) FROM marketing_email_log"):
+            return [[self.latest_sent]]
+        if compact.startswith("SELECT sent_at FROM marketing_email_log"):
+            return [[self.latest_sent]]
+        raise AssertionError(f"Requête mensuelle inattendue: {compact}")
 
 
 class MarketingCampaignTests(unittest.TestCase):
@@ -124,6 +147,59 @@ class MarketingCampaignTests(unittest.TestCase):
         )
         self.assertFalse(healthy)
         self.assertIn("désabonnements", reason)
+
+    def test_expired_member_receives_one_monthly_campaign_at_month_start(self):
+        current = datetime(2026, 9, 3, 10, 0)
+        contact = (
+            "BCT-OLD00002", "ancien@example.com", "Ancien", "expired",
+            datetime(2025, 1, 1), datetime(2026, 7, 1),
+        )
+        connection = _MonthlyReactivationConnection(
+            latest_sent=current - timedelta(days=4),
+        )
+        with patch("marketing_automation._now", return_value=current):
+            candidate = _renewal_candidate(connection, contact)
+
+        self.assertIsNotNone(candidate)
+        journey, content, reference, _due = candidate
+        self.assertEqual(journey, "reactivation_monthly")
+        self.assertEqual(reference, "2026-09")
+        self.assertIn(content, EXPIRED_MONTHLY_CONTENT)
+
+    def test_monthly_reactivation_emails_keep_tracking_and_unsubscribe(self):
+        for content in EXPIRED_MONTHLY_CONTENT:
+            rendered = _email_html(
+                "Leris", content, "reactivation_monthly", content["stage"],
+                "https://example.test/unsubscribe",
+            )
+            parser = _EmailParser()
+            parser.feed(rendered)
+            tracked_links = [link for link in parser.links if "utm_campaign=" in link]
+            self.assertEqual(len(tracked_links), 1, content["stage"])
+            params = parse_qs(urlsplit(tracked_links[0]).query)
+            self.assertEqual(params["utm_campaign"], ["bectanse_reactivation-monthly"])
+            self.assertEqual(rendered.count("se désinscrire"), 1)
+
+    def test_monthly_campaign_waits_after_a_recent_reactivation(self):
+        current = datetime(2026, 9, 3, 10, 0)
+        contact = (
+            "BCT-OLD00003", "ancien2@example.com", "Ancien", "expired",
+            datetime(2025, 1, 1), datetime(2026, 7, 1),
+        )
+        connection = _MonthlyReactivationConnection(
+            latest_sent=current - timedelta(days=1),
+        )
+        with patch("marketing_automation._now", return_value=current):
+            candidate = _renewal_candidate(connection, contact)
+
+        self.assertIsNone(candidate)
+
+    def test_active_member_never_enters_monthly_reactivation(self):
+        contact = (
+            "BCT-ACTIVE01", "active@example.com", "Active", "active",
+            datetime(2026, 8, 1), datetime(2026, 10, 1),
+        )
+        self.assertIsNone(_renewal_candidate(_NoQueryConnection(), contact))
 
 
 if __name__ == "__main__":
