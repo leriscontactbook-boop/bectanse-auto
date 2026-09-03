@@ -566,11 +566,208 @@ EXPIRED_MONTHLY_WINDOW_DAYS = 7
 EXPIRED_MONTHLY_QUIET_DAYS = 3
 
 
+RENTREE2026_CODE = "RENTREE2026"
+RENTREE2026_START = datetime(2026, 9, 3, 0, 0, tzinfo=PARIS_TZ)
+RENTREE2026_END = datetime(2026, 9, 7, 0, 0, tzinfo=PARIS_TZ)
+RENTREE2026_CHECKOUT_URL = (
+    BASE_URL + "/abonnement/checkout/1_month?promo=" + RENTREE2026_CODE
+)
+
+RENTREE2026_STAGES = {
+    "expired_members": [
+        {
+            "stage": "jeudi-retour", "send_on": "2026-09-03", "send_hour": 10,
+            "subject": "{prenom}, une nouvelle dynamique commence chez Bectanse",
+            "preheader": "Reviens pendant un mois avec 150 € de remise jusqu’à dimanche",
+            "eyebrow": "OFFRE RETOUR · JUSQU’À DIMANCHE",
+            "title": "Tu nous connais déjà. Mais beaucoup de choses ont changé",
+            "body": [
+                "Tu as déjà fait partie de Bectanse, tu connais donc l’environnement et la valeur d’un accompagnement structuré",
+                "Aujourd’hui, nous ne te proposons pas simplement de renouveler ton ancien accès. Nous t’invitons à revenir dans une nouvelle dynamique, avec l’application, le Trader Lab, l’Analyse IA, le journal intelligent et une expérience membre entièrement repensée",
+                "Jusqu’à dimanche inclus, ton premier mois est accessible à 350 € au lieu de 500 € avec le code RENTREE2026",
+            ],
+            "highlight": "150 € de remise sur le premier mois pour revenir sans engagement de longue durée",
+            "cta": "Revenir avec l’offre de rentrée",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+            "show_support": True,
+        },
+        {
+            "stage": "vendredi-nouveautes", "send_on": "2026-09-04", "send_hour": 10,
+            "subject": "Ce que tu retrouveras en revenant ce mois-ci",
+            "preheader": "L’Académie a évolué avec de nouveaux outils et une nouvelle expérience",
+            "eyebrow": "UNE ACADÉMIE QUI A ÉVOLUÉ",
+            "title": "Ton retour ne ressemblera pas à ton ancien passage",
+            "body": [
+                "L’espace réunit maintenant la formation, le Canal VIP, Bectanse Progress, l’Analyse IA, le simulateur, le journal intelligent, la psychologie et le Trade Score",
+                "Tout est centralisé dans la même application afin de te permettre de reprendre avec une méthode plus claire et un suivi plus complet",
+                "L’offre RENTREE2026 ramène ton premier mois à 350 € au lieu de 500 €, uniquement jusqu’à dimanche",
+            ],
+            "highlight": "Un nouveau mois, de nouveaux objectifs et un compte existant qui peut être réactivé immédiatement",
+            "cta": "Voir ce qui a changé et revenir",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+        },
+        {
+            "stage": "samedi-momentum", "send_on": "2026-09-05", "send_hour": 10,
+            "subject": "Ce week-end peut marquer ton retour",
+            "preheader": "Il reste peu de temps pour profiter des 150 € de remise",
+            "eyebrow": "LE MOMENT DE REPRENDRE",
+            "title": "Termine 2026 avec une nouvelle dynamique",
+            "body": [
+                "Les derniers mois de l’année peuvent encore servir à reconstruire une routine, retrouver un cadre et avancer avec de nouveaux objectifs",
+                "Si ton passage chez Bectanse t’avait apporté quelque chose, ce week-end est l’occasion de découvrir tout ce qui a évolué et de reprendre pendant un mois",
+                "Le premier mois reste à 350 € au lieu de 500 € jusqu’à dimanche soir",
+            ],
+            "highlight": "L’offre disparaît dimanche. Ton ancien compte et tes informations restent prêts à être réactivés",
+            "cta": "Réactiver mon compte à 350 €",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+        },
+        {
+            "stage": "dimanche-derniere-chance", "send_on": "2026-09-06", "send_hour": 9,
+            "subject": "Dernier jour pour revenir avec 150 € de remise",
+            "preheader": "L’offre RENTREE2026 se termine ce soir",
+            "eyebrow": "DERNIÈRE CHANCE · CE SOIR",
+            "title": "Après ce soir, le premier mois repasse à 500 €",
+            "body": [
+                "C’est le dernier message concernant cette offre de retour",
+                "Si tu souhaites reprendre avec la nouvelle application, les outils et la dynamique actuelle, ton premier mois est encore disponible à 350 € avec le code RENTREE2026",
+                "L’offre se termine automatiquement ce dimanche à minuit, heure de Paris",
+            ],
+            "highlight": "Ton compte sera réactivé dès la confirmation du paiement Stripe",
+            "cta": "Profiter des 150 € de remise",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+            "show_support": True,
+        },
+    ],
+    "explorer_no_subscription": [
+        {
+            "stage": "jeudi-premier-pas", "send_on": "2026-09-03", "send_hour": 10,
+            "subject": "{prenom}, une bonne nouvelle pour passer d’Explorer à membre",
+            "preheader": "Ton premier mois est à 350 € au lieu de 500 € jusqu’à dimanche",
+            "eyebrow": "OFFRE EXPLORER · JUSQU’À DIMANCHE",
+            "title": "Tu as découvert Bectanse. Il est temps de vivre l’expérience complète",
+            "body": [
+                "Tu t’étais inscrit sur notre site et tu as pu observer l’environnement Bectanse avec ton compte Explorer, sans encore démarrer comme membre",
+                "Aujourd’hui, nous te donnons une nouvelle occasion de passer à l’action et de débloquer réellement l’Académie pendant un mois",
+                "Jusqu’à dimanche inclus, ton premier mois est accessible à 350 € au lieu de 500 € avec le code RENTREE2026",
+            ],
+            "highlight": "Ton code BCT existe déjà. Le paiement confirmé débloque automatiquement les fonctions membres",
+            "cta": "Démarrer mon premier mois à 350 €",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+            "show_support": True,
+        },
+        {
+            "stage": "vendredi-experience", "send_on": "2026-09-04", "send_hour": 10,
+            "subject": "Voici ce que ton compte Explorer ne débloque pas encore",
+            "preheader": "Formation, outils, Canal VIP et accompagnement deviennent accessibles comme membre",
+            "eyebrow": "PASSER DE L’OBSERVATION À L’ACTION",
+            "title": "Explorer t’a montré l’application. L’accès membre te permet de l’utiliser",
+            "body": [
+                "Ton compte Explorer te permet de comprendre la structure, mais les fonctions membres restent verrouillées tant qu’aucun abonnement n’est confirmé",
+                "Avec l’accès complet, tu retrouves la formation, le Canal VIP, le Trader Lab, l’Analyse IA, le journal intelligent, le simulateur et l’accompagnement dans la même application",
+                "L’offre RENTREE2026 ramène ton premier mois à 350 € au lieu de 500 € jusqu’à dimanche",
+            ],
+            "highlight": "Un mois pour transformer ta première découverte en véritable expérience Bectanse",
+            "cta": "Débloquer mon accès membre",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+        },
+        {
+            "stage": "samedi-decision", "send_on": "2026-09-05", "send_hour": 10,
+            "subject": "Tu avais découvert l’Académie sans franchir le pas",
+            "preheader": "Ce week-end, 150 € de remise facilitent ton démarrage",
+            "eyebrow": "UNE NOUVELLE OCCASION",
+            "title": "Tu n’as pas besoin de recréer ton compte pour commencer",
+            "body": [
+                "Ton adresse est confirmée et ton compte Explorer est déjà prêt. Il ne manque que l’activation de l’accès membre",
+                "Cette offre a été créée pour te permettre de tester réellement l’accompagnement pendant un mois, sans choisir directement une durée plus longue",
+                "Le premier mois est à 350 € au lieu de 500 € jusqu’à dimanche soir",
+            ],
+            "highlight": "Après le paiement, tu conserves le même code BCT et l’application se déverrouille automatiquement",
+            "cta": "Commencer avec 150 € de remise",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+        },
+        {
+            "stage": "dimanche-derniere-chance", "send_on": "2026-09-06", "send_hour": 9,
+            "subject": "Ton offre Explorer se termine ce soir",
+            "preheader": "Dernier jour pour démarrer à 350 € au lieu de 500 €",
+            "eyebrow": "DERNIER JOUR · RENTREE2026",
+            "title": "C’est ta dernière occasion de démarrer avec 150 € de remise",
+            "body": [
+                "Tu as déjà découvert l’univers Bectanse et ton compte est toujours disponible",
+                "Si tu souhaites maintenant accéder à l’expérience complète, ton premier mois est encore à 350 € au lieu de 500 € avec le code RENTREE2026",
+                "L’offre se désactive automatiquement ce dimanche à minuit, heure de Paris",
+            ],
+            "highlight": "Après ce soir, l’accès 1 mois retrouve son tarif normal",
+            "cta": "Activer mon compte à 350 €",
+            "target_url": RENTREE2026_CHECKOUT_URL,
+            "show_support": True,
+        },
+    ],
+}
+
+
 def _now():
     # Les colonnes PostgreSQL historiques sont des TIMESTAMP sans fuseau et
     # Railway enregistre NOW() en UTC. Les calculs doivent donc rester en UTC
     # naïf ; seule la fenêtre d'envoi et l'affichage utilisent Europe/Paris.
     return datetime.now(UTC_TZ).replace(tzinfo=None)
+
+
+def rentree2026_offer_active(now=None):
+    """Vérifie la fenêtre commerciale selon l'heure de Paris."""
+    utc_now = now or _now()
+    if utc_now.tzinfo is None:
+        utc_now = utc_now.replace(tzinfo=UTC_TZ)
+    paris_now = utc_now.astimezone(PARIS_TZ)
+    return RENTREE2026_START <= paris_now < RENTREE2026_END
+
+
+def rentree2026_member_audience(conn, member_code):
+    """Classe un compte dans une seule audience promotionnelle, ou l'exclut."""
+    rows = conn.run("""SELECT COALESCE(m.access_level,'member'),
+        COALESCE(m.admin_suspended,FALSE),COALESCE(m.billing_status,''),
+        COALESCE(m.stripe_subscription_id,''),COALESCE(m.actif,FALSE),m.date_fin,
+        EXISTS (SELECT 1 FROM stripe_academy_events events
+            WHERE events.member_code=m.code AND events.status='processed'
+              AND (events.payment_status IN ('paid','no_payment_required')
+                   OR events.event_type='invoice.paid')) AS paid_history
+        FROM members m WHERE m.code=:code AND m.code<>'BCT-DEMO2026'
+          AND m.email_verified_at IS NOT NULL
+          AND TRIM(COALESCE(m.email,''))<>'' LIMIT 1""", code=member_code)
+    if not rows:
+        return ""
+    (access_level, suspended, billing_status, subscription_id,
+     active, date_fin, paid_event) = rows[0]
+    access_level = str(access_level or "member").lower()
+    billing_status = str(billing_status or "").lower()
+    if bool(suspended):
+        return ""
+
+    now = _now()
+    current_paid_access = (
+        billing_status in {"active", "trialing"}
+        and (date_fin is None or date_fin > now)
+    ) or (
+        access_level not in {"explorer", "demo"}
+        and bool(active) and date_fin is not None and date_fin > now
+    )
+    if current_paid_access:
+        return ""
+
+    has_paid_history = bool(
+        str(subscription_id or "").strip()
+        or paid_event
+        or access_level not in {"explorer", "demo"}
+    )
+    expired = (
+        billing_status in {"past_due", "unpaid", "canceled", "paused"}
+        or (date_fin is not None and date_fin <= now)
+        or (not bool(active) and has_paid_history)
+    )
+    if expired and has_paid_history:
+        return "expired_members"
+    if access_level in {"explorer", "demo"} and not has_paid_history:
+        return "explorer_no_subscription"
+    return ""
 
 
 def ensure_marketing_schema(conn):
@@ -989,6 +1186,15 @@ def _email_html(prenom, content, journey, stage, unsubscribe_url):
     if content.get("disclaimer"):
         disclaimer = ("<p style='margin:17px 0 0;color:#777c74;font-size:10px;line-height:1.55'>"
                       + html.escape(content["disclaimer"]) + "</p>")
+    promotion_terms = ""
+    if journey.startswith("promo_rentree2026_"):
+        promotion_terms = (
+            "<p style='margin:16px 0 0;color:#777c74;font-size:10px;line-height:1.55'>"
+            "Offre RENTREE2026 valable jusqu’au 6 septembre 2026 à 23 h 59, heure de Paris. "
+            "Remise de 150 € appliquée au premier prélèvement de l’abonnement mensuel : "
+            "350 € au lieu de 500 €. Renouvellement ensuite à 500 € par mois jusqu’à résiliation "
+            "depuis l’espace Abonnement.</p>"
+        )
     preheader = html.escape(content.get("preheader") or content["highlight"])
     return f"""<!doctype html><html lang='fr'><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
@@ -1030,6 +1236,7 @@ def _email_html(prenom, content, journey, stage, unsubscribe_url):
           {html.escape(content['highlight'])}</div>
         {_email_cta(content['cta'], cta_url)}
         {disclaimer}
+        {promotion_terms}
         {_email_signature(bool(content.get('show_support')))}
       </div>
     </td></tr>
@@ -1124,6 +1331,34 @@ def _renewal_candidate(conn, contact):
         if _now() >= due and not _already_sent(
                 conn, code, "reactivation", content["stage"], reference):
             return "reactivation", content, reference, due
+    return None
+
+
+def _rentree2026_candidate(conn, contact):
+    """Sélectionne le message promotionnel dû sans mélanger les deux audiences."""
+    if contact[3] not in {"expired", "explorer"} or not rentree2026_offer_active():
+        return None
+    audience = rentree2026_member_audience(conn, contact[0])
+    expected = "expired_members" if contact[3] == "expired" else "explorer_no_subscription"
+    if audience != expected:
+        return None
+
+    now_utc = _now()
+    now_paris = now_utc.replace(tzinfo=UTC_TZ).astimezone(PARIS_TZ)
+    journey = "promo_rentree2026_expired" if audience == "expired_members" else "promo_rentree2026_explorer"
+    for content in RENTREE2026_STAGES[audience]:
+        send_date = datetime.strptime(content["send_on"], "%Y-%m-%d").date()
+        due_local = datetime.combine(
+            send_date,
+            datetime.min.time(),
+            tzinfo=PARIS_TZ,
+        ).replace(hour=int(content.get("send_hour", 10)))
+        if now_paris < due_local:
+            continue
+        if not _already_sent(
+                conn, contact[0], journey, content["stage"], RENTREE2026_CODE):
+            due_utc = due_local.astimezone(UTC_TZ).replace(tzinfo=None)
+            return journey, content, RENTREE2026_CODE, due_utc
     return None
 
 
@@ -1358,7 +1593,9 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
                     continue
             if not _contact_rate_allowed(conn, contact[0], int(weekly_limit), int(min_gap)):
                 continue
-            candidate = _checkout_candidate(conn, contact)
+            candidate = _rentree2026_candidate(conn, contact)
+            if not candidate:
+                candidate = _checkout_candidate(conn, contact)
             if not candidate:
                 candidate = _renewal_candidate(conn, contact)
             if not candidate:
@@ -1488,6 +1725,50 @@ def _marketing_dashboard_data(conn):
         "clicks_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
             WHERE event_type='click' AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
     }
+    promo_audiences = conn.run("""WITH eligible AS (
+        SELECT mc.segment,COALESCE(m.access_level,'member') AS access_level,
+            COALESCE(m.admin_suspended,FALSE) AS suspended,
+            COALESCE(m.billing_status,'') AS billing_status,
+            COALESCE(m.stripe_subscription_id,'') AS subscription_id,
+            COALESCE(m.actif,FALSE) AS active,m.date_fin,
+            EXISTS (SELECT 1 FROM stripe_academy_events events
+                WHERE events.member_code=m.code AND events.status='processed'
+                  AND (events.payment_status IN ('paid','no_payment_required')
+                       OR events.event_type='invoice.paid')) AS paid_event
+        FROM marketing_contacts mc JOIN members m ON m.code=mc.member_code
+        WHERE mc.unsubscribed_at IS NULL AND mc.segment IN ('expired','explorer')
+          AND m.code<>'BCT-DEMO2026' AND m.email_verified_at IS NOT NULL
+          AND TRIM(COALESCE(m.email,''))<>''
+    ), classified AS (
+        SELECT *,
+            (subscription_id<>'' OR paid_event OR access_level NOT IN ('explorer','demo'))
+                AS has_paid_history,
+            ((billing_status IN ('active','trialing') AND (date_fin IS NULL OR date_fin>NOW()))
+             OR (access_level NOT IN ('explorer','demo') AND active
+                 AND date_fin IS NOT NULL AND date_fin>NOW())) AS has_current_access
+        FROM eligible
+    )
+    SELECT
+        COUNT(*) FILTER (WHERE segment='expired' AND NOT suspended
+            AND NOT has_current_access AND has_paid_history
+            AND (billing_status IN ('past_due','unpaid','canceled','paused')
+                 OR (date_fin IS NOT NULL AND date_fin<=NOW())
+                 OR (NOT active AND has_paid_history))),
+        COUNT(*) FILTER (WHERE segment='explorer' AND NOT suspended
+            AND NOT has_current_access AND NOT has_paid_history
+            AND access_level IN ('explorer','demo'))
+    FROM classified""")[0]
+    promo_sends = {str(row[0]): int(row[1]) for row in conn.run("""
+        SELECT journey,COUNT(*) FROM marketing_email_log
+        WHERE journey IN ('promo_rentree2026_expired','promo_rentree2026_explorer')
+          AND reference_key=:reference AND status='sent'
+        GROUP BY journey""", reference=RENTREE2026_CODE)}
+    stats.update({
+        "rentree_expired": int(promo_audiences[0] or 0),
+        "rentree_explorer": int(promo_audiences[1] or 0),
+        "rentree_sent_expired": promo_sends.get("promo_rentree2026_expired", 0),
+        "rentree_sent_explorer": promo_sends.get("promo_rentree2026_explorer", 0),
+    })
     recent = conn.run("""SELECT l.sent_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris',
         l.member_code,c.first_name,l.journey,l.stage,
         l.status,l.error FROM marketing_email_log l

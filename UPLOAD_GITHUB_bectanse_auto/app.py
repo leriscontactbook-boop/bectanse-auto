@@ -9,12 +9,15 @@ import pg8000.native
 from cryptography.fernet import Fernet, InvalidToken
 from academy_features import ensure_growth_schema, register_growth_features
 from marketing_automation import (
+    RENTREE2026_CODE,
     ensure_marketing_schema,
     mark_checkout_expired,
     mark_marketing_conversion,
     record_checkout_start,
     record_checkout_session,
     register_marketing_routes,
+    rentree2026_member_audience,
+    rentree2026_offer_active,
     run_marketing_automation,
     upsert_marketing_contact_for_member,
 )
@@ -257,6 +260,9 @@ STRIPE_ACADEMY_PORTAL_CONFIGURATION = os.environ.get(
     "STRIPE_ACADEMY_PORTAL_CONFIGURATION",
     "bpc_1U8QMWDE6HxqPs7GiRK7sYSk",
 )
+STRIPE_RENTREE2026_PROMOTION_CODE_ID = os.environ.get(
+    "STRIPE_RENTREE2026_PROMOTION_CODE_ID", ""
+).strip()
 POSTHOG_PROJECT_KEY = os.environ.get("POSTHOG_PROJECT_KEY", "")
 POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "https://eu.i.posthog.com").rstrip("/")
 ANALYSIS_PACKS = {
@@ -5037,10 +5043,13 @@ def analyse_ia_run():
 def academy_subscription_checkout(plan_id):
     """Crée un Checkout Stripe traçable pour récupérer les abandons identifiés."""
     plan_entry = ACADEMY_PLAN_BY_ID.get(str(plan_id))
+    promo_code = str(request.args.get("promo", "") or "").strip().upper()
     if not plan_entry:
         return redirect("/vip#offres")
     if "member_code" not in session:
         session["pending_academy_plan"] = str(plan_id)
+        if promo_code == RENTREE2026_CODE:
+            session["pending_academy_promo"] = promo_code
         session["login_notice"] = (
             "Crée ou connecte ton compte Explorer pour sécuriser le paiement "
             "et rattacher automatiquement l’abonnement."
@@ -5056,6 +5065,10 @@ def academy_subscription_checkout(plan_id):
         rows = conn.run("""SELECT email,nom,COALESCE(stripe_subscription_id,''),
             COALESCE(billing_status,''),COALESCE(billing_cancel_at_period_end,FALSE)
             FROM members WHERE code=:code AND email_verified_at IS NOT NULL""", code=code)
+        promo_audience = (
+            rentree2026_member_audience(conn, code)
+            if promo_code == RENTREE2026_CODE else ""
+        )
     finally:
         conn.close()
     if not rows or "@" not in str(rows[0][0] or ""):
@@ -5065,11 +5078,23 @@ def academy_subscription_checkout(plan_id):
     if subscription_id and billing_status in {"active", "trialing"} and not cancel_at_period_end:
         return redirect(url_for("abonnement"))
 
+    promo_applied = promo_code == RENTREE2026_CODE
+    if promo_applied and (
+        str(plan_id) != "1_month"
+        or not rentree2026_offer_active()
+        or not STRIPE_RENTREE2026_PROMOTION_CODE_ID
+        or promo_audience not in {"expired_members", "explorer_no_subscription"}
+    ):
+        return redirect("/vip?promo=indisponible#offres")
+    if promo_code and not promo_applied:
+        return redirect("/vip?promo=indisponible#offres")
+
     root = request.url_root.rstrip("/")
     form = {
         "mode": "subscription",
         "success_url": STRIPE_PAYMENT_SUCCESS_URL,
-        "cancel_url": root + "/vip?checkout=cancelled#offres",
+        "cancel_url": root + "/vip?checkout=cancelled"
+            + ("&promo=" + RENTREE2026_CODE if promo_applied else "") + "#offres",
         "client_reference_id": code,
         "customer_email": str(email).strip().lower(),
         "metadata[member_code]": code,
@@ -5080,6 +5105,14 @@ def academy_subscription_checkout(plan_id):
         "line_items[0][quantity]": "1",
         "billing_address_collection": "auto",
     }
+    if promo_applied:
+        form.update({
+            "discounts[0][promotion_code]": STRIPE_RENTREE2026_PROMOTION_CODE_ID,
+            "metadata[promotion_code]": RENTREE2026_CODE,
+            "metadata[promotion_audience]": promo_audience,
+            "subscription_data[metadata][promotion_code]": RENTREE2026_CODE,
+            "subscription_data[metadata][promotion_audience]": promo_audience,
+        })
     try:
         stripe_response = requests.post(
             "https://api.stripe.com/v1/checkout/sessions",
@@ -5706,8 +5739,12 @@ def login():
                 conn.close()
             except: pass
             pending_plan = session.pop("pending_academy_plan", "")
+            pending_promo = session.pop("pending_academy_promo", "")
             if pending_plan in ACADEMY_PLAN_BY_ID:
-                return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
+                checkout_args = {"plan_id": pending_plan}
+                if pending_promo == RENTREE2026_CODE:
+                    checkout_args["promo"] = pending_promo
+                return redirect(url_for("academy_subscription_checkout", **checkout_args))
             return redirect(url_for("accueil"))
     return render_template("login.html", error=error, notice=notice,
                            explorer_gate_enabled=explorer_gate_enabled)
@@ -5748,8 +5785,12 @@ def confirm_explorer_email(token):
         session.permanent = True
         session["member_code"] = member_code
         pending_plan = session.pop("pending_academy_plan", "")
+        pending_promo = session.pop("pending_academy_promo", "")
         if pending_plan in ACADEMY_PLAN_BY_ID:
-            return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
+            checkout_args = {"plan_id": pending_plan}
+            if pending_promo == RENTREE2026_CODE:
+                checkout_args["promo"] = pending_promo
+            return redirect(url_for("academy_subscription_checkout", **checkout_args))
         return redirect(url_for("explorer_home"))
     except Exception as exc:
         app.logger.error("Confirmation prospect Explorer: %s", exc)
@@ -6167,12 +6208,16 @@ def confirm_member_registration(token):
         f"  Login : `{payload['mt_login']}`\n  Mot de passe investisseur : stocké chiffré\n\n🔒 Accès payant verrouillé jusqu'au paiement Stripe")
     send_brevo_explorer_ready(email, payload["prenom"], code)
     sync_brevo_prospect_contact(email, payload["prenom"], "Inscription confirmée — Explorer")
+    pending_plan = session.get("pending_academy_plan", "")
+    pending_promo = session.get("pending_academy_promo", "")
     session.clear()
     session.permanent = True
     session["member_code"] = code
-    pending_plan = session.pop("pending_academy_plan", "")
     if pending_plan in ACADEMY_PLAN_BY_ID:
-        return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
+        checkout_args = {"plan_id": pending_plan}
+        if pending_promo == RENTREE2026_CODE:
+            checkout_args["promo"] = pending_promo
+        return redirect(url_for("academy_subscription_checkout", **checkout_args))
     return redirect(url_for("explorer_home"))
 
 @app.route("/admin/api/brevo/sync-members", methods=["POST"])
