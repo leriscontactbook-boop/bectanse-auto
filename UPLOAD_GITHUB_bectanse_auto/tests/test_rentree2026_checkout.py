@@ -1,6 +1,8 @@
 import os
 import unittest
+from datetime import datetime
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault(
@@ -37,6 +39,16 @@ class _StripeResponse:
             "id": "cs_live_rentree2026",
             "url": "https://checkout.stripe.com/c/pay/test",
         }
+
+
+class _PromoNotificationConnection:
+    def __init__(self, updated=True):
+        self.updated = updated
+        self.calls = []
+
+    def run(self, sql, **params):
+        self.calls.append((sql, params))
+        return [[params["code"]]] if self.updated else []
 
 
 class Rentree2026CheckoutTests(unittest.TestCase):
@@ -111,6 +123,72 @@ class Rentree2026CheckoutTests(unittest.TestCase):
         with client.session_transaction() as session:
             self.assertEqual(session["pending_academy_plan"], "1_month")
             self.assertEqual(session["pending_academy_promo"], "RENTREE2026")
+
+    def test_new_explorer_created_during_offer_gets_countdown_context(self):
+        member = {
+            "code": "BCT-NEW2026",
+            "access_level": "explorer",
+            "created_at": datetime(2026, 9, 4, 9, 0),
+            "stripe_subscription_id": "",
+            "billing_status": "",
+        }
+        offer = app._new_explorer_promo_context(
+            member,
+            now=datetime(2026, 9, 4, 13, 0, tzinfo=ZoneInfo("Europe/Paris")),
+        )
+
+        self.assertIsNotNone(offer)
+        self.assertEqual(offer["code"], "RENTREE2026")
+        self.assertEqual(offer["regular_price"], 500)
+        self.assertEqual(offer["promo_price"], 350)
+        self.assertEqual(offer["discount"], 150)
+        self.assertEqual(offer["deadline_iso"], "2026-09-07T00:00:00+02:00")
+        self.assertIn("promo=RENTREE2026", offer["checkout_url"])
+
+    def test_old_or_paid_explorer_does_not_get_new_account_offer(self):
+        old_member = {
+            "code": "BCT-OLD",
+            "access_level": "explorer",
+            "created_at": datetime(2026, 9, 2, 21, 59),
+            "stripe_subscription_id": "",
+            "billing_status": "",
+        }
+        paid_member = {
+            **old_member,
+            "code": "BCT-PAID",
+            "created_at": datetime(2026, 9, 4, 9, 0),
+            "stripe_subscription_id": "sub_123",
+            "billing_status": "active",
+        }
+        now = datetime(2026, 9, 4, 13, 0, tzinfo=ZoneInfo("Europe/Paris"))
+
+        self.assertIsNone(app._new_explorer_promo_context(old_member, now=now))
+        self.assertIsNone(app._new_explorer_promo_context(paid_member, now=now))
+
+    def test_countdown_offer_disappears_at_sunday_deadline(self):
+        member = {
+            "code": "BCT-NEW2026",
+            "access_level": "explorer",
+            "created_at": datetime(2026, 9, 4, 9, 0),
+            "stripe_subscription_id": "",
+            "billing_status": "",
+        }
+        deadline = datetime(2026, 9, 7, 0, 0, tzinfo=ZoneInfo("Europe/Paris"))
+
+        self.assertIsNone(app._new_explorer_promo_context(member, now=deadline))
+
+    def test_creation_notification_is_attached_only_when_offer_is_active(self):
+        conn = _PromoNotificationConnection()
+        with patch.object(app, "rentree2026_offer_active", return_value=True):
+            attached = app._assign_new_explorer_promo_notification(conn, "BCT-NEW2026")
+
+        self.assertTrue(attached)
+        sql, params = conn.calls[0]
+        self.assertIn("access_level,'member')='explorer'", sql)
+        self.assertIn("stripe_subscription_id", sql)
+        self.assertEqual(params["code"], "BCT-NEW2026")
+        self.assertIn("150 € offerts", params["message"])
+        self.assertIn("RENTREE2026", params["message"])
 
 
 if __name__ == "__main__":

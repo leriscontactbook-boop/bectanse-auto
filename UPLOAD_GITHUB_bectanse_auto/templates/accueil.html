@@ -128,6 +128,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .notif-inline{margin-top:12px;padding:10px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px}
 .notif-inline-badge{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
 .notif-inline-msg{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.5}
+.os-promo-countdown{display:inline-flex;margin-top:10px;padding:7px 10px;border:1px solid rgba(255,113,43,.32);border-radius:9px;color:#ffad78;background:rgba(255,92,18,.08);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;letter-spacing:.04em;font-variant-numeric:tabular-nums}
 .notif-inline-dismiss{margin-top:8px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.25);cursor:pointer;background:none;border:none;padding:0;transition:color 0.15s}
 .notif-inline-dismiss:hover{color:rgba(255,255,255,0.5)}
 .notif-card{background:linear-gradient(135deg,rgba(91,33,182,0.12),rgba(59,7,100,0.08));border:1px solid rgba(91,33,182,0.3)}
@@ -497,7 +498,7 @@ body.future-preview{
         <h1 id="os-overview-title">Accueil</h1>
         <div class="os-overview-actions">
           <a class="os-overview-action" href="/academie">Académie</a>
-          <a class="os-overview-action primary" href="{{ '/vip#offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon accès' if explorer_account|default(false) else 'Gérer Bectanse Auto' }}</a>
+          <a class="os-overview-action primary" href="{{ explorer_offer.checkout_url if explorer_offer|default(false) else ('/vip#offres' if explorer_account|default(false) else '/dashboard') }}">{{ ('Profiter de l’offre à ' ~ explorer_offer.promo_price ~ ' €') if explorer_offer|default(false) else ('Débloquer mon accès' if explorer_account|default(false) else 'Gérer Bectanse Auto') }}</a>
           <span class="os-overview-avatar" aria-label="Profil de {{ member.nom }}">{{ member.nom[0] }}</span>
         </div>
       </div>
@@ -560,8 +561,8 @@ body.future-preview{
         <div class="os-account-row"><span>Capital</span><strong>{{ member.capital }} €{% if explorer_account|default(false) %} · démo{% endif %}</strong></div>
         {% if date_fin %}<div class="os-account-row"><span>Expiration</span><strong>{{ date_fin.strftime('%d/%m/%Y') }}</strong></div>{% endif %}
         <div class="os-account-row"><span>Accès</span><strong class="{% if not explorer_account|default(false) %}os-good{% endif %}">{% if explorer_account|default(false) %}Lecture seule{% elif statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</strong></div>
-        {% if afficher_notif or notif_message %}<div class="os-personal-message" id="notif-inline"><b>Message personnel</b>{{ notif_message }}<button onclick="dismissNotif()">Marquer comme lu</button></div>{% endif %}
-        <a class="os-action" href="{{ '/vip#offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon compte' if explorer_account|default(false) else 'Configurer mes paramètres' }} →</a>
+        {% if afficher_notif or notif_message %}<div class="os-personal-message{% if notif_type == 'promo_rentree2026' %} is-promo{% endif %}" id="notif-inline"><b>{{ 'Offre Explorer limitée' if notif_type == 'promo_rentree2026' else 'Message personnel' }}</b>{{ notif_message }}{% if explorer_offer|default(false) %}<strong class="os-promo-countdown" data-promo-deadline="{{ explorer_offer.deadline_iso }}">Calcul en cours</strong>{% endif %}<button onclick="dismissNotif()">Marquer comme lu</button></div>{% endif %}
+        <a class="os-action" href="{{ explorer_offer.checkout_url if explorer_offer|default(false) else ('/vip#offres' if explorer_account|default(false) else '/dashboard') }}">{{ ('Activer mon premier mois à ' ~ explorer_offer.promo_price ~ ' €') if explorer_offer|default(false) else ('Débloquer mon compte' if explorer_account|default(false) else 'Configurer mes paramètres') }} →</a>
       </section>
 
       <section class="os-panel os-channel-panel">
@@ -755,14 +756,15 @@ body.future-preview{
         {% endif %}
         {% if afficher_notif or notif_message %}
         <div class="notif-inline" id="notif-inline">
-          <div class="notif-inline-badge">📨 Message personnel</div>
+          <div class="notif-inline-badge">{{ 'Offre Explorer limitée' if notif_type == 'promo_rentree2026' else 'Message personnel' }}</div>
           <div class="notif-inline-msg">{{ notif_message }}</div>
+          {% if explorer_offer|default(false) %}<strong class="os-promo-countdown" data-promo-deadline="{{ explorer_offer.deadline_iso }}">Calcul en cours</strong>{% endif %}
           <button class="notif-inline-dismiss" onclick="dismissNotif()">✕ Marquer comme lu</button>
         </div>
         {% endif %}
         <div style="margin-top:14px;">
-          <a href="/dashboard" class="params-btn" style="font-size:11px;padding:8px 14px;width:100%;text-align:center;display:block;">
-            Configurer mes paramètres →
+          <a href="{{ explorer_offer.checkout_url if explorer_offer|default(false) else '/dashboard' }}" class="params-btn" style="font-size:11px;padding:8px 14px;width:100%;text-align:center;display:block;">
+            {{ ('Activer mon premier mois à ' ~ explorer_offer.promo_price ~ ' €') if explorer_offer|default(false) else 'Configurer mes paramètres' }} →
           </a>
         </div>
       </div>
@@ -1177,6 +1179,29 @@ async function dismissNotif() {
   }
 }
 
+function initExplorerPromoCountdown() {
+  const counters = document.querySelectorAll('[data-promo-deadline]');
+  if (!counters.length) return;
+  const refresh = () => {
+    counters.forEach(counter => {
+      let remaining = new Date(counter.dataset.promoDeadline).getTime() - Date.now();
+      if (!Number.isFinite(remaining) || remaining <= 0) {
+        const message = counter.closest('#notif-inline');
+        if (message) message.style.display = 'none';
+        return;
+      }
+      let total = Math.floor(remaining / 1000);
+      const days = Math.floor(total / 86400); total %= 86400;
+      const hours = Math.floor(total / 3600); total %= 3600;
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      counter.textContent = (days ? days + 'j ' : '') + String(hours).padStart(2, '0') + 'h ' + String(minutes).padStart(2, '0') + 'm ' + String(seconds).padStart(2, '0') + 's';
+    });
+  };
+  refresh();
+  setInterval(refresh, 1000);
+}
+
 // ── SCROLL ANIMATIONS
 const obs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
@@ -1185,6 +1210,7 @@ document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
 
 // ── INIT
 updateDate();
+initExplorerPromoCountdown();
 formatMobileCapital();
 updateMarket();
 initModernTradingView();

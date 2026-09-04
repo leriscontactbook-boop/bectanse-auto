@@ -10,6 +10,8 @@ from cryptography.fernet import Fernet, InvalidToken
 from academy_features import ensure_growth_schema, register_growth_features
 from marketing_automation import (
     RENTREE2026_CODE,
+    RENTREE2026_END,
+    RENTREE2026_START,
     ensure_marketing_schema,
     mark_checkout_expired,
     mark_marketing_conversion,
@@ -300,6 +302,7 @@ ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
 GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 PARIS_TZ = ZoneInfo("Europe/Paris")
+UTC_TZ = ZoneInfo("UTC")
 TELEGRAM_EDITORIAL_PATH = os.environ.get(
     "TELEGRAM_EDITORIAL_PATH",
     os.path.join(APP_DIR, "content", "telegram_posts.json")
@@ -910,6 +913,72 @@ def _member_is_explorer(member):
             or str(member.get("code") or "").upper() == "BCT-DEMO2026")
 
 
+def _new_explorer_promo_context(member, now=None):
+    """Retourne l'offre temporaire uniquement pour un Explorer créé pendant la campagne."""
+    if not member or not _member_is_explorer(member):
+        return None
+    if str(member.get("code") or "").upper() == "BCT-DEMO2026":
+        return None
+    if str(member.get("stripe_subscription_id") or "").strip():
+        return None
+    if str(member.get("billing_status") or "").lower() in {"active", "trialing"}:
+        return None
+
+    created_at = member.get("created_at")
+    if not isinstance(created_at, datetime):
+        return None
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=UTC_TZ)
+    created_paris = created_at.astimezone(PARIS_TZ)
+
+    current = now or datetime.now(PARIS_TZ)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=UTC_TZ).astimezone(PARIS_TZ)
+    else:
+        current = current.astimezone(PARIS_TZ)
+    if not (RENTREE2026_START <= created_paris < RENTREE2026_END):
+        return None
+    if not (RENTREE2026_START <= current < RENTREE2026_END):
+        return None
+
+    return {
+        "code": RENTREE2026_CODE,
+        "regular_price": 500,
+        "promo_price": 350,
+        "discount": 150,
+        "deadline_label": "dimanche à 23h59",
+        "deadline_iso": RENTREE2026_END.isoformat(),
+        "checkout_url": (
+            "/abonnement/checkout/1_month?promo=RENTREE2026"
+            "&utm_source=application&utm_medium=explorer"
+            "&utm_campaign=rentree2026"
+        ),
+    }
+
+
+def _assign_new_explorer_promo_notification(conn, member_code):
+    """Attache l'urgence de rentrée au seul compte Explorer créé pendant l'offre."""
+    if not rentree2026_offer_active():
+        return False
+    start_utc = RENTREE2026_START.astimezone(UTC_TZ).replace(tzinfo=None)
+    end_utc = RENTREE2026_END.astimezone(UTC_TZ).replace(tzinfo=None)
+    updated = conn.run("""UPDATE members SET
+            notif_type='promo_rentree2026',
+            notif_message=:message,
+            notif_lue=FALSE
+        WHERE code=:code AND COALESCE(access_level,'member')='explorer'
+          AND created_at>=:start_utc AND created_at<:end_utc
+          AND TRIM(COALESCE(stripe_subscription_id,''))=''
+        RETURNING code""",
+        code=member_code, start_utc=start_utc, end_utc=end_utc,
+        message=(
+            "Offre réservée à ton nouveau compte Explorer : 150 € offerts sur "
+            "ton premier mois, soit 350 € au lieu de 500 € avec le code "
+            "RENTREE2026. Disponible jusqu’à dimanche 23h59."
+        ))
+    return bool(updated)
+
+
 EXPLORER_JOURNEY_STEPS = (
     {
         "id": "academy",
@@ -1113,6 +1182,7 @@ def _create_or_reuse_explorer(conn, email, prenom):
             VALUES (:code,:nom,'—',TRUE,FALSE,NOW(),NULL,:email,:params,'[]','explorer',NOW())""",
             code=code, nom=prenom or "Compte Explorer", email=email,
             params=json.dumps(default_params()))
+        _assign_new_explorer_promo_notification(conn, code)
     _migrate_legacy_analysis_account(conn, email, code)
     return code
 
@@ -1665,6 +1735,10 @@ def accueil():
     notif_type    = member.get("notif_type", "") or ""
     notif_message = member.get("notif_message", "") or ""
     notif_lue     = member.get("notif_lue", True)
+    explorer_offer = _new_explorer_promo_context(member) if explorer_account else None
+    if notif_type == "promo_rentree2026" and not explorer_offer:
+        notif_message = ""
+        notif_lue = True
     afficher_notif = bool(notif_type and notif_message and not notif_lue)
     demo_mode = _current_demo_mode(code, member)
     # Un Explorer découvre la véritable application avec un portefeuille visuel
@@ -1689,6 +1763,7 @@ def accueil():
         notif_type=notif_type,
         notif_message=notif_message,
         afficher_notif=afficher_notif,
+        explorer_offer=explorer_offer,
         demo_mode=demo_mode,
         explorer_account=explorer_account,
         modern_preview=modern_preview
@@ -1710,7 +1785,8 @@ def explorer_home():
         journey = _explorer_journey_state(conn, code, mark_welcome=True)
     finally:
         conn.close()
-    return render_template("explorer.html", member=member, demo_mode=True, journey=journey)
+    return render_template("explorer.html", member=member, demo_mode=True, journey=journey,
+                           explorer_offer=_new_explorer_promo_context(member))
 
 
 @app.route("/api/explorer/progress", methods=["POST"])
@@ -5511,7 +5587,10 @@ def _process_academy_stripe_event(event):
                 access_level='member',actif=CASE WHEN admin_suspended THEN FALSE ELSE TRUE END,
                 copy_actif=CASE WHEN admin_suspended THEN FALSE ELSE copy_actif END,
                 date_souscription=COALESCE(date_souscription,NOW()),date_fin=:period_end,
-                email_verified_at=COALESCE(email_verified_at,NOW())
+                email_verified_at=COALESCE(email_verified_at,NOW()),
+                notif_message=CASE WHEN notif_type='promo_rentree2026' THEN '' ELSE notif_message END,
+                notif_lue=CASE WHEN notif_type='promo_rentree2026' THEN TRUE ELSE notif_lue END,
+                notif_type=CASE WHEN notif_type='promo_rentree2026' THEN '' ELSE notif_type END
                 WHERE code=:code""",
                 customer=context["customer_id"], subscription=context["subscription_id"],
                 price_id=context["price_id"], status=status, period_end=context["period_end"],
@@ -6169,6 +6248,7 @@ def confirm_member_registration(token):
                 code=code, nom=nom_complet, capital=payload["capital"], email=email,
                 telephone=payload["telephone"], telegram=payload["telegram"],
                 params=json.dumps(params), parrain=payload.get("parrain_code", ""))
+            _assign_new_explorer_promo_notification(conn, code)
         # Le parrainage financier n'est validé qu'après un paiement Stripe réussi.
         parrain_ref = ""
         referral_notice = None
