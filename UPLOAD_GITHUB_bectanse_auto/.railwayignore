@@ -1,0 +1,21 @@
+.git/
+.env
+.env.*
+.DS_Store
+__pycache__/
+.pytest_cache/
+tests/
+scripts/
+.agents/
+.claude/
+.cursor/
+.projects/
+AGENTS.md
+CLAUDE.md
+ESPACE_MEMBRE_PREVIEW_FINTECH.html
+TELEGRAM_AUTOMATION.md
+
+# Sources de production déjà converties en formats Web optimisés.
+static/images/
+static/telegram-visuals/*.png
+static/telegram-visuals/README.md
