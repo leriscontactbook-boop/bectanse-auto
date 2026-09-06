@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/explorer-journey.css?v=20260904-promo1">
+  <link rel="stylesheet" href="/static/css/explorer-journey.css?v=20260830-app1">
 </head>
 <body>
 {% macro explorer_icon(name) -%}
@@ -27,7 +27,6 @@
 
 {% set first_name = (member.nom or 'Explorer').split(' ')[0] %}
 {% set explorer_app_href = '/preview-explorer-app' if preview_mode|default(false) else '/accueil' %}
-{% set explorer_offer_href = explorer_offer.checkout_url if explorer_offer|default(false) else '/vip#offres' %}
 <div class="ex-app">
   <header class="ex-topbar">
     <a class="ex-brand" href="/explorer" aria-label="Bectanse Académie — Parcours Explorer">
@@ -37,23 +36,11 @@
     <div class="ex-top-actions">
       <span class="ex-mode"><i></i> Mode Explorer</span>
       <a class="ex-top-app" href="{{ explorer_app_href }}">Ouvrir l’application</a>
-      <a class="ex-top-cta js-explorer-action" data-step="offer" href="{{ explorer_offer_href }}">Débloquer</a>
+      <a class="ex-top-cta js-explorer-action" data-step="offer" href="/vip#offres">Débloquer</a>
     </div>
   </header>
 
   <main class="ex-shell">
-    {% if explorer_offer|default(false) %}
-    <section class="ex-promo-alert" data-explorer-promo data-deadline="{{ explorer_offer.deadline_iso }}">
-      <div class="ex-promo-alert-copy">
-        <span><i></i> OFFRE LIMITÉE À TON NOUVEAU COMPTE</span>
-        <strong><em>{{ explorer_offer.discount }} € offerts</em> sur ton premier mois</strong>
-      </div>
-      <div class="ex-promo-alert-code"><small>CODE</small><b>{{ explorer_offer.code }}</b></div>
-      <div class="ex-promo-alert-timer"><small>FIN DE L’OFFRE</small><strong data-promo-countdown>Calcul en cours</strong></div>
-      <a class="ex-promo-alert-action js-explorer-action" data-step="offer" href="{{ explorer_offer.checkout_url }}">Agir maintenant {{ explorer_icon('arrow') }}</a>
-    </section>
-    {% endif %}
-
     <section class="ex-hero">
       <div class="ex-hero-grid" aria-hidden="true"></div>
       <div class="ex-hero-copy">
@@ -172,7 +159,7 @@
         <span class="ex-section-kicker">CE QUE TU OBSERVES AUJOURD’HUI</span>
         <h2>Visible en Explorer.<br><em>Vivant avec ton accès.</em></h2>
         <p>Le compte Explorer te permet de comprendre le système. L’accès membre transforme chaque module en outil personnel lié à ton code BCT.</p>
-        <a class="ex-secondary js-explorer-action" data-step="offer" href="{{ explorer_offer_href }}">Comparer les formules {{ explorer_icon('arrow') }}</a>
+        <a class="ex-secondary js-explorer-action" data-step="offer" href="/vip#offres">Comparer les formules {{ explorer_icon('arrow') }}</a>
       </div>
       <div class="ex-unlock-grid">
         <article><span>01</span><b>Académie structurée</b><p>500+ pages, parcours, exercices et validation de progression.</p><i>APERÇU ACTIF</i></article>
@@ -182,36 +169,18 @@
       </div>
     </section>
 
-    {% if explorer_offer|default(false) and journey.completed_count >= 3 %}
-    <section class="ex-final ex-final-promo" data-explorer-promo>
-      <span>OFFRE DÉBLOQUÉE APRÈS TON PARCOURS</span>
-      <h2><em>{{ explorer_offer.discount }} € offerts</em><br>sur ton premier mois</h2>
-      <div class="ex-promo-pricing"><strong>{{ explorer_offer.promo_price }} €</strong><span>au lieu de <s>{{ explorer_offer.regular_price }} €</s></span></div>
-      <div class="ex-promo-code"><small>TON CODE</small><b>{{ explorer_offer.code }}</b></div>
-      <p>Ton compte BCT existe déjà. Après confirmation du paiement, les fonctions membres se débloquent automatiquement.</p>
-      <div class="ex-promo-final-timer"><small>L’offre se termine {{ explorer_offer.deadline_label }}</small><strong data-promo-countdown data-deadline="{{ explorer_offer.deadline_iso }}">Calcul en cours</strong></div>
-      <a class="ex-primary ex-primary-large js-explorer-action" data-step="offer" href="{{ explorer_offer.checkout_url }}">Activer mon premier mois à {{ explorer_offer.promo_price }} € {{ explorer_icon('arrow') }}</a>
-      <small>Puis {{ explorer_offer.regular_price }} €/mois, résiliable à tout moment. Le trading comporte un risque de perte et aucun résultat financier n’est garanti.</small>
-    </section>
-    {% else %}
     <section class="ex-final">
       <span>PRÊT À PASSER DE L’OBSERVATION À L’ACTION</span>
       <h2>Ton espace existe déjà.<br>Il ne reste qu’à le débloquer.</h2>
       <p>Tu conserves ton code BCT et ton parcours. Après confirmation du paiement, les fonctions réservées s’activent sur ton compte.</p>
-      <a class="ex-primary ex-primary-large js-explorer-action" data-step="offer" href="{{ explorer_offer_href }}">Voir les accès Bectanse {{ explorer_icon('arrow') }}</a>
+      <a class="ex-primary ex-primary-large js-explorer-action" data-step="offer" href="/vip#offres">Voir les accès Bectanse {{ explorer_icon('arrow') }}</a>
       <small>Le trading comporte un risque de perte. L’Académie fournit des outils éducatifs et ne garantit aucun résultat financier.</small>
     </section>
-    {% endif %}
   </main>
 
   <div class="ex-mobile-action">
-    {% if explorer_offer|default(false) and journey.completed_count >= 3 %}
-    <div><small>Offre jusqu’à dimanche</small><strong>{{ explorer_offer.promo_price }} € au lieu de {{ explorer_offer.regular_price }} €</strong></div>
-    <a class="js-explorer-action" data-step="offer" href="{{ explorer_offer.checkout_url }}">En profiter {{ explorer_icon('arrow') }}</a>
-    {% else %}
     <div><small>{{ 'Parcours terminé' if journey.finished else 'Mission ' ~ journey.current.number }}</small><strong>{{ journey.current.label }}</strong></div>
     <a class="js-explorer-action" data-step="{{ journey.current.id }}" href="{{ journey.current.href }}">{{ 'Voir les offres' if journey.finished else 'Continuer' }} {{ explorer_icon('arrow') }}</a>
-    {% endif %}
   </div>
 </div>
 
@@ -219,28 +188,6 @@
 <script>
 (function(){
   var preview={{ 'true' if preview_mode|default(false) else 'false' }};
-  var countdowns=document.querySelectorAll('[data-promo-countdown]');
-  if(countdowns.length){
-    var updateCountdown=function(){
-      var expired=false;
-      countdowns.forEach(function(node){
-        var container=node.closest('[data-explorer-promo]');
-        var iso=node.dataset.deadline||(container&&container.dataset.deadline)||'{{ explorer_offer.deadline_iso if explorer_offer|default(false) else "" }}';
-        var remaining=new Date(iso).getTime()-Date.now();
-        if(!Number.isFinite(remaining)||remaining<=0){expired=true;return;}
-        var total=Math.floor(remaining/1000);
-        var days=Math.floor(total/86400);total%=86400;
-        var hours=Math.floor(total/3600);total%=3600;
-        var minutes=Math.floor(total/60);var seconds=total%60;
-        node.textContent=(days?days+'j ':'')+String(hours).padStart(2,'0')+'h '+String(minutes).padStart(2,'0')+'m '+String(seconds).padStart(2,'0')+'s';
-      });
-      if(expired){
-        document.querySelectorAll('[data-explorer-promo]').forEach(function(node){node.hidden=true;});
-      }
-    };
-    updateCountdown();
-    setInterval(updateCountdown,1000);
-  }
   document.querySelectorAll('.js-explorer-action').forEach(function(link){
     link.addEventListener('click',function(){
       var step=link.dataset.step;
