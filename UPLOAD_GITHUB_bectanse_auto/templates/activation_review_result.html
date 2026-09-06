@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#070807">
+  <title>Vérification — Bectanse Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:24px;color:#f7f8f5;background:radial-gradient(circle at 70% 10%,rgba(255,91,21,.16),transparent 35%),#060706;font-family:Inter,sans-serif}.review-card{width:min(520px,100%);padding:34px;border:1px solid rgba(255,255,255,.1);border-radius:24px;background:linear-gradient(145deg,#131613,#090b09);box-shadow:0 30px 90px rgba(0,0,0,.5)}.brand{display:flex;align-items:center;gap:11px;color:#fff;font-weight:900;letter-spacing:.03em}.brand img{width:42px;height:42px;border-radius:12px}.brand b{color:#ff641e}.mark{width:76px;height:76px;margin:38px 0 24px;display:grid;place-items:center;border:1px solid {{ 'rgba(82,223,139,.28)' if ok else 'rgba(239,68,68,.3)' }};border-radius:50%;color:{{ '#52df8b' if ok else '#fb7185' }};background:{{ 'rgba(82,223,139,.06)' if ok else 'rgba(239,68,68,.06)' }};font:900 32px 'Barlow Condensed'}.kicker{color:#ff7431;font-size:9px;font-weight:800;letter-spacing:.17em}.review-card h1{margin:10px 0;font:900 42px/1 'Barlow Condensed',sans-serif;text-transform:uppercase}.review-card p{margin:0;color:rgba(255,255,255,.48);font-size:13px;line-height:1.7}.code{margin:22px 0 0;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:12px;color:#fff;background:rgba(255,255,255,.025);font:800 15px 'Barlow Condensed';letter-spacing:.08em}.actions{display:flex;gap:9px;margin-top:24px}.actions a{min-height:44px;padding:0 15px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;background:#131613;text-decoration:none;font-size:10px;font-weight:800}.actions a:first-child{border-color:#ff641e;background:#f25613}@media(max-width:560px){.review-card{padding:25px}.review-card h1{font-size:34px}.actions{flex-direction:column}.actions a{width:100%}}
+  </style>
+</head>
+<body>
+  <main class="review-card">
+    <div class="brand"><img src="/static/icons/bectanse-app-icon-master.png" alt=""><span>BECTANSE <b>CONTROL CENTER</b></span></div>
+    <div class="mark">{{ '✓' if ok else '!' }}</div>
+    <span class="kicker">VÉRIFICATION MANUELLE</span>
+    {% if ok %}
+      <h1>{{ 'Compte validé' if decision == 'approved' else 'Correction demandée' }}</h1>
+      <p>{{ 'Le membre vient de recevoir sa notification et la création de son compte MT4 ou MT5 est débloquée.' if decision == 'approved' else 'Le membre a reçu la demande de correction. Il pourra renvoyer ses informations depuis son parcours.' }}</p>
+      <div class="code">{{ member_code }}</div>
+    {% else %}
+      <h1>Action impossible</h1>
+      <p>{{ error }}</p>
+    {% endif %}
+    <div class="actions"><a href="/admin/activations">Ouvrir les activations</a><a href="/admin-panel">Retour au centre admin</a></div>
+  </main>
+</body>
+</html>

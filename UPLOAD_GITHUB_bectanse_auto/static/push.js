@@ -191,7 +191,11 @@
     }
     clearVisibleAppBadge();
   };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
-  else start();
+  // Le guide de démarrage possède son propre bouton et sa propre explication.
+  // Il charge les fonctions Push sans afficher une seconde invitation concurrente.
+  if (window.BECTANSE_PUSH_GUIDED !== true) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
+    else start();
+  }
   document.addEventListener('visibilitychange', clearVisibleAppBadge);
 })();

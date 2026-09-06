@@ -484,6 +484,12 @@ body.future-preview{
         </div>
       </article>
 
+      {% if not demo_mode|default(false) %}
+      <a href="/demarrage" style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:16px 17px;border:1px solid rgba(255,100,30,.26);border-radius:16px;color:#fff;background:linear-gradient(110deg,rgba(255,100,30,.13),rgba(14,17,14,.98));text-decoration:none;box-shadow:0 16px 40px rgba(0,0,0,.22)">
+        <span><small style="display:block;color:#ff7b3a;font-size:8px;font-weight:800;letter-spacing:.14em">CONFIGURATION INTERACTIVE</small><strong style="display:block;margin-top:5px;font-size:13px">Finaliser mon démarrage</strong></span><b style="width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#f45a14;font-size:18px">→</b>
+      </a>
+      {% endif %}
+
       <nav class="os-mobile-launchers" aria-label="Accès rapides">
         <a href="/academie"><span>PRG</span><strong>Académie</strong><small>Continuer</small></a>
         <a href="/trader-lab"><span>LAB</span><strong>Trader Lab</strong><small>Analyser</small></a>
@@ -497,6 +503,7 @@ body.future-preview{
         <h1 id="os-overview-title">Accueil</h1>
         <div class="os-overview-actions">
           <a class="os-overview-action" href="/academie">Académie</a>
+          {% if not demo_mode|default(false) %}<a class="os-overview-action" href="/demarrage">Démarrage guidé</a>{% endif %}
           <a class="os-overview-action primary" href="{{ '/vip#offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon accès' if explorer_account|default(false) else 'Gérer Bectanse Auto' }}</a>
           <span class="os-overview-avatar" aria-label="Profil de {{ member.nom }}">{{ member.nom[0] }}</span>
         </div>
@@ -619,6 +626,7 @@ body.future-preview{
     <nav class="nav">
       <div class="nav-section">Navigation</div>
       <a class="nav-item active" href="/accueil"><span style="font-size:15px">🏠</span> Accueil</a>
+      {% if not demo_mode|default(false) %}<a class="nav-item" href="/demarrage"><span style="font-size:15px">◇</span> Démarrage guidé</a>{% endif %}
       <a class="nav-item" href="/dashboard"><span style="font-size:15px">⚙️</span> Mes paramètres</a>
       <a class="nav-item" href="/canal" style="color:#A78BFA;"><span style="font-size:15px">📡</span> Canal VIP</a>
       <a class="nav-item" href="/vip" style="color:#F59E0B;"><span style="font-size:15px">🚀</span> Renouveler / Upgrader</a>

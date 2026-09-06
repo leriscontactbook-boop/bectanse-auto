@@ -1,5 +1,5 @@
 // Bectanse Académie — Service Worker PWA + Web Push
-const CACHE = 'bectanse-academie-v9';
+const CACHE = 'bectanse-academie-v10';
 const ASSETS = ['/', '/dashboard', '/static/manifest.json'];
 const BADGE_DB = 'bectanse-notification-state';
 const BADGE_STORE = 'state';

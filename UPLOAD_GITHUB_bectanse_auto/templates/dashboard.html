@@ -1155,6 +1155,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <nav class="nav">
       <div class="nav-section">Navigation</div>
       <a class="nav-item" href="/accueil"><span class="icon">🏠</span> Accueil</a>
+      {% if not demo_mode %}<a class="nav-item" href="/demarrage"><span class="icon">◇</span> Démarrage guidé</a>{% endif %}
       <a class="nav-item" href="#section-profil"><span class="icon">👤</span> Profil</a>
       <a class="nav-item active" href="#section-parametres"><span class="icon">⚙️</span> Paramètres robot</a>
       <a class="nav-item" href="/vip" style="color:#F59E0B;">

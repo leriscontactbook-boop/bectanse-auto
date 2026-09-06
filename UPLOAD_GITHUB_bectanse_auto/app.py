@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 import pg8000.native
 from cryptography.fernet import Fernet, InvalidToken
 from academy_features import ensure_growth_schema, register_growth_features
+from activation_journey import ensure_activation_schema, register_activation_journey
 from marketing_automation import (
     ensure_marketing_schema,
     mark_checkout_expired,
@@ -622,6 +623,7 @@ def init_db():
                     pass
             ensure_growth_schema(conn)
             ensure_marketing_schema(conn)
+            ensure_activation_schema(conn)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -9297,6 +9299,36 @@ register_growth_features(
     academy_access_required=academy_access_required,
     current_demo_mode=_current_demo_mode,
     admin_required=admin_required,
+)
+
+
+def _notify_activation_member(member_code, title, body, url):
+    """Affiche l'information dans l'espace membre et sur ses appareils inscrits."""
+    conn = get_conn()
+    try:
+        conn.run(
+            """UPDATE members SET notif_type='message',notif_message=:message,
+               notif_lue=FALSE WHERE code=:code""",
+            message=body,
+            code=member_code,
+        )
+    finally:
+        conn.close()
+    return send_push_to_member(member_code, title, body, url)
+
+
+register_activation_journey(
+    app=app,
+    get_conn=get_conn,
+    get_member=get_member,
+    login_required=login_required,
+    academy_access_required=academy_access_required,
+    admin_required=admin_required,
+    action_token=_action_token,
+    action_payload=_action_payload,
+    save_profile=_merge_member_profile,
+    send_telegram=send_telegram,
+    notify_member=_notify_activation_member,
 )
 register_marketing_routes(
     app=app,
