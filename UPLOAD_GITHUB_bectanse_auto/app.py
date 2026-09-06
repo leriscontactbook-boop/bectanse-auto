@@ -20,6 +20,13 @@ from marketing_automation import (
     upsert_marketing_contact_for_member,
 )
 from seo_features import register_seo_features, submit_indexnow_urls
+from trading_journal import ensure_trading_schema, register_trading_journal
+from trading_journal.config import validate_backend_config
+from trading_journal.billing import (
+    is_journal_event,
+    process_webhook as process_journal_stripe_webhook,
+    schedule_standalone_cancellation,
+)
 
 def _required_secret(name):
     value = os.environ.get(name, "").strip()
@@ -31,6 +38,7 @@ def _required_secret(name):
 app = Flask(__name__)
 app.secret_key = _required_secret("SECRET_KEY")
 DATA_CIPHER = Fernet(_required_secret("DATA_ENCRYPTION_KEY").encode("utf-8"))
+validate_backend_config()
 
 
 def _encrypt_value(value):
@@ -624,6 +632,7 @@ def init_db():
             ensure_growth_schema(conn)
             ensure_marketing_schema(conn)
             ensure_activation_schema(conn)
+            ensure_trading_schema(conn)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -5553,6 +5562,8 @@ def stripe_analysis_credits_webhook():
             "invoice.paid",
             "invoice.payment_failed",
         }
+        if event_type in academy_event_types and is_journal_event(event, get_conn):
+            return jsonify({"ok": True, **process_journal_stripe_webhook(event, get_conn)})
         if event_type == "checkout.session.expired":
             conn = get_conn()
             try:
@@ -5563,6 +5574,12 @@ def stripe_analysis_credits_webhook():
         if (event_type in academy_event_types and
                 (event_type != "checkout.session.completed" or stripe_object.get("mode") == "subscription")):
             result = _process_academy_stripe_event(event)
+            if result.get("member_code") and result.get("status") in {"active", "trialing"}:
+                try:
+                    schedule_standalone_cancellation(get_conn, result["member_code"])
+                except Exception as cancellation_error:
+                    app.logger.error("Journal double-billing guard %s: %s",
+                                     result["member_code"], cancellation_error)
             return jsonify({"ok": True, **result})
         if event.get("type") != "checkout.session.completed":
             return jsonify({"ok": True})
@@ -9301,6 +9318,14 @@ register_growth_features(
     admin_required=admin_required,
 )
 
+trading_journal_service = register_trading_journal(
+    app=app,
+    get_conn=get_conn,
+    get_member=get_member,
+    login_required=login_required,
+    admin_required=admin_required,
+)
+
 
 def _notify_activation_member(member_code, title, body, url):
     """Affiche l'information dans l'espace membre et sur ses appareils inscrits."""
@@ -9412,6 +9437,14 @@ def _startup():
             id='member_access_enforcement', replace_existing=True,
             next_run_time=_paris_now(), coalesce=True, max_instances=1,
             misfire_grace_time=300
+        )
+        scheduler.add_job(
+            trading_journal_service.enqueue_due_accounts,
+            'interval',
+            seconds=max(60, int(os.environ.get('MT5_SYNC_INTERVAL_SECONDS', '300'))),
+            id='mt5_sync_orchestrator', replace_existing=True,
+            next_run_time=_paris_now() + timedelta(seconds=15),
+            coalesce=True, max_instances=1, misfire_grace_time=120,
         )
         scheduler.add_job(
             process_scheduled_telegram_posts, 'interval', minutes=1,

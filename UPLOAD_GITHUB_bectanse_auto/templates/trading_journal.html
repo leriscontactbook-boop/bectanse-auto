@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#060706">
+  <title>Journal automatique — Bectanse</title>
+  <meta name="description" content="Journal de trading automatique MetaTrader 5 : calendrier, statistiques et analytics synchronisés.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/trading-journal.css">
+</head>
+<body>
+  <div class="tj-app">
+    <aside class="tj-sidebar" aria-label="Navigation principale">
+      <a class="tj-brand" href="/accueil" aria-label="Accueil Bectanse">
+        <img class="tj-brand-mark" src="/static/icons/bectanse-app-icon-master.png" alt="">
+        <span><b>BECTANSE</b><small>JOURNAL</small></span>
+      </a>
+      <nav class="tj-nav">
+        <button class="tj-nav-item is-active" data-view="overview"><span>01</span>Vue d’ensemble</button>
+        <button class="tj-nav-item" data-view="calendar"><span>02</span>Calendrier</button>
+        <button class="tj-nav-item" data-view="analytics"><span>03</span>Statistiques <i>ELITE</i></button>
+        <button class="tj-nav-item" data-view="coach"><span>04</span>Bectanse Coach <i>PRIVÉ</i></button>
+      </nav>
+      <div class="tj-sidebar-bottom">
+        <a href="/journal/manual">Journal manuel</a>
+        <a href="/trader-lab">Trader Lab</a>
+        <a href="/abonnement">Abonnement</a>
+        <a href="/accueil">Retour à l’Académie</a>
+      </div>
+      <div class="tj-profile">
+        <span>{{ (member.nom or 'T')[:1]|upper }}</span>
+        <div><b>{{ member.nom or 'Trader' }}</b><small>Formule {{ entitlements.plan }}</small></div>
+      </div>
+    </aside>
+
+    <main class="tj-main">
+      <header class="tj-topbar">
+        <div>
+          <p class="tj-kicker">BECTANSE JOURNAL · VOS PERFORMANCES. AUTOMATIQUEMENT.</p>
+          <h1>Bonjour {{ (member.nom or 'Trader').split(' ')[0] }}</h1>
+          {% if entitlements.source == 'ACADEMY_INCLUDED' %}<span class="tj-member-mark">BECTANSE MEMBER · JOURNAL INCLUS</span>{% endif %}
+        </div>
+        <div class="tj-top-actions">
+          <label class="tj-account-select-label" for="accountSelect">Compte</label>
+          <select id="accountSelect" class="tj-account-select" {% if not accounts %}disabled{% endif %}>
+            {% if accounts|length > 1 %}<option value="all">Tous les comptes</option>{% endif %}
+            {% for account in accounts %}
+              <option value="{{ account.id }}">{{ account.display_name or 'MT5' }} · {{ account.login_masked }}</option>
+            {% endfor %}
+          </select>
+          <button id="connectTop" class="tj-button tj-button-primary {% if not entitlements.allowed %}is-hidden{% endif %}"><span>+</span> Connecter un compte</button>
+        </div>
+      </header>
+
+      <section id="accessPaywall" class="tj-paywall {% if entitlements.allowed %}is-hidden{% endif %}">
+        <p class="tj-kicker">BECTANSE JOURNAL</p>
+        <h2>Vos performances.<br><em>Automatiquement.</em></h2>
+        <p>Le Journal et son Coach privé sont inclus pour les membres Bectanse Académie, ou accessibles avec un abonnement autonome.</p>
+        <div class="tj-paywall-actions"><a class="tj-button tj-button-primary tj-button-large" href="/journal/checkout/JOURNAL_PRO">Choisir Journal PRO</a><a class="tj-button tj-button-ghost tj-button-large" href="/journal/checkout/JOURNAL_ELITE">Choisir Journal ELITE</a></div>
+      </section>
+
+      <section id="emptyState" class="tj-onboarding {% if accounts or not entitlements.allowed %}is-hidden{% endif %}">
+        <div class="tj-onboarding-copy">
+          <p class="tj-kicker">META TRADER 5 · SYNCHRONISATION CLOUD</p>
+          <h2>Tout votre trading.<br><em>Automatiquement.</em></h2>
+          <p>Connectez votre compte une seule fois. Votre historique, vos journées et vos performances se mettent ensuite à jour sans EA, sans CSV et sans terminal ouvert chez vous.</p>
+          <button id="connectHero" class="tj-button tj-button-primary tj-button-large">Connecter mon premier compte <span>→</span></button>
+          <div class="tj-trust-line"><span></span> Connexion investor en lecture seule · Données chiffrées</div>
+        </div>
+        <ol class="tj-onboarding-steps">
+          <li class="is-current"><span>01</span><div><b>Connectez votre MetaTrader 5</b><small>Login, serveur et mot de passe investor.</small></div></li>
+          <li><span>02</span><div><b>Votre compte est vérifié</b><small>Notre worker sécurisé contacte votre broker.</small></div></li>
+          <li><span>03</span><div><b>L’historique est importé</b><small>Les doublons et opérations de balance sont filtrés.</small></div></li>
+          <li><span>04</span><div><b>Analysez vos performances</b><small>Calendrier, P&amp;L et statistiques se construisent seuls.</small></div></li>
+        </ol>
+      </section>
+
+      <section id="productState" class="{% if not accounts or not entitlements.allowed %}is-hidden{% endif %}">
+        <div class="tj-statusbar">
+          <div class="tj-connection">
+            <span id="statusDot" class="tj-status-dot"></span>
+            <div><b id="accountIdentity">Compte MT5</b><small id="syncLabel">Chargement du statut…</small></div>
+          </div>
+          <div class="tj-status-actions">
+            <label class="tj-timezone"><span>Fuseau</span><select id="timezoneSelect">
+              {% for timezone in ['Europe/Paris','Asia/Dubai','America/New_York','UTC'] %}
+                <option value="{{ timezone }}" {% if profile.timezone == timezone %}selected{% endif %}>{{ timezone }}</option>
+              {% endfor %}
+            </select></label>
+            <button id="syncNow" class="tj-button tj-button-ghost">Synchroniser</button>
+            <button id="accountMenu" class="tj-icon-button" aria-label="Options du compte">•••</button>
+          </div>
+        </div>
+
+        <section id="syncProgress" class="tj-sync-progress is-hidden" aria-live="polite">
+          <div class="tj-sync-copy"><span class="tj-spinner"></span><div><b id="syncTitle">Connexion au compte…</b><small id="syncDetail">Vos identifiants restent chiffrés.</small></div></div>
+          <div class="tj-progress-track"><i id="syncBar"></i></div>
+        </section>
+
+        <section id="view-overview" class="tj-view is-active">
+          <div class="tj-view-heading">
+            <div><p class="tj-kicker">PERFORMANCE</p><h2>Vue d’ensemble</h2></div>
+            <p id="overviewPeriod">Données synchronisées</p>
+          </div>
+          <div class="tj-hero-metrics">
+            <article class="tj-primary-metric"><small>P&amp;L CE MOIS</small><strong id="monthPnl">—</strong><span id="monthReturn">Rendement —</span></article>
+            <article><small>BALANCE</small><strong id="balanceValue">—</strong><span>Solde du compte</span></article>
+            <article><small>EQUITY</small><strong id="equityValue">—</strong><span>Valeur actuelle</span></article>
+            <article><small>WIN RATE</small><strong id="winRateValue">—</strong><span id="winsValue">— positions gagnantes</span></article>
+          </div>
+          <div class="tj-overview-grid">
+            <article class="tj-panel tj-chart-panel">
+              <div class="tj-panel-head"><div><p class="tj-kicker">COURBE DE PERFORMANCE</p><h3>P&amp;L cumulé</h3></div><span id="chartRange">Historique complet</span></div>
+              <div class="tj-chart-wrap"><canvas id="equityChart" aria-label="Courbe de P et L cumulé"></canvas><div id="chartEmpty" class="tj-chart-empty">La courbe apparaîtra après la première synchronisation.</div></div>
+            </article>
+            <article class="tj-panel tj-stats-panel">
+              <div class="tj-panel-head"><div><p class="tj-kicker">QUALITÉ D’EXÉCUTION</p><h3>Statistiques clés</h3></div></div>
+              <dl class="tj-stat-list">
+                <div><dt>Profit factor</dt><dd id="profitFactor">—</dd></div>
+                <div><dt>Gain moyen</dt><dd id="averageWin">—</dd></div>
+                <div><dt>Perte moyenne</dt><dd id="averageLoss">—</dd></div>
+                <div><dt>Positions clôturées</dt><dd id="tradeCount">—</dd></div>
+                <div><dt>Meilleure journée</dt><dd id="bestDay">—</dd></div>
+                <div><dt>Pire journée</dt><dd id="worstDay">—</dd></div>
+              </dl>
+            </article>
+          </div>
+          <article class="tj-panel tj-calendar-preview">
+            <div class="tj-panel-head"><div><p class="tj-kicker">RÉGULARITÉ</p><h3>Ce mois-ci</h3></div><button class="tj-text-button" data-view-link="calendar">Ouvrir le calendrier →</button></div>
+            <div id="calendarPreview" class="tj-preview-days"></div>
+          </article>
+        </section>
+
+        <section id="view-calendar" class="tj-view">
+          <div class="tj-calendar-head">
+            <div><p class="tj-kicker">JOUR APRÈS JOUR</p><h2 id="calendarTitle">—</h2></div>
+            <div class="tj-calendar-nav"><button id="prevMonth" aria-label="Mois précédent">←</button><button id="todayMonth">Aujourd’hui</button><button id="nextMonth" aria-label="Mois suivant">→</button></div>
+          </div>
+          <div class="tj-month-strip">
+            <div><small>P&amp;L DU MOIS</small><strong id="calendarPnl">—</strong></div>
+            <div><small>RETURN</small><strong id="calendarReturn">—</strong></div>
+            <div><small>POSITIONS</small><strong id="calendarTrades">—</strong></div>
+            <div><small>WIN RATE</small><strong id="calendarWinRate">—</strong></div>
+            <div><small>JOURS TRADÉS</small><strong id="calendarDays">—</strong></div>
+          </div>
+          <article class="tj-calendar-shell">
+            <div class="tj-weekdays"><span>LUN</span><span>MAR</span><span>MER</span><span>JEU</span><span>VEN</span><span>SAM</span><span>DIM</span></div>
+            <div id="calendarGrid" class="tj-calendar-grid"></div>
+          </article>
+        </section>
+
+        <section id="view-analytics" class="tj-view">
+          <div class="tj-view-heading"><div><p class="tj-kicker">COMPRENDRE VOTRE EDGE</p><h2>Analytics</h2></div><span class="tj-pro-pill">FORMULE PRO</span></div>
+          <div id="analyticsLocked" class="tj-locked {% if entitlements.advanced_analytics %}is-hidden{% endif %}"><b>Les analytics avancés sont inclus dans PRO.</b><p>Comparez vos résultats par symbole, direction, jour de semaine et période.</p><a href="/abonnement" class="tj-button tj-button-primary">Voir la formule PRO</a></div>
+          <div id="analyticsContent" class="tj-analytics-grid {% if not entitlements.advanced_analytics %}is-hidden{% endif %}">
+            <article class="tj-panel"><div class="tj-panel-head"><h3>Par symbole</h3></div><div id="bySymbol" class="tj-ranking"></div></article>
+            <article class="tj-panel"><div class="tj-panel-head"><h3>Par jour</h3></div><div id="byWeekday" class="tj-ranking"></div></article>
+            <article class="tj-panel"><div class="tj-panel-head"><h3>BUY / SELL</h3></div><div id="byDirection" class="tj-ranking"></div></article>
+            <article class="tj-panel"><div class="tj-panel-head"><h3>Par mois</h3></div><div id="byMonth" class="tj-ranking"></div></article>
+          </div>
+        </section>
+
+        <section id="view-coach" class="tj-view">
+          <div class="tj-view-heading"><div><p class="tj-kicker">ANALYSTE DE PERFORMANCE PRIVÉ</p><h2>Bectanse Coach</h2></div><span class="tj-pro-pill">AUCUN SIGNAL · DONNÉES VÉRIFIÉES</span></div>
+          <div id="coachLocked" class="tj-locked {% if entitlements.features.get('coach.daily') %}is-hidden{% endif %}"><b>Le Coach n’est pas inclus dans votre formule.</b><p>Passez à ELITE pour accéder aux analyses comportementales.</p><a href="/journal/checkout/JOURNAL_ELITE" class="tj-button tj-button-primary">Découvrir ELITE</a></div>
+          <div id="coachContent" class="{% if not entitlements.features.get('coach.daily') %}is-hidden{% endif %}">
+            <div class="tj-coach-tabs"><button class="is-active" data-coach-review="daily">Revue du jour</button><button data-coach-review="weekly">Semaine</button><button data-coach-review="monthly">Mois</button></div>
+            <div class="tj-coach-grid">
+              <article class="tj-panel tj-score-panel"><p class="tj-kicker">TRADING SCORE</p><strong id="coachScore">—</strong><small id="coachSample">Calcul après 20 trades vérifiés</small><div id="coachComponents" class="tj-score-components"></div></article>
+              <article class="tj-panel"><div class="tj-panel-head"><div><p class="tj-kicker">PRIORITÉ</p><h3>Votre principal axe de progrès</h3></div></div><p id="coachImprovement" class="tj-coach-improvement">Collecte des données en cours.</p></article>
+            </div>
+            <div id="coachInsights" class="tj-coach-insights"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <nav class="tj-mobile-nav" aria-label="Navigation mobile">
+    <button class="is-active" data-view="overview">Vue</button><button data-view="calendar">Calendrier</button><button data-view="analytics">Stats</button><button data-view="coach">Coach</button>
+  </nav>
+
+  <dialog id="connectDialog" class="tj-dialog">
+    <form id="connectForm" method="dialog">
+      <div class="tj-dialog-head"><div><p class="tj-kicker">NOUVELLE SOURCE DE DONNÉES</p><h2>Connecter un compte</h2></div><button type="button" class="tj-close" data-close-dialog aria-label="Fermer">×</button></div>
+      <div class="tj-readonly-note"><span>LECTURE SEULE</span><p>Utilisez le mot de passe <b>Investor</b>. Le journal ne peut ouvrir, modifier ou fermer aucune position.</p></div>
+      <label>Plateforme<select name="platform"><option value="MT5">MetaTrader 5</option></select></label>
+      <label>Nom du compte <small>facultatif</small><input name="display_name" maxlength="80" placeholder="Ex. Compte principal"></label>
+      <div class="tj-form-grid"><label>Numéro de compte<input name="login" inputmode="numeric" autocomplete="off" required placeholder="12345678"></label><label>Serveur MT5<input name="server" autocomplete="off" required placeholder="Broker-Server"></label></div>
+      <label>Mot de passe Investor / read-only<input name="password" type="password" autocomplete="new-password" required placeholder="••••••••••••"></label>
+      <p class="tj-security-copy">Chiffré avant stockage avec AES‑256‑GCM. Il ne sera jamais réaffiché.</p>
+      <div id="connectError" class="tj-form-error" role="alert"></div>
+      <button id="connectSubmit" class="tj-button tj-button-primary tj-button-full" type="submit">Connecter mon compte <span>→</span></button>
+    </form>
+  </dialog>
+
+  <dialog id="dayDialog" class="tj-day-dialog">
+    <div class="tj-day-head"><div><p class="tj-kicker">DÉTAIL DE LA JOURNÉE</p><h2 id="dayTitle">—</h2></div><button type="button" class="tj-close" data-close-day aria-label="Fermer">×</button></div>
+    <div id="dayMetrics" class="tj-day-metrics"></div>
+    <div id="dayTrades" class="tj-day-trades"></div>
+  </dialog>
+
+  <dialog id="accountDialog" class="tj-dialog tj-account-dialog">
+    <div class="tj-dialog-head"><div><p class="tj-kicker">GESTION DU COMPTE</p><h2>Compte connecté</h2></div><button type="button" class="tj-close" data-close-account aria-label="Fermer">×</button></div>
+    <p>Déconnecter efface immédiatement les identifiants, mais conserve l’historique. Supprimer les données efface aussi tous les deals et statistiques de ce compte.</p>
+    <button id="disconnectAccount" class="tj-button tj-button-ghost tj-button-full">Déconnecter et conserver l’historique</button>
+    <button id="deleteAccount" class="tj-button tj-button-danger tj-button-full">Supprimer définitivement les données</button>
+  </dialog>
+
+  <div id="toast" class="tj-toast" role="status"></div>
+  <script id="tradingBootstrap" type="application/json">{{ {"accounts": accounts, "profile": profile, "entitlements": entitlements}|tojson }}</script>
+  <script src="/static/trading-journal.js" defer></script>
+</body>
+</html>

@@ -531,7 +531,7 @@ def register_growth_features(app, get_conn, get_member, login_required,
         finally:
             conn.close()
 
-    @app.route("/journal")
+    @app.route("/journal/manual")
     @login_required
     def journal():
         code, member, demo_mode = _member_context(get_member, current_demo_mode)
