@@ -1,6 +1,7 @@
 (function () {
   "use strict";
   const toast = document.getElementById("journeyToast");
+  const mtServers = window.BECTANSE_MT_SERVERS || {};
   let busy = false,
     installPrompt = null;
   const nextAnchor = {
@@ -108,7 +109,10 @@
         .querySelectorAll(".aj-platform-switch button")
         .forEach((item) => item.classList.toggle("active", item === button));
       const select = document.getElementById("mtPlatform");
-      if (select) select.value = button.dataset.platform;
+      if (select) {
+        select.value = button.dataset.platform;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     }),
   );
   document.querySelectorAll("[data-device]").forEach((button) =>
@@ -131,6 +135,36 @@
     ?.addEventListener("click", function () {
       const field = document.getElementById("mtPassword");
       if (field) field.type = field.type === "password" ? "text" : "password";
+    });
+
+  function populateServerList(platform) {
+    const select = document.getElementById("mtServer");
+    if (!select) return;
+    const previous = select.value;
+    const servers = mtServers[platform] || [];
+    select.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Sélectionne le serveur reçu par e-mail";
+    select.appendChild(placeholder);
+    servers.forEach((server) => {
+      const option = document.createElement("option");
+      option.value = server;
+      option.textContent = server;
+      select.appendChild(option);
+    });
+    select.value = servers.includes(previous) ? previous : "";
+    const phoneServer = document.getElementById("phoneServer");
+    if (phoneServer && !select.value)
+      phoneServer.textContent = "Sélectionne ton serveur";
+  }
+
+  document
+    .getElementById("mtPlatform")
+    ?.addEventListener("change", function () {
+      populateServerList(this.value);
+      const phonePlatform = document.getElementById("phonePlatform");
+      if (phonePlatform) phonePlatform.textContent = this.value;
     });
 
   ["mtPlatform", "mtLogin", "mtServer"].forEach((id) =>
@@ -260,7 +294,8 @@
   );
   const savedStep = window.BECTANSE_ACTIVATION_STATE?.current_step;
   const initialTarget =
-    location.hash || (savedStep && savedStep !== "broker" ? "#" + savedStep : "");
+    location.hash ||
+    (savedStep && savedStep !== "broker" ? "#" + savedStep : "");
   if (initialTarget) {
     window.setTimeout(
       () =>

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/activation-journey.css') }}?v=20260906-2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/activation-journey.css') }}?v=20260906-3">
 </head>
 <body class="activation-app">
   {% macro icon(name) -%}
@@ -91,12 +91,15 @@
                 <div>{{ icon('check') }}<span><b>Conserve le même e-mail</b><small>Tu le renseigneras à l’étape suivante</small></span></div>
                 <div>{{ icon('shield') }}<span><b>Tu gardes le contrôle</b><small>Bectanse ne reçoit jamais tes fonds</small></span></div>
               </div>
-              {% if not steps.broker.completed %}
               <div class="aj-actions">
-                <a class="aj-button primary" href="{{ broker_url }}" target="_blank" rel="noopener" data-broker-link>{{ icon('external') }} Ouvrir mon compte</a>
+                <a class="aj-button primary" href="{{ broker_url }}" target="_blank" rel="noopener noreferrer" data-broker-link>{{ icon('external') }} Créer mon compte de trading</a>
+                {% if not steps.broker.completed %}
                 <button class="aj-button secondary" type="button" data-action="broker_opened">Mon compte est créé {{ icon('arrow') }}</button>
+                {% else %}
+                <a class="aj-button secondary" href="#verification">Continuer la configuration {{ icon('arrow') }}</a>
+                {% endif %}
               </div>
-              {% else %}<div class="aj-success">{{ icon('check') }} Compte créé, passe à la vérification</div>{% endif %}
+              {% if steps.broker.completed %}<div class="aj-success">{{ icon('check') }} Compte créé, passe à la vérification</div>{% endif %}
             </div>
             <div class="aj-live-demo broker-demo" aria-label="Simulation du formulaire d'inscription">
               <div class="demo-browser"><i></i><i></i><i></i><span>Ouverture sécurisée</span></div>
@@ -178,7 +181,7 @@
                 <div class="aj-form-grid">
                   <label><span>Plateforme</span><select id="mtPlatform"><option value="MT4" {% if state.platform == 'MT4' %}selected{% endif %}>MetaTrader 4</option><option value="MT5" {% if state.platform != 'MT4' %}selected{% endif %}>MetaTrader 5</option></select></label>
                   <label><span>Login MT</span><input id="mtLogin" inputmode="numeric" autocomplete="off" placeholder="Ex : 8484775595"></label>
-                  <label><span>Serveur MT</span><input id="mtServer" autocomplete="off" placeholder="Nom indiqué dans l’e-mail"></label>
+                  <label><span>Serveur MT</span><select id="mtServer" aria-describedby="mtServerHelp"><option value="">Sélectionne le serveur reçu par e-mail</option>{% for server in mt_servers[state.platform] %}<option value="{{ server }}">{{ server }}</option>{% endfor %}</select><small class="aj-field-help" id="mtServerHelp">Le nom doit correspondre exactement à l’e-mail PU Prime</small></label>
                   <label><span>Mot de passe MT</span><div class="aj-password"><input id="mtPassword" type="password" autocomplete="new-password" placeholder="Mot de passe de connexion"><button type="button" data-toggle-password aria-label="Afficher ou masquer">{{ icon('eye') }}</button></div></label>
                 </div>
                 <div class="aj-privacy-line">{{ icon('shield') }} Chiffrement avant stockage, aucune donnée sensible envoyée dans Telegram</div>
@@ -230,9 +233,9 @@
   </main>
 
   <div class="aj-toast" id="journeyToast" role="status" aria-live="polite"></div>
-  <script>window.BECTANSE_PUSH_ELIGIBLE=true;window.BECTANSE_PUSH_GUIDED=true;window.BECTANSE_ACTIVATION_STATE={{ state|tojson }};</script>
+  <script>window.BECTANSE_PUSH_ELIGIBLE=true;window.BECTANSE_PUSH_GUIDED=true;window.BECTANSE_ACTIVATION_STATE={{ state|tojson }};window.BECTANSE_MT_SERVERS={{ mt_servers|tojson }};</script>
   <script src="/static/push.js?v=20260906-2"></script>
-  <script src="{{ url_for('static', filename='activation-journey.js') }}?v=20260906-2"></script>
+  <script src="{{ url_for('static', filename='activation-journey.js') }}?v=20260906-3"></script>
   {% include "_mobile_nav.html" %}
 </body>
 </html>

@@ -880,6 +880,13 @@ svg {
   letter-spacing: 0;
   font-weight: 500;
 }
+.aj-field-help {
+  display: block;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 8px;
+  line-height: 1.35;
+}
 .aj-form-grid input,
 .aj-form-grid select {
   width: 100%;

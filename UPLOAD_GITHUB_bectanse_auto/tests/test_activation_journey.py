@@ -159,6 +159,11 @@ def test_member_activation_flow_is_sequential_and_telegram_reviewed(tmp_path):
     assert client.post("/api/demarrage/action", json={
         "action": "trading_ready", "platform": "MT5", "funding_confirmed": True,
     }).status_code == 200
+    invalid_server = client.post("/api/demarrage/action", json={
+        "action": "save_credentials", "platform": "MT5", "mt_login": "8484775595",
+        "mt_server": "serveur-invente", "mt_password": "secret-mt",
+    })
+    assert invalid_server.status_code == 400
     assert client.post("/api/demarrage/action", json={
         "action": "save_credentials", "platform": "MT5", "mt_login": "8484775595",
         "mt_server": "PUPrime-Live", "mt_password": "secret-mt",
@@ -195,9 +200,12 @@ def test_local_preview_is_available_without_member_data():
         send_telegram=lambda *args, **kwargs: True,
         notify_member=lambda *args: None,
     )
-    response = web.test_client().get("/preview-demarrage")
+    response = web.test_client().get("/preview-demarrage?stage=credentials")
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert "Ton compte prêt" in page
     assert "Crée ton accès de trading" in page
     assert "Installe Bectanse" in page
+    assert '<select id="mtServer"' in page
+    assert "PUPrime-Live 7" in page
+    assert "Créer mon compte de trading" in page

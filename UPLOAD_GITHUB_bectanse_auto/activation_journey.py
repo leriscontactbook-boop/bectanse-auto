@@ -18,6 +18,29 @@ from flask import abort, jsonify, redirect, render_template, request, session, u
 BROKER_URL = "https://puvip.co/la-partners/fr/BectanseAcademie042026"
 SUPPORT_URL = "https://t.me/m/PAt88QgeZDhk"
 
+# Noms actuellement publiés par PU Prime pour ses applications MetaTrader.
+# Les espaces font partie du nom du serveur et doivent donc être conservés.
+PU_PRIME_SERVERS = {
+    "MT4": (
+        "PUPrime-Live",
+        "PUPrime-Live 2",
+        "PUPrime-Live 3",
+        "PUPrime-Live 4",
+        "PUPrime-Live 5",
+        "PUPrime-Demo",
+    ),
+    "MT5": (
+        "PUPrime-Live",
+        "PUPrime-Live2",
+        "PUPrime-Live4",
+        "PUPrime-Live 4",
+        "PUPrime-Live 5",
+        "PUPrime-Live 6",
+        "PUPrime-Live 7",
+        "PUPrime-Demo",
+    ),
+}
+
 STEP_DEFINITIONS = (
     ("broker", "Créer le compte de trading"),
     ("verification", "Faire vérifier le compte"),
@@ -311,6 +334,7 @@ def register_activation_journey(
             state=preview_state,
             broker_url=BROKER_URL,
             support_url=SUPPORT_URL,
+            mt_servers=PU_PRIME_SERVERS,
             demo_mode=False,
             preview_mode=True,
         )
@@ -334,6 +358,7 @@ def register_activation_journey(
             state=state,
             broker_url=BROKER_URL,
             support_url=SUPPORT_URL,
+            mt_servers=PU_PRIME_SERVERS,
             demo_mode=False,
         )
 
@@ -445,8 +470,8 @@ def register_activation_journey(
                     return jsonify({"ok": False, "error": "Plateforme invalide."}), 400
                 if not re.fullmatch(r"[A-Za-z0-9._-]{4,80}", login):
                     return jsonify({"ok": False, "error": "Vérifie le numéro de compte MT."}), 400
-                if len(server) < 3 or len(server) > 120:
-                    return jsonify({"ok": False, "error": "Vérifie le nom du serveur MT."}), 400
+                if server not in PU_PRIME_SERVERS[platform]:
+                    return jsonify({"ok": False, "error": "Sélectionne le serveur exact dans la liste PU Prime."}), 400
                 if len(password) < 4 or len(password) > 200:
                     return jsonify({"ok": False, "error": "Vérifie le mot de passe MT."}), 400
                 save_profile(conn, member_code, {}, {
