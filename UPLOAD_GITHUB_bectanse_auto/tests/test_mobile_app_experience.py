@@ -21,7 +21,9 @@ def test_journal_uses_a_dedicated_three_zone_mobile_shell():
     assert shell.index('class="tj-mobile-header"') < shell.index('class="tj-main"')
     assert shell.index('class="tj-main"') < shell.index('class="tj-mobile-nav"')
     assert "grid-template-rows: auto minmax(0, 1fr) auto" in css
-    assert "height: var(--app-height)" in css
+    assert "position: fixed; inset: 0; width: 100%; height: auto; min-height: 0" in css
+    assert "body { padding: 0 !important; background: var(--bg); }" in css
+    assert "min-height: 100svh" not in css
     assert ".tj-main::-webkit-scrollbar" in css
     assert "overscroll-behavior-y: contain" in css
 
