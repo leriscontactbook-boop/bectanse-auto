@@ -34,6 +34,16 @@ class _WalletConnection:
         raise AssertionError(f"Unexpected query: {compact}")
 
 
+class _LoginConnection:
+    def run(self, sql, **params):
+        if "update members set last_login" in " ".join(sql.split()).lower():
+            return []
+        raise AssertionError(f"Unexpected query: {sql}")
+
+    def close(self):
+        return None
+
+
 class AccessModelTests(unittest.TestCase):
     def setUp(self):
         app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
@@ -112,6 +122,22 @@ class AccessModelTests(unittest.TestCase):
             response = self.client.get("/")
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/accueil")
+
+    def test_submitted_active_code_replaces_existing_explorer_session(self):
+        self._login("BCT-FREE0001")
+        paid_member = {
+            "code": "BCT-PAID0001", "nom": "Membre Actif",
+            "access_level": "member", "actif": True,
+            "date_fin": datetime.now() + timedelta(days=30),
+        }
+        with patch.object(app, "get_member", return_value=paid_member), \
+             patch.object(app, "get_conn", return_value=_LoginConnection()):
+            response = self.client.post("/", data={"code": "BCT-PAID0001"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/accueil")
+        with self.client.session_transaction() as browser_session:
+            self.assertEqual(browser_session["member_code"], "BCT-PAID0001")
 
     def test_legacy_shared_demo_session_must_create_an_individual_account(self):
         self._login("BCT-DEMO2026")

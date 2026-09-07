@@ -5666,9 +5666,12 @@ def health():
 
 @app.route("/", methods=["GET","POST"])
 def login():
-    if "member_code" in session:
+    # Une visite simple conserve la session installée. En revanche, un code
+    # explicitement soumis doit toujours pouvoir remplacer le compte courant
+    # (notamment lorsqu'un Explorer se reconnecte avec son accès membre actif).
+    if request.method == "GET" and "member_code" in session:
         return redirect(url_for("accueil"))
-    if "analysis_account_code" in session:
+    if request.method == "GET" and "analysis_account_code" in session:
         return redirect(url_for("analyse_ia"))
     error = None
     notice = session.pop("login_notice", None)
@@ -5676,6 +5679,10 @@ def login():
     # vers le compte démo partagé n'est autorisé si le prestataire e-mail est indisponible.
     explorer_gate_enabled = True
     if request.method == "POST":
+        # Ne jamais laisser une ancienne identité Explorer court-circuiter le
+        # code BCT que l'utilisateur vient de saisir.
+        session.pop("member_code", None)
+        session.pop("analysis_account_code", None)
         remote = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
         now = time.time()
         with _ADMIN_LOGIN_LOCK:
@@ -5730,6 +5737,8 @@ def login():
         else:
             with _ADMIN_LOGIN_LOCK:
                 _ADMIN_LOGIN_ATTEMPTS.pop("member:" + remote, None)
+            pending_plan = session.pop("pending_academy_plan", "")
+            session.clear()
             session.permanent = True
             session["member_code"] = member["code"]
             try:
@@ -5737,7 +5746,6 @@ def login():
                 conn.run("UPDATE members SET last_login=NOW() WHERE code=:c", c=code)
                 conn.close()
             except: pass
-            pending_plan = session.pop("pending_academy_plan", "")
             if pending_plan in ACADEMY_PLAN_BY_ID:
                 return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
             return redirect(url_for("accueil"))
