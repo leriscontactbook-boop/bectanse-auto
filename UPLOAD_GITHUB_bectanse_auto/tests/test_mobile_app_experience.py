@@ -48,6 +48,7 @@ def test_journal_has_safe_areas_deep_links_and_responsive_chart():
     for variable in ("--safe-top", "--safe-right", "--safe-bottom", "--safe-left", "--app-height"):
         assert variable in css
     assert "100dvh" in css
+    assert "(max-width: 932px) and (max-height: 500px) and (orientation: landscape)" in css
     assert "viewFromLocation" in javascript
     assert "history.pushState" in javascript
     assert "aria-current" in javascript

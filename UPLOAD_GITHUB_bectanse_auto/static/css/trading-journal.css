@@ -462,7 +462,7 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-onboarding { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 800px), (max-width: 932px) and (max-height: 500px) and (orientation: landscape) {
   html, body { height: var(--app-height); min-height: var(--app-height); overflow: hidden; overscroll-behavior: none; }
   body { background: var(--bg); }
   .tj-app {
@@ -644,7 +644,7 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-mobile-nav button svg { width: 18px; height: 18px; }
 }
 
-@media (max-width: 800px) and (max-height: 500px) and (orientation: landscape) {
+@media (max-width: 932px) and (max-height: 500px) and (orientation: landscape) {
   :root { --mobile-header-height: 48px; --mobile-nav-height: 54px; }
   .tj-mobile-home, .tj-mobile-profile { min-height: 40px; }
   .tj-mobile-profile { width: 32px; height: 32px; }
