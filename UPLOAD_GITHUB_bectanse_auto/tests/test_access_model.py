@@ -52,10 +52,16 @@ class AccessModelTests(unittest.TestCase):
                      "date_fin": now + timedelta(days=20)}
         active = {"code": "BCT-PAID0001", "access_level": "member", "actif": True,
                   "date_fin": now + timedelta(days=20)}
+        past_due = {"code": "BCT-DUE00001", "access_level": "member", "actif": True,
+                    "billing_status": "past_due", "date_fin": now + timedelta(days=20)}
+        missing_end = {"code": "BCT-NOEND001", "access_level": "member", "actif": True,
+                       "billing_status": "active"}
 
         self.assertTrue(app._current_demo_mode(member=explorer))
         self.assertTrue(app._current_demo_mode(member=expired))
         self.assertTrue(app._current_demo_mode(member=suspended))
+        self.assertTrue(app._current_demo_mode(member=past_due))
+        self.assertTrue(app._current_demo_mode(member=missing_end))
         self.assertFalse(app._current_demo_mode(member=active))
 
     def test_explorer_wallet_starts_at_zero_but_member_wallet_starts_at_two(self):

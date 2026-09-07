@@ -33,6 +33,8 @@
 - [ ] Standalone Customer Portal opens and allows plan changes/cancellation
 - [ ] Stripe webhook redelivery is idempotent
 - [ ] Academy activation schedules standalone cancellation at period end
+- [ ] Expired, past-due and date-less subscriptions are denied on UI, APIs and workers
+- [ ] A valid re-subscription restores the preserved account and queues synchronization
 - [ ] Journal and Coach paywalls match effective entitlements
 - [ ] Stripe Tax is enabled only after required tax registrations are active
 

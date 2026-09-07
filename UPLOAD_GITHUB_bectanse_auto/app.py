@@ -25,8 +25,10 @@ from trading_journal.config import validate_backend_config
 from trading_journal.billing import (
     is_journal_event,
     process_webhook as process_journal_stripe_webhook,
+    reconcile_trading_access,
     schedule_standalone_cancellation,
 )
+from trading_journal.entitlements import academy_membership_state
 
 def _required_secret(name):
     value = os.environ.get(name, "").strip()
@@ -1017,10 +1019,7 @@ def _explorer_journey_state(conn, member_code, mark_welcome=False):
 
 
 def _member_has_academy_access(member):
-    if not member or _member_is_explorer(member) or not member.get("actif", False):
-        return False
-    date_fin = member.get("date_fin")
-    return not date_fin or date_fin > datetime.now()
+    return academy_membership_state(member)[0]
 
 
 def _current_demo_mode(code=None, member=None):
@@ -5528,6 +5527,8 @@ def _process_academy_stripe_event(event):
                 WHERE code=:code""", customer=context["customer_id"],
                 subscription=context["subscription_id"], status=status, code=member_code)
 
+        reconcile_trading_access(conn, member_code)
+
         conn.run("""UPDATE stripe_academy_events SET status='processed',member_code=:code,
             processed_at=NOW() WHERE event_id=:event_id""", code=member_code, event_id=event_id)
         conn.run("COMMIT")
@@ -9449,6 +9450,12 @@ def _startup():
             id='member_access_enforcement', replace_existing=True,
             next_run_time=_paris_now(), coalesce=True, max_instances=1,
             misfire_grace_time=300
+        )
+        scheduler.add_job(
+            trading_journal_service.reconcile_access_states, 'interval', minutes=5,
+            id='journal_access_enforcement', replace_existing=True,
+            next_run_time=_paris_now() + timedelta(seconds=10),
+            coalesce=True, max_instances=1, misfire_grace_time=300,
         )
         scheduler.add_job(
             trading_journal_service.enqueue_due_accounts,

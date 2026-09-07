@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 
 FEATURE_KEYS = (
@@ -94,28 +94,34 @@ def _as_utc(value) -> datetime | None:
             return None
     if not isinstance(value, datetime):
         return None
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+    # Naive member dates come from a PostgreSQL TIMESTAMP column and follow the
+    # runtime's local clock; convert that clock explicitly before comparing it.
+    return value.astimezone(timezone.utc)
 
 
 def academy_membership_state(member: dict | None, *, now: datetime | None = None) -> tuple[bool, datetime | None]:
     member = member or {}
-    if not member or bool(member.get("admin_suspended")):
+    if (not member or bool(member.get("admin_suspended")) or
+            not bool(member.get("actif", False))):
         return False, None
     if str(member.get("access_level") or "member").lower() in {"explorer", "demo"}:
         return False, None
     now = now or datetime.now(timezone.utc)
     period_end = _as_utc(member.get("billing_current_period_end") or member.get("date_fin"))
-    grace_days = max(0, int(os.environ.get("JOURNAL_ACADEMY_GRACE_DAYS", "7")))
-    grace_until = period_end + timedelta(days=grace_days) if period_end else None
-    if period_end and now > grace_until:
-        return False, grace_until
     billing_status = str(member.get("billing_status") or "legacy").lower()
-    status_allows_access = billing_status in {"active", "trialing", "legacy"} or (
-        billing_status == "canceled" and bool(period_end and now <= period_end)
-    )
-    normal_access = bool(member.get("actif", False)) and status_allows_access
-    grace_access = bool(period_end and period_end < now <= grace_until)
-    return normal_access or grace_access, grace_until if grace_access else None
+    status_allows_access = billing_status in {"active", "trialing", "legacy"}
+    # Fail closed: a paid access without a known future end date is not valid.
+    return bool(status_allows_access and period_end and period_end > now), None
+
+
+def standalone_subscription_state(
+    subscription: dict | None, *, now: datetime | None = None,
+) -> bool:
+    subscription = subscription or {}
+    now = now or datetime.now(timezone.utc)
+    period_end = _as_utc(subscription.get("current_period_end"))
+    status = str(subscription.get("subscription_status") or "").lower()
+    return bool(status in {"active", "trialing"} and period_end and period_end > now)
 
 
 def _with_source(plan: str, source: str, grace_until: datetime | None = None) -> Entitlements:
@@ -157,29 +163,12 @@ def resolve_entitlements(
         return _with_source(academy_plan, "ACADEMY_INCLUDED", grace_until)
 
     subscription = subscription or {}
-    subscription_status = str(subscription.get("subscription_status") or "").lower()
-    period_end = _as_utc(subscription.get("current_period_end"))
-    standalone_active = subscription_status in {"active", "trialing"}
-    if period_end and period_end <= now:
-        standalone_active = False
-    if standalone_active:
+    if standalone_subscription_state(subscription, now=now):
         return _with_source(subscription.get("plan") or "JOURNAL_PRO", "JOURNAL_SUBSCRIPTION")
 
-    active_grants = []
-    for grant in grants or []:
-        valid_from = _as_utc(grant.get("valid_from"))
-        valid_until = _as_utc(grant.get("valid_until"))
-        if str(grant.get("status") or "").upper() != "ACTIVE":
-            continue
-        if valid_from and valid_from > now:
-            continue
-        if valid_until and valid_until <= now:
-            continue
-        active_grants.append(grant)
-    if active_grants:
-        source = "ADMIN" if any(str(g.get("source")).upper() == "ADMIN" for g in active_grants) else "PROMO"
-        return _with_source("JOURNAL_PRO", source)
-
+    # Feature grants never replace payment. They remain available in the schema
+    # for future feature-level overrides, but base Journal access always
+    # requires a valid Academy or standalone subscription.
     return PLAN_RULES["NONE"]
 
 

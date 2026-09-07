@@ -74,9 +74,9 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         member = get_member(user_id)
         overview = None
         try:
-            accounts = service.list_accounts(user_id)
             profile = service.profile(user_id)
             entitlements = service.entitlements(user_id)
+            accounts = service.list_accounts(user_id, entitlements["max_accounts"]) if entitlements["allowed"] else []
         except Exception as error:
             app.logger.error("Journal bootstrap %s: %s", user_id, error)
             accounts, profile = [], {"timezone": "Europe/Paris"}
@@ -103,8 +103,10 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     @login_required
     def trading_accounts_list():
         try:
-            return jsonify({"ok": True, "accounts": service.list_accounts(session["member_code"]),
-                            "entitlements": service.entitlements(session["member_code"])})
+            entitlements = service.require_access(session["member_code"])
+            return jsonify({"ok": True, "accounts": service.list_accounts(
+                                session["member_code"], entitlements["max_accounts"]),
+                            "entitlements": entitlements})
         except Exception as error:
             app.logger.error("Liste comptes trading %s: %s", session["member_code"], error)
             return _api_error(error)
@@ -165,7 +167,9 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     @login_required
     def trading_account_detail(account_id):
         try:
-            account = service.get_account(session["member_code"], account_id)
+            entitlements = service.require_access(session["member_code"])
+            account = service.get_account(
+                session["member_code"], account_id, entitlements["max_accounts"])
             if not account:
                 raise LookupError("Compte de trading introuvable.")
             return jsonify({"ok": True, "account": account})

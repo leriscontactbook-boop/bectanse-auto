@@ -13,10 +13,16 @@ from trading_journal.calculations import (
     reconstruct_positions,
 )
 from trading_journal.coach import MIN_TRADES, build_insights, detect_behavior, review, trading_score
-from trading_journal.billing import create_checkout, create_portal, process_webhook, schedule_standalone_cancellation
+from trading_journal.billing import (
+    create_checkout,
+    create_portal,
+    process_webhook,
+    reconcile_trading_access,
+    schedule_standalone_cancellation,
+)
 from trading_journal.brokers import build_broker_catalog, broker_name_from_server
 from trading_journal.config import JournalConfigurationError, validate_backend_config, validate_worker_config
-from trading_journal.entitlements import FEATURE_KEYS, resolve_entitlements
+from trading_journal.entitlements import FEATURE_KEYS, PLAN_RULES, resolve_entitlements
 from trading_journal.providers.base import AccountSnapshot, ProviderError
 from trading_journal.providers.mt5 import MetaTrader5Provider
 from trading_journal.providers.mock import MockTradingProvider
@@ -170,8 +176,11 @@ def test_coach_review_has_required_contract_and_insufficient_copy():
 
 
 def test_academy_gets_all_coach_flags_and_external_pro_does_not_get_monthly():
-    academy = resolve_entitlements(None, {"actif": True, "access_level": "member", "billing_status": "active"})
-    external = resolve_entitlements({"plan": "JOURNAL_PRO", "subscription_status": "active"})
+    period_end = datetime.now(timezone.utc) + timedelta(days=30)
+    academy = resolve_entitlements(None, {"actif": True, "access_level": "member",
+        "billing_status": "active", "billing_current_period_end": period_end})
+    external = resolve_entitlements({"plan": "JOURNAL_PRO", "subscription_status": "active",
+        "current_period_end": period_end})
     assert academy.coach_monthly and academy.coach_advanced_patterns
     assert external.coach_daily and not external.coach_monthly
     assert "coach.ai_explanations" in FEATURE_KEYS
@@ -181,6 +190,7 @@ def test_academy_members_receive_the_complete_elite_journal_by_default(monkeypat
     monkeypatch.delenv("ACADEMY_JOURNAL_PLAN", raising=False)
     academy = resolve_entitlements(None, {
         "actif": True, "access_level": "member", "billing_status": "active",
+        "billing_current_period_end": datetime.now(timezone.utc) + timedelta(days=30),
     })
     assert academy.plan == "ACADEMY_INCLUDED"
     assert academy.max_accounts == 10
@@ -199,7 +209,9 @@ def test_academy_member_checkout_does_not_depend_on_standalone_price_configurati
     with pytest.raises(PermissionError, match="déjà inclus"):
         create_checkout(
             database_must_not_be_opened,
-            {"actif": True, "access_level": "member", "email": "member@example.com"},
+            {"actif": True, "access_level": "member", "billing_status": "active",
+             "billing_current_period_end": datetime.now(timezone.utc) + timedelta(days=30),
+             "email": "member@example.com"},
             "BCT-MEMBER",
             "JOURNAL_PRO",
             "https://example.test/",
@@ -224,6 +236,25 @@ class _WebhookConnection(_BillingConnection):
         self.queries.append((query, params))
         if "RETURNING event_id" in query:
             return [(params["event_id"],)]
+        return []
+
+
+class _AccessConnection(_BillingConnection):
+    def __init__(self, account_rows):
+        super().__init__([])
+        self.account_rows = account_rows
+
+    def run(self, query, **params):
+        self.queries.append((query, params))
+        compact = " ".join(query.split())
+        if "SELECT id,status FROM trading_accounts" in compact:
+            return self.account_rows
+        if "SET status='PENDING_VERIFICATION'" in compact:
+            return [(params["account_id"],)]
+        if "INSERT INTO trading_sync_jobs" in compact:
+            return [(params["id"],)]
+        if "SET status='ACCESS_EXPIRED'" in compact and "UPDATE trading_accounts" in compact:
+            return [(params["account_id"],)]
         return []
 
 
@@ -255,7 +286,7 @@ class _StripeClient:
 def test_standalone_checkout_reuses_customer_and_sends_structured_metadata(monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "rk_test_bectanse")
     monkeypatch.setenv("STRIPE_JOURNAL_PRO_PRICE_ID", "price_journal_pro")
-    connection = _BillingConnection([("cus_existing", "", "inactive", False)])
+    connection = _BillingConnection([("cus_existing", "", "inactive", False, None)])
     client = _StripeClient()
     url = create_checkout(
         lambda: connection,
@@ -271,8 +302,42 @@ def test_standalone_checkout_reuses_customer_and_sends_structured_metadata(monke
     assert "customer_email" not in params
     assert params["line_items"] == [{"price": "price_journal_pro", "quantity": 1}]
     assert params["metadata"]["product"] == "BECTANSE_JOURNAL"
+    assert params["integration_identifier"].startswith("bectanse_journal_")
+    assert len(params["integration_identifier"].rsplit("_", 1)[-1]) == 8
     assert params["allow_promotion_codes"] is True
     assert "payment_method_types" not in params
+
+
+def test_expired_academy_member_can_purchase_standalone_journal(monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "rk_test_bectanse")
+    monkeypatch.setenv("STRIPE_JOURNAL_PRO_PRICE_ID", "price_journal_pro")
+    connection = _BillingConnection([
+        ("cus_existing", "sub_old", "canceled", False,
+         datetime.now(timezone.utc) - timedelta(days=1)),
+    ])
+    client = _StripeClient()
+    url = create_checkout(
+        lambda: connection,
+        {"actif": True, "access_level": "member", "billing_status": "canceled",
+         "date_fin": datetime.now(timezone.utc) - timedelta(days=1),
+         "email": "returning@example.com"},
+        "BCT-RETURNING", "JOURNAL_PRO", "https://example.test/", client=client,
+    )
+    assert url.startswith("https://checkout.stripe.com/")
+
+
+def test_valid_standalone_subscription_cannot_be_duplicated_while_cancellation_is_pending(monkeypatch):
+    monkeypatch.setenv("STRIPE_JOURNAL_PRO_PRICE_ID", "price_journal_pro")
+    connection = _BillingConnection([
+        ("cus_existing", "sub_current", "active", True,
+         datetime.now(timezone.utc) + timedelta(days=7)),
+    ])
+    with pytest.raises(PermissionError, match="déjà actif"):
+        create_checkout(
+            lambda: connection,
+            {"actif": False, "access_level": "explorer", "email": "client@example.com"},
+            "BCT-CLIENT", "JOURNAL_PRO", "https://example.test/", client=_StripeClient(),
+        )
 
 
 def test_standalone_portal_uses_the_journal_customer_and_optional_configuration(monkeypatch):
@@ -301,6 +366,41 @@ def test_academy_activation_schedules_standalone_cancellation(monkeypatch):
     assert object_id == "sub_journal"
     assert params == {"cancel_at_period_end": True}
     assert options["idempotency_key"] == "academy-included-BCT-MEMBER-sub_journal"
+
+
+def test_access_reconciliation_suspends_jobs_but_preserves_accounts_and_history():
+    connection = _AccessConnection([(17, "SYNCED"), (18, "SYNCING")])
+    result = reconcile_trading_access(
+        connection, "BCT-EXPIRED", entitlements=PLAN_RULES["NONE"],
+    )
+    sql = "\n".join(query for query, _ in connection.queries)
+    assert result == {"allowed": False, "suspended_accounts": 2}
+    assert "UPDATE trading_sync_jobs SET status='DEAD'" in sql
+    assert "UPDATE trading_accounts SET status='ACCESS_EXPIRED'" in sql
+    assert "DELETE FROM trading_accounts" not in sql
+    assert "DELETE FROM trading_deals" not in sql
+
+
+def test_access_reconciliation_restores_account_and_queues_full_sync():
+    connection = _AccessConnection([(17, "ACCESS_EXPIRED")])
+    result = reconcile_trading_access(
+        connection, "BCT-RETURNING", entitlements=PLAN_RULES["JOURNAL_PRO"],
+    )
+    sql = "\n".join(query for query, _ in connection.queries)
+    assert result == {"allowed": True, "restored_accounts": 1, "queued_jobs": 1,
+                      "suspended_accounts": 0, "suspended_account_ids": []}
+    assert "SET status='PENDING_VERIFICATION'" in sql
+    assert "'FULL_HISTORY_SYNC','PENDING',100" in sql
+
+
+def test_pro_fallback_keeps_one_account_and_suspends_the_rest():
+    connection = _AccessConnection([(17, "SYNCED"), (18, "SYNCED"), (19, "SYNCED")])
+    result = reconcile_trading_access(
+        connection, "BCT-PRO", entitlements=PLAN_RULES["JOURNAL_PRO"],
+    )
+    assert result["allowed"] is True
+    assert result["suspended_accounts"] == 2
+    assert result["suspended_account_ids"] == [18, 19]
 
 
 def test_portal_upgrade_uses_current_price_instead_of_stale_subscription_metadata(monkeypatch):
@@ -351,19 +451,36 @@ def test_checkout_errors_are_mapped_to_safe_browser_statuses(error, code):
 
 
 @pytest.mark.parametrize("member,subscription,allowed,source", [
-    ({"actif": True, "access_level": "member", "billing_status": "active"}, None, True, "ACADEMY_INCLUDED"),
-    ({"actif": False, "access_level": "explorer"}, {"plan": "JOURNAL_PRO", "subscription_status": "active"}, True, "JOURNAL_SUBSCRIPTION"),
+    ({"actif": True, "access_level": "member", "billing_status": "active", "date_fin": datetime(2026, 10, 1)}, None, True, "ACADEMY_INCLUDED"),
+    ({"actif": False, "access_level": "explorer"}, {"plan": "JOURNAL_PRO", "subscription_status": "active", "current_period_end": datetime(2026, 10, 1)}, True, "JOURNAL_SUBSCRIPTION"),
     ({"actif": False, "access_level": "explorer"}, None, False, "NONE"),
-    ({"actif": True, "access_level": "member", "billing_status": "active"}, {"plan": "JOURNAL_ELITE", "subscription_status": "active"}, True, "ACADEMY_INCLUDED"),
-    ({"actif": False, "access_level": "member", "billing_status": "canceled", "date_fin": datetime(2026, 1, 1)}, {"plan": "JOURNAL_PRO", "subscription_status": "active"}, True, "JOURNAL_SUBSCRIPTION"),
-    ({"actif": True, "access_level": "member", "billing_status": "active"}, {"plan": "JOURNAL_PRO", "subscription_status": "canceled"}, True, "ACADEMY_INCLUDED"),
+    ({"actif": True, "access_level": "member", "billing_status": "active", "date_fin": datetime(2026, 10, 1)}, {"plan": "JOURNAL_ELITE", "subscription_status": "active", "current_period_end": datetime(2026, 10, 1)}, True, "ACADEMY_INCLUDED"),
+    ({"actif": False, "access_level": "member", "billing_status": "canceled", "date_fin": datetime(2026, 1, 1)}, {"plan": "JOURNAL_PRO", "subscription_status": "active", "current_period_end": datetime(2026, 10, 1)}, True, "JOURNAL_SUBSCRIPTION"),
+    ({"actif": True, "access_level": "member", "billing_status": "active", "date_fin": datetime(2026, 10, 1)}, {"plan": "JOURNAL_PRO", "subscription_status": "canceled", "current_period_end": datetime(2026, 10, 1)}, True, "ACADEMY_INCLUDED"),
     ({"actif": False, "access_level": "member", "billing_status": "canceled", "date_fin": datetime(2026, 1, 1)}, None, False, "NONE"),
-    ({"actif": False, "access_level": "explorer"}, {"plan": "JOURNAL_PRO", "subscription_status": "past_due"}, False, "NONE"),
+    ({"actif": False, "access_level": "explorer"}, {"plan": "JOURNAL_PRO", "subscription_status": "past_due", "current_period_end": datetime(2026, 10, 1)}, False, "NONE"),
+    ({"actif": True, "access_level": "member", "billing_status": "active"}, None, False, "NONE"),
+    ({"actif": True, "access_level": "member", "billing_status": "active", "date_fin": datetime(2026, 9, 6)}, None, False, "NONE"),
+    ({"actif": False, "access_level": "explorer"}, {"plan": "JOURNAL_PRO", "subscription_status": "active"}, False, "NONE"),
+    ({"actif": False, "access_level": "explorer"}, {"plan": "JOURNAL_PRO", "subscription_status": "active", "current_period_end": datetime(2026, 1, 1)}, False, "NONE"),
+    ({"actif": True, "access_level": "member", "billing_status": "past_due", "date_fin": datetime(2026, 10, 1)}, {"plan": "JOURNAL_PRO", "subscription_status": "active", "current_period_end": datetime(2026, 10, 1)}, True, "JOURNAL_SUBSCRIPTION"),
 ])
 def test_critical_entitlement_cases(member, subscription, allowed, source):
     result = resolve_entitlements(subscription, member, now=datetime(2026, 9, 6, tzinfo=timezone.utc))
     assert result.allowed is allowed
     assert result.source == source
+
+
+def test_feature_grant_cannot_bypass_missing_subscription():
+    result = resolve_entitlements(None, {"actif": False, "access_level": "explorer"}, [{
+        "feature_key": "journal.basic",
+        "source": "ADMIN",
+        "status": "ACTIVE",
+        "valid_from": datetime(2026, 1, 1),
+        "valid_until": datetime(2026, 10, 1),
+    }], now=datetime(2026, 9, 6, tzinfo=timezone.utc))
+    assert result.allowed is False
+    assert result.source == "NONE"
 
 
 def test_retry_policy_matches_documented_backoff():

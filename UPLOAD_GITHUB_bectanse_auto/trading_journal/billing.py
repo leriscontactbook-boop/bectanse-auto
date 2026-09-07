@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import os
+import secrets
+import string
+import uuid
 from datetime import datetime, timezone
+
+from .entitlements import academy_membership_state, resolve_entitlements, standalone_subscription_state
 
 JOURNAL_PLANS = {
     "JOURNAL_PRO": "STRIPE_JOURNAL_PRO_PRICE_ID",
@@ -32,6 +37,11 @@ def _field(value, name: str, default=""):
     return getattr(value, name, default)
 
 
+def _integration_identifier() -> str:
+    suffix = "".join(secrets.choice(string.ascii_lowercase) for _ in range(8))
+    return f"bectanse_journal_{suffix}"
+
+
 def price_id_for_plan(plan: str) -> str:
     return os.environ.get(JOURNAL_PLANS.get(str(plan).upper(), ""), "").strip()
 
@@ -43,19 +53,106 @@ def plan_for_price(price_id: str) -> str | None:
     return None
 
 
+def _database_entitlements(conn, user_id: str):
+    member_rows = conn.run("""SELECT actif,COALESCE(access_level,'member'),
+        COALESCE(billing_status,'legacy'),billing_current_period_end,date_fin,
+        COALESCE(admin_suspended,FALSE) FROM members WHERE code=:user_id""", user_id=user_id)
+    member = None
+    if member_rows:
+        member = dict(zip(
+            ("actif", "access_level", "billing_status", "billing_current_period_end",
+             "date_fin", "admin_suspended"),
+            member_rows[0],
+        ))
+    subscription_rows = conn.run("""SELECT plan,subscription_status,current_period_end
+        FROM trading_subscriptions WHERE user_id=:user_id""", user_id=user_id)
+    subscription = None
+    if subscription_rows:
+        subscription = dict(zip(
+            ("plan", "subscription_status", "current_period_end"), subscription_rows[0],
+        ))
+    return resolve_entitlements(subscription, member)
+
+
+def reconcile_trading_access(conn, user_id: str, *, entitlements=None) -> dict:
+    """Suspend or restore MT5 processing without deleting the customer's history."""
+    entitlements = entitlements or _database_entitlements(conn, user_id)
+    account_rows = conn.run("""SELECT id,status FROM trading_accounts
+        WHERE user_id=:user_id AND status NOT IN ('DISCONNECTED','AUTH_ERROR')
+        ORDER BY created_at,id""", user_id=user_id)
+    limit = max(0, int(entitlements.max_accounts if entitlements.allowed else 0))
+    allowed_rows = list(account_rows or [])[:limit]
+    blocked_rows = list(account_rows or [])[limit:]
+
+    suspended_ids = []
+    for raw_account_id, _ in blocked_rows:
+        account_id = int(raw_account_id)
+        conn.run("""UPDATE trading_workers SET status='ONLINE',current_job_id='',updated_at=NOW()
+            WHERE current_job_id IN (SELECT id FROM trading_sync_jobs
+                WHERE trading_account_id=:account_id
+                AND status IN ('PENDING','LEASED','RUNNING','RETRY'))""", account_id=account_id)
+        conn.run("""UPDATE trading_sync_runs SET status='FAILED',error_code='ACCESS_EXPIRED',finished_at=NOW()
+            WHERE status='RUNNING' AND sync_job_id IN (SELECT id FROM trading_sync_jobs
+                WHERE trading_account_id=:account_id)""", account_id=account_id)
+        conn.run("""UPDATE trading_sync_jobs SET status='DEAD',completed_at=NOW(),finished_at=NOW(),
+            lease_expires_at=NULL,last_error_code='ACCESS_EXPIRED',
+            last_error_message='Accès Journal expiré.'
+            WHERE trading_account_id=:account_id
+            AND status IN ('PENDING','LEASED','RUNNING','RETRY')""", account_id=account_id)
+        suspended = conn.run("""UPDATE trading_accounts SET status='ACCESS_EXPIRED',
+            sync_status='ACCESS_EXPIRED',last_error_code='ACCESS_EXPIRED',
+            last_error_message='Accès Journal expiré.',updated_at=NOW()
+            WHERE id=:account_id AND user_id=:user_id AND status<>'ACCESS_EXPIRED'
+            RETURNING id""", account_id=account_id, user_id=user_id)
+        if suspended:
+            suspended_ids.append(account_id)
+
+    if entitlements.allowed:
+        restored = []
+        for raw_account_id, status in allowed_rows:
+            if str(status) != "ACCESS_EXPIRED":
+                continue
+            rows = conn.run("""UPDATE trading_accounts SET status='PENDING_VERIFICATION',
+                sync_status='PENDING',last_error_code='',last_error_message='',updated_at=NOW()
+                WHERE id=:account_id AND user_id=:user_id AND status='ACCESS_EXPIRED'
+                AND EXISTS (SELECT 1 FROM trading_credentials c
+                    WHERE c.trading_account_id=trading_accounts.id)
+                RETURNING id""", account_id=int(raw_account_id), user_id=user_id)
+            restored.extend(rows or [])
+        queued = 0
+        for row in restored or []:
+            account_id = int(row[0])
+            inserted = conn.run("""INSERT INTO trading_sync_jobs
+                (id,trading_account_id,job_type,status,priority)
+                SELECT :id,:account_id,'FULL_HISTORY_SYNC','PENDING',100
+                WHERE NOT EXISTS (SELECT 1 FROM trading_sync_jobs
+                    WHERE trading_account_id=:account_id
+                    AND status IN ('PENDING','LEASED','RUNNING','RETRY'))
+                RETURNING id""", id=str(uuid.uuid4()), account_id=account_id)
+            queued += int(bool(inserted))
+        return {"allowed": True, "restored_accounts": len(restored), "queued_jobs": queued,
+                "suspended_accounts": len(suspended_ids), "suspended_account_ids": suspended_ids}
+
+    return {"allowed": False, "suspended_accounts": len(suspended_ids)}
+
+
 def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: str, *, client=None) -> str:
     plan = str(plan or "").upper()
     if plan not in JOURNAL_PLANS:
         raise ValueError("Cette formule Journal n’existe pas.")
-    if bool(member.get("actif")) and str(member.get("access_level") or "member").lower() not in {"explorer", "demo"}:
+    if academy_membership_state(member)[0]:
         raise PermissionError("Bectanse Journal est déjà inclus dans votre adhésion Académie.")
     conn = get_conn()
     try:
         rows = conn.run("""SELECT stripe_customer_id,stripe_subscription_id,subscription_status,
-            cancel_at_period_end FROM trading_subscriptions WHERE user_id=:user_id""", user_id=user_id)
+            cancel_at_period_end,current_period_end FROM trading_subscriptions
+            WHERE user_id=:user_id""", user_id=user_id)
     finally:
         conn.close()
-    if rows and str(rows[0][2]).lower() in ACTIVE_STATUSES and not bool(rows[0][3]):
+    existing_subscription = ({
+        "subscription_status": rows[0][2], "current_period_end": rows[0][4],
+    } if rows else None)
+    if standalone_subscription_state(existing_subscription):
         raise PermissionError("Votre abonnement Journal est déjà actif.")
     email = str(member.get("email") or "").strip().lower()
     if "@" not in email:
@@ -73,6 +170,7 @@ def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: s
         }},
         "line_items": [{"price": price_id, "quantity": 1}],
         "billing_address_collection": "auto", "allow_promotion_codes": True,
+        "integration_identifier": _integration_identifier(),
     }
     customer_id = str(rows[0][0] or "") if rows else ""
     if customer_id:
@@ -216,6 +314,7 @@ def process_webhook(event: dict, get_conn) -> dict:
         conn.run("""INSERT INTO trading_audit_logs (user_id,action,metadata)
             VALUES (:user_id,'SUBSCRIPTION_CHANGED',jsonb_build_object('status',:status,'plan',:plan,'event_id',:event_id))""",
             user_id=user_id, status=status, plan=plan, event_id=event_id)
+        reconcile_trading_access(conn, user_id)
         conn.run("""UPDATE stripe_journal_events SET user_id=:user_id,status='processed',processed_at=NOW()
             WHERE event_id=:event_id""", user_id=user_id, event_id=event_id)
         conn.run("COMMIT")

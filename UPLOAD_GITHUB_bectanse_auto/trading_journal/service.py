@@ -24,6 +24,7 @@ from .calculations import (
     validate_timezone,
 )
 from .entitlements import can_add_trading_account, resolve_entitlements
+from .billing import reconcile_trading_access
 from .brokers import broker_name_from_server, build_broker_catalog
 from .security import CredentialCipher, EncryptedCredential
 
@@ -123,16 +124,9 @@ class JournalService:
                 {"plan": rows[0][0], "subscription_status": rows[0][1], "current_period_end": rows[0][2]}
                 if rows else None
             )
-            grant_rows = conn.run("""SELECT feature_key,source,status,valid_from,valid_until
-                FROM product_entitlements WHERE user_id=:user_id
-                AND status='ACTIVE' AND valid_from<=NOW()
-                AND (valid_until IS NULL OR valid_until>NOW())""", user_id=user_id)
-            grants = [dict(zip(
-                ("feature_key", "source", "status", "valid_from", "valid_until"), row
-            )) for row in grant_rows]
         finally:
             conn.close()
-        return resolve_entitlements(subscription, self.get_member(user_id), grants).as_dict()
+        return resolve_entitlements(subscription, self.get_member(user_id)).as_dict()
 
     def require_access(self, user_id: str) -> dict:
         entitlements = self.entitlements(user_id)
@@ -141,6 +135,37 @@ class JournalService:
                 "Votre Journal n’est plus actif. Continuez avec Bectanse Journal pour retrouver vos données."
             )
         return entitlements
+
+    def reconcile_access_states(self) -> dict:
+        """Backup sweep for expired/restored access if a Stripe webhook is delayed."""
+        conn = self.get_conn()
+        try:
+            users = [str(row[0]) for row in conn.run(
+                "SELECT DISTINCT user_id FROM trading_accounts ORDER BY user_id"
+            )]
+        finally:
+            conn.close()
+        suspended = restored = queued = errors = 0
+        for user_id in users:
+            conn = self.get_conn()
+            try:
+                conn.run("BEGIN")
+                result = reconcile_trading_access(conn, user_id)
+                conn.run("COMMIT")
+                suspended += int(result.get("suspended_accounts", 0))
+                restored += int(result.get("restored_accounts", 0))
+                queued += int(result.get("queued_jobs", 0))
+            except Exception as error:
+                errors += 1
+                try:
+                    conn.run("ROLLBACK")
+                except Exception:
+                    pass
+                self.logger.error("Journal access reconciliation %s: %s", user_id, error)
+            finally:
+                conn.close()
+        return {"users": len(users), "suspended": suspended, "restored": restored,
+                "queued": queued, "errors": errors}
 
     @staticmethod
     def _serialize_account(row: tuple) -> dict:
@@ -151,19 +176,26 @@ class JournalService:
             result[key] = _iso(result[key])
         return result
 
-    def list_accounts(self, user_id: str) -> list[dict]:
+    def list_accounts(self, user_id: str, max_accounts: int | None = None) -> list[dict]:
         conn = self.get_conn()
         try:
             account_fields = ",".join(f"a.{field}" for field in PUBLIC_ACCOUNT_FIELDS[:-1])
             rows = conn.run(f"""SELECT {account_fields},COALESCE((SELECT j.imported_deals
                 FROM trading_sync_jobs j WHERE j.trading_account_id=a.id
                 ORDER BY j.created_at DESC LIMIT 1),0) AS active_imported_deals
-                FROM trading_accounts a WHERE a.user_id=:user_id ORDER BY a.created_at""", user_id=user_id)
+                FROM trading_accounts a WHERE a.user_id=:user_id
+                AND a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED')
+                ORDER BY a.created_at,a.id""", user_id=user_id)
+            if max_accounts is not None:
+                rows = rows[:max(0, int(max_accounts))]
             return [self._serialize_account(row) for row in rows]
         finally:
             conn.close()
 
-    def get_account(self, user_id: str, account_id: int) -> dict | None:
+    def get_account(self, user_id: str, account_id: int, max_accounts: int | None = None) -> dict | None:
+        if max_accounts is not None:
+            return next((account for account in self.list_accounts(user_id, max_accounts)
+                         if int(account["id"]) == int(account_id)), None)
         conn = self.get_conn()
         try:
             account_fields = ",".join(f"a.{field}" for field in PUBLIC_ACCOUNT_FIELDS[:-1])
@@ -212,14 +244,7 @@ class JournalService:
                 {"plan": subscription_rows[0][0], "subscription_status": subscription_rows[0][1], "current_period_end": subscription_rows[0][2]}
                 if subscription_rows else None
             )
-            grant_rows = conn.run("""SELECT feature_key,source,status,valid_from,valid_until
-                FROM product_entitlements WHERE user_id=:user_id
-                AND status='ACTIVE' AND valid_from<=NOW()
-                AND (valid_until IS NULL OR valid_until>NOW())""", user_id=user_id)
-            grants = [dict(zip(
-                ("feature_key", "source", "status", "valid_from", "valid_until"), row
-            )) for row in grant_rows]
-            entitlements = resolve_entitlements(subscription, member, grants)
+            entitlements = resolve_entitlements(subscription, member)
             if not entitlements.allowed:
                 conn.run("ROLLBACK")
                 raise PermissionError("Un abonnement Journal actif ou une adhésion Académie est requis.")
@@ -463,20 +488,10 @@ class JournalService:
                  "current_period_end": subscription_rows[0][2]}
                 if subscription_rows else None
             )
-            grant_rows = conn.run("""SELECT feature_key,source,status,valid_from,valid_until
-                FROM product_entitlements WHERE user_id=:user_id
-                AND status='ACTIVE' AND valid_from<=NOW()
-                AND (valid_until IS NULL OR valid_until>NOW())""", user_id=user_id)
-            grants = [dict(zip(
-                ("feature_key", "source", "status", "valid_from", "valid_until"), row
-            )) for row in grant_rows]
-            entitlements = resolve_entitlements(subscription, self.get_member(str(user_id)), grants)
-            if not entitlements.allowed:
-                conn.run("""UPDATE trading_sync_jobs SET status='DEAD',completed_at=NOW(),finished_at=NOW(),
-                    last_error_code='ACCESS_EXPIRED',last_error_message='Accès Journal expiré.'
-                    WHERE id=:id""", id=job_id)
-                conn.run("""UPDATE trading_accounts SET status='ACCESS_EXPIRED',
-                    sync_status='ACCESS_EXPIRED',updated_at=NOW() WHERE id=:id""", id=account_id)
+            entitlements = resolve_entitlements(subscription, self.get_member(str(user_id)))
+            access_state = reconcile_trading_access(conn, str(user_id), entitlements=entitlements)
+            if (not entitlements.allowed or
+                    int(account_id) in access_state.get("suspended_account_ids", [])):
                 conn.run("COMMIT")
                 return None
             password = self._cipher().decrypt(
@@ -947,16 +962,17 @@ class JournalService:
             conn.close()
 
     def _scope_account_ids(self, conn, user_id: str, scope: str) -> tuple[list[int], str]:
-        if scope == "all":
-            rows = conn.run("""SELECT id,currency FROM trading_accounts
-                WHERE user_id=:user_id AND status<>'DISCONNECTED' ORDER BY id""", user_id=user_id)
-        else:
+        entitlements = self.entitlements(user_id)
+        rows = conn.run("""SELECT id,currency FROM trading_accounts
+            WHERE user_id=:user_id AND status NOT IN ('DISCONNECTED','ACCESS_EXPIRED')
+            ORDER BY created_at,id""", user_id=user_id)
+        rows = rows[:max(0, int(entitlements["max_accounts"]))]
+        if scope != "all":
             try:
                 account_id = int(scope)
             except (TypeError, ValueError) as exc:
                 raise ValueError("Compte invalide.") from exc
-            rows = conn.run("""SELECT id,currency FROM trading_accounts
-                WHERE user_id=:user_id AND id=:id AND status<>'DISCONNECTED'""", user_id=user_id, id=account_id)
+            rows = [row for row in rows if int(row[0]) == account_id]
         if not rows:
             raise LookupError("Compte de trading introuvable.")
         currencies = {str(row[1] or "") for row in rows}

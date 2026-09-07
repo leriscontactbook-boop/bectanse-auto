@@ -1,6 +1,6 @@
 import base64
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -140,6 +140,7 @@ def test_entitlements_are_centralized_and_academy_members_get_elite_features():
     assert not can_add_trading_account(PLAN_RULES["JOURNAL_PRO"], 1)
     entitlements = resolve_entitlements(None, {
         "actif": True, "access_level": "member", "billing_status": "active",
+        "billing_current_period_end": datetime.now(timezone.utc) + timedelta(days=30),
     })
     assert entitlements.plan == "ACADEMY_INCLUDED"
     assert entitlements.max_accounts == 10

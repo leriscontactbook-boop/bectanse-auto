@@ -152,6 +152,10 @@ Prices, monthly/annual intervals, coupons and trials remain Stripe catalog conce
 
 Standalone customers use `/journal/checkout/<plan>` to enter Stripe Checkout and `POST /api/trading/billing/portal` to open a short-lived Customer Portal session. Stripe webhooks remain the source of truth for access. When a standalone customer later becomes an active Academy member, the Journal subscription is scheduled for cancellation at period end to prevent double billing.
 
+Access fails closed: `active` or `trialing` plus a known future period end is required. There is no post-expiration grace period. An expired Academy membership falls back to a still-valid standalone Journal subscription; otherwise the UI and every data API are locked. MT5 jobs are stopped, while accounts, credentials and trading history are preserved. A later valid Academy or standalone subscription reactivates the account and queues a full deduplicated synchronization automatically.
+
+Feature grants never replace a valid subscription and cannot bypass this access cutoff.
+
 ## Security controls
 
 - AES-256-GCM master key comes only from the API runtime secret store.
