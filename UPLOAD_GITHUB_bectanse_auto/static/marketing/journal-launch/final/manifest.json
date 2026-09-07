@@ -1,0 +1,37 @@
+{
+  "campaign": "Bectanse Journal — lancement septembre 2026",
+  "claim": "Le trade est terminé. L’apprentissage commence",
+  "cta": "https://acces.bectanse-academie.com/journal",
+  "exports": [
+    {
+      "file": "story-01-hook.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "3881f873131433f4125ba08d34d106d1672b0b22116b72897731d5285a349a63"
+    },
+    {
+      "file": "story-02-produit.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "60c0bcf8d267a2d09a05fccb7f58cd5602b3e1c0aff0b090f5fc0c352b4b49c9"
+    },
+    {
+      "file": "story-03-cta.png",
+      "width": 1080,
+      "height": 1920,
+      "sha256": "ff229f9de1e4dd9bc5aef8de76e572df86ca1484ea59773ba5b266d231142de7"
+    },
+    {
+      "file": "journal-launch-email.jpg",
+      "width": 1200,
+      "height": 628,
+      "sha256": "7b53513d1a7c4c681d77bbb21e90b138344e633eb32081e66d3d4593ad933d78"
+    },
+    {
+      "file": "journal-launch-telegram.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "030186784f464bcc82727dab094c0d39dfe850226c54adaf245a3f2f3cb5881e"
+    }
+  ]
+}

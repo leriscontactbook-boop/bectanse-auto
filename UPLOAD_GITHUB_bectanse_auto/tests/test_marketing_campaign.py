@@ -8,8 +8,13 @@ from marketing_automation import (
     EXPIRED_MONTHLY_CONTENT,
     EXPLORER_STAGES,
     MEMBER_ONBOARDING_START,
+    JOURNAL_LAUNCH_HERO,
+    JOURNAL_LAUNCH_REFERENCE,
+    JOURNAL_LAUNCH_START,
     _email_html,
     _explorer_candidate,
+    _journal_launch_candidate,
+    _journal_launch_content,
     _member_onboarding_candidate,
     _legacy_delivery_health,
     _now,
@@ -68,6 +73,17 @@ class _MonthlyReactivationConnection:
         if compact.startswith("SELECT sent_at FROM marketing_email_log"):
             return [[self.latest_sent]]
         raise AssertionError(f"Requête mensuelle inattendue: {compact}")
+
+
+class _JournalLaunchConnection:
+    def __init__(self, already_sent=False):
+        self.already_sent = already_sent
+
+    def run(self, sql, **params):
+        compact = " ".join(sql.split())
+        if compact.startswith("SELECT 1 FROM marketing_email_log"):
+            return [[1]] if self.already_sent else []
+        raise AssertionError(f"Requête journal inattendue: {compact}")
 
 
 class MarketingCampaignTests(unittest.TestCase):
@@ -200,6 +216,46 @@ class MarketingCampaignTests(unittest.TestCase):
             datetime(2026, 8, 1), datetime(2026, 10, 1),
         )
         self.assertIsNone(_renewal_candidate(_NoQueryConnection(), contact))
+
+    def test_journal_launch_has_segment_specific_routes(self):
+        member = _journal_launch_content("active")[0]
+        explorer = _journal_launch_content("explorer")[0]
+        expired = _journal_launch_content("expired")[0]
+        legacy = _journal_launch_content("legacy_lead")[0]
+        self.assertEqual(member["target_url"], "https://acces.bectanse-academie.com/journal")
+        self.assertEqual(explorer["target_url"], "https://acces.bectanse-academie.com/journal")
+        self.assertIn("#offres", expired["target_url"])
+        self.assertIn("#capture", legacy["target_url"])
+        self.assertTrue(all(item["hero_image"] == JOURNAL_LAUNCH_HERO for item in (
+            member, explorer, expired, legacy,
+        )))
+
+    def test_journal_launch_candidate_is_available_during_campaign(self):
+        contact = (
+            "BCT-ACTIVE02", "active2@example.com", "Active", "active",
+            JOURNAL_LAUNCH_START - timedelta(days=30),
+        )
+        with patch("marketing_automation._now",
+                   return_value=JOURNAL_LAUNCH_START + timedelta(hours=1)):
+            candidate = _journal_launch_candidate(
+                _JournalLaunchConnection(), contact,
+            )
+        self.assertIsNotNone(candidate)
+        journey, content, reference, due_at = candidate
+        self.assertEqual(journey, "journal_launch")
+        self.assertEqual(content["stage"], "journal-membre-lancement")
+        self.assertEqual(reference, JOURNAL_LAUNCH_REFERENCE)
+        self.assertEqual(due_at, JOURNAL_LAUNCH_START)
+
+    def test_journal_launch_email_has_visual_cta_and_discreet_unsubscribe(self):
+        content = _journal_launch_content("explorer")[0]
+        rendered = _email_html(
+            "Leris", content, "journal_launch", content["stage"],
+            "https://example.test/unsubscribe",
+        )
+        self.assertIn(JOURNAL_LAUNCH_HERO, rendered)
+        self.assertIn("bectanse_journal-launch", rendered)
+        self.assertEqual(rendered.count("se désinscrire"), 1)
 
 
 if __name__ == "__main__":

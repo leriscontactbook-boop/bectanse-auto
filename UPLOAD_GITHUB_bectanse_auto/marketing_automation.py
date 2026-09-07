@@ -565,6 +565,182 @@ EXPIRED_MONTHLY_CONTENT = [
 EXPIRED_MONTHLY_WINDOW_DAYS = 7
 EXPIRED_MONTHLY_QUIET_DAYS = 3
 
+JOURNAL_LAUNCH_REFERENCE = "journal-2026-09"
+JOURNAL_LAUNCH_START = datetime(2026, 9, 7, 7, 0)
+JOURNAL_LAUNCH_END = datetime(2026, 10, 8, 0, 0)
+JOURNAL_LAUNCH_HERO = (
+    BASE_URL + "/static/marketing/journal-launch/final/journal-launch-email.jpg"
+)
+
+
+JOURNAL_LAUNCH_MEMBER_STAGES = [
+    {
+        "stage": "journal-membre-lancement", "delay_hours": 0,
+        "subject": "{prenom}, ton Journal Bectanse est disponible",
+        "preheader": "Tes trades deviennent enfin des données utiles pour progresser",
+        "eyebrow": "NOUVEAU DANS TON ESPACE",
+        "title": "Le trade est terminé. L’apprentissage commence",
+        "body": [
+            "Ton accès membre inclut maintenant le Journal de Trading Bectanse. Il se connecte à ton historique MT5 pour transformer tes trades en calendrier, statistiques et repères concrets",
+            "Tu peux identifier tes habitudes, suivre ton Trade Score et relire tes décisions avec un coach quotidien, hebdomadaire et mensuel. Tout est déjà disponible dans ton espace, sans achat supplémentaire",
+        ],
+        "highlight": "Commence par connecter ton compte MT5 puis laisse le journal construire une lecture claire de ta progression",
+        "cta": "Ouvrir mon Journal Bectanse",
+        "target_url": BASE_URL + "/journal",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Le Journal de Trading Bectanse Académie",
+        "proof_items": [
+            ("SYNCHRONISER", "Historique MT5"),
+            ("COMPRENDRE", "Calendrier et statistiques"),
+            ("PROGRESSER", "Trade Score et coach"),
+        ],
+    },
+    {
+        "stage": "journal-membre-usage", "delay_hours": 72,
+        "subject": "Ce que ton historique peut révéler sur ta façon de trader",
+        "preheader": "Le journal met en évidence les habitudes difficiles à voir trade après trade",
+        "eyebrow": "TON HISTORIQUE PARLE",
+        "title": "Tes erreurs répétées laissent toujours une trace",
+        "body": [
+            "Un trade isolé raconte peu de choses. Une série de trades peut révéler une heure moins maîtrisée, un risque irrégulier ou une stratégie que tu appliques mieux que les autres",
+            "Le Journal Bectanse rassemble ces signaux dans une lecture simple. L’objectif n’est pas de juger ton résultat mais de t’aider à comprendre ce que tu peux améliorer dès la prochaine session",
+        ],
+        "highlight": "Ouvre ton calendrier, choisis une période puis observe ce que tes propres données racontent",
+        "cta": "Analyser mon historique",
+        "target_url": BASE_URL + "/journal",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Analyse du Journal de Trading Bectanse Académie",
+        "disclaimer": "Le journal est un outil éducatif et de suivi. Il ne constitue pas un conseil en investissement.",
+    },
+]
+
+JOURNAL_LAUNCH_EXPLORER_STAGES = [
+    {
+        "stage": "journal-explorer-decouverte", "delay_hours": 0,
+        "subject": "Ton broker enregistre tes trades. Bectanse t’explique ce qu’ils disent de toi",
+        "preheader": "Découvre le nouveau Journal de Trading Bectanse depuis ton compte Explorer",
+        "eyebrow": "NOUVEAUTÉ BECTANSE",
+        "title": "Chaque trade peut devenir une leçon",
+        "body": [
+            "Ton broker conserve ton historique mais il ne t’explique pas pourquoi certaines erreurs reviennent ni quelles habitudes soutiennent réellement ta progression",
+            "Le Journal Bectanse transforme les données MT5 en calendrier, statistiques, Trade Score et bilans guidés. Tu peux découvrir l’outil depuis ton compte Explorer avant de choisir ton accès",
+        ],
+        "highlight": "Le trade est terminé. L’apprentissage commence",
+        "cta": "Découvrir le Journal Bectanse",
+        "target_url": BASE_URL + "/journal",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Découverte du Journal de Trading Bectanse Académie",
+        "proof_items": [
+            ("CALENDRIER", "Relis chaque journée"),
+            ("TRADE SCORE", "Mesure ta discipline"),
+            ("COACH", "Comprends tes habitudes"),
+        ],
+    },
+    {
+        "stage": "journal-explorer-methode", "delay_hours": 48,
+        "subject": "Les trois questions que ton journal doit savoir répondre",
+        "preheader": "Quand, comment et pourquoi tes décisions se répètent",
+        "eyebrow": "VOIR CE QUE L’ON NE VOIT PAS",
+        "title": "Tu n’as pas besoin de trader plus. Tu dois mieux relire",
+        "body": [
+            "À quelles heures prends-tu tes meilleures décisions. Quelle stratégie respectes-tu vraiment. Quel niveau de risque déclenche tes écarts de discipline",
+            "Le Journal Bectanse organise ton historique pour répondre à ces questions avec tes propres données, pas avec une théorie générale",
+        ],
+        "highlight": "Une progression mesurable commence lorsque tu peux comparer ton plan avec ce que tu as réellement fait",
+        "cta": "Voir comment fonctionne le journal",
+        "target_url": BASE_URL + "/journal",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Fonctions du Journal de Trading Bectanse Académie",
+        "disclaimer": "Le journal est un outil éducatif et de suivi. Il ne garantit aucun résultat de trading.",
+    },
+    {
+        "stage": "journal-explorer-action", "delay_hours": 120,
+        "subject": "Ton compte est prêt pour passer de l’observation à la progression",
+        "preheader": "Active le journal seul ou rejoins l’écosystème complet de l’Académie",
+        "eyebrow": "CHOISIS TON NIVEAU D’ACCÈS",
+        "title": "Ton historique existe déjà. Fais-en quelque chose d’utile",
+        "body": [
+            "Tu peux conserver ton compte Explorer pour observer l’application ou débloquer le Journal Bectanse afin de synchroniser ton historique et commencer ton suivi personnel",
+            "Si tu rejoins l’Académie, le journal complet est inclus avec la formation, le Trader Lab, le Canal VIP et l’accompagnement membre",
+        ],
+        "highlight": "Tu gardes le même code BCT. Seules les fonctions correspondant à ton accès se débloquent",
+        "cta": "Choisir mon accès",
+        "target_url": BASE_URL + "/journal",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Accès au Journal de Trading Bectanse Académie",
+        "show_support": True,
+    },
+]
+
+JOURNAL_LAUNCH_EXPIRED_STAGES = [
+    {
+        "stage": "journal-retour-lancement", "delay_hours": 0,
+        "subject": "Depuis ton départ, Bectanse sait maintenant lire tes trades",
+        "preheader": "Le Journal Bectanse transforme ton historique MT5 en plan de progression",
+        "eyebrow": "CE QUE TU N’AVAIS PAS ENCORE VU",
+        "title": "Bectanse a ajouté une nouvelle façon de progresser",
+        "body": [
+            "Depuis ton dernier accès, l’Académie a lancé son Journal de Trading intelligent. Il synchronise l’historique MT5, construit un calendrier de performance et met en évidence les habitudes qui se répètent",
+            "Le journal complet est inclus lorsque tu réactives l’Académie. Tu retrouves également la formation, le Trader Lab, le Canal VIP et les nouveaux outils ajoutés à ton espace",
+        ],
+        "highlight": "Ton compte BCT existe toujours. Tu peux revenir sans recommencer ton inscription",
+        "cta": "Redécouvrir Bectanse",
+        "target_url": BASE_URL + "/vip#offres",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Nouveau Journal de Trading Bectanse Académie",
+        "show_support": True,
+    },
+    {
+        "stage": "journal-retour-action", "delay_hours": 96,
+        "subject": "Et si ton prochain mois servait enfin à comprendre tes habitudes",
+        "preheader": "Reprends avec un journal, une méthode et un environnement complet",
+        "eyebrow": "REVENIR AVEC UN PLAN",
+        "title": "Ne reprends pas exactement comme avant",
+        "body": [
+            "Revenir n’a de sens que si ton prochain accès t’aide à comprendre ce que tu fais, à mesurer ta discipline et à construire une routine plus claire",
+            "Le Journal Bectanse a été créé pour relier tes résultats à tes décisions. C’est la nouvelle brique de l’écosystème qui te permet de ne plus laisser ton historique dormir chez ton broker",
+        ],
+        "highlight": "Réactive ton compte existant et retrouve l’ensemble des outils depuis la même application",
+        "cta": "Réactiver mon accès",
+        "target_url": BASE_URL + "/vip#offres",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Réactivation avec le Journal Bectanse",
+        "show_support": True,
+    },
+]
+
+JOURNAL_LAUNCH_LEGACY_STAGES = [
+    {
+        "stage": "journal-prospect-decouverte", "delay_hours": 0,
+        "subject": "Bectanse a lancé l’outil que ton broker ne te donnera jamais",
+        "preheader": "Un journal connecté à MT5 pour comprendre ce que tes trades disent de toi",
+        "eyebrow": "BECTANSE A CHANGÉ",
+        "title": "Ton broker enregistre. Bectanse t’aide à comprendre",
+        "body": [
+            "Tu avais déjà demandé des informations sur Bectanse. Depuis, l’Académie est devenue une véritable application et vient d’ajouter un Journal de Trading connecté à MT5",
+            "Calendrier, statistiques, Trade Score et bilans guidés permettent de relire une activité de trading avec plus de méthode. Tu peux créer gratuitement un compte Explorer pour découvrir l’environnement avant de choisir",
+        ],
+        "highlight": "Aucune carte n’est demandée pour ouvrir ton compte Explorer",
+        "cta": "Découvrir gratuitement Bectanse",
+        "target_url": BASE_URL + "/vip#capture",
+        "hero_image": JOURNAL_LAUNCH_HERO,
+        "hero_alt": "Application et Journal de Trading Bectanse Académie",
+        "disclaimer": "Le trading comporte un risque de perte partielle ou totale du capital.",
+    },
+]
+
+
+def _journal_launch_content(segment):
+    if segment in {"active", "expiring"}:
+        return JOURNAL_LAUNCH_MEMBER_STAGES
+    if segment == "explorer":
+        return JOURNAL_LAUNCH_EXPLORER_STAGES
+    if segment == "expired":
+        return JOURNAL_LAUNCH_EXPIRED_STAGES
+    if segment == "legacy_lead":
+        return JOURNAL_LAUNCH_LEGACY_STAGES
+    return []
+
 
 def _now():
     # Les colonnes PostgreSQL historiques sont des TIMESTAMP sans fuseau et
@@ -1077,6 +1253,26 @@ def _checkout_candidate(conn, contact):
     return None
 
 
+def _journal_launch_candidate(conn, contact):
+    """Campagne ponctuelle, segmentée et limitée dans le temps."""
+    now = _now()
+    if now < JOURNAL_LAUNCH_START or now >= JOURNAL_LAUNCH_END:
+        return None
+    content_items = _journal_launch_content(contact[3])
+    if not content_items:
+        return None
+    created_at = contact[4] or JOURNAL_LAUNCH_START
+    campaign_base = max(JOURNAL_LAUNCH_START, created_at)
+    for content in content_items:
+        due_at = campaign_base + timedelta(hours=content["delay_hours"])
+        if now >= due_at and not _already_sent(
+                conn, contact[0], "journal_launch", content["stage"],
+                JOURNAL_LAUNCH_REFERENCE):
+            return ("journal_launch", content,
+                    JOURNAL_LAUNCH_REFERENCE, due_at)
+    return None
+
+
 def _renewal_candidate(conn, contact):
     code, _email, _first, segment, _created, date_fin = contact[:6]
     if not date_fin:
@@ -1360,6 +1556,8 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
                 continue
             candidate = _checkout_candidate(conn, contact)
             if not candidate:
+                candidate = _journal_launch_candidate(conn, contact)
+            if not candidate:
                 candidate = _renewal_candidate(conn, contact)
             if not candidate:
                 candidate = _member_onboarding_candidate(conn, contact)
@@ -1372,7 +1570,11 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
             if candidate:
                 journey, content, reference, due_at = candidate
                 candidates.append((contact, journey, content, reference, due_at))
-                if journey == "legacy_reactivation":
+                # La rampe de chauffe concerne le contact importé, quel que soit
+                # le parcours prioritaire retenu pour lui (lancement du Journal
+                # ou reconquête historique). Elle ne doit jamais pouvoir être
+                # contournée par une campagne ponctuelle.
+                if contact[3] == "legacy_lead":
                     legacy_selected += 1
         if dry_run:
             return {"ok": True, "dry_run": True, "sent": 0,
@@ -1487,6 +1689,10 @@ def _marketing_dashboard_data(conn):
               AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
         "clicks_24h": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
             WHERE event_type='click' AND event_at>NOW()-INTERVAL '24 hours'""")[0][0] or 0),
+        "journal_launch_sent": int(conn.run("""SELECT COUNT(*) FROM marketing_email_log
+            WHERE journey='journal_launch' AND status='sent'""")[0][0] or 0),
+        "journal_launch_clicked": int(conn.run("""SELECT COUNT(*) FROM marketing_email_events
+            WHERE journey='journal_launch' AND event_type='click'""")[0][0] or 0),
     }
     recent = conn.run("""SELECT l.sent_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris',
         l.member_code,c.first_name,l.journey,l.stage,
@@ -1612,7 +1818,10 @@ def register_marketing_routes(app, get_conn, send_email, action_token, action_pa
             settings=settings, stats=stats, recent=recent,
             explorer_stages=EXPLORER_STAGES, checkout_stages=CHECKOUT_STAGES,
             reactivation_stages=REACTIVATION_STAGES,
-            member_stages=MEMBER_ONBOARDING_STAGES)
+            member_stages=MEMBER_ONBOARDING_STAGES,
+            journal_member_stages=JOURNAL_LAUNCH_MEMBER_STAGES,
+            journal_explorer_stages=JOURNAL_LAUNCH_EXPLORER_STAGES,
+            journal_expired_stages=JOURNAL_LAUNCH_EXPIRED_STAGES)
 
     @app.route("/admin/marketing/run", methods=["POST"])
     @admin_required
