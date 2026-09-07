@@ -516,7 +516,8 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-timezone { min-width: 0; }
   .tj-timezone span { display: none; }
   .tj-timezone select { width: 100%; min-width: 0; height: 44px; padding-right: 20px; padding-left: 9px; }
-  .tj-status-actions .tj-button, .tj-icon-button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 0; }
+  .tj-status-actions .tj-button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 0; }
+  .tj-icon-button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 11px; letter-spacing: .08em; }
   .tj-status-actions .tj-button span { font-size: 17px; }
   .tj-sync-progress { grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
   .tj-view { padding-top: 26px; }

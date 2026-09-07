@@ -37,6 +37,7 @@ def test_journal_mobile_navigation_is_stable_and_complete():
     assert ".tj-mobile-nav {\n    position: relative" in css
     assert "height: calc(var(--mobile-nav-height) + var(--safe-bottom))" in css
     assert "min-height: 44px" in css
+    assert ".tj-icon-button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 11px" in css
 
 
 def test_journal_has_safe_areas_deep_links_and_responsive_chart():
