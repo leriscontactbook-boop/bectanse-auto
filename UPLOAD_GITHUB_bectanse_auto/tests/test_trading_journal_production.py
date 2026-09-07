@@ -13,6 +13,7 @@ from trading_journal.calculations import (
     reconstruct_positions,
 )
 from trading_journal.coach import MIN_TRADES, build_insights, detect_behavior, review, trading_score
+from trading_journal.billing import create_checkout
 from trading_journal.config import JournalConfigurationError, validate_backend_config, validate_worker_config
 from trading_journal.entitlements import FEATURE_KEYS, resolve_entitlements
 from trading_journal.providers.base import AccountSnapshot, ProviderError
@@ -20,6 +21,7 @@ from trading_journal.providers.mt5 import MetaTrader5Provider
 from trading_journal.providers.mock import MockTradingProvider
 from trading_journal.security import CredentialCipher, canonical_worker_signature, verify_worker_request
 from trading_journal.service import RETRY_DELAYS_SECONDS
+from trading_journal.routes import _checkout_failure_code
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -172,6 +174,31 @@ def test_academy_gets_all_coach_flags_and_external_pro_does_not_get_monthly():
     assert academy.coach_monthly and academy.coach_advanced_patterns
     assert external.coach_daily and not external.coach_monthly
     assert "coach.ai_explanations" in FEATURE_KEYS
+
+
+def test_academy_member_checkout_does_not_depend_on_standalone_price_configuration(monkeypatch):
+    monkeypatch.delenv("STRIPE_JOURNAL_PRO_PRICE_ID", raising=False)
+
+    def database_must_not_be_opened():
+        raise AssertionError("Academy inclusion must be resolved before standalone billing")
+
+    with pytest.raises(PermissionError, match="déjà inclus"):
+        create_checkout(
+            database_must_not_be_opened,
+            {"actif": True, "access_level": "member", "email": "member@example.com"},
+            "BCT-MEMBER",
+            "JOURNAL_PRO",
+            "https://example.test/",
+        )
+
+
+@pytest.mark.parametrize("error,code", [
+    (PermissionError("included"), "already-active"),
+    (ValueError("email"), "account-required"),
+    (RuntimeError("stripe"), "unavailable"),
+])
+def test_checkout_errors_are_mapped_to_safe_browser_statuses(error, code):
+    assert _checkout_failure_code(error) == code
 
 
 @pytest.mark.parametrize("member,subscription,allowed,source", [

@@ -53,6 +53,15 @@ def _api_error(error: Exception):
     return jsonify({"ok": False, "error": "Le service est momentanément indisponible."}), 500
 
 
+def _checkout_failure_code(error: Exception) -> str:
+    """Return a safe public status for the browser checkout redirect."""
+    if isinstance(error, PermissionError):
+        return "already-active"
+    if isinstance(error, ValueError):
+        return "account-required"
+    return "unavailable"
+
+
 def register_trading_journal(app, get_conn, get_member, login_required, admin_required=None):
     service = JournalService(get_conn, get_member, app.logger)
 
@@ -98,7 +107,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             return redirect(url, code=303)
         except Exception as error:
             app.logger.error("Journal Checkout %s: %s", session["member_code"], error)
-            return _api_error(error)
+            return redirect(f"/journal?checkout={_checkout_failure_code(error)}", code=303)
 
     @app.route("/api/trading/accounts/connect", methods=["POST"])
     @app.route("/trading/accounts/connect", methods=["POST"])

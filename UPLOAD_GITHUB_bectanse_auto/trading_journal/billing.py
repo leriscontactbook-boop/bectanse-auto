@@ -28,10 +28,8 @@ def plan_for_price(price_id: str) -> str | None:
 
 def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: str) -> str:
     plan = str(plan or "").upper()
-    price_id = price_id_for_plan(plan)
-    secret = os.environ.get("STRIPE_SECRET_KEY", "")
-    if not secret or not price_id:
-        raise RuntimeError("La souscription Journal n’est pas encore configurée.")
+    if plan not in JOURNAL_PLANS:
+        raise ValueError("Cette formule Journal n’existe pas.")
     if bool(member.get("actif")) and str(member.get("access_level") or "member").lower() not in {"explorer", "demo"}:
         raise PermissionError("Bectanse Journal est déjà inclus dans votre adhésion Académie.")
     conn = get_conn()
@@ -45,6 +43,10 @@ def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: s
     email = str(member.get("email") or "").strip().lower()
     if "@" not in email:
         raise ValueError("Une adresse e-mail vérifiée est requise.")
+    price_id = price_id_for_plan(plan)
+    secret = os.environ.get("STRIPE_SECRET_KEY", "")
+    if not secret or not price_id:
+        raise RuntimeError("La souscription Journal n’est pas encore configurée.")
     form = {
         "mode": "subscription", "success_url": root_url.rstrip("/") + "/journal?checkout=success",
         "cancel_url": root_url.rstrip("/") + "/journal?checkout=cancelled",
