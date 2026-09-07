@@ -31,7 +31,7 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --app-height: 100vh;
   --mobile-header-height: 58px;
-  --mobile-nav-height: 68px;
+  --mobile-nav-height: 50px;
   --mobile-gutter: 14px;
   --z-content: 0;
   --z-sticky: 10;
@@ -467,7 +467,7 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   body { padding: 0 !important; background: var(--bg); }
   .tj-app {
     position: fixed; inset: 0; width: 100%; height: auto; min-height: 0; display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; isolation: isolate;
+    grid-template-rows: auto minmax(0, 1fr); overflow: hidden; isolation: isolate;
   }
   .tj-sidebar { display: none; }
   .tj-mobile-header {
@@ -490,8 +490,9 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
     color: var(--orange-soft); text-decoration: none; font-size: 11px; font-weight: 800;
   }
   .tj-main {
-    min-height: 0; height: auto; margin-left: 0; padding: 0 max(var(--mobile-gutter), var(--safe-right)) 26px max(var(--mobile-gutter), var(--safe-left));
-    overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scroll-behavior: smooth;
+    min-height: 0; height: auto; margin-left: 0;
+    padding: 0 max(var(--mobile-gutter), var(--safe-right)) calc(10px + var(--mobile-nav-height) + var(--safe-bottom)) max(var(--mobile-gutter), var(--safe-left));
+    overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scroll-behavior: auto;
     scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
   .tj-main::-webkit-scrollbar { display: none; }
@@ -520,7 +521,8 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-icon-button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 11px; letter-spacing: .08em; }
   .tj-status-actions .tj-button span { font-size: 17px; }
   .tj-sync-progress { grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
-  .tj-view { padding-top: 26px; }
+  .tj-view { padding-top: 24px; }
+  .tj-view.is-active { animation: none; }
   .tj-view-heading, .tj-calendar-head { align-items: flex-start; }
   .tj-view-heading h2, .tj-calendar-head h2 { font-size: 26px; }
   .tj-view-heading > p { max-width: 44%; justify-content: flex-end; text-align: right; }
@@ -570,11 +572,14 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-month-strip > div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
   .tj-month-strip strong { overflow: hidden; font-size: clamp(15px,5vw,19px); text-overflow: ellipsis; white-space: nowrap; }
   .tj-calendar-shell { width: 100%; border-radius: 12px; }
+  .tj-weekdays, .tj-calendar-grid { grid-template-columns: repeat(7,minmax(0,1fr)); }
   .tj-weekdays { height: 36px; }
   .tj-weekdays span { min-width: 0; font-size: 6px; }
-  .tj-calendar-day { min-width: 0; min-height: 74px; padding: 7px 4px; overflow: hidden; }
-  .tj-calendar-day b { margin-top: 13px; overflow: hidden; font-size: clamp(8px,2.6vw,11px); letter-spacing: -.03em; text-overflow: ellipsis; white-space: nowrap; }
-  .tj-calendar-day small { overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-calendar-day { min-width: 0; min-height: 70px; padding: 7px 4px; display: flex; flex-direction: column; overflow: hidden; }
+  .tj-calendar-day > span { line-height: 1; }
+  .tj-calendar-day b { width: 100%; margin-top: auto; overflow: hidden; font-size: clamp(8px,2.45vw,10px); line-height: 1.1; letter-spacing: -.03em; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-calendar-day small { width: 100%; margin-top: 3px; overflow: hidden; font-size: 7px; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-calendar-day.is-today::after { inset: 4px; }
   .tj-coach-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
   .tj-coach-tabs button { min-height: 44px; padding: 8px 4px; }
   .tj-score-panel > strong { font-size: clamp(48px,18vw,70px); }
@@ -588,13 +593,14 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-trade-timeline i { width: 1px; height: 32px; margin-left: 8px; }
   .tj-trade-timeline > div:last-child { text-align: left; }
   .tj-mobile-nav {
-    position: relative; z-index: var(--z-bottom-nav); width: 100%; height: calc(var(--mobile-nav-height) + var(--safe-bottom));
+    position: fixed; inset: auto 0 0; z-index: var(--z-bottom-nav); width: 100%; height: calc(var(--mobile-nav-height) + var(--safe-bottom));
     display: grid; grid-template-columns: repeat(5,minmax(0,1fr));
     padding: 3px max(4px,var(--safe-right)) var(--safe-bottom) max(4px,var(--safe-left));
     border-top: 1px solid var(--line); background: #0a0a0b; box-shadow: 0 -14px 36px rgba(0,0,0,.42);
+    backface-visibility: hidden; -webkit-backface-visibility: hidden; touch-action: manipulation;
   }
   .tj-mobile-nav button {
-    min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    min-width: 0; height: 44px; min-height: 44px; align-self: start; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     border: 0; border-radius: 10px; background: transparent; color: #686870; font-size: 7px; font-weight: 750; cursor: pointer;
   }
   .tj-mobile-nav button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -624,16 +630,27 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-topbar { grid-template-columns: minmax(0,1fr) minmax(126px,44vw); }
   .tj-pnl-focus { padding: 26px 19px; }
   .tj-kpi-strip article { padding: 13px 11px; }
-  .tj-calendar-day { min-height: 66px; }
+  .tj-calendar-head { margin-bottom: 18px; }
+  .tj-calendar-day { min-height: 62px; }
+  .tj-calendar-day b { font-size: 0; }
+  .tj-calendar-day b::after { content: attr(data-mobile); font-size: 9px; }
   .tj-calendar-day small { font-size: 0; }
-  .tj-calendar-day small::after { content: attr(data-short); font-size: 7px; }
+  .tj-calendar-day small::after { content: attr(data-short); font-size: 6px; }
   .tj-form-grid { grid-template-columns: 1fr; }
   .tj-day-metrics { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
   .tj-view-heading > p { display: none; }
 }
 
+@media (max-width: 380px) {
+  .tj-trade-toolbar { grid-template-columns: minmax(0,1fr); }
+  .tj-search-field, .tj-trade-toolbar select:last-child { grid-column: 1; }
+  .tj-trades-table-row > strong { max-width: 46vw; overflow: hidden; font-size: 9px; text-overflow: ellipsis; }
+  .tj-insight > div { align-items: flex-start; flex-wrap: wrap; }
+  .tj-insight > div small { width: 100%; }
+}
+
 @media (max-width: 340px) {
-  :root { --mobile-gutter: 8px; --mobile-nav-height: 64px; }
+  :root { --mobile-gutter: 8px; }
   .tj-mobile-home img { display: none; }
   .tj-mobile-context { min-width: 78px; }
   .tj-mobile-context strong { max-width: 92px; font-size: 11px; }
@@ -641,7 +658,7 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-topbar h1 { font-size: 17px; }
   .tj-panel { padding: 16px; }
   .tj-month-strip > div { padding-right: 7px; padding-left: 7px; }
-  .tj-calendar-day { min-height: 62px; padding-right: 2px; padding-left: 2px; }
+  .tj-calendar-day { min-height: 56px; padding-right: 2px; padding-left: 2px; }
   .tj-mobile-nav button { font-size: 6px; }
   .tj-mobile-nav button svg { width: 18px; height: 18px; }
   .tj-onboarding h2, .tj-paywall h2 { font-size: 36px; letter-spacing: -.035em; }
@@ -649,7 +666,7 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
 }
 
 @media (max-width: 932px) and (max-height: 500px) and (orientation: landscape) {
-  :root { --mobile-header-height: 48px; --mobile-nav-height: 54px; }
+  :root { --mobile-header-height: 48px; --mobile-nav-height: 48px; }
   .tj-mobile-home, .tj-mobile-profile { min-height: 40px; }
   .tj-mobile-profile { width: 32px; height: 32px; }
   .tj-mobile-nav button { min-height: 42px; gap: 1px; }

@@ -20,7 +20,7 @@ def test_journal_uses_a_dedicated_three_zone_mobile_shell():
     assert 'class="tj-mobile-nav"' in shell
     assert shell.index('class="tj-mobile-header"') < shell.index('class="tj-main"')
     assert shell.index('class="tj-main"') < shell.index('class="tj-mobile-nav"')
-    assert "grid-template-rows: auto minmax(0, 1fr) auto" in css
+    assert "grid-template-rows: auto minmax(0, 1fr)" in css
     assert "position: fixed; inset: 0; width: 100%; height: auto; min-height: 0" in css
     assert "body { padding: 0 !important; background: var(--bg); }" in css
     assert "min-height: 100svh" not in css
@@ -36,8 +36,10 @@ def test_journal_mobile_navigation_is_stable_and_complete():
     assert nav.count("data-view=") == 5
     for view in ("overview", "trades", "calendar", "analytics", "coach"):
         assert f'data-view="{view}"' in nav
-    assert ".tj-mobile-nav {\n    position: relative" in css
+    assert ".tj-mobile-nav {\n    position: fixed; inset: auto 0 0" in css
     assert "height: calc(var(--mobile-nav-height) + var(--safe-bottom))" in css
+    assert "--mobile-nav-height: 50px" in css
+    assert "calc(10px + var(--mobile-nav-height) + var(--safe-bottom))" in css
     assert "min-height: 44px" in css
     assert ".tj-icon-button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 11px" in css
 
@@ -59,6 +61,30 @@ def test_journal_has_safe_areas_deep_links_and_responsive_chart():
     assert "window.scrollTo" not in javascript
     assert "touchcancel" in javascript
     assert ".tj-onboarding h2, .tj-paywall h2 { font-size: 36px" in css
+
+
+def test_journal_calendar_is_compact_without_losing_accessible_values():
+    css = read("static/css/trading-journal.css")
+    javascript = read("static/trading-journal.js")
+
+    assert "grid-template-columns: repeat(7,minmax(0,1fr))" in css
+    assert "content: attr(data-mobile)" in css
+    assert "content: attr(data-short)" in css
+    assert "data-mobile=" in javascript
+    assert " pos." in javascript
+    assert "button.setAttribute('aria-label'" in javascript
+
+
+def test_mobile_chart_toggle_uses_vector_icon_instead_of_emoji_arrow():
+    template = read("templates/accueil.html")
+    css = read("static/css/member-fintech.css")
+
+    toggle = template[template.index('<button class="os-chart-toggle"') : template.index('</button>', template.index('<button class="os-chart-toggle"'))]
+    assert '<svg viewBox="0 0 16 16"' in toggle
+    assert "↗" not in toggle
+    assert "↙" not in template
+    assert "classList.toggle('is-reversed', expanded)" in template
+    assert ".os-chart-toggle b svg" in css
 
 
 def test_journal_mobile_sheets_lock_the_primary_scroller():

@@ -361,7 +361,7 @@ body.future-preview{
 .future-preview .quick-item:nth-child(1) .quick-icon::before{content:'◎'}
 .future-preview .quick-item:nth-child(2) .quick-icon::before{content:'▤'}
 .future-preview .quick-item:nth-child(3) .quick-icon::before{content:'◇'}
-.future-preview .quick-item:nth-child(4) .quick-icon::before{content:'↗'}
+.future-preview .quick-item:nth-child(4) .quick-icon::before{content:'→'}
 .future-preview .quick-item:nth-child(5) .quick-icon::before{content:'?'}
 .future-preview .canal-voir-tout{color:rgba(255,106,0,.75)}
 .future-preview .m-topbar,.future-preview .m-univ-nav{background:rgba(5,7,9,.96);border-color:rgba(255,106,0,.18)}
@@ -388,7 +388,7 @@ body.future-preview{
 }
 </style>
 {% endif %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260830-explorer1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260907-mobile2">
 </head>
 <body class="member-fintech {% if modern_preview %}future-preview{% endif %}">
 {% if modern_preview %}
@@ -553,7 +553,8 @@ body.future-preview{
         <div id="tradingview_gold"></div>
       </div>
       <button class="os-chart-toggle" type="button" aria-expanded="false" onclick="toggleMobileChart(this)">
-        <span>Développer le graphique</span><b>↗</b>
+        <span>Développer le graphique</span>
+        <b aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="M4 12 12 4M6 4h6v6"/></svg></b>
       </button>
     </section>
 
@@ -1059,7 +1060,7 @@ function toggleMobileChart(button) {
   const expanded = panel.classList.toggle('is-chart-expanded');
   button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   button.querySelector('span').textContent = expanded ? 'Réduire le graphique' : 'Développer le graphique';
-  button.querySelector('b').textContent = expanded ? '↙' : '↗';
+  button.querySelector('b').classList.toggle('is-reversed', expanded);
   window.setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 320);
 }
 

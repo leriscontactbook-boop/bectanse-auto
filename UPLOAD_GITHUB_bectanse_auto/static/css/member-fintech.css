@@ -740,7 +740,9 @@
   .future-preview .os-chart-shell{height:238px;margin:10px;border-radius:12px;transition:height .32s cubic-bezier(.2,.8,.2,1)}
   .future-preview .os-market-panel.is-chart-expanded .os-chart-shell{height:470px}
   .future-preview .os-chart-toggle{width:calc(100% - 20px);min-height:42px;margin:0 10px 10px;padding:0 13px;display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(255,255,255,.075);border-radius:11px;background:#151714;color:#aeb2aa;font:750 9px 'Barlow',sans-serif;letter-spacing:.1em;text-transform:uppercase}
-  .future-preview .os-chart-toggle b{color:#ff7130;font-size:15px}
+  .future-preview .os-chart-toggle b{width:16px;height:16px;display:grid;place-items:center;flex:0 0 auto;color:#ff7130;transition:transform .2s ease}
+  .future-preview .os-chart-toggle b.is-reversed{transform:rotate(180deg)}
+  .future-preview .os-chart-toggle b svg{width:16px;height:16px;display:block;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
   .future-preview .os-lower-grid{grid-template-columns:1fr;gap:12px;margin-top:12px}
   .future-preview .os-account-panel{display:none}
   .future-preview .os-panel{padding:17px}
