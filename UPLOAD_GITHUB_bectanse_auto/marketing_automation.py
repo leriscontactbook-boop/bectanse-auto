@@ -570,6 +570,7 @@ JOURNAL_LAUNCH_START = datetime(2026, 9, 7, 7, 0)
 JOURNAL_LAUNCH_END = datetime(2026, 10, 8, 0, 0)
 JOURNAL_LAUNCH_HERO = (
     BASE_URL + "/static/marketing/journal-launch/final/journal-launch-email.jpg"
+    "?v=dashboard-20260907"
 )
 
 

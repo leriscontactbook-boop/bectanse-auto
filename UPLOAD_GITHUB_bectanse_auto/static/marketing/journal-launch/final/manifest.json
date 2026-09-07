@@ -1,37 +1,38 @@
 {
   "campaign": "Bectanse Journal — lancement septembre 2026",
-  "claim": "Le trade est terminé. L’apprentissage commence",
+  "claim": "Tes trades parlent enfin",
   "cta": "https://acces.bectanse-academie.com/journal",
+  "data_policy": "Interface réelle reproduite avec données de démonstration",
   "exports": [
     {
       "file": "story-01-hook.png",
       "width": 1080,
       "height": 1920,
-      "sha256": "3881f873131433f4125ba08d34d106d1672b0b22116b72897731d5285a349a63"
+      "sha256": "1da9ddc1f83238c2531e03e9ee0decf36e8bdcc6b3dc107c713788de1835a5ba"
     },
     {
       "file": "story-02-produit.png",
       "width": 1080,
       "height": 1920,
-      "sha256": "60c0bcf8d267a2d09a05fccb7f58cd5602b3e1c0aff0b090f5fc0c352b4b49c9"
+      "sha256": "4a693b3a28d9328dec141d92aa85fa3bf413b41f90ed97eb2a4da6022b301282"
     },
     {
       "file": "story-03-cta.png",
       "width": 1080,
       "height": 1920,
-      "sha256": "ff229f9de1e4dd9bc5aef8de76e572df86ca1484ea59773ba5b266d231142de7"
+      "sha256": "c72120ec9dd66d90f6070f2b0748bb64bd6cb0ce12333149d6f5f155ff705f73"
     },
     {
       "file": "journal-launch-email.jpg",
       "width": 1200,
       "height": 628,
-      "sha256": "7b53513d1a7c4c681d77bbb21e90b138344e633eb32081e66d3d4593ad933d78"
+      "sha256": "56ba7306e376fc0086dc24ed642aa3491c88df74c281b6313ba034b3407d1fab"
     },
     {
       "file": "journal-launch-telegram.jpg",
       "width": 1280,
       "height": 720,
-      "sha256": "030186784f464bcc82727dab094c0d39dfe850226c54adaf245a3f2f3cb5881e"
+      "sha256": "dd2e5b91c30d9cf9fa6b5fb0d0250791cf2ea726dc7f77a917d47e0d7abb63be"
     }
   ]
 }
