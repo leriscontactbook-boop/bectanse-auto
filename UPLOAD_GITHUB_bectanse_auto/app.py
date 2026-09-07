@@ -1952,7 +1952,10 @@ def _safe_admin_next(candidate):
 @app.before_request
 def inject_server_side_admin_credential():
     """Compatibilité des anciennes routes sans jamais renvoyer la clé au navigateur."""
-    if not _admin_session_valid() or not request.path.startswith(("/admin", "/api/canal/", "/analyse-ia", "/api/analyse-ia")):
+    # Check the path before touching the session. Besides avoiding needless work,
+    # this keeps versioned static assets free of ``Vary: Cookie`` so the CDN can
+    # cache them globally without ever caching a member page.
+    if not request.path.startswith(("/admin", "/api/canal/", "/analyse-ia", "/api/analyse-ia")) or not _admin_session_valid():
         return None
     args = request.args.copy()
     args["key"] = ADMIN_KEY
