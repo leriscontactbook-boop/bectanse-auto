@@ -9,9 +9,6 @@ import os
 import time
 from dataclasses import dataclass
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-
 class CredentialConfigurationError(RuntimeError):
     """Raised when credential encryption is not configured safely."""
 
@@ -50,6 +47,8 @@ class CredentialCipher:
     def __init__(self, master_key: bytes):
         if len(master_key) != 32:
             raise CredentialConfigurationError("AES-256-GCM requires a 32-byte key")
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
         self._cipher = AESGCM(master_key)
 
     @classmethod

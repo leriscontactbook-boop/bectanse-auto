@@ -3,7 +3,8 @@ param(
   [Parameter(Mandatory=$true)][string]$BackendUrl,
   [Parameter(Mandatory=$true)][Security.SecureString]$WorkerSecret,
   [Parameter(Mandatory=$true)][string[]]$TerminalPaths,
-  [string]$WorkerId = $env:COMPUTERNAME
+  [string]$WorkerId = $env:COMPUTERNAME,
+  [string]$WorkerUser = "bectanse-worker"
 )
 $ErrorActionPreference = "Stop"
 foreach ($terminal in $TerminalPaths) { if (-not (Test-Path $terminal)) { throw "Terminal introuvable: $terminal" } }
@@ -18,6 +19,10 @@ $values = @{
 $lines = $values.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" }
 $configPath = "$InstallRoot\.worker.env"
 [IO.File]::WriteAllLines($configPath, $lines, [Text.UTF8Encoding]::new($false))
-icacls $configPath /inheritance:r /grant:r "SYSTEM:(R)" "Administrators:(R)" | Out-Null
+$aclArguments = @($configPath, "/inheritance:r", "/grant:r", "SYSTEM:(R)", "Administrators:(R)")
+if (Get-LocalUser -Name $WorkerUser -ErrorAction SilentlyContinue) {
+  $aclArguments += "${WorkerUser}:(R)"
+}
+& icacls @aclArguments | Out-Null
 $plain = $null
-Write-Host "Configuration chiffrée au repos par Windows ACL et enregistrée."
+Write-Host "Configuration enregistrée et protégée par les ACL Windows."

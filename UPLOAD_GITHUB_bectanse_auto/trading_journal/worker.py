@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import json
 import logging
+import multiprocessing
 import os
 import socket
-import threading
 import time
 import uuid
 import hashlib
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -181,7 +180,7 @@ class MT5Worker:
             except Exception:
                 LOGGER.warning(json.dumps({"event": "worker_heartbeat_failed", "worker_id": self.worker_id}))
 
-    def serve(self, stop_event: threading.Event):
+    def serve(self, stop_event):
         idle_seconds = max(2, int(os.environ.get("MT5_WORKER_POLL_SECONDS", "5")))
         last_heartbeat = 0.0
         while not stop_event.is_set():
@@ -197,6 +196,19 @@ class MT5Worker:
                 stop_event.wait(idle_seconds)
 
 
+def _serve_worker_process(backend_url: str, secret: str, machine_id: str,
+                          worker_id: str, terminal_path: str, stop_event) -> None:
+    """Run one MT5 terminal in its own process.
+
+    MetaQuotes exposes process-global IPC state, so terminal slots must never
+    share a Python process.
+    """
+    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(message)s")
+    client = WorkerBackendClient(backend_url, secret, worker_id, machine_id)
+    _log("worker_process_started", worker_id=worker_id)
+    MT5Worker(worker_id, terminal_path, client).serve(stop_event)
+
+
 class MT5WorkerPool:
     def __init__(self):
         config = validate_worker_config()
@@ -206,22 +218,53 @@ class MT5WorkerPool:
         if configured_count > maximum:
             raise RuntimeError("MT5_WORKER_COUNT exceeds MAX_CONCURRENT_MT5_SESSIONS")
         machine_id = (os.environ.get("WORKER_ID") or os.environ.get("MT5_INSTANCE_ID") or socket.gethostname())[:100]
-        self.stop_event = threading.Event()
-        self.workers = []
+        self.backend_url = backend_url
+        self.secret = secret
+        self.machine_id = machine_id
+        self.worker_specs = []
         for index in range(configured_count):
             worker_id = f"{machine_id}-{index + 1}"
-            client = WorkerBackendClient(backend_url, secret, worker_id, machine_id)
-            self.workers.append(MT5Worker(worker_id, paths[index], client))
+            self.worker_specs.append((worker_id, paths[index]))
 
     def serve_forever(self):
-        _log("worker_pool_started", worker_count=len(self.workers))
-        with ThreadPoolExecutor(max_workers=len(self.workers)) as executor:
-            futures = [executor.submit(worker.serve, self.stop_event) for worker in self.workers]
-            try:
-                for future in futures:
-                    future.result()
-            except KeyboardInterrupt:
-                self.stop_event.set()
+        context = multiprocessing.get_context("spawn")
+        stop_event = context.Event()
+        processes = {}
+
+        def start_process(worker_id: str, terminal_path: str):
+            process = context.Process(
+                target=_serve_worker_process,
+                args=(self.backend_url, self.secret, self.machine_id,
+                      worker_id, terminal_path, stop_event),
+                name=worker_id,
+            )
+            process.start()
+            return process
+
+        for worker_id, terminal_path in self.worker_specs:
+            processes[worker_id] = start_process(worker_id, terminal_path)
+        _log("worker_pool_started", worker_count=len(processes), isolation="process")
+
+        try:
+            while not stop_event.wait(2):
+                for worker_id, terminal_path in self.worker_specs:
+                    process = processes[worker_id]
+                    if process.is_alive():
+                        continue
+                    exit_code = process.exitcode
+                    process.join(timeout=1)
+                    _log("worker_process_restarting", worker_id=worker_id,
+                         exit_code=exit_code)
+                    processes[worker_id] = start_process(worker_id, terminal_path)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            stop_event.set()
+            for process in processes.values():
+                process.join(timeout=20)
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=5)
 
 
 def main():

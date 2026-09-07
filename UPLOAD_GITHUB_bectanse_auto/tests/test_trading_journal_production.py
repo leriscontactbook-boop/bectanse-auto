@@ -15,7 +15,8 @@ from trading_journal.calculations import (
 from trading_journal.coach import MIN_TRADES, build_insights, detect_behavior, review, trading_score
 from trading_journal.config import JournalConfigurationError, validate_backend_config, validate_worker_config
 from trading_journal.entitlements import FEATURE_KEYS, resolve_entitlements
-from trading_journal.providers.base import AccountSnapshot
+from trading_journal.providers.base import AccountSnapshot, ProviderError
+from trading_journal.providers.mt5 import MetaTrader5Provider
 from trading_journal.providers.mock import MockTradingProvider
 from trading_journal.security import CredentialCipher, canonical_worker_signature, verify_worker_request
 from trading_journal.service import RETRY_DELAYS_SECONDS
@@ -201,6 +202,57 @@ def test_mock_provider_has_full_read_contract():
     assert provider.health_check()["healthy"]
 
 
+def test_mt5_provider_initializes_with_account_credentials():
+    class FakeMT5:
+        def __init__(self):
+            self.initialize_args = None
+
+        def initialize(self, *args, **kwargs):
+            self.initialize_args = (args, kwargs)
+            return True
+
+        def account_info(self):
+            return type("Info", (), {
+                "login": 123456, "company": "Broker", "server": "Broker-Live",
+                "currency": "EUR", "balance": 1000, "equity": 1000,
+                "margin": 0, "margin_free": 1000, "leverage": 100,
+                "trade_allowed": False, "trade_mode": 0,
+            })()
+
+        def shutdown(self):
+            pass
+
+    fake = FakeMT5()
+    provider = MetaTrader5Provider("C:\\MT5\\NODE-01\\terminal64.exe", timeout_ms=12_345)
+    provider._mt5 = fake
+    snapshot = provider.connect("123456", "Broker-Live", "investor-secret")
+    assert snapshot.access_mode == "READ_ONLY"
+    assert fake.initialize_args == (("C:\\MT5\\NODE-01\\terminal64.exe",), {
+        "login": 123456,
+        "password": "investor-secret",
+        "server": "Broker-Live",
+        "timeout": 12_345,
+    })
+
+
+def test_mt5_ipc_timeout_is_retryable_terminal_error():
+    class FailingMT5:
+        @staticmethod
+        def initialize(*args, **kwargs):
+            return False
+
+        @staticmethod
+        def last_error():
+            return (-10005, "IPC timeout")
+
+    provider = MetaTrader5Provider("C:\\MT5\\NODE-01\\terminal64.exe")
+    provider._mt5 = FailingMT5()
+    with pytest.raises(ProviderError) as error:
+        provider.connect("123456", "Broker-Live", "investor-secret")
+    assert error.value.code == "TERMINAL_ERROR"
+    assert error.value.retryable
+
+
 def test_production_mt5_code_contains_no_execution_api_calls():
     forbidden = {"order_send", "order_modify", "order_close", "position_close"}
     violations = []
@@ -217,3 +269,9 @@ def test_worker_logs_do_not_include_password_fields():
     for line in source.splitlines():
         if "_log(" in line or "LOGGER." in line:
             assert "password=" not in line
+
+
+def test_mt5_slots_are_process_isolated():
+    source = (ROOT / "trading_journal" / "worker.py").read_text(encoding="utf-8")
+    assert 'multiprocessing.get_context("spawn")' in source
+    assert "ThreadPoolExecutor" not in source

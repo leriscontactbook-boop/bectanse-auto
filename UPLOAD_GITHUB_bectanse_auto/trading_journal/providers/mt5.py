@@ -45,7 +45,7 @@ class MetaTrader5Provider(TradingProvider):
     def _connection_error(self) -> ProviderError:
         code, message = (self._last_error() + (None, None))[:2]
         message_text = str(message or "").lower()
-        if code in {-6, -10005} or "auth" in message_text or "password" in message_text:
+        if code == -6 or "auth" in message_text or "password" in message_text:
             return ProviderError("AUTH_ERROR", "Les identifiants fournis sont incorrects.")
         if "server" in message_text or "network" in message_text:
             return ProviderError(
@@ -61,18 +61,20 @@ class MetaTrader5Provider(TradingProvider):
 
     def connect(self, login: str, server: str, password: str) -> AccountSnapshot:
         mt5 = self._module()
+        connection = {
+            "login": int(login),
+            "password": password,
+            "server": server,
+            "timeout": self.timeout_ms,
+        }
         initialized = (
-            mt5.initialize(self.terminal_path, timeout=self.timeout_ms)
+            mt5.initialize(self.terminal_path, **connection)
             if self.terminal_path
-            else mt5.initialize(timeout=self.timeout_ms)
+            else mt5.initialize(**connection)
         )
         if not initialized:
             raise self._connection_error()
         self._connected = True
-        if not mt5.login(int(login), password=password, server=server, timeout=self.timeout_ms):
-            error = self._connection_error()
-            self.disconnect()
-            raise error
         info = mt5.account_info()
         if info is None:
             raise self._connection_error()

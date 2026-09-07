@@ -11,7 +11,10 @@ the production backend URL, and the worker shared secret from Railway.
 
 1. Connect with Remote Desktop and run Windows Update.
 2. Install each broker terminal into a unique directory, for example
-   `C:\MT5\NODE-01\terminal64.exe`. Start it once and accept broker updates.
+   `C:\MT5\NODE-01\terminal64.exe`. For the official MetaQuotes release, run
+   `scripts\windows\install-mt5-terminals.ps1 -Count 6`. Start every terminal
+   once and accept broker updates. A broker-specific build can replace the
+   official installer while keeping the same distinct paths.
 3. Copy the release to `C:\Bectanse\release`.
 4. Open PowerShell as Administrator:
 
@@ -23,14 +26,40 @@ $secret = Read-Host "Worker secret" -AsSecureString
 .\scripts\windows\configure.ps1 `
   -BackendUrl "https://acces.bectanse-academie.com" `
   -WorkerSecret $secret `
-  -TerminalPaths @("C:\MT5\NODE-01\terminal64.exe") `
-  -WorkerId "NODE-01"
+  -TerminalPaths (1..6 | ForEach-Object { "C:\MT5\NODE-{0:D2}\terminal64.exe" -f $_ }) `
+  -WorkerId "BECTANSE-EU-01"
+.\scripts\windows\provision-interactive-worker.ps1
+Restart-Computer
+```
+
+After Windows restarts, reconnect as Administrator and verify:
+
+```powershell
+.\scripts\windows\health.ps1
+quser
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+  Select-Object ProcessId, SessionId, CommandLine
+```
+
+The dedicated `bectanse-worker` account must be logged on and the worker Python
+processes must run in the same non-zero interactive session. Every terminal slot
+runs in its own spawned Python process because the MetaTrader IPC state is
+process-global. The official
+Sysinternals Autologon utility stores the generated service-account password as
+an LSA secret; it is never printed by the provisioning script. The scheduled
+task runs with limited privileges at that user's logon and restarts after
+failure. The configuration ACL grants the worker read-only access to secrets,
+write access only to its logs and MT5 terminal data, and no administrator role.
+
+Do not register the MT5 worker as SYSTEM or as a Windows service: the official
+MetaTrader Python integration requires an interactive desktop session.
+
+For a one-off manual start after the worker user is already logged on:
+
+```powershell
 .\scripts\windows\start.ps1
 .\scripts\windows\health.ps1
 ```
-
-The scheduled task runs as SYSTEM at boot and restarts after failure. The config
-file ACL is restricted to SYSTEM and Administrators. Do not email or log it.
 
 ## Network and capacity
 
