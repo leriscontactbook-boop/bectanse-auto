@@ -25,12 +25,30 @@
   --shadow: 0 22px 70px rgba(0, 0, 0, .36);
   --font-ui: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: "Barlow Condensed", Inter, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --app-height: 100vh;
+  --mobile-header-height: 58px;
+  --mobile-nav-height: 68px;
+  --mobile-gutter: 14px;
+  --z-content: 0;
+  --z-sticky: 10;
+  --z-header: 30;
+  --z-bottom-nav: 40;
+  --z-dropdown: 50;
+  --z-drawer: 60;
+  --z-modal: 70;
+  --z-toast: 80;
 }
 
+@supports (height: 100dvh) { :root { --app-height: 100dvh; } }
+
 * { box-sizing: border-box; }
-html { background: var(--bg); color-scheme: dark; }
+html { width: 100%; max-width: 100%; overflow-x: clip; background: var(--bg); color-scheme: dark; }
 body {
-  margin: 0;
+  width: 100%; max-width: 100%; margin: 0; overflow-x: clip;
   min-height: 100vh;
   background: radial-gradient(circle at 52% -18%, rgba(255, 106, 0, .055), transparent 33rem), var(--bg);
   color: var(--text);
@@ -42,6 +60,8 @@ button, a, select { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, canvas:focus-visible { outline: 2px solid var(--orange-bright); outline-offset: 3px; }
 .is-hidden { display: none !important; }
 .tj-app { min-height: 100vh; }
+.tj-mobile-header { display: none; }
+.tj-main, .tj-main > *, .tj-view, .tj-view > *, .tj-panel, .tj-chart-stage, .tj-statusbar > *, .tj-topbar > * { min-width: 0; }
 
 /* Private terminal shell */
 .tj-sidebar {
@@ -443,93 +463,194 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
 }
 
 @media (max-width: 800px) {
-  body { padding-bottom: 72px; }
+  html, body { height: var(--app-height); min-height: var(--app-height); overflow: hidden; overscroll-behavior: none; }
+  body { background: var(--bg); }
+  .tj-app {
+    height: var(--app-height); min-height: 100svh; display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; isolation: isolate;
+  }
   .tj-sidebar { display: none; }
-  .tj-main { margin-left: 0; padding: 0 14px 42px; }
-  .tj-topbar { min-height: 86px; align-items: flex-start; padding: 15px 0; }
-  .tj-topbar h1 { font-size: 19px; }
+  .tj-mobile-header {
+    position: relative; z-index: var(--z-header); min-height: calc(var(--mobile-header-height) + var(--safe-top));
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px;
+    padding: var(--safe-top) max(var(--mobile-gutter), var(--safe-right)) 0 max(var(--mobile-gutter), var(--safe-left));
+    border-bottom: 1px solid var(--line); background: #090909;
+  }
+  .tj-mobile-home { min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 7px; color: var(--text); text-decoration: none; }
+  .tj-mobile-home > span { color: var(--orange-bright); font-size: 18px; }
+  .tj-mobile-home img { width: 24px; height: 24px; flex: 0 0 auto; border-radius: 6px; }
+  .tj-mobile-home b { overflow: hidden; font-size: 9px; letter-spacing: .13em; text-overflow: ellipsis; }
+  .tj-mobile-context { min-width: 92px; text-align: center; }
+  .tj-mobile-context small, .tj-mobile-context strong { display: block; }
+  .tj-mobile-context small { color: var(--orange-soft); font-size: 7px; font-weight: 800; letter-spacing: .2em; }
+  .tj-mobile-context strong { max-width: 132px; margin-top: 2px; overflow: hidden; color: #d8d8d7; font: 650 12px/1.1 var(--font-display); text-overflow: ellipsis; white-space: nowrap; }
+  .tj-mobile-profile {
+    width: 36px; height: 36px; display: grid; place-items: center; justify-self: end;
+    border: 1px solid rgba(255,106,0,.2); border-radius: 50%; background: var(--orange-wash);
+    color: var(--orange-soft); text-decoration: none; font-size: 11px; font-weight: 800;
+  }
+  .tj-main {
+    min-height: 0; height: auto; margin-left: 0; padding: 0 max(var(--mobile-gutter), var(--safe-right)) 26px max(var(--mobile-gutter), var(--safe-left));
+    overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scroll-behavior: smooth;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .tj-main::-webkit-scrollbar { display: none; }
+  .tj-main.is-scroll-locked { overflow: hidden; touch-action: none; }
+  body.tj-modal-open { touch-action: none; }
+  .tj-topbar {
+    min-height: 92px; display: grid; grid-template-columns: minmax(0,1fr) minmax(132px,42vw);
+    align-items: center; gap: 10px; padding: 14px 0;
+  }
+  .tj-topbar h1 { overflow: hidden; font-size: 19px; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-topbar .tj-kicker { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tj-member-mark { display: none; }
-  .tj-top-actions { gap: 6px; }
-  .tj-account-select { width: 150px; min-width: 0; }
-  .tj-top-actions .tj-button { width: 40px; padding: 0; font-size: 0; }
-  .tj-top-actions .tj-button span { font-size: 17px; }
-  .tj-statusbar { align-items: flex-start; padding: 13px 0; }
-  .tj-status-actions { gap: 5px; }
+  .tj-top-actions { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) 44px; gap: 6px; }
+  .tj-account-select { width: 100%; min-width: 0; height: 44px; padding-right: 22px; padding-left: 9px; }
+  .tj-top-actions .tj-button { width: 44px; min-height: 44px; padding: 0; font-size: 0; }
+  .tj-top-actions .tj-button span { font-size: 18px; }
+  .tj-statusbar { min-height: 0; display: grid; align-items: stretch; gap: 12px; padding: 14px 0; }
+  .tj-connection { min-width: 0; }
+  .tj-connection > div { min-width: 0; }
+  .tj-connection b, .tj-connection small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-status-actions { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) 44px 44px; gap: 7px; }
+  .tj-timezone { min-width: 0; }
   .tj-timezone span { display: none; }
-  .tj-timezone select { width: 105px; padding-right: 16px; padding-left: 7px; }
-  .tj-status-actions .tj-button { width: 38px; padding: 0; font-size: 0; }
-  .tj-status-actions .tj-button span { font-size: 16px; }
-  .tj-sync-progress { grid-template-columns: 1fr; gap: 12px; }
-  .tj-view { padding-top: 28px; }
-  .tj-view-heading { align-items: flex-start; }
+  .tj-timezone select { width: 100%; min-width: 0; height: 44px; padding-right: 20px; padding-left: 9px; }
+  .tj-status-actions .tj-button, .tj-icon-button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 0; }
+  .tj-status-actions .tj-button span { font-size: 17px; }
+  .tj-sync-progress { grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
+  .tj-view { padding-top: 26px; }
+  .tj-view-heading, .tj-calendar-head { align-items: flex-start; }
   .tj-view-heading h2, .tj-calendar-head h2 { font-size: 26px; }
-  .tj-performance-hero { grid-template-columns: 1fr; }
-  .tj-pnl-focus { min-height: 245px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .tj-pnl-focus > strong { font-size: 52px; }
-  .tj-chart-stage { padding: 22px 16px 12px; }
-  .tj-chart-wrap { height: 225px; }
-  .tj-kpi-strip { grid-template-columns: 1fr 1fr; }
-  .tj-kpi-strip article { min-height: 94px; padding: 15px; }
-  .tj-kpi-strip strong { font-size: 19px; }
-  .tj-overview-grid, .tj-analytics-grid, .tj-coach-grid, .tj-coach-insights { grid-template-columns: 1fr; }
-  .tj-stat-grid { grid-template-columns: 1fr 1fr; }
-  .tj-stat-grid > div { border-right: 0 !important; padding-left: 0 !important; }
+  .tj-view-heading > p { max-width: 44%; justify-content: flex-end; text-align: right; }
+  .tj-performance-hero { min-height: 0; grid-template-columns: minmax(0,1fr); border-radius: 18px; }
+  .tj-pnl-focus { min-height: 220px; padding: 28px 22px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .tj-pnl-focus > strong { max-width: 100%; font-size: clamp(38px,13vw,54px); overflow-wrap: anywhere; }
+  .tj-chart-stage { padding: 22px 16px 14px; }
+  .tj-chart-wrap { height: clamp(190px,55vw,235px); }
+  .tj-chart-tooltip { max-width: min(150px, calc(100% - 16px)); }
+  .tj-kpi-strip { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .tj-kpi-strip article { min-width: 0; min-height: 94px; padding: 15px; }
+  .tj-kpi-strip article:nth-child(2) { border-right: 0; }
+  .tj-kpi-strip article:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .tj-kpi-strip strong { max-width: 100%; overflow: hidden; font-size: clamp(17px,5.5vw,22px); text-overflow: ellipsis; white-space: nowrap; }
+  .tj-overview-grid, .tj-analytics-grid, .tj-coach-grid, .tj-coach-insights { grid-template-columns: minmax(0,1fr); }
+  .tj-panel { min-width: 0; padding: 19px; }
+  .tj-stat-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .tj-stat-grid > div { min-width: 0; border-right: 0 !important; padding-left: 0 !important; }
   .tj-stat-grid > div:nth-child(odd) { border-right: 1px solid var(--line) !important; }
   .tj-stat-grid > div:nth-child(even) { padding-left: 14px !important; }
-  .tj-preview-days { grid-template-columns: repeat(4,1fr); }
-  .tj-trade-toolbar { display: grid; grid-template-columns: 1fr 1fr; }
-  .tj-search-field { min-width: 0; grid-column: 1/-1; }
+  .tj-stat-list dd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-preview-days { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .tj-preview-day { min-width: 0; padding: 9px 7px; }
+  .tj-trade-toolbar { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .tj-search-field { min-width: 0; height: 44px; grid-column: 1/-1; }
+  .tj-trade-toolbar select { width: 100%; min-width: 0; height: 44px; padding-right: 22px; padding-left: 9px; }
   .tj-trade-toolbar select:last-child { grid-column: 1/-1; }
   .tj-trades-table-head { display: none; }
-  .tj-trades-table-row { grid-template-columns: 1fr auto; gap: 8px; padding: 14px; }
-  .tj-trades-table-row > span:nth-child(2) { text-align: right; }
+  .tj-trades-shell { border: 0; background: transparent; }
+  .tj-trades-list { display: grid; gap: 9px; }
+  .tj-trades-table-row {
+    min-width: 0; min-height: 88px; display: grid; grid-template-columns: minmax(0,1fr) auto;
+    grid-template-areas: "position pnl" "time time"; gap: 8px 12px; padding: 14px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  }
+  .tj-trades-table-row > span:first-child { grid-area: position; min-width: 0; }
+  .tj-trades-table-row > span:nth-child(2) { grid-area: time; min-width: 0; padding-top: 8px; border-top: 1px solid var(--line); text-align: left; }
   .tj-trades-table-row > span:nth-child(3), .tj-trades-table-row > span:nth-child(4),
   .tj-trades-table-row > span:nth-child(5), .tj-trades-table-row > span:nth-child(6) { display: none; }
-  .tj-trades-table-row > strong { grid-column: 2; }
-  .tj-calendar-head { align-items: flex-start; }
-  .tj-calendar-nav button { padding: 0 9px; }
-  .tj-month-strip { grid-template-columns: repeat(3,1fr); }
-  .tj-month-strip > div { padding: 14px 10px; }
+  .tj-trades-table-row > strong { grid-area: pnl; align-self: start; white-space: nowrap; }
+  .tj-calendar-head { display: grid; gap: 15px; }
+  .tj-calendar-nav { width: 100%; display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; }
+  .tj-calendar-nav button { min-width: 44px; height: 44px; padding: 0 8px; }
+  .tj-month-strip { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .tj-month-strip > div { min-width: 0; padding: 14px 10px; }
   .tj-month-strip > div:nth-child(3) { border-right: 0; }
   .tj-month-strip > div:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
-  .tj-calendar-shell { margin-right: -14px; margin-left: -14px; border-right: 0; border-left: 0; border-radius: 0; }
-  .tj-calendar-day { min-height: 82px; padding: 8px 6px; }
-  .tj-calendar-day b { margin-top: 15px; font-size: 10px; }
-  .tj-calendar-day small { font-size: 7px; }
-  .tj-day-dialog { max-height: 94vh; padding: 19px; }
-  .tj-day-metrics { grid-template-columns: repeat(3,1fr); }
-  .tj-trade-row { grid-template-columns: 1fr auto; }
+  .tj-month-strip strong { overflow: hidden; font-size: clamp(15px,5vw,19px); text-overflow: ellipsis; white-space: nowrap; }
+  .tj-calendar-shell { width: 100%; border-radius: 12px; }
+  .tj-weekdays { height: 36px; }
+  .tj-weekdays span { min-width: 0; font-size: 6px; }
+  .tj-calendar-day { min-width: 0; min-height: 74px; padding: 7px 4px; overflow: hidden; }
+  .tj-calendar-day b { margin-top: 13px; overflow: hidden; font-size: clamp(8px,2.6vw,11px); letter-spacing: -.03em; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-calendar-day small { overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-coach-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .tj-coach-tabs button { min-height: 44px; padding: 8px 4px; }
+  .tj-score-panel > strong { font-size: clamp(48px,18vw,70px); }
+  .tj-ranking-row { grid-template-columns: minmax(82px,1fr) minmax(50px,1fr) auto; gap: 9px; }
+  .tj-ranking-row > span { min-width: 0; }
+  .tj-ranking-row > span b, .tj-ranking-row > span small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tj-day-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .tj-trade-row { grid-template-columns: minmax(0,1fr) auto; }
   .tj-trade-row > div:nth-child(2), .tj-trade-row > div:nth-child(3) { grid-column: 1/3; }
   .tj-trade-timeline { grid-template-columns: 1fr; }
   .tj-trade-timeline i { width: 1px; height: 32px; margin-left: 8px; }
   .tj-trade-timeline > div:last-child { text-align: left; }
   .tj-mobile-nav {
-    position: fixed; inset: auto 0 0; z-index: 30; height: calc(65px + env(safe-area-inset-bottom));
-    display: grid; grid-template-columns: repeat(5,1fr); padding-bottom: env(safe-area-inset-bottom);
-    border-top: 1px solid var(--line); background: rgba(10,10,11,.95); backdrop-filter: blur(16px);
+    position: relative; z-index: var(--z-bottom-nav); width: 100%; height: calc(var(--mobile-nav-height) + var(--safe-bottom));
+    display: grid; grid-template-columns: repeat(5,minmax(0,1fr));
+    padding: 3px max(4px,var(--safe-right)) var(--safe-bottom) max(4px,var(--safe-left));
+    border-top: 1px solid var(--line); background: #0a0a0b; box-shadow: 0 -14px 36px rgba(0,0,0,.42);
   }
-  .tj-mobile-nav button { display: grid; place-items: center; align-content: center; gap: 2px; border: 0; background: none; color: #686870; font-size: 7px; font-weight: 700; }
-  .tj-mobile-nav button span { font-size: 14px; line-height: 1; }
-  .tj-mobile-nav button.is-active { color: var(--orange-bright); }
-  .tj-onboarding { min-height: auto; display: block; padding: 56px 4px 30px; }
-  .tj-onboarding-steps { margin-top: 55px; }
-  .tj-paywall { padding: 50px 2px; }
+  .tj-mobile-nav button {
+    min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    border: 0; border-radius: 10px; background: transparent; color: #686870; font-size: 7px; font-weight: 750; cursor: pointer;
+  }
+  .tj-mobile-nav button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .tj-mobile-nav button:first-child svg, .tj-mobile-nav button:last-child svg { fill: currentColor; stroke: none; }
+  .tj-mobile-nav button.is-active { background: rgba(255,106,0,.055); color: var(--orange-bright); }
+  .tj-mobile-nav button.is-active::after { content: ""; width: 16px; height: 2px; border-radius: 99px; background: currentColor; box-shadow: 0 0 10px rgba(255,106,0,.55); }
+  .tj-onboarding { min-height: auto; display: block; padding: 46px 2px 30px; }
+  .tj-onboarding h2, .tj-paywall h2 { font-size: clamp(42px,14vw,64px); overflow-wrap: anywhere; }
+  .tj-onboarding-steps { margin-top: 48px; }
+  .tj-paywall { min-height: auto; padding: 46px 2px; }
+  .tj-toast { right: max(12px,var(--safe-right)); bottom: calc(var(--mobile-nav-height) + var(--safe-bottom) + 10px); left: max(12px,var(--safe-left)); z-index: var(--z-toast); max-width: none; }
+  dialog::backdrop { background: rgba(0,0,0,.86); backdrop-filter: none; }
+  dialog.tj-dialog, dialog.tj-day-dialog {
+    inset: auto 0 0; width: 100%; max-width: none; max-height: calc(var(--app-height) - var(--safe-top) - 10px);
+    margin: auto 0 0; padding: 20px max(18px,var(--safe-right)) calc(20px + var(--safe-bottom)) max(18px,var(--safe-left));
+    overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; border-radius: 22px 22px 0 0;
+  }
+  dialog.tj-dialog form { padding: 0; }
+  dialog.tj-dialog:not([open]), dialog.tj-day-dialog:not([open]) { display: none; }
+  .tj-dialog-head, .tj-day-head { position: sticky; top: -20px; z-index: var(--z-sticky); margin: -4px -2px 0; padding: 4px 2px 12px; background: #0e0e0f; }
+  .tj-close { width: 44px; height: 44px; flex: 0 0 auto; }
 }
 
 @media (max-width: 440px) {
-  .tj-main { padding-right: 10px; padding-left: 10px; }
-  .tj-account-select { width: 132px; }
-  .tj-topbar .tj-kicker { max-width: 135px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tj-pnl-focus { padding: 28px 22px; }
-  .tj-pnl-focus > strong { font-size: 46px; }
+  :root { --mobile-gutter: 10px; }
+  .tj-mobile-context strong { max-width: 112px; }
+  .tj-topbar { grid-template-columns: minmax(0,1fr) minmax(126px,44vw); }
+  .tj-pnl-focus { padding: 26px 19px; }
   .tj-kpi-strip article { padding: 13px 11px; }
-  .tj-calendar-shell { margin-right: -10px; margin-left: -10px; }
-  .tj-calendar-day { min-height: 75px; }
+  .tj-calendar-day { min-height: 66px; }
   .tj-calendar-day small { font-size: 0; }
   .tj-calendar-day small::after { content: attr(data-short); font-size: 7px; }
   .tj-form-grid { grid-template-columns: 1fr; }
-  .tj-day-metrics { grid-template-columns: 1fr 1fr; }
-  .tj-ranking-row { grid-template-columns: minmax(85px,1fr) 1fr auto; gap: 9px; }
+  .tj-day-metrics { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .tj-view-heading > p { display: none; }
+}
+
+@media (max-width: 340px) {
+  :root { --mobile-gutter: 8px; --mobile-nav-height: 64px; }
+  .tj-mobile-context { min-width: 78px; }
+  .tj-mobile-context strong { max-width: 92px; font-size: 11px; }
+  .tj-topbar { grid-template-columns: minmax(0,1fr) 126px; }
+  .tj-topbar h1 { font-size: 17px; }
+  .tj-panel { padding: 16px; }
+  .tj-month-strip > div { padding-right: 7px; padding-left: 7px; }
+  .tj-calendar-day { min-height: 62px; padding-right: 2px; padding-left: 2px; }
+  .tj-mobile-nav button { font-size: 6px; }
+  .tj-mobile-nav button svg { width: 18px; height: 18px; }
+}
+
+@media (max-width: 800px) and (max-height: 500px) and (orientation: landscape) {
+  :root { --mobile-header-height: 48px; --mobile-nav-height: 54px; }
+  .tj-mobile-home, .tj-mobile-profile { min-height: 40px; }
+  .tj-mobile-profile { width: 32px; height: 32px; }
+  .tj-mobile-nav button { min-height: 42px; gap: 1px; }
+  .tj-mobile-nav button svg { width: 17px; height: 17px; }
+  .tj-mobile-nav button.is-active::after { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

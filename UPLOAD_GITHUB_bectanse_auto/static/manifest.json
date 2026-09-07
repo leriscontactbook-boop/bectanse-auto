@@ -4,11 +4,12 @@
   "description": "Application officielle de Bectanse Académie",
   "id": "/",
   "scope": "/",
-  "start_url": "/",
+  "start_url": "/accueil",
+  "display_override": ["standalone", "minimal-ui"],
   "display": "standalone",
-  "background_color": "#050505",
-  "theme_color": "#050505",
-  "orientation": "portrait",
+  "background_color": "#050605",
+  "theme_color": "#050605",
+  "orientation": "any",
   "icons": [
     {
       "src": "/static/icons/bectanse-icon-v2-192.png",

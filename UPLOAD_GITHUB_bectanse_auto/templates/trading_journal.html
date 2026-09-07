@@ -4,21 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#070707">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Journal automatique — Bectanse</title>
   <meta name="description" content="Journal de trading automatique MetaTrader 5 : calendrier, statistiques et analytics synchronisés.">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icons/bectanse-icon-v2-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="preload" href="/static/trading-journal.js?v=20260907-ultimate2" as="script">
-  <link rel="stylesheet" href="/static/css/trading-journal.css?v=20260907-ultimate2">
+  <link rel="preload" href="/static/trading-journal.js?v=20260907-mobile1" as="script">
+  <link rel="stylesheet" href="/static/css/trading-journal.css?v=20260907-mobile1">
 </head>
 <body>
   <div class="tj-app">
     <aside class="tj-sidebar" aria-label="Navigation principale">
       <a class="tj-brand" href="/accueil" aria-label="Accueil Bectanse">
-        <img class="tj-brand-mark" src="/static/icons/bectanse-app-icon-master.png" alt="">
+        <img class="tj-brand-mark" src="/static/icons/bectanse-icon-v2-192.png" alt="">
         <span><b>BECTANSE</b><small>JOURNAL</small></span>
       </a>
       <nav class="tj-nav">
@@ -39,6 +43,14 @@
         <div><b>{{ member.nom or 'Trader' }}</b><small>Formule {{ entitlements.plan }}</small></div>
       </div>
     </aside>
+
+    <header class="tj-mobile-header">
+      <a class="tj-mobile-home" href="/accueil" aria-label="Accueil Bectanse">
+        <span aria-hidden="true">←</span><img src="/static/icons/bectanse-icon-v2-192.png" alt=""><b>BECTANSE</b>
+      </a>
+      <div class="tj-mobile-context"><small>JOURNAL</small><strong id="mobileViewTitle">Vue d’ensemble</strong></div>
+      <a class="tj-mobile-profile" href="/dashboard" aria-label="Profil et paramètres">{{ (member.nom or 'T')[:1]|upper }}</a>
+    </header>
 
     <main class="tj-main">
       <header class="tj-topbar">
@@ -213,11 +225,15 @@
         </section>
       </section>
     </main>
-  </div>
 
-  <nav class="tj-mobile-nav" aria-label="Navigation mobile">
-    <button class="is-active" data-view="overview"><span>⌂</span>Vue</button><button data-view="trades"><span>≡</span>Trades</button><button data-view="calendar"><span>□</span>Calendrier</button><button data-view="analytics"><span>⌁</span>Analytics</button><button data-view="coach"><span>◉</span>Coach</button>
-  </nav>
+    <nav class="tj-mobile-nav" aria-label="Navigation du Journal">
+      <button class="is-active" data-view="overview" aria-label="Vue d’ensemble" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h5v7H4zm6-9h4v16h-4zm5 5h5v11h-5z"/></svg><span>Vue</span></button>
+      <button data-view="trades" aria-label="Mes trades"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14"/></svg><span>Trades</span></button>
+      <button data-view="calendar" aria-label="Calendrier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a1 1 0 0 1 1 1v15H4V5a1 1 0 0 1 1-1Zm3-2v4m8-4v4M4 9h16M8 13h2m4 0h2m-8 4h2m4 0h2"/></svg><span>Calendrier</span></button>
+      <button data-view="analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V4m6 15v-7m4 7H2"/></svg><span>Analytics</span></button>
+      <button data-view="coach" aria-label="Bectanse Coach"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.1 4.9L19 10l-4.9 2.1L12 17l-2.1-4.9L5 10l4.9-2.1L12 3Zm6.5 12 .9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1Z"/></svg><span>Coach</span></button>
+    </nav>
+  </div>
 
   <dialog id="connectDialog" class="tj-dialog">
     <form id="connectForm" method="dialog">
@@ -256,6 +272,6 @@
 
   <div id="toast" class="tj-toast" role="status"></div>
   <script id="tradingBootstrap" type="application/json">{{ {"accounts": accounts, "profile": profile, "entitlements": entitlements, "overview": (overview|default(none))}|tojson }}</script>
-  <script src="/static/trading-journal.js?v=20260907-ultimate2" defer></script>
+  <script src="/static/trading-journal.js?v=20260907-mobile1" defer></script>
 </body>
 </html>
