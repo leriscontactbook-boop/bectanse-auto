@@ -13,7 +13,7 @@ from trading_journal.calculations import (
     reconstruct_positions,
 )
 from trading_journal.coach import MIN_TRADES, build_insights, detect_behavior, review, trading_score
-from trading_journal.billing import create_checkout, create_portal, schedule_standalone_cancellation
+from trading_journal.billing import create_checkout, create_portal, process_webhook, schedule_standalone_cancellation
 from trading_journal.brokers import build_broker_catalog, broker_name_from_server
 from trading_journal.config import JournalConfigurationError, validate_backend_config, validate_worker_config
 from trading_journal.entitlements import FEATURE_KEYS, resolve_entitlements
@@ -219,6 +219,14 @@ class _BillingConnection:
         pass
 
 
+class _WebhookConnection(_BillingConnection):
+    def run(self, query, **params):
+        self.queries.append((query, params))
+        if "RETURNING event_id" in query:
+            return [(params["event_id"],)]
+        return []
+
+
 class _StripeEndpoint:
     def __init__(self, response):
         self.response = response
@@ -293,6 +301,31 @@ def test_academy_activation_schedules_standalone_cancellation(monkeypatch):
     assert object_id == "sub_journal"
     assert params == {"cancel_at_period_end": True}
     assert options["idempotency_key"] == "academy-included-BCT-MEMBER-sub_journal"
+
+
+def test_portal_upgrade_uses_current_price_instead_of_stale_subscription_metadata(monkeypatch):
+    monkeypatch.setenv("STRIPE_JOURNAL_PRO_PRICE_ID", "price_journal_pro")
+    monkeypatch.setenv("STRIPE_JOURNAL_ELITE_PRICE_ID", "price_journal_elite")
+    connection = _WebhookConnection([])
+    event = {
+        "id": "evt_upgrade",
+        "type": "customer.subscription.updated",
+        "data": {"object": {
+            "id": "sub_journal", "customer": "cus_journal", "status": "active",
+            "metadata": {
+                "member_code": "BCT-CLIENT", "product": "BECTANSE_JOURNAL",
+                "journal_plan": "JOURNAL_PRO",
+            },
+            "items": {"data": [{"price": {"id": "price_journal_elite"}}]},
+        }},
+    }
+    process_webhook(event, lambda: connection)
+    subscription_write = next(
+        params for query, params in connection.queries
+        if "INSERT INTO trading_subscriptions" in query
+    )
+    assert subscription_write["plan"] == "JOURNAL_ELITE"
+    assert subscription_write["price_id"] == "price_journal_elite"
 
 
 def test_broker_catalog_combines_verified_and_successfully_seen_servers(monkeypatch):

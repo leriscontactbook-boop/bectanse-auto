@@ -161,7 +161,9 @@ def process_webhook(event: dict, get_conn) -> dict:
         for row in container.get("data") or []:
             price_id = _id(row.get("price")) or _id(((row.get("pricing") or {}).get("price_details") or {}).get("price")) or price_id
             period_end = period_end or row.get("current_period_end") or (row.get("period") or {}).get("end")
-    plan = str(metadata.get("journal_plan") or plan_for_price(price_id) or "JOURNAL_PRO").upper()
+    # Portal plan changes retain the subscription's original metadata. The current
+    # line-item price is therefore authoritative whenever Stripe includes it.
+    plan = str(plan_for_price(price_id) or metadata.get("journal_plan") or "JOURNAL_PRO").upper()
     status = str(obj.get("status") or "").lower()
     if event_type in {"checkout.session.completed", "invoice.paid"}:
         status = "active"
