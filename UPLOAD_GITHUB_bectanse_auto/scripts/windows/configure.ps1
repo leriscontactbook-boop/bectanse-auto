@@ -16,7 +16,8 @@ $values = @{
   MAX_CONCURRENT_MT5_SESSIONS=$TerminalPaths.Count; MT5_REQUIRE_READ_ONLY='false';
   MT5_PORTABLE_MODE='true';
   MT5_CONNECT_TIMEOUT_MS='180000';
-  MT5_WORKER_POLL_SECONDS='5'; LOG_LEVEL='INFO'
+  MT5_HISTORY_CHUNK_DAYS='3650';
+  MT5_WORKER_POLL_SECONDS='2'; LOG_LEVEL='INFO'
 }
 $lines = $values.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" }
 $configPath = "$InstallRoot\.worker.env"

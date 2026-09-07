@@ -9,6 +9,7 @@ from trading_journal.calculations import (
     analytics_breakdown,
     calendar_summary,
     deal_net_pnl,
+    performance_curve_points,
     performance_stats,
     reconstruct_positions,
     validate_timezone,
@@ -28,7 +29,7 @@ from trading_journal.security import (
     verify_worker_request,
 )
 from trading_journal.service import JournalService
-from trading_journal.worker import month_ranges
+from trading_journal.worker import history_ranges, month_ranges
 
 
 def deal(ticket, executed_at, *, position=100, entry="OUT", deal_type="BUY",
@@ -165,6 +166,31 @@ def test_sync_ranges_are_paginated_month_by_month():
     assert len(ranges) == 4
     assert ranges[0][0].day == 15
     assert ranges[-1][1].month == 4
+
+
+def test_fast_history_ranges_bound_full_import_to_a_few_mt5_calls(monkeypatch):
+    monkeypatch.setenv("MT5_HISTORY_CHUNK_DAYS", "3650")
+    ranges = list(history_ranges(
+        datetime(2000, 1, 1, tzinfo=timezone.utc),
+        datetime(2026, 9, 7, tzinfo=timezone.utc),
+    ))
+    assert len(ranges) == 3
+    assert ranges[0][0] == datetime(2000, 1, 1, tzinfo=timezone.utc)
+    assert ranges[-1][1] == datetime(2026, 9, 7, tzinfo=timezone.utc)
+
+
+def test_curve_is_visible_with_trades_closed_on_only_one_day():
+    rows = [
+        deal(1, datetime(2026, 9, 7, 8, tzinfo=timezone.utc), position=1, entry="IN"),
+        deal(2, datetime(2026, 9, 7, 9, tzinfo=timezone.utc), position=1, entry="OUT", profit=40),
+        deal(3, datetime(2026, 9, 7, 10, tzinfo=timezone.utc), position=2, entry="IN"),
+        deal(4, datetime(2026, 9, 7, 11, tzinfo=timezone.utc), position=2, entry="OUT", profit=-10),
+    ]
+    points = performance_curve_points(reconstruct_positions(rows), "Europe/Paris")
+    assert len(points) == 3
+    assert points[0]["cumulativePnl"] == 0
+    assert points[-1]["cumulativePnl"] == 30
+    assert {point["date"] for point in points} == {"2026-09-07"}
 
 
 def test_schema_enforces_deal_idempotence_and_account_ownership_keys():

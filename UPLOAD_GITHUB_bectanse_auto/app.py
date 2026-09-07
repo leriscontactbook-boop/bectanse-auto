@@ -202,8 +202,11 @@ def reject_cross_origin_mutations():
 @app.before_request
 def keep_installed_webapp_session_persistent():
     """Convertit aussi les connexions déjà existantes en sessions persistantes."""
+    if request.path.startswith("/static/"):
+        return None
     if session.get("member_code") and not session.permanent:
         session.permanent = True
+    return None
 
 @app.after_request
 def inject_analytics_tracker(response):
@@ -232,6 +235,12 @@ def _secure_response(response):
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
     response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if request.path.startswith(("/api/", "/internal/", "/trading/")):
+        response.headers["Cache-Control"] = "private, no-store"
+    elif request.path == "/journal":
+        response.headers["Cache-Control"] = "private, no-store"
+    elif request.path.startswith("/static/") and request.args.get("v"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 BOT_TOKEN  = _required_secret("BOT_TOKEN")

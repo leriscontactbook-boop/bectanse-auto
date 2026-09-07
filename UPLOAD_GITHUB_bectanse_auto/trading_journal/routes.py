@@ -6,7 +6,9 @@ import os
 import threading
 import time
 from collections import defaultdict, deque
+from datetime import datetime
 from functools import wraps
+from zoneinfo import ZoneInfo
 
 from flask import jsonify, redirect, render_template, request, session
 
@@ -70,6 +72,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     def automatic_trading_journal():
         user_id = session["member_code"]
         member = get_member(user_id)
+        overview = None
         try:
             accounts = service.list_accounts(user_id)
             profile = service.profile(user_id)
@@ -79,12 +82,20 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             accounts, profile = [], {"timezone": "Europe/Paris"}
             entitlements = {"allowed": False, "plan": "NONE", "max_accounts": 0,
                             "advanced_analytics": False, "export": False, "features": {}}
+        if accounts and entitlements["allowed"]:
+            try:
+                scope = "all" if len(accounts) > 1 else str(accounts[0]["id"])
+                month = datetime.now(ZoneInfo(profile["timezone"])).strftime("%Y-%m")
+                overview = service.overview(user_id, scope, month, profile["timezone"])
+            except Exception as error:
+                app.logger.error("Journal overview bootstrap %s: %s", user_id, error)
         return render_template(
             "trading_journal.html",
             member=member,
             accounts=accounts,
             profile=profile,
             entitlements=entitlements,
+            overview=overview,
         )
 
     @app.route("/api/trading/accounts", methods=["GET"])
@@ -216,6 +227,21 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         try:
             scope, timezone_name = query_context()
             return jsonify({"ok": True, **service.stats(session["member_code"], scope, timezone_name)})
+        except Exception as error:
+            return _api_error(error)
+
+    @app.route("/api/trading/overview", methods=["GET"])
+    @login_required
+    def trading_overview():
+        try:
+            scope, timezone_name = query_context()
+            month = str(request.args.get("month") or time.strftime("%Y-%m"))
+            response = jsonify({
+                "ok": True,
+                **service.overview(session["member_code"], scope, month, timezone_name),
+            })
+            response.headers["Cache-Control"] = "private, no-cache"
+            return response
         except Exception as error:
             return _api_error(error)
 

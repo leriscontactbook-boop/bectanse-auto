@@ -6,6 +6,7 @@ import os
 import re
 import uuid
 import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
@@ -14,8 +15,11 @@ from .calculations import (
     analytics_breakdown,
     as_utc,
     calendar_summary,
+    calendar_summary_from_trades,
     deal_net_pnl,
+    performance_curve_points,
     performance_stats,
+    performance_stats_from_trades,
     reconstruct_positions,
     validate_timezone,
 )
@@ -569,26 +573,36 @@ class JournalService:
                     WHERE sync_job_id=:job_id AND batch_id=:batch_id""", job_id=job_id, batch_id=batch_id)[0]
                 conn.run("COMMIT")
                 return {"accepted": int(existing[0]), "inserted": int(existing[1]), "duplicate_batch": True}
-            for deal in deals:
-                normalized = self._normalize_deal(deal)
-                inserted = conn.run("""INSERT INTO trading_deals
-                    (trading_account_id,mt5_deal_ticket,mt5_order_ticket,mt5_position_id,
-                     symbol,deal_type,entry_type,reason,is_trading_deal,volume,price,profit,
-                     commission,swap,fee,magic_number,comment,executed_at)
-                    VALUES (:account_id,:ticket,:order_ticket,:position_id,:symbol,:deal_type,
-                     :entry_type,:reason,:is_trading,:volume,:price,:profit,:commission,:swap,
-                     :fee,:magic,:comment,:executed_at)
+            normalized_deals = [self._normalize_deal(deal) for deal in deals]
+            if normalized_deals:
+                payload = json.dumps(normalized_deals, separators=(",", ":"), default=str)
+                inserted_count = int(conn.run("""WITH incoming AS (
+                    SELECT * FROM jsonb_to_recordset(CAST(:payload AS jsonb)) AS x(
+                        ticket BIGINT,order_ticket BIGINT,position_id BIGINT,symbol TEXT,
+                        deal_type TEXT,entry_type TEXT,reason TEXT,is_trading BOOLEAN,
+                        volume NUMERIC,price NUMERIC,profit NUMERIC,commission NUMERIC,
+                        swap NUMERIC,fee NUMERIC,magic BIGINT,comment TEXT,executed_at TIMESTAMPTZ
+                    )
+                ), upserted AS (
+                    INSERT INTO trading_deals
+                        (trading_account_id,mt5_deal_ticket,mt5_order_ticket,mt5_position_id,
+                         symbol,deal_type,entry_type,reason,is_trading_deal,volume,price,profit,
+                         commission,swap,fee,magic_number,comment,executed_at)
+                    SELECT :account_id,ticket,order_ticket,position_id,symbol,deal_type,
+                         entry_type,reason,is_trading,volume,price,profit,commission,swap,
+                         fee,magic,comment,executed_at FROM incoming
                     ON CONFLICT (trading_account_id,mt5_deal_ticket) DO UPDATE SET
-                     mt5_order_ticket=EXCLUDED.mt5_order_ticket,mt5_position_id=EXCLUDED.mt5_position_id,
-                     symbol=EXCLUDED.symbol,deal_type=EXCLUDED.deal_type,entry_type=EXCLUDED.entry_type,
-                     reason=EXCLUDED.reason,is_trading_deal=EXCLUDED.is_trading_deal,
-                     volume=EXCLUDED.volume,price=EXCLUDED.price,profit=EXCLUDED.profit,
-                     commission=EXCLUDED.commission,swap=EXCLUDED.swap,fee=EXCLUDED.fee,
-                     magic_number=EXCLUDED.magic_number,comment=EXCLUDED.comment,
-                     executed_at=EXCLUDED.executed_at,updated_at=NOW()
-                    RETURNING (xmax = 0)""", account_id=account_id, **normalized)
-                if inserted and bool(inserted[0][0]):
-                    inserted_count += 1
+                         mt5_order_ticket=EXCLUDED.mt5_order_ticket,
+                         mt5_position_id=EXCLUDED.mt5_position_id,symbol=EXCLUDED.symbol,
+                         deal_type=EXCLUDED.deal_type,entry_type=EXCLUDED.entry_type,
+                         reason=EXCLUDED.reason,is_trading_deal=EXCLUDED.is_trading_deal,
+                         volume=EXCLUDED.volume,price=EXCLUDED.price,profit=EXCLUDED.profit,
+                         commission=EXCLUDED.commission,swap=EXCLUDED.swap,fee=EXCLUDED.fee,
+                         magic_number=EXCLUDED.magic_number,comment=EXCLUDED.comment,
+                         executed_at=EXCLUDED.executed_at,updated_at=NOW()
+                    RETURNING (xmax = 0) AS was_inserted
+                ) SELECT COUNT(*) FILTER (WHERE was_inserted) FROM upserted""",
+                    payload=payload, account_id=account_id)[0][0] or 0)
             conn.run("""UPDATE trading_sync_jobs SET imported_deals=imported_deals+:count,
                 received_deals=received_deals+:received,heartbeat_at=NOW(),status='RUNNING',
                 lease_expires_at=NOW()+(:lease_seconds*INTERVAL '1 second') WHERE id=:id""",
@@ -1108,6 +1122,55 @@ class JournalService:
         finally:
             conn.close()
 
+    def overview(self, user_id: str, scope: str, month: str, timezone_name: str) -> dict:
+        """Build the complete first screen from one database read.
+
+        The previous browser path fetched the same account history three times
+        for stats, calendar and curve. Keeping this computation together makes
+        the initial render both faster and internally consistent.
+        """
+        if not re.fullmatch(r"20\d{2}-(0[1-9]|1[0-2])", month):
+            raise ValueError("Mois invalide.")
+        timezone_name = validate_timezone(timezone_name)
+        conn = self.get_conn()
+        try:
+            account_ids, currency = self._scope_account_ids(conn, user_id, scope)
+            deals = self._fetch_deals(conn, account_ids)
+            account_ph, params = self._account_where(account_ids)
+            balances = conn.run(f"""SELECT COALESCE(SUM(balance),0),COALESCE(SUM(equity),0)
+                FROM trading_accounts WHERE id IN ({account_ph})""", **params)[0]
+        finally:
+            conn.close()
+
+        trades = reconstruct_positions(deals)
+        trading_deal_count = sum(1 for row in deals if bool(row.get("is_trading_deal", False)))
+        stats = performance_stats_from_trades(trades, trading_deal_count, timezone_name)
+        stats["currency"] = currency
+        stats["balance"] = round(float(balances[0] or 0), 2)
+        stats["equity"] = round(float(balances[1] or 0), 2)
+        opening_balance = Decimal(str(balances[0] or 0)) - Decimal(str(stats["netPnl"] or 0))
+        stats["maxDrawdownPct"] = (
+            round(float(Decimal(str(stats.get("maxDrawdown") or 0)) / opening_balance * 100), 2)
+            if opening_balance > 0 else None
+        )
+
+        calendar = calendar_summary_from_trades(deals, trades, timezone_name, month)
+        calendar["currency"] = currency
+        calendar["timezone"] = timezone_name
+        month_change = Decimal(str(calendar["summary"]["netPnl"]))
+        month_opening_balance = Decimal(str(balances[0] or 0)) - month_change
+        calendar["summary"]["returnPct"] = (
+            round(float(month_change / abs(month_opening_balance) * 100), 2)
+            if month_opening_balance else None
+        )
+        equity = {
+            "currency": currency,
+            "timezone": timezone_name,
+            "points": performance_curve_points(trades, timezone_name),
+            "tradeCount": len(trades),
+        }
+        return {"stats": stats, "calendar": calendar, "equity": equity}
+
     def trades(self, user_id: str, scope: str, timezone_name: str, limit: int = 100) -> dict:
         timezone_name = validate_timezone(timezone_name)
         tz = ZoneInfo(timezone_name)
@@ -1128,24 +1191,19 @@ class JournalService:
 
     def equity_curve(self, user_id: str, scope: str, timezone_name: str) -> dict:
         timezone_name = validate_timezone(timezone_name)
-        tz = ZoneInfo(timezone_name)
         conn = self.get_conn()
         try:
             account_ids, currency = self._scope_account_ids(conn, user_id, scope)
             deals = self._fetch_deals(conn, account_ids)
         finally:
             conn.close()
-        daily = {}
-        for deal in deals:
-            if deal.get("is_trading_deal"):
-                day = as_utc(deal["executed_at"]).astimezone(tz).date().isoformat()
-                daily[day] = daily.get(day, Decimal("0")) + deal_net_pnl(deal)
-        cumulative = Decimal("0")
-        points = []
-        for day in sorted(daily):
-            cumulative += daily[day]
-            points.append({"date": day, "cumulativePnl": round(float(cumulative), 2)})
-        return {"currency": currency, "timezone": timezone_name, "points": points}
+        trades = reconstruct_positions(deals)
+        return {
+            "currency": currency,
+            "timezone": timezone_name,
+            "points": performance_curve_points(trades, timezone_name),
+            "tradeCount": len(trades),
+        }
 
     def analytics(self, user_id: str, scope: str, timezone_name: str) -> dict:
         timezone_name = validate_timezone(timezone_name)

@@ -14,7 +14,7 @@ import socket
 import time
 import uuid
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 import requests
@@ -46,6 +46,16 @@ def month_ranges(start: datetime, end: datetime):
         cursor = boundary
 
 
+def history_ranges(start: datetime, end: datetime):
+    """Read MT5 history in a few bounded chunks instead of one call per month."""
+    chunk_days = max(31, min(int(os.environ.get("MT5_HISTORY_CHUNK_DAYS", "3650")), 3650))
+    cursor = start
+    while cursor < end:
+        boundary = min(end, cursor + timedelta(days=chunk_days))
+        yield cursor, boundary
+        cursor = boundary
+
+
 class WorkerBackendClient:
     def __init__(self, base_url: str, secret: str, worker_id: str, instance_id: str):
         self.base_url = base_url.rstrip("/")
@@ -57,6 +67,8 @@ class WorkerBackendClient:
             raise RuntimeError("MT5_BACKEND_URL must use HTTPS")
         if len(secret) < 32:
             raise RuntimeError("INTERNAL_MT5_WORKER_SECRET must contain at least 32 characters")
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": "Bectanse-MT5-Worker/1.1"})
 
     def request(self, method: str, path: str, payload: dict | None = None, timeout=60):
         body = json.dumps(payload or {}, separators=(",", ":")).encode("utf-8")
@@ -72,7 +84,7 @@ class WorkerBackendClient:
                 self.secret, method, path, timestamp, body, nonce
             ),
         }
-        response = requests.request(
+        response = self.session.request(
             method, self.base_url + path, data=body, headers=headers, timeout=timeout
         )
         if response.status_code == 204:
@@ -134,7 +146,7 @@ class MT5Worker:
             batch = []
             start = datetime.fromisoformat(job["date_from"].replace("Z", "+00:00")).astimezone(timezone.utc)
             end = datetime.fromisoformat(job["date_to"].replace("Z", "+00:00")).astimezone(timezone.utc)
-            for period_start, period_end in month_ranges(start, end):
+            for period_start, period_end in history_ranges(start, end):
                 for deal in provider.get_deals(period_start, period_end):
                     batch.append(deal.as_dict())
                     received += 1
@@ -182,7 +194,7 @@ class MT5Worker:
                 LOGGER.warning(json.dumps({"event": "worker_heartbeat_failed", "worker_id": self.worker_id}))
 
     def serve(self, stop_event):
-        idle_seconds = max(2, int(os.environ.get("MT5_WORKER_POLL_SECONDS", "5")))
+        idle_seconds = max(2, int(os.environ.get("MT5_WORKER_POLL_SECONDS", "2")))
         last_heartbeat = 0.0
         while not stop_event.is_set():
             try:

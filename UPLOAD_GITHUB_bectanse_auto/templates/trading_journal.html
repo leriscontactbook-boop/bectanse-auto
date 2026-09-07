@@ -8,8 +8,11 @@
   <meta name="description" content="Journal de trading automatique MetaTrader 5 : calendrier, statistiques et analytics synchronisés.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/trading-journal.css">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
+  <link rel="preload" href="/static/trading-journal.js?v=20260907-speed1" as="script">
+  <link rel="stylesheet" href="/static/css/trading-journal.css?v=20260907-speed1">
 </head>
 <body>
   <div class="tj-app">
@@ -114,7 +117,7 @@
           <div class="tj-overview-grid">
             <article class="tj-panel tj-chart-panel">
               <div class="tj-panel-head"><div><p class="tj-kicker">COURBE DE PERFORMANCE</p><h3>P&amp;L cumulé</h3></div><span id="chartRange">Historique complet</span></div>
-              <div class="tj-chart-wrap"><canvas id="equityChart" aria-label="Courbe de P et L cumulé"></canvas><div id="chartEmpty" class="tj-chart-empty">La courbe apparaîtra après la première synchronisation.</div></div>
+              <div class="tj-chart-wrap"><canvas id="equityChart" aria-label="Courbe de P et L cumulé"></canvas><div id="chartEmpty" class="tj-chart-empty">La courbe apparaîtra après le premier trade clôturé.</div></div>
             </article>
             <article class="tj-panel tj-stats-panel">
               <div class="tj-panel-head"><div><p class="tj-kicker">QUALITÉ D’EXÉCUTION</p><h3>Statistiques clés</h3></div></div>
@@ -214,7 +217,7 @@
   </dialog>
 
   <div id="toast" class="tj-toast" role="status"></div>
-  <script id="tradingBootstrap" type="application/json">{{ {"accounts": accounts, "profile": profile, "entitlements": entitlements}|tojson }}</script>
-  <script src="/static/trading-journal.js" defer></script>
+  <script id="tradingBootstrap" type="application/json">{{ {"accounts": accounts, "profile": profile, "entitlements": entitlements, "overview": (overview|default(none))}|tojson }}</script>
+  <script src="/static/trading-journal.js?v=20260907-speed1" defer></script>
 </body>
 </html>

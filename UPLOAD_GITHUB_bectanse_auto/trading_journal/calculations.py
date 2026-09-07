@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -150,7 +150,9 @@ def calculate_monthly_pnl(trades: list[dict], timezone_name: str) -> dict[str, D
     return dict(totals)
 
 
-def calendar_summary(deals: list[dict], timezone_name: str, month: str) -> dict:
+def calendar_summary_from_trades(
+    deals: list[dict], trades: list[dict], timezone_name: str, month: str
+) -> dict:
     tz = ZoneInfo(validate_timezone(timezone_name))
     daily: dict[str, dict] = defaultdict(lambda: {"netPnl": Decimal("0"), "deals": 0, "trades": 0, "wins": 0, "losses": 0})
     for row in deals:
@@ -158,7 +160,7 @@ def calendar_summary(deals: list[dict], timezone_name: str, month: str) -> dict:
             day = as_utc(row["executed_at"]).astimezone(tz).date().isoformat()
             if day.startswith(month):
                 daily[day]["deals"] += 1
-    for trade in reconstruct_positions(deals):
+    for trade in trades:
         day = trade["closed_at"].astimezone(tz).date().isoformat()
         if day.startswith(month):
             daily[day]["netPnl"] += decimal_value(trade["net_pnl"])
@@ -178,8 +180,15 @@ def calendar_summary(deals: list[dict], timezone_name: str, month: str) -> dict:
             "tradingDays": sum(1 for day in days if day["trades"] > 0)}, "days": days}
 
 
-def performance_stats(deals: list[dict], timezone_name: str = "Europe/Paris") -> dict:
-    trades = reconstruct_positions(deals)
+def calendar_summary(deals: list[dict], timezone_name: str, month: str) -> dict:
+    return calendar_summary_from_trades(
+        deals, reconstruct_positions(deals), timezone_name, month
+    )
+
+
+def performance_stats_from_trades(
+    trades: list[dict], deal_count: int, timezone_name: str = "Europe/Paris"
+) -> dict:
     pnls = [decimal_value(trade["net_pnl"]) for trade in trades]
     wins, losses = [p for p in pnls if p > 0], [p for p in pnls if p < 0]
     breakeven = [p for p in pnls if p == 0]
@@ -192,7 +201,7 @@ def performance_stats(deals: list[dict], timezone_name: str = "Europe/Paris") ->
         peak = max(peak, cumulative)
         max_drawdown = max(max_drawdown, peak - cumulative)
     return {"netPnl": round(float(sum(pnls, Decimal("0"))), 2), "trades": len(trades),
-            "deals": sum(1 for row in deals if bool(row.get("is_trading_deal", False))),
+            "deals": int(deal_count),
             "wins": len(wins), "losses": len(losses), "breakeven": len(breakeven),
             "winRate": round(100 * len(wins) / len(pnls), 2) if pnls else 0,
             "lossRate": round(100 * len(losses) / len(pnls), 2) if pnls else 0,
@@ -206,6 +215,53 @@ def performance_stats(deals: list[dict], timezone_name: str = "Europe/Paris") ->
             "volume": round(float(sum((decimal_value(t["volume"]) for t in trades), Decimal("0"))), 4),
             "bestDay": {"date": sorted_days[-1][0], "netPnl": round(float(sorted_days[-1][1]), 2)} if sorted_days else None,
             "worstDay": {"date": sorted_days[0][0], "netPnl": round(float(sorted_days[0][1]), 2)} if sorted_days else None}
+
+
+def performance_stats(deals: list[dict], timezone_name: str = "Europe/Paris") -> dict:
+    return performance_stats_from_trades(
+        reconstruct_positions(deals),
+        sum(1 for row in deals if bool(row.get("is_trading_deal", False))),
+        timezone_name,
+    )
+
+
+def performance_curve_points(
+    trades: list[dict], timezone_name: str, max_points: int = 240
+) -> list[dict]:
+    """Return a visible trade-by-trade curve, including a zero baseline.
+
+    Daily aggregation hid the chart whenever every closed trade belonged to the
+    same day. A per-trade curve also makes the first result visible immediately.
+    The output is bounded so a long account history never creates a huge canvas
+    payload.
+    """
+    if not trades:
+        return []
+    tz = ZoneInfo(validate_timezone(timezone_name))
+    ordered = sorted(trades, key=lambda row: (row["closed_at"], row["position_id"]))
+    first_at = ordered[0]["closed_at"].astimezone(tz)
+    raw = [{
+        "at": (first_at - timedelta(microseconds=1)).isoformat(),
+        "date": first_at.date().isoformat(),
+        "cumulativePnl": 0.0,
+        "tradeIndex": 0,
+    }]
+    cumulative = Decimal("0")
+    for index, trade in enumerate(ordered, start=1):
+        cumulative += decimal_value(trade["net_pnl"])
+        closed_at = trade["closed_at"].astimezone(tz)
+        raw.append({
+            "at": closed_at.isoformat(),
+            "date": closed_at.date().isoformat(),
+            "cumulativePnl": round(float(cumulative), 2),
+            "tradeIndex": index,
+        })
+    limit = max(2, int(max_points))
+    if len(raw) <= limit:
+        return raw
+    last = len(raw) - 1
+    indexes = sorted({round(offset * last / (limit - 1)) for offset in range(limit)})
+    return [raw[index] for index in indexes]
 
 
 def analytics_breakdown(deals: list[dict], timezone_name: str) -> dict:
