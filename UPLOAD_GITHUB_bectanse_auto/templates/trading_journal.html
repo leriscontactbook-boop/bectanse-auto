@@ -68,10 +68,10 @@
           <h2>Tout votre trading.<br><em>Automatiquement.</em></h2>
           <p>Connectez votre compte une seule fois. Votre historique, vos journées et vos performances se mettent ensuite à jour sans EA, sans CSV et sans terminal ouvert chez vous.</p>
           <button id="connectHero" class="tj-button tj-button-primary tj-button-large">Connecter mon premier compte <span>→</span></button>
-          <div class="tj-trust-line"><span></span> Connexion investor en lecture seule · Données chiffrées</div>
+          <div class="tj-trust-line"><span></span> Mot de passe Investor recommandé · Données chiffrées</div>
         </div>
         <ol class="tj-onboarding-steps">
-          <li class="is-current"><span>01</span><div><b>Connectez votre MetaTrader 5</b><small>Login, serveur et mot de passe investor.</small></div></li>
+          <li class="is-current"><span>01</span><div><b>Connectez votre MetaTrader 5</b><small>Login et mot de passe MT5. Broker et serveur se sélectionnent.</small></div></li>
           <li><span>02</span><div><b>Votre compte est vérifié</b><small>Notre worker sécurisé contacte votre broker.</small></div></li>
           <li><span>03</span><div><b>L’historique est importé</b><small>Les doublons et opérations de balance sont filtrés.</small></div></li>
           <li><span>04</span><div><b>Analysez vos performances</b><small>Calendrier, P&amp;L et statistiques se construisent seuls.</small></div></li>
@@ -186,12 +186,14 @@
   <dialog id="connectDialog" class="tj-dialog">
     <form id="connectForm" method="dialog">
       <div class="tj-dialog-head"><div><p class="tj-kicker">NOUVELLE SOURCE DE DONNÉES</p><h2>Connecter un compte</h2></div><button type="button" class="tj-close" data-close-dialog aria-label="Fermer">×</button></div>
-      <div class="tj-readonly-note"><span>LECTURE SEULE</span><p>Utilisez le mot de passe <b>Investor</b>. Le journal ne peut ouvrir, modifier ou fermer aucune position.</p></div>
+      <div class="tj-readonly-note"><span>SÉCURISÉ</span><p>Le mot de passe <b>Investor</b> est recommandé. Le mot de passe principal est aussi accepté. Le Journal n’exécute aucun ordre.</p></div>
       <label>Plateforme<select name="platform"><option value="MT5">MetaTrader 5</option></select></label>
       <label>Nom du compte <small>facultatif</small><input name="display_name" maxlength="80" placeholder="Ex. Compte principal"></label>
-      <div class="tj-form-grid"><label>Numéro de compte<input name="login" inputmode="numeric" autocomplete="off" required placeholder="12345678"></label><label>Serveur MT5<input name="server" autocomplete="off" required placeholder="Broker-Server"></label></div>
-      <label>Mot de passe Investor / read-only<input name="password" type="password" autocomplete="new-password" required placeholder="••••••••••••"></label>
-      <p class="tj-security-copy">Chiffré avant stockage avec AES‑256‑GCM. Il ne sera jamais réaffiché.</p>
+      <div class="tj-form-grid"><label>Broker<select id="brokerSelect"><option value="">Chargement des brokers…</option></select></label><label>Serveur MT5<select id="serverSelect" disabled><option value="">Sélectionnez d’abord le broker</option></select></label></div>
+      <label id="manualServerGroup" class="is-hidden">Serveur exact <small>indiqué dans l’e-mail du broker</small><input id="manualServer" autocomplete="off" placeholder="Broker-MT5Live"></label>
+      <label>Numéro de compte<input name="login" inputmode="numeric" autocomplete="off" required placeholder="12345678"></label>
+      <label>Mot de passe MT5 <small>Investor ou principal</small><input name="password" type="password" autocomplete="new-password" required placeholder="••••••••••••"></label>
+      <p class="tj-security-copy">Chiffré avant stockage avec AES‑256‑GCM. Jamais réaffiché. Le mot de passe Investor reste le choix le plus sûr.</p>
       <div id="connectError" class="tj-form-error" role="alert"></div>
       <button id="connectSubmit" class="tj-button tj-button-primary tj-button-full" type="submit">Connecter mon compte <span>→</span></button>
     </form>
@@ -206,6 +208,7 @@
   <dialog id="accountDialog" class="tj-dialog tj-account-dialog">
     <div class="tj-dialog-head"><div><p class="tj-kicker">GESTION DU COMPTE</p><h2>Compte connecté</h2></div><button type="button" class="tj-close" data-close-account aria-label="Fermer">×</button></div>
     <p>Déconnecter efface immédiatement les identifiants, mais conserve l’historique. Supprimer les données efface aussi tous les deals et statistiques de ce compte.</p>
+    <button id="repairAccount" class="tj-button tj-button-primary tj-button-full">Corriger la connexion</button>
     <button id="disconnectAccount" class="tj-button tj-button-ghost tj-button-full">Déconnecter et conserver l’historique</button>
     <button id="deleteAccount" class="tj-button tj-button-danger tj-button-full">Supprimer définitivement les données</button>
   </dialog>

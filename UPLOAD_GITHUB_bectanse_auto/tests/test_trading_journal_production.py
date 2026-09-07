@@ -14,6 +14,7 @@ from trading_journal.calculations import (
 )
 from trading_journal.coach import MIN_TRADES, build_insights, detect_behavior, review, trading_score
 from trading_journal.billing import create_checkout
+from trading_journal.brokers import build_broker_catalog, broker_name_from_server
 from trading_journal.config import JournalConfigurationError, validate_backend_config, validate_worker_config
 from trading_journal.entitlements import FEATURE_KEYS, resolve_entitlements
 from trading_journal.providers.base import AccountSnapshot, ProviderError
@@ -192,6 +193,19 @@ def test_academy_member_checkout_does_not_depend_on_standalone_price_configurati
         )
 
 
+def test_broker_catalog_combines_verified_and_successfully_seen_servers(monkeypatch):
+    monkeypatch.setenv("MT5_BROKER_CATALOG_JSON", '{"IC Markets":["ICMarketsSC-MT5-4"]}')
+    result = build_broker_catalog([
+        ("Exness", "Exness-MT5Real34"),
+        ("Pepperstone", "Pepperstone-MT5-Live01"),
+    ])
+    by_name = {row["name"]: row["servers"] for row in result}
+    assert by_name["Exness"] == ["Exness-MT5Real34"]
+    assert by_name["IC Markets"] == ["ICMarketsSC-MT5-4"]
+    assert by_name["Pepperstone"] == ["Pepperstone-MT5-Live01"]
+    assert broker_name_from_server("Broker-MT5-Live") == "Broker"
+
+
 @pytest.mark.parametrize("error,code", [
     (PermissionError("included"), "already-active"),
     (ValueError("email"), "account-required"),
@@ -259,7 +273,59 @@ def test_mt5_provider_initializes_with_account_credentials():
         "password": "investor-secret",
         "server": "Broker-Live",
         "timeout": 12_345,
+        "portable": True,
     })
+
+
+def test_failed_initialize_is_always_shutdown_and_keeps_mt5_diagnostic_code():
+    class FailingMT5:
+        shutdown_calls = 0
+
+        @staticmethod
+        def initialize(*args, **kwargs):
+            return False
+
+        @staticmethod
+        def last_error():
+            return -10005, "IPC timeout"
+
+        def shutdown(self):
+            self.shutdown_calls += 1
+
+    fake = FailingMT5()
+    provider = MetaTrader5Provider("C:\\MT5\\NODE-01\\terminal64.exe")
+    provider._mt5 = fake
+    with pytest.raises(ProviderError) as captured:
+        provider.connect("123456", "Broker-Live", "investor-secret")
+    provider.disconnect()
+    assert captured.value.diagnostic_code == -10005
+    assert fake.shutdown_calls == 1
+
+
+def test_main_mt5_password_is_accepted_when_read_only_enforcement_is_disabled(monkeypatch):
+    monkeypatch.setenv("MT5_REQUIRE_READ_ONLY", "false")
+
+    class TradingEnabledMT5:
+        @staticmethod
+        def initialize(*args, **kwargs):
+            return True
+
+        @staticmethod
+        def account_info():
+            return type("Info", (), {
+                "login": 123456, "company": "Broker", "server": "Broker-Live",
+                "currency": "EUR", "balance": 1000, "equity": 1000,
+                "margin": 0, "margin_free": 1000, "leverage": 100,
+                "trade_allowed": True, "trade_mode": 0,
+            })()
+
+        @staticmethod
+        def shutdown():
+            return None
+
+    provider = MetaTrader5Provider("C:\\MT5\\NODE-01\\terminal64.exe")
+    provider._mt5 = TradingEnabledMT5()
+    assert provider.connect("123456", "Broker-Live", "main-password").access_mode == "TRADING_ALLOWED"
 
 
 def test_mt5_ipc_timeout_is_retryable_terminal_error():

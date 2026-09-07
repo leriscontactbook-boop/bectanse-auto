@@ -95,7 +95,7 @@ This removes the need for Redis in V1 while preserving a clean boundary for a la
 3. The password is sealed with AES-256-GCM using account/user identity as authenticated data.
 4. A `FULL_HISTORY_SYNC` job is inserted atomically with the account.
 5. A worker claims the job through the signed internal API.
-6. MT5 is initialized for that account. If `trade_allowed` is true and `MT5_REQUIRE_READ_ONLY=true`, the credential is rejected.
+6. MT5 is initialized for that account. Investor and main credentials are accepted in production; strict read-only mode remains available through `MT5_REQUIRE_READ_ONLY=true`.
 7. History is requested month by month and uploaded in batches of at most 1,000 deals.
 8. The API validates every deal and upserts it on the stable MT5 ticket key.
 9. Account information and a balance/equity snapshot are saved.

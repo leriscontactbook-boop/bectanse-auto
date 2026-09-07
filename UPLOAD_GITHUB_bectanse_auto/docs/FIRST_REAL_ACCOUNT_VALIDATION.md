@@ -6,7 +6,8 @@ masked account ID and reconciliation report ID. Never paste a password.
 - [ ] Windows VPS online and patched
 - [ ] Worker heartbeat online in `/health/workers`
 - [ ] Dedicated MT5 terminal online for each worker slot
-- [ ] Investor/read-only password accepted
+- [ ] Investor/read-only password accepted (recommended)
+- [ ] Main MT5 password accepted when `MT5_REQUIRE_READ_ONLY=false`
 - [ ] Account login and server match the requested account
 - [ ] Balance matches MT5
 - [ ] Equity matches MT5

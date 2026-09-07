@@ -63,11 +63,13 @@ class DealSnapshot:
 
 
 class ProviderError(RuntimeError):
-    def __init__(self, code: str, user_message: str, *, retryable: bool = False):
+    def __init__(self, code: str, user_message: str, *, retryable: bool = False,
+                 diagnostic_code: int | None = None):
         super().__init__(user_message)
         self.code = code
         self.user_message = user_message
         self.retryable = retryable
+        self.diagnostic_code = diagnostic_code
 
 
 class TradingProvider(ABC):

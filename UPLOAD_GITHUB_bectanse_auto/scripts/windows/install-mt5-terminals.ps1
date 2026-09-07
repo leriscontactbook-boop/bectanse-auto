@@ -1,13 +1,18 @@
 param(
   [ValidateRange(1, 32)][int]$Count = 1,
-  [string]$TerminalRoot = "C:\MT5"
+  [string]$TerminalRoot = "C:\MT5",
+  [string]$DownloadUrl = "https://download.terminal.free/cdn/web/metaquotes.ltd/mt5/mt5setup.exe"
 )
 $ErrorActionPreference = "Stop"
 $installer = Join-Path $env:TEMP "mt5setup.exe"
-$downloadUrl = "https://download.terminal.free/cdn/web/metaquotes.ltd/mt5/mt5setup.exe"
+
+$uri = [Uri]$DownloadUrl
+if ($uri.Scheme -ne "https" -or $uri.Host -ne "download.terminal.free") {
+  throw "L'installateur MT5 doit provenir du CDN officiel download.terminal.free."
+}
 
 try {
-  Invoke-WebRequest $downloadUrl -OutFile $installer
+  Invoke-WebRequest $DownloadUrl -OutFile $installer
   $signature = Get-AuthenticodeSignature $installer
   if ($signature.Status -ne "Valid" -or $signature.SignerCertificate.Subject -notlike "*MetaQuotes*") {
     throw "La signature de l'installateur MetaTrader 5 n'est pas valide."

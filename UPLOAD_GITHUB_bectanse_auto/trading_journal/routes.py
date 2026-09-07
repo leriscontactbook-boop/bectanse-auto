@@ -98,6 +98,15 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             app.logger.error("Liste comptes trading %s: %s", session["member_code"], error)
             return _api_error(error)
 
+    @app.route("/api/trading/brokers", methods=["GET"])
+    @login_required
+    def trading_brokers_list():
+        try:
+            return jsonify({"ok": True, "brokers": service.broker_catalog()})
+        except Exception as error:
+            app.logger.error("Catalogue brokers MT5: %s", error)
+            return _api_error(error)
+
     @app.route("/journal/checkout/<plan>", methods=["GET"])
     @login_required
     def trading_journal_checkout(plan):

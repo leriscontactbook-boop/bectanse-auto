@@ -60,9 +60,9 @@ Set machine-scoped variables from an elevated PowerShell. Replace values with th
 [Environment]::SetEnvironmentVariable('WORKER_ID','MT5-WORKER-NODE-01','Machine')
 [Environment]::SetEnvironmentVariable('MT5_WORKER_COUNT','2','Machine')
 [Environment]::SetEnvironmentVariable('MT5_TERMINAL_PATHS','C:\MT5\Terminal-01\terminal64.exe;C:\MT5\Terminal-02\terminal64.exe','Machine')
-[Environment]::SetEnvironmentVariable('MT5_CONNECT_TIMEOUT_MS','45000','Machine')
+[Environment]::SetEnvironmentVariable('MT5_CONNECT_TIMEOUT_MS','180000','Machine')
 [Environment]::SetEnvironmentVariable('MT5_WORKER_POLL_SECONDS','5','Machine')
-[Environment]::SetEnvironmentVariable('MT5_REQUIRE_READ_ONLY','true','Machine')
+[Environment]::SetEnvironmentVariable('MT5_REQUIRE_READ_ONLY','false','Machine')
 ```
 
 Open a new PowerShell session after setting machine variables.
@@ -107,7 +107,7 @@ Use a dedicated demo account first.
 1. Create at least two closed positions: one winner and one loser.
 2. Ensure one position has a partial close if the broker supports it.
 3. Record the MT5 History totals for profit, commission, swap and fee.
-4. Connect with the investor password in Bectanse.
+4. Connect with the investor password (recommended) or the main password in Bectanse.
 5. Confirm the UI moves through connection, import and synced states.
 6. Compare balance, equity, currency and masked login with MT5.
 7. Compare the calendar net P&L with the MT5 deal total.
@@ -115,7 +115,7 @@ Use a dedicated demo account first.
 9. Trigger manual sync twice. The second request must be rate-limited/cooldown-protected and deal count must not duplicate.
 10. Change timezone between Europe/Paris and America/New_York around a midnight trade and confirm the displayed trading day changes correctly.
 11. Try another user's account ID against every user endpoint and confirm `404`.
-12. Attempt a master/trading password while `MT5_REQUIRE_READ_ONLY=true`; the worker must reject it with the investor-password message.
+12. Confirm both password types synchronize when `MT5_REQUIRE_READ_ONLY=false`; staging may still set the flag to `true` to test strict read-only enforcement.
 
 ## 10. Production monitoring
 

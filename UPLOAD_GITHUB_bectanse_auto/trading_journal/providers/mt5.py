@@ -16,8 +16,13 @@ def _decimal(value) -> Decimal:
 class MetaTrader5Provider(TradingProvider):
     def __init__(self, terminal_path: str | None = None, timeout_ms: int | None = None):
         self.terminal_path = terminal_path or os.environ.get("MT5_TERMINAL_PATH", "")
-        self.timeout_ms = timeout_ms or int(os.environ.get("MT5_CONNECT_TIMEOUT_MS", "45000"))
-        self.require_read_only = os.environ.get("MT5_REQUIRE_READ_ONLY", "true").lower() not in {
+        # A freshly installed terminal performs a one-time MQL5 compilation that
+        # can exceed the MetaQuotes 60-second default before IPC is ready.
+        self.timeout_ms = timeout_ms or int(os.environ.get("MT5_CONNECT_TIMEOUT_MS", "180000"))
+        self.require_read_only = os.environ.get("MT5_REQUIRE_READ_ONLY", "false").lower() not in {
+            "0", "false", "no"
+        }
+        self.portable_mode = os.environ.get("MT5_PORTABLE_MODE", "true").lower() not in {
             "0", "false", "no"
         }
         self._mt5 = None
@@ -46,17 +51,22 @@ class MetaTrader5Provider(TradingProvider):
         code, message = (self._last_error() + (None, None))[:2]
         message_text = str(message or "").lower()
         if code == -6 or "auth" in message_text or "password" in message_text:
-            return ProviderError("AUTH_ERROR", "Les identifiants fournis sont incorrects.")
+            return ProviderError(
+                "AUTH_ERROR", "Les identifiants fournis sont incorrects.",
+                diagnostic_code=code,
+            )
         if "server" in message_text or "network" in message_text:
             return ProviderError(
                 "BROKER_UNAVAILABLE",
                 "La connexion au broker est momentanément indisponible.",
                 retryable=True,
+                diagnostic_code=code,
             )
         return ProviderError(
             "TERMINAL_ERROR",
             "Le service MetaTrader est momentanément indisponible.",
             retryable=True,
+            diagnostic_code=code,
         )
 
     def connect(self, login: str, server: str, password: str) -> AccountSnapshot:
@@ -66,6 +76,7 @@ class MetaTrader5Provider(TradingProvider):
             "password": password,
             "server": server,
             "timeout": self.timeout_ms,
+            "portable": self.portable_mode,
         }
         initialized = (
             mt5.initialize(self.terminal_path, **connection)
@@ -208,7 +219,7 @@ class MetaTrader5Provider(TradingProvider):
         }
 
     def disconnect(self) -> None:
-        if self._mt5 is not None and self._connected:
+        if self._mt5 is not None:
             try:
                 self._mt5.shutdown()
             finally:

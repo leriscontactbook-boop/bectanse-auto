@@ -13,7 +13,9 @@ if ($plain.Length -lt 32) { throw "Le secret worker doit contenir au moins 32 ca
 $values = @{
   BACKEND_URL=$BackendUrl.TrimEnd('/'); INTERNAL_WORKER_SECRET=$plain; WORKER_ID=$WorkerId;
   MT5_TERMINAL_PATHS=($TerminalPaths -join ';'); MT5_WORKER_COUNT=$TerminalPaths.Count;
-  MAX_CONCURRENT_MT5_SESSIONS=$TerminalPaths.Count; MT5_REQUIRE_READ_ONLY='true';
+  MAX_CONCURRENT_MT5_SESSIONS=$TerminalPaths.Count; MT5_REQUIRE_READ_ONLY='false';
+  MT5_PORTABLE_MODE='true';
+  MT5_CONNECT_TIMEOUT_MS='180000';
   MT5_WORKER_POLL_SECONDS='5'; LOG_LEVEL='INFO'
 }
 $lines = $values.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" }

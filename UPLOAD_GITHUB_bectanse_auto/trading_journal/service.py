@@ -20,6 +20,7 @@ from .calculations import (
     validate_timezone,
 )
 from .entitlements import can_add_trading_account, resolve_entitlements
+from .brokers import broker_name_from_server, build_broker_catalog
 from .security import CredentialCipher, EncryptedCredential
 
 
@@ -170,12 +171,24 @@ class JournalService:
         finally:
             conn.close()
 
+    def broker_catalog(self) -> list[dict]:
+        conn = self.get_conn()
+        try:
+            rows = conn.run("""SELECT DISTINCT broker,server FROM trading_accounts
+                WHERE server<>'' AND status='SYNCED' ORDER BY broker,server""")
+            return build_broker_catalog(rows)
+        finally:
+            conn.close()
+
     def create_account(self, user_id: str, payload: dict) -> dict:
         platform = str(payload.get("platform") or "MT5").upper().strip()
         if platform != "MT5":
             raise ValueError("MetaTrader 5 est la seule plateforme disponible en V1.")
         login = re.sub(r"\s+", "", str(payload.get("login") or ""))
         server = str(payload.get("server") or "").strip()
+        broker = str(payload.get("broker") or "").strip()[:80] or broker_name_from_server(server)
+        if any(character in broker for character in "\r\n\x00"):
+            broker = broker_name_from_server(server)
         password = str(payload.get("password") or "")
         display_name = str(payload.get("display_name") or "").strip()[:80]
         if not re.fullmatch(r"[0-9]{3,20}", login):
@@ -183,7 +196,7 @@ class JournalService:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._\-/]{1,118}[A-Za-z0-9]", server):
             raise ValueError("Le serveur MetaTrader indiqué n’est pas valide.")
         if len(password) < 4 or len(password) > 256:
-            raise ValueError("Le mot de passe investisseur n’est pas valide.")
+            raise ValueError("Le mot de passe MT5 n’est pas valide.")
 
         member = self.get_member(user_id) or {}
         conn = self.get_conn()
@@ -214,15 +227,16 @@ class JournalService:
                 raise PermissionError("Votre formule a atteint sa limite de comptes connectés.")
             if existing:
                 account_id = int(existing[0][0])
-                conn.run("""UPDATE trading_accounts SET display_name=:display_name,status='PENDING_VERIFICATION',
+                conn.run("""UPDATE trading_accounts SET display_name=:display_name,broker=:broker,status='PENDING_VERIFICATION',
                     sync_status='PENDING',last_error_code='',last_error_message='',updated_at=NOW()
-                    WHERE id=:id AND user_id=:user_id""", id=account_id, user_id=user_id, display_name=display_name)
+                    WHERE id=:id AND user_id=:user_id""", id=account_id, user_id=user_id,
+                    display_name=display_name, broker=broker)
             else:
                 inserted = conn.run("""INSERT INTO trading_accounts
-                    (user_id,provider,platform,display_name,login,login_masked,server,status,sync_status)
-                    VALUES (:user_id,'MT5','MT5',:display_name,:login,:masked,:server,'PENDING_VERIFICATION','PENDING')
+                    (user_id,provider,platform,display_name,login,login_masked,broker,server,status,sync_status)
+                    VALUES (:user_id,'MT5','MT5',:display_name,:login,:masked,:broker,:server,'PENDING_VERIFICATION','PENDING')
                     RETURNING id""", user_id=user_id, display_name=display_name, login=login,
-                    masked="••••" + login[-4:], server=server)
+                    masked="••••" + login[-4:], broker=broker, server=server)
                 account_id = int(inserted[0][0])
             encrypted = self._cipher().encrypt(password, self._credential_aad(account_id, user_id))
             key_version = max(1, int(os.environ.get("MT5_CREDENTIAL_KEY_VERSION", "1")))
@@ -633,7 +647,7 @@ class JournalService:
         required = {"broker", "server", "currency", "balance", "equity", "margin", "free_margin", "leverage", "access_mode"}
         if not isinstance(account, dict) or not required.issubset(account):
             raise ValueError("Informations de compte incomplètes.")
-        if account.get("access_mode") != "READ_ONLY" and os.environ.get("MT5_REQUIRE_READ_ONLY", "true").lower() not in {"0", "false", "no"}:
+        if account.get("access_mode") != "READ_ONLY" and os.environ.get("MT5_REQUIRE_READ_ONLY", "false").lower() not in {"0", "false", "no"}:
             raise PermissionError("Le compte n’est pas connecté en lecture seule.")
         conn = self.get_conn()
         try:

@@ -161,7 +161,8 @@ class MT5Worker:
             return True
         except ProviderError as error:
             _log("sync_failed", worker_id=self.worker_id, job_id=job_id,
-                 account_id=account_id, error_code=error.code)
+                 account_id=account_id, error_code=error.code,
+                 mt5_error_code=error.diagnostic_code)
             self.client.fail(job_id, error.code, error.retryable)
             return True
         except Exception:
