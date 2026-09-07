@@ -102,7 +102,7 @@ class WorkerBackendClient:
     def node_heartbeat(self, status="ONLINE", current_job_id="", terminal_fingerprint=""):
         return self.request("POST", "/internal/mt5/workers/heartbeat", {
             "status": status, "current_job_id": current_job_id,
-            "terminal_fingerprint": terminal_fingerprint, "version": "1.0.0",
+            "terminal_fingerprint": terminal_fingerprint, "version": "1.1.0",
         }, timeout=20)
 
     def upload(self, job_id: str, deals: list[dict], batch_id: str):
