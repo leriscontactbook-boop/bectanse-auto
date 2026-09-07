@@ -56,6 +56,7 @@ def test_journal_has_safe_areas_deep_links_and_responsive_chart():
     assert "ResizeObserver" in javascript
     assert "window.scrollTo" not in javascript
     assert "touchcancel" in javascript
+    assert ".tj-onboarding h2, .tj-paywall h2 { font-size: 36px" in css
 
 
 def test_journal_mobile_sheets_lock_the_primary_scroller():
