@@ -9,7 +9,7 @@ The user connects a MetaTrader 5 account once with an investor/read-only passwor
 - Web application: Flask 3/Jinja, with server-rendered pages and small vanilla JavaScript modules.
 - Authentication: existing `members` session (`member_code`) and `login_required`; the journal does not introduce a second identity system.
 - Database: PostgreSQL through `pg8000.native`; schema changes are additive and startup-safe.
-- Billing: Stripe Checkout, webhook processing and Customer Portal already exist for Academy subscriptions. Existing paid Academy members inherit journal PRO rights.
+- Billing: Stripe Checkout, webhook processing and Customer Portal already exist for Academy subscriptions. Active Academy members inherit the complete journal ELITE feature set by default, without a second payment.
 - Infrastructure: Railway, Docker and Gunicorn for the web application. The worker is intentionally a separate Windows process.
 - Security conventions: secure session cookies, same-origin mutation checks, authenticated encryption for existing sensitive data and server-side ownership filters.
 - Tests: pytest with mocked database/provider dependencies; no live MetaTrader dependency in CI.
@@ -146,9 +146,11 @@ Plan behavior lives in `entitlements.py`:
 | --- | ---: | --- | --- | --- |
 | JOURNAL_PRO | 1 | Complete | No | No |
 | JOURNAL_ELITE | 10 | Complete | Yes | Yes |
-| ACADEMY_INCLUDED | Configurable (at least PRO) | Complete | Configurable | Configurable |
+| ACADEMY_INCLUDED | 10 by default | Complete | Yes by default | Yes by default |
 
-Prices, monthly/annual intervals, coupons and trials remain Stripe catalog concerns. They are not hardcoded into entitlement checks. Use one Stripe Product per tier and separate monthly/annual Prices for the same Product. Tax collection must only be enabled after the appropriate Stripe Tax registrations are active.
+Prices, monthly/annual intervals, coupons and trials remain Stripe catalog concerns. They are not hardcoded into entitlement checks. Use one Stripe Product per tier and separate monthly/annual Prices for the same Product. `STRIPE_JOURNAL_PRO_PRICE_ID` and `STRIPE_JOURNAL_ELITE_PRICE_ID` select the launch Prices, while `STRIPE_JOURNAL_PORTAL_CONFIGURATION` selects the standalone self-service portal configuration. Tax collection must only be enabled after the appropriate Stripe Tax registrations are active.
+
+Standalone customers use `/journal/checkout/<plan>` to enter Stripe Checkout and `POST /api/trading/billing/portal` to open a short-lived Customer Portal session. Stripe webhooks remain the source of truth for access. When a standalone customer later becomes an active Academy member, the Journal subscription is scheduled for cancellation at period end to prevent double billing.
 
 ## Security controls
 

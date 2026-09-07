@@ -135,14 +135,16 @@ def test_monthly_stats_and_profit_factor_are_position_based():
     assert analytics["symbol"][0]["netPnl"] == 100
 
 
-def test_entitlements_are_centralized_and_existing_paid_members_get_pro():
+def test_entitlements_are_centralized_and_academy_members_get_elite_features():
     assert can_add_trading_account(PLAN_RULES["JOURNAL_PRO"], 0)
     assert not can_add_trading_account(PLAN_RULES["JOURNAL_PRO"], 1)
     entitlements = resolve_entitlements(None, {
         "actif": True, "access_level": "member", "billing_status": "active",
     })
     assert entitlements.plan == "ACADEMY_INCLUDED"
-    assert entitlements.max_accounts == 1
+    assert entitlements.max_accounts == 10
+    assert entitlements.advanced_analytics
+    assert entitlements.export
     assert entitlements.coach_advanced_patterns
 
 

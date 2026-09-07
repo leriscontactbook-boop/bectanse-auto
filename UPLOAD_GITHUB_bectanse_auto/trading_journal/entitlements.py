@@ -153,7 +153,7 @@ def resolve_entitlements(
     now = now or datetime.now(timezone.utc)
     academy_active, grace_until = academy_membership_state(member, now=now)
     if academy_active:
-        academy_plan = normalize_plan(os.environ.get("ACADEMY_JOURNAL_PLAN", "JOURNAL_PRO"))
+        academy_plan = normalize_plan(os.environ.get("ACADEMY_JOURNAL_PLAN", "JOURNAL_ELITE"))
         return _with_source(academy_plan, "ACADEMY_INCLUDED", grace_until)
 
     subscription = subscription or {}

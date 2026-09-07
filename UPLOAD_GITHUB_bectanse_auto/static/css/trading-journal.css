@@ -120,6 +120,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .tj-kicker { margin: 0; color: var(--muted-2); font-size: 8px; font-weight: 700; letter-spacing: .2em; }
 .tj-member-mark { display: inline-block; margin-top: 8px; color: var(--orange-soft); font-size: 7px; font-weight: 700; letter-spacing: .17em; }
 .tj-top-actions, .tj-status-actions { display: flex; align-items: center; gap: 8px; }
+.tj-manage-billing { display: inline-flex; align-items: center; gap: 7px; }
+.tj-manage-billing svg { width: 16px; height: 16px; flex: 0 0 auto; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .tj-account-select-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 .tj-account-select, .tj-timezone select, .tj-trade-toolbar select {
   height: 40px; padding: 0 34px 0 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
@@ -506,9 +508,12 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-topbar .tj-kicker { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tj-member-mark { display: none; }
   .tj-top-actions { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) 44px; gap: 6px; }
+  .tj-top-actions.has-billing { grid-template-columns: minmax(0,1fr) 44px 44px; }
   .tj-account-select { width: 100%; min-width: 0; height: 44px; padding-right: 22px; padding-left: 9px; }
   .tj-top-actions .tj-button { width: 44px; min-height: 44px; padding: 0; font-size: 0; }
   .tj-top-actions .tj-button span { font-size: 18px; }
+  .tj-top-actions .tj-manage-billing span { display: none; }
+  .tj-top-actions .tj-manage-billing svg { width: 18px; height: 18px; }
   .tj-statusbar { min-height: 0; display: grid; align-items: stretch; gap: 12px; padding: 14px 0; }
   .tj-connection { min-width: 0; }
   .tj-connection > div { min-width: 0; }

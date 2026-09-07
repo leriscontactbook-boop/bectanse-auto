@@ -28,7 +28,9 @@
 ## Product and billing
 
 - [ ] Academy member receives `ACADEMY_INCLUDED`
+- [ ] Academy members receive the complete ELITE feature set without a second checkout
 - [ ] Standalone PRO and ELITE Stripe Price IDs are configured
+- [ ] Standalone Customer Portal opens and allows plan changes/cancellation
 - [ ] Stripe webhook redelivery is idempotent
 - [ ] Academy activation schedules standalone cancellation at period end
 - [ ] Journal and Coach paywalls match effective entitlements

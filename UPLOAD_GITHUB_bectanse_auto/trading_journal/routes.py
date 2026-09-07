@@ -16,7 +16,7 @@ from .service import JournalService
 from .security import verify_worker_request
 from .config import worker_secret
 from .coach import review as coach_review
-from .billing import create_checkout
+from .billing import create_checkout, create_portal
 
 
 _RATE_LOCK = threading.Lock()
@@ -128,6 +128,21 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         except Exception as error:
             app.logger.error("Journal Checkout %s: %s", session["member_code"], error)
             return redirect(f"/journal?checkout={_checkout_failure_code(error)}", code=303)
+
+    @app.route("/api/trading/billing/portal", methods=["POST"])
+    @login_required
+    @_rate_limited("trading-billing-portal", 8, 15 * 60)
+    def trading_journal_billing_portal():
+        try:
+            entitlements = service.entitlements(session["member_code"])
+            if entitlements.get("source") != "JOURNAL_SUBSCRIPTION":
+                raise PermissionError("Aucun abonnement Journal autonome n’est à gérer sur ce compte.")
+            url = create_portal(get_conn, session["member_code"], request.url_root)
+            return jsonify({"ok": True, "url": url})
+        except Exception as error:
+            if not isinstance(error, (LookupError, PermissionError)):
+                app.logger.error("Journal Billing Portal %s: %s", session["member_code"], error)
+            return _api_error(error)
 
     @app.route("/api/trading/accounts/connect", methods=["POST"])
     @app.route("/trading/accounts/connect", methods=["POST"])
@@ -262,7 +277,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         try:
             entitlements = service.entitlements(session["member_code"])
             if not entitlements["advanced_analytics"]:
-                raise PermissionError("Les analytics avancés sont disponibles avec la formule PRO.")
+                raise PermissionError("Les analytics avancés sont disponibles avec la formule ELITE.")
             scope, timezone_name = query_context()
             return jsonify({"ok": True, **service.analytics(session["member_code"], scope, timezone_name)})
         except Exception as error:

@@ -5,14 +5,31 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
-import requests
-
-
 JOURNAL_PLANS = {
     "JOURNAL_PRO": "STRIPE_JOURNAL_PRO_PRICE_ID",
     "JOURNAL_ELITE": "STRIPE_JOURNAL_ELITE_PRICE_ID",
 }
 ACTIVE_STATUSES = {"active", "trialing"}
+STRIPE_API_VERSION = "2026-07-29.dahlia"
+
+
+def _stripe_client():
+    import stripe
+
+    secret = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    if not secret:
+        raise RuntimeError("La facturation Journal n’est pas configurée.")
+    return stripe.StripeClient(
+        secret,
+        stripe_version=STRIPE_API_VERSION,
+        max_network_retries=2,
+    )
+
+
+def _field(value, name: str, default=""):
+    if isinstance(value, dict):
+        return value.get(name, default)
+    return getattr(value, name, default)
 
 
 def price_id_for_plan(plan: str) -> str:
@@ -26,7 +43,7 @@ def plan_for_price(price_id: str) -> str | None:
     return None
 
 
-def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: str) -> str:
+def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: str, *, client=None) -> str:
     plan = str(plan or "").upper()
     if plan not in JOURNAL_PLANS:
         raise ValueError("Cette formule Journal n’existe pas.")
@@ -44,27 +61,55 @@ def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: s
     if "@" not in email:
         raise ValueError("Une adresse e-mail vérifiée est requise.")
     price_id = price_id_for_plan(plan)
-    secret = os.environ.get("STRIPE_SECRET_KEY", "")
-    if not secret or not price_id:
+    if not os.environ.get("STRIPE_SECRET_KEY", "").strip() or not price_id:
         raise RuntimeError("La souscription Journal n’est pas encore configurée.")
-    form = {
+    params = {
         "mode": "subscription", "success_url": root_url.rstrip("/") + "/journal?checkout=success",
         "cancel_url": root_url.rstrip("/") + "/journal?checkout=cancelled",
-        "client_reference_id": user_id, "customer_email": email,
-        "metadata[member_code]": user_id, "metadata[product]": "BECTANSE_JOURNAL",
-        "metadata[journal_plan]": plan,
-        "subscription_data[metadata][member_code]": user_id,
-        "subscription_data[metadata][product]": "BECTANSE_JOURNAL",
-        "subscription_data[metadata][journal_plan]": plan,
-        "line_items[0][price]": price_id, "line_items[0][quantity]": "1",
-        "billing_address_collection": "auto", "allow_promotion_codes": "true",
+        "client_reference_id": user_id,
+        "metadata": {"member_code": user_id, "product": "BECTANSE_JOURNAL", "journal_plan": plan},
+        "subscription_data": {"metadata": {
+            "member_code": user_id, "product": "BECTANSE_JOURNAL", "journal_plan": plan,
+        }},
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "billing_address_collection": "auto", "allow_promotion_codes": True,
     }
-    response = requests.post("https://api.stripe.com/v1/checkout/sessions",
-                             auth=(secret, ""), data=form, timeout=25)
-    data = response.json()
-    if not response.ok or not str(data.get("url") or "").startswith("https://checkout.stripe.com/"):
-        raise RuntimeError((data.get("error") or {}).get("message") or "Checkout indisponible")
-    return str(data["url"])
+    customer_id = str(rows[0][0] or "") if rows else ""
+    if customer_id:
+        params["customer"] = customer_id
+    else:
+        params["customer_email"] = email
+    session = (client or _stripe_client()).v1.checkout.sessions.create(params)
+    checkout_url = str(_field(session, "url") or "")
+    if not checkout_url.startswith("https://checkout.stripe.com/"):
+        raise RuntimeError("Checkout indisponible")
+    return checkout_url
+
+
+def create_portal(get_conn, user_id: str, root_url: str, *, client=None) -> str:
+    """Create a short-lived Stripe portal session for a standalone Journal customer."""
+    conn = get_conn()
+    try:
+        rows = conn.run("""SELECT stripe_customer_id FROM trading_subscriptions
+            WHERE user_id=:user_id LIMIT 1""", user_id=user_id)
+    finally:
+        conn.close()
+    customer_id = str(rows[0][0] or "") if rows else ""
+    if not customer_id:
+        raise LookupError("Aucun abonnement Journal Stripe n’est rattaché à ce compte.")
+    params = {
+        "customer": customer_id,
+        "return_url": root_url.rstrip("/") + "/journal",
+        "locale": "fr",
+    }
+    configuration = os.environ.get("STRIPE_JOURNAL_PORTAL_CONFIGURATION", "").strip()
+    if configuration:
+        params["configuration"] = configuration
+    portal = (client or _stripe_client()).v1.billing_portal.sessions.create(params)
+    portal_url = str(_field(portal, "url") or "")
+    if not portal_url.startswith("https://billing.stripe.com/"):
+        raise RuntimeError("Portail de facturation indisponible")
+    return portal_url
 
 
 def _id(value) -> str:
@@ -185,7 +230,7 @@ def process_webhook(event: dict, get_conn) -> dict:
     return {"handled": True, "user_id": user_id, "status": status}
 
 
-def schedule_standalone_cancellation(get_conn, user_id: str) -> bool:
+def schedule_standalone_cancellation(get_conn, user_id: str, *, client=None) -> bool:
     """Avoid double billing when Academy becomes the effective entitlement."""
     conn = get_conn()
     try:
@@ -196,11 +241,11 @@ def schedule_standalone_cancellation(get_conn, user_id: str) -> bool:
     if not rows or str(rows[0][1]).lower() not in ACTIVE_STATUSES or bool(rows[0][2]) or not rows[0][0]:
         return False
     subscription_id = str(rows[0][0])
-    response = requests.post(f"https://api.stripe.com/v1/subscriptions/{subscription_id}",
-        auth=(os.environ.get("STRIPE_SECRET_KEY", ""), ""), data={"cancel_at_period_end": "true"},
-        headers={"Idempotency-Key": f"academy-included-{user_id}-{subscription_id}"}, timeout=25)
-    if not response.ok:
-        raise RuntimeError((response.json().get("error") or {}).get("message") or "Stripe cancellation failed")
+    (client or _stripe_client()).v1.subscriptions.update(
+        subscription_id,
+        {"cancel_at_period_end": True},
+        options={"idempotency_key": f"academy-included-{user_id}-{subscription_id}"},
+    )
     conn = get_conn()
     try:
         conn.run("""UPDATE trading_subscriptions SET cancel_at_period_end=TRUE,updated_at=NOW()

@@ -13,7 +13,7 @@ from trading_journal.calculations import (
     reconstruct_positions,
 )
 from trading_journal.coach import MIN_TRADES, build_insights, detect_behavior, review, trading_score
-from trading_journal.billing import create_checkout
+from trading_journal.billing import create_checkout, create_portal, schedule_standalone_cancellation
 from trading_journal.brokers import build_broker_catalog, broker_name_from_server
 from trading_journal.config import JournalConfigurationError, validate_backend_config, validate_worker_config
 from trading_journal.entitlements import FEATURE_KEYS, resolve_entitlements
@@ -177,6 +177,19 @@ def test_academy_gets_all_coach_flags_and_external_pro_does_not_get_monthly():
     assert "coach.ai_explanations" in FEATURE_KEYS
 
 
+def test_academy_members_receive_the_complete_elite_journal_by_default(monkeypatch):
+    monkeypatch.delenv("ACADEMY_JOURNAL_PLAN", raising=False)
+    academy = resolve_entitlements(None, {
+        "actif": True, "access_level": "member", "billing_status": "active",
+    })
+    assert academy.plan == "ACADEMY_INCLUDED"
+    assert academy.max_accounts == 10
+    assert academy.advanced_analytics
+    assert academy.multi_account
+    assert academy.export
+    assert academy.priority_sync
+
+
 def test_academy_member_checkout_does_not_depend_on_standalone_price_configuration(monkeypatch):
     monkeypatch.delenv("STRIPE_JOURNAL_PRO_PRICE_ID", raising=False)
 
@@ -191,6 +204,95 @@ def test_academy_member_checkout_does_not_depend_on_standalone_price_configurati
             "JOURNAL_PRO",
             "https://example.test/",
         )
+
+
+class _BillingConnection:
+    def __init__(self, rows):
+        self.rows = rows
+        self.queries = []
+
+    def run(self, query, **params):
+        self.queries.append((query, params))
+        return self.rows if query.lstrip().startswith("SELECT") else []
+
+    def close(self):
+        pass
+
+
+class _StripeEndpoint:
+    def __init__(self, response):
+        self.response = response
+        self.calls = []
+
+    def create(self, params):
+        self.calls.append((params, None))
+        return self.response
+
+    def update(self, object_id, params, options=None):
+        self.calls.append((object_id, params, options))
+        return {"id": object_id, **params}
+
+
+class _StripeClient:
+    def __init__(self):
+        self.checkout_sessions = _StripeEndpoint({"url": "https://checkout.stripe.com/c/pay/test"})
+        self.portal_sessions = _StripeEndpoint({"url": "https://billing.stripe.com/p/session/test"})
+        self.subscriptions = _StripeEndpoint({})
+        self.v1 = type("V1", (), {})()
+        self.v1.checkout = type("Checkout", (), {"sessions": self.checkout_sessions})()
+        self.v1.billing_portal = type("Portal", (), {"sessions": self.portal_sessions})()
+        self.v1.subscriptions = self.subscriptions
+
+
+def test_standalone_checkout_reuses_customer_and_sends_structured_metadata(monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "rk_test_bectanse")
+    monkeypatch.setenv("STRIPE_JOURNAL_PRO_PRICE_ID", "price_journal_pro")
+    connection = _BillingConnection([("cus_existing", "", "inactive", False)])
+    client = _StripeClient()
+    url = create_checkout(
+        lambda: connection,
+        {"actif": False, "access_level": "explorer", "email": "client@example.com"},
+        "BCT-CLIENT",
+        "JOURNAL_PRO",
+        "https://example.test/",
+        client=client,
+    )
+    params = client.checkout_sessions.calls[0][0]
+    assert url.startswith("https://checkout.stripe.com/")
+    assert params["customer"] == "cus_existing"
+    assert "customer_email" not in params
+    assert params["line_items"] == [{"price": "price_journal_pro", "quantity": 1}]
+    assert params["metadata"]["product"] == "BECTANSE_JOURNAL"
+    assert params["allow_promotion_codes"] is True
+    assert "payment_method_types" not in params
+
+
+def test_standalone_portal_uses_the_journal_customer_and_optional_configuration(monkeypatch):
+    monkeypatch.setenv("STRIPE_JOURNAL_PORTAL_CONFIGURATION", "bpc_journal")
+    connection = _BillingConnection([("cus_journal",)])
+    client = _StripeClient()
+    url = create_portal(lambda: connection, "BCT-CLIENT", "https://example.test/", client=client)
+    params = client.portal_sessions.calls[0][0]
+    assert url.startswith("https://billing.stripe.com/")
+    assert params == {
+        "customer": "cus_journal",
+        "return_url": "https://example.test/journal",
+        "locale": "fr",
+        "configuration": "bpc_journal",
+    }
+
+
+def test_academy_activation_schedules_standalone_cancellation(monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "rk_test_bectanse")
+    connection = _BillingConnection([("sub_journal", "active", False)])
+    client = _StripeClient()
+    assert schedule_standalone_cancellation(
+        lambda: connection, "BCT-MEMBER", client=client,
+    )
+    object_id, params, options = client.subscriptions.calls[0]
+    assert object_id == "sub_journal"
+    assert params == {"cancel_at_period_end": True}
+    assert options["idempotency_key"] == "academy-included-BCT-MEMBER-sub_journal"
 
 
 def test_broker_catalog_combines_verified_and_successfully_seen_servers(monkeypatch):
