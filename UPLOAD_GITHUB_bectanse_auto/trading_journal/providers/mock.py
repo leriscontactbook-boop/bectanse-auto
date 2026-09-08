@@ -32,6 +32,9 @@ class MockTradingProvider(TradingProvider):
     def get_open_positions(self) -> list[dict]:
         return []
 
+    def get_open_orders(self) -> list[dict]:
+        return []
+
     def get_terminal_info(self) -> dict:
         return {"connected": self.connected, "name": "CI Mock Terminal"}
 

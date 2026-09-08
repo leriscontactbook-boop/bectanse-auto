@@ -109,10 +109,12 @@ class WorkerBackendClient:
         return self.request("POST", f"/internal/mt5/jobs/{job_id}/batch",
                             {"deals": deals, "batch_id": batch_id}, timeout=120)
 
-    def complete(self, job_id: str, account: dict, duration_ms: int, received_deals: int, source_pnl: str):
+    def complete(self, job_id: str, account: dict, duration_ms: int, received_deals: int,
+                 source_pnl: str, positions: list[dict], orders: list[dict], terminal: dict):
         return self.request("POST", f"/internal/mt5/jobs/{job_id}/complete", {
             "account": account, "duration_ms": duration_ms,
             "received_deals": received_deals, "source_pnl": source_pnl,
+            "positions": positions, "orders": orders, "terminal": terminal,
         })
 
     def fail(self, job_id: str, code: str, retryable: bool):
@@ -143,30 +145,33 @@ class MT5Worker:
             self.client.node_heartbeat("BUSY", job_id, self.terminal_fingerprint)
             _log("sync_started", worker_id=self.worker_id, job_id=job_id, account_id=account_id)
             account = provider.connect(job["login"], job["server"], job["password"])
-            batch = []
-            start = datetime.fromisoformat(job["date_from"].replace("Z", "+00:00")).astimezone(timezone.utc)
-            end = datetime.fromisoformat(job["date_to"].replace("Z", "+00:00")).astimezone(timezone.utc)
-            for period_start, period_end in history_ranges(start, end):
-                for deal in provider.get_deals(period_start, period_end):
-                    batch.append(deal.as_dict())
-                    received += 1
-                    source_pnl += deal.net_pnl
-                    if len(batch) >= 1000:
+            if str(job.get("job_type") or "") != "TELEMETRY":
+                batch = []
+                start = datetime.fromisoformat(job["date_from"].replace("Z", "+00:00")).astimezone(timezone.utc)
+                end = datetime.fromisoformat(job["date_to"].replace("Z", "+00:00")).astimezone(timezone.utc)
+                for period_start, period_end in history_ranges(start, end):
+                    for deal in provider.get_deals(period_start, period_end):
+                        batch.append(deal.as_dict())
+                        received += 1
+                        source_pnl += deal.net_pnl
+                        if len(batch) >= 1000:
+                            batch_id = f"{batch[0]['ticket']}-{batch[-1]['ticket']}-{len(batch)}"
+                            result = self.client.upload(job_id, batch, batch_id)
+                            imported += int((result or {}).get("inserted", 0))
+                            batch = []
+                    if batch:
                         batch_id = f"{batch[0]['ticket']}-{batch[-1]['ticket']}-{len(batch)}"
                         result = self.client.upload(job_id, batch, batch_id)
                         imported += int((result or {}).get("inserted", 0))
                         batch = []
-                if batch:
-                    batch_id = f"{batch[0]['ticket']}-{batch[-1]['ticket']}-{len(batch)}"
-                    result = self.client.upload(job_id, batch, batch_id)
-                    imported += int((result or {}).get("inserted", 0))
-                    batch = []
-                self.client.heartbeat(job_id)
+                    self.client.heartbeat(job_id)
             latest_account = provider.get_account_info()
-            provider.get_terminal_info()
-            provider.get_open_positions()
+            terminal = provider.get_terminal_info()
+            positions = provider.get_open_positions()
+            orders = provider.get_open_orders()
             duration_ms = int((time.monotonic() - started) * 1000)
-            self.client.complete(job_id, latest_account.as_dict(), duration_ms, received, str(source_pnl))
+            self.client.complete(job_id, latest_account.as_dict(), duration_ms, received,
+                                 str(source_pnl), positions, orders, terminal)
             _log("sync_success", worker_id=self.worker_id, job_id=job_id,
                  account_id=str(account_id)[-6:], deals_received=received,
                  deals_imported=imported, duration_ms=duration_ms)

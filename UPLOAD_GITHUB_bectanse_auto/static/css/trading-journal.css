@@ -59,6 +59,7 @@ button, input, select { font: inherit; }
 button, a, select { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, canvas:focus-visible { outline: 2px solid var(--orange-bright); outline-offset: 3px; }
 .is-hidden { display: none !important; }
+.tj-sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
 .tj-app { min-height: 100vh; }
 .tj-mobile-header { display: none; }
 .tj-main, .tj-main > *, .tj-view, .tj-view > *, .tj-panel, .tj-chart-stage, .tj-statusbar > *, .tj-topbar > * { min-width: 0; }
@@ -372,6 +373,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .tj-coach-grid { display: grid; grid-template-columns: minmax(280px,.7fr) minmax(0,1.3fr); gap: 14px; }
 .tj-score-panel > strong { display: block; margin: 10px 0 0; color: var(--orange-bright); font: 800 61px var(--font-display); text-shadow: 0 0 35px rgba(255,106,0,.14); }
 .tj-score-panel > small { color: var(--muted-2); font-size: 8px; }
+.tj-score-panel > .tj-coach-telemetry { display: block; margin-top: 6px; color: var(--positive); }
 .tj-score-components { margin-top: 20px; }
 .tj-score-components > div { display: grid; grid-template-columns: 80px 1fr 28px; align-items: center; gap: 10px; margin-top: 9px; color: var(--muted); font-size: 8px; }
 .tj-score-components i { height: 3px; background: rgba(255,255,255,.06); }
@@ -388,6 +390,18 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .tj-severity-high { border-color: rgba(255,101,112,.3); color: var(--negative); }
 .tj-severity-medium { color: var(--amber); }
 .tj-insight-empty { grid-column: 1/-1; color: var(--muted); }
+.tj-coach-ask { margin-top: 14px; }
+.tj-local-badge { padding: 5px 8px; border: 1px solid rgba(78,216,139,.28); border-radius: 999px; color: var(--positive); font-size: 7px; font-weight: 800; letter-spacing: .1em; }
+.tj-coach-ask-copy { max-width: 720px; margin: 12px 0 18px; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.tj-coach-suggestions { display: flex; flex-wrap: wrap; gap: 7px; }
+.tj-coach-suggestions button { padding: 8px 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font-size: 8px; cursor: pointer; }
+.tj-coach-suggestions button:hover { border-color: rgba(255,106,0,.35); color: var(--orange-soft); }
+.tj-coach-form { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; margin-top: 14px; }
+.tj-coach-form input { min-width: 0; height: 46px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #0a0a0b; color: var(--text); font: 500 10px var(--font-body); outline: none; }
+.tj-coach-form input:focus { border-color: rgba(255,106,0,.55); box-shadow: 0 0 0 3px var(--orange-wash); }
+.tj-coach-answer { display: none; margin-top: 14px; padding: 15px; border-left: 2px solid var(--orange); background: rgba(255,255,255,.018); color: #dededb; font-size: 10px; line-height: 1.65; }
+.tj-coach-answer.is-visible { display: block; }
+.tj-coach-answer small { display: block; margin-top: 8px; color: var(--muted-2); font-size: 7px; letter-spacing: .06em; }
 
 /* Onboarding, paywall, dialogs */
 .tj-onboarding { min-height: calc(100vh - 109px); display: grid; grid-template-columns: minmax(0,1.05fr) minmax(360px,.7fr); align-items: center; gap: 8vw; padding: 64px 4vw; }
@@ -588,6 +602,10 @@ dialog::backdrop { background: rgba(0,0,0,.76); backdrop-filter: blur(8px); }
   .tj-coach-tabs { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); }
   .tj-coach-tabs button { min-height: 44px; padding: 8px 4px; }
   .tj-score-panel > strong { font-size: clamp(48px,18vw,70px); }
+  .tj-coach-form { grid-template-columns: minmax(0,1fr); }
+  .tj-coach-form .tj-button { width: 100%; min-height: 44px; }
+  .tj-coach-suggestions { display: grid; grid-template-columns: minmax(0,1fr); }
+  .tj-coach-suggestions button { min-height: 42px; text-align: left; }
   .tj-ranking-row { grid-template-columns: minmax(82px,1fr) minmax(50px,1fr) auto; gap: 9px; }
   .tj-ranking-row > span { min-width: 0; }
   .tj-ranking-row > span b, .tj-ranking-row > span small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

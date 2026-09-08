@@ -12,7 +12,15 @@ from trading_journal.calculations import (
     performance_stats,
     reconstruct_positions,
 )
-from trading_journal.coach import MIN_TRADES, build_insights, detect_behavior, review, trading_score
+from trading_journal.coach import (
+    MIN_TRADES,
+    answer_question,
+    build_insights,
+    detect_behavior,
+    detect_mt5_behavior,
+    review,
+    trading_score,
+)
 from trading_journal.billing import (
     create_checkout,
     create_portal,
@@ -27,7 +35,7 @@ from trading_journal.providers.base import AccountSnapshot, ProviderError
 from trading_journal.providers.mt5 import MetaTrader5Provider
 from trading_journal.providers.mock import MockTradingProvider
 from trading_journal.security import CredentialCipher, canonical_worker_signature, verify_worker_request
-from trading_journal.service import RETRY_DELAYS_SECONDS
+from trading_journal.service import JournalService, RETRY_DELAYS_SECONDS
 from trading_journal.routes import _checkout_failure_code
 
 
@@ -173,6 +181,36 @@ def test_coach_review_has_required_contract_and_insufficient_copy():
     result = review(trade_rows(5), "UTC", "daily", now=datetime(2026, 8, 2, 23, tzinfo=timezone.utc))
     assert result["data_sufficiency"] == "INSUFFICIENT"
     assert set(result) >= {"score", "detectors", "insights", "summary", "period"}
+
+
+def test_coach_detects_verified_positions_without_stop_loss():
+    events = [{"trading_account_id": 1, "entity_id": index,
+               "event_type": "POSITION_OPENED", "current_state": {"sl": "0", "type": "BUY"}}
+              for index in range(1, 6)]
+    results = detect_mt5_behavior(events, [])
+    detector = next(row for row in results if row["pattern"] == "POSITIONS_WITHOUT_STOP_LOSS")
+    assert detector["sample_size"] == 5
+    assert detector["evidence"]["rate"] == 1
+    assert detector["impact"] is None
+
+
+def test_coach_detects_stop_loss_widening_from_sampled_mt5_states():
+    events = [{"trading_account_id": 1, "entity_id": index,
+               "event_type": "POSITION_CHANGED", "changed_fields": ["sl"],
+               "previous_state": {"sl": "1990", "type": "BUY"},
+               "current_state": {"sl": "1980", "type": "BUY"}}
+              for index in range(1, 6)]
+    patterns = {row["pattern"] for row in detect_mt5_behavior(events, [])}
+    assert {"FREQUENT_STOP_LOSS_CHANGES", "STOP_LOSS_WIDENING"} <= patterns
+
+
+def test_local_coach_answer_never_calls_an_external_ai_or_invents_a_fact():
+    result = answer_question([], [], "UTC", "Est-ce que je déplace trop mon stop-loss ?",
+                             now=datetime(2026, 8, 2, tzinfo=timezone.utc))
+    assert result["external_api_cost"] == 0
+    assert result["source"] == "BECTANSE_LOCAL_ENGINE"
+    assert result["confidence"] is None
+    assert "pas encore assez" in result["answer"]
 
 
 def test_academy_gets_all_coach_flags_and_external_pro_does_not_get_monthly():
@@ -492,7 +530,45 @@ def test_mock_provider_has_full_read_contract():
     provider = MockTradingProvider(account)
     provider.connect("123", "S", "p")
     assert provider.get_open_positions() == []
+    assert provider.get_open_orders() == []
     assert provider.health_check()["healthy"]
+
+
+def test_mt5_provider_captures_behavioral_position_fields():
+    class FakeMT5:
+        POSITION_TYPE_BUY = 0
+        POSITION_TYPE_SELL = 1
+        POSITION_REASON_CLIENT = 3
+
+        @staticmethod
+        def positions_get():
+            return [type("Position", (), {
+                "ticket": 12, "identifier": 99, "symbol": "XAUUSD", "type": 0,
+                "volume": .2, "price_open": 2400, "price_current": 2405,
+                "sl": 2380, "tp": 2450, "profit": 10, "swap": -1,
+                "magic": 7, "reason": 3, "comment": "manual",
+                "time": 1_780_000_000, "time_msc": 0,
+                "time_update": 1_780_000_100, "time_update_msc": 0,
+            })()]
+
+    provider = MetaTrader5Provider()
+    provider._mt5 = FakeMT5()
+    provider._connected = True
+    position = provider.get_open_positions()[0]
+    assert position["position_id"] == 99
+    assert position["sl"] == "2380"
+    assert position["tp"] == "2450"
+    assert position["reason"] == "CLIENT"
+
+
+def test_mt5_entity_normalization_is_allowlisted_and_json_safe():
+    entity_id, payload = JournalService._normalize_mt5_entity("POSITION", {
+        "position_id": 42, "symbol": "XAUUSD", "type": "BUY", "sl": "2380.50",
+        "password": "must-not-be-stored", "comment": "manual",
+    })
+    assert entity_id == 42
+    assert payload["sl"] == "2380.50"
+    assert "password" not in payload
 
 
 def test_mt5_provider_initializes_with_account_credentials():

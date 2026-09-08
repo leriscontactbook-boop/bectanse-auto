@@ -194,15 +194,77 @@ class MetaTrader5Provider(TradingProvider):
         rows = self._module().positions_get()
         if rows is None:
             raise self._connection_error()
+        mt5 = self._module()
+        type_names = {
+            getattr(mt5, "POSITION_TYPE_BUY", 0): "BUY",
+            getattr(mt5, "POSITION_TYPE_SELL", 1): "SELL",
+        }
+        reason_names = {
+            getattr(mt5, name): name.removeprefix("POSITION_REASON_")
+            for name in dir(mt5)
+            if name.startswith("POSITION_REASON_") and isinstance(getattr(mt5, name), int)
+        }
         return [{
             "ticket": int(getattr(row, "ticket", 0) or 0),
             "position_id": int(getattr(row, "identifier", 0) or getattr(row, "ticket", 0) or 0),
             "symbol": str(getattr(row, "symbol", "") or "")[:40],
-            "type": "BUY" if int(getattr(row, "type", -1)) == 0 else "SELL",
+            "type": type_names.get(int(getattr(row, "type", -1)), "UNKNOWN"),
             "volume": str(_decimal(getattr(row, "volume", 0))),
             "price_open": str(_decimal(getattr(row, "price_open", 0))),
+            "price_current": str(_decimal(getattr(row, "price_current", 0))),
+            "sl": str(_decimal(getattr(row, "sl", 0))),
+            "tp": str(_decimal(getattr(row, "tp", 0))),
             "profit": str(_decimal(getattr(row, "profit", 0))),
-            "time": datetime.fromtimestamp(int(getattr(row, "time", 0)), timezone.utc).isoformat(),
+            "swap": str(_decimal(getattr(row, "swap", 0))),
+            "magic": int(getattr(row, "magic", 0) or 0),
+            "reason": reason_names.get(int(getattr(row, "reason", -1)), "")[:40],
+            "comment": str(getattr(row, "comment", "") or "")[:500],
+            "opened_at": self._row_time(row, "time_msc", "time"),
+            "updated_at": self._row_time(row, "time_update_msc", "time_update"),
+        } for row in rows]
+
+    @staticmethod
+    def _row_time(row, milliseconds_field: str, seconds_field: str) -> str:
+        milliseconds = int(getattr(row, milliseconds_field, 0) or 0)
+        seconds = int(getattr(row, seconds_field, 0) or 0)
+        value = milliseconds / 1000 if milliseconds else seconds
+        return datetime.fromtimestamp(value, timezone.utc).isoformat() if value else ""
+
+    def get_open_orders(self) -> list[dict]:
+        if not self._connected:
+            raise ProviderError("TERMINAL_ERROR", "La session MetaTrader n’est pas ouverte.")
+        mt5 = self._module()
+        rows = mt5.orders_get()
+        if rows is None:
+            raise self._connection_error()
+        type_names = {
+            getattr(mt5, name): name.removeprefix("ORDER_TYPE_")
+            for name in dir(mt5)
+            if name.startswith("ORDER_TYPE_") and isinstance(getattr(mt5, name), int)
+        }
+        reason_names = {
+            getattr(mt5, name): name.removeprefix("ORDER_REASON_")
+            for name in dir(mt5)
+            if name.startswith("ORDER_REASON_") and isinstance(getattr(mt5, name), int)
+        }
+        return [{
+            "ticket": int(getattr(row, "ticket", 0) or 0),
+            "order_id": int(getattr(row, "ticket", 0) or 0),
+            "position_id": int(getattr(row, "position_id", 0) or 0),
+            "symbol": str(getattr(row, "symbol", "") or "")[:40],
+            "type": type_names.get(int(getattr(row, "type", -1)), "UNKNOWN")[:40],
+            "volume_initial": str(_decimal(getattr(row, "volume_initial", 0))),
+            "volume_current": str(_decimal(getattr(row, "volume_current", 0))),
+            "price_open": str(_decimal(getattr(row, "price_open", 0))),
+            "price_current": str(_decimal(getattr(row, "price_current", 0))),
+            "price_stoplimit": str(_decimal(getattr(row, "price_stoplimit", 0))),
+            "sl": str(_decimal(getattr(row, "sl", 0))),
+            "tp": str(_decimal(getattr(row, "tp", 0))),
+            "magic": int(getattr(row, "magic", 0) or 0),
+            "reason": reason_names.get(int(getattr(row, "reason", -1)), "")[:40],
+            "comment": str(getattr(row, "comment", "") or "")[:500],
+            "created_at": self._row_time(row, "time_setup_msc", "time_setup"),
+            "expires_at": self._row_time(row, "time_expiration_msc", "time_expiration"),
         } for row in rows]
 
     def get_terminal_info(self) -> dict:

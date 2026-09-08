@@ -19,6 +19,7 @@ from .calculations import decimal_value, reconstruct_positions, validate_timezon
 MIN_TRADES = 20
 MIN_SEQUENCE_SAMPLES = 8
 MIN_BUCKET_SAMPLES = 5
+MIN_TELEMETRY_EVENTS = 5
 
 
 def _number(value) -> float:
@@ -154,6 +155,94 @@ def detect_behavior(trades: list[dict], timezone_name: str = "Europe/Paris") -> 
     return sorted(detectors, key=lambda row: ({"HIGH": 3, "MEDIUM": 2, "LOW": 1}[row["severity"]], row["confidence"]), reverse=True)
 
 
+def detect_mt5_behavior(events: list[dict], trades: list[dict]) -> list[dict]:
+    """Detect behavior visible in sampled MT5 position/order state changes."""
+    closed = {(int(row.get("trading_account_id") or 0), int(row.get("position_id") or 0)): row
+              for row in trades}
+    position_opened = [row for row in events if row.get("event_type") == "POSITION_OPENED"]
+    position_changes = [row for row in events if row.get("event_type") == "POSITION_CHANGED"]
+    detectors: list[dict] = []
+
+    without_sl = [row for row in position_opened
+                  if decimal_value((row.get("current_state") or {}).get("sl")) <= 0]
+    if len(position_opened) >= MIN_TELEMETRY_EVENTS and len(without_sl) >= MIN_TELEMETRY_EVENTS:
+        affected = {(int(row.get("trading_account_id") or 0), int(row.get("entity_id") or 0))
+                    for row in without_sl}
+        measured = [closed[key] for key in affected if key in closed]
+        impact = sum((decimal_value(row["net_pnl"]) for row in measured), Decimal("0")) if measured else None
+        rate = len(without_sl) / len(position_opened)
+        detectors.append(_detector(
+            "POSITIONS_WITHOUT_STOP_LOSS", "HIGH" if rate >= .6 else "MEDIUM",
+            len(position_opened), impact,
+            {"positions_observed": len(position_opened), "positions_without_sl": len(without_sl),
+             "rate": round(rate, 3), "closed_positions_measured": len(measured)},
+            MIN_TELEMETRY_EVENTS, rate,
+        ))
+
+    sl_changes = [row for row in position_changes if "sl" in (row.get("changed_fields") or [])]
+    if len(sl_changes) >= MIN_TELEMETRY_EVENTS:
+        positions = len({(row.get("trading_account_id"), row.get("entity_id")) for row in sl_changes})
+        detectors.append(_detector(
+            "FREQUENT_STOP_LOSS_CHANGES", "HIGH" if len(sl_changes) >= 12 else "MEDIUM",
+            len(sl_changes), None,
+            {"changes": len(sl_changes), "positions_affected": positions,
+             "average_changes_per_position": round(len(sl_changes) / max(positions, 1), 2)},
+            MIN_TELEMETRY_EVENTS,
+        ))
+
+    widened = []
+    for row in sl_changes:
+        previous, current = row.get("previous_state") or {}, row.get("current_state") or {}
+        old_sl, new_sl = decimal_value(previous.get("sl")), decimal_value(current.get("sl"))
+        side = str(current.get("type") or previous.get("type") or "").upper()
+        if old_sl > 0 and new_sl > 0 and ((side == "BUY" and new_sl < old_sl) or
+                                         (side == "SELL" and new_sl > old_sl)):
+            widened.append(row)
+    if len(widened) >= MIN_TELEMETRY_EVENTS:
+        detectors.append(_detector(
+            "STOP_LOSS_WIDENING", "HIGH", len(widened), None,
+            {"widening_events": len(widened),
+             "positions_affected": len({row.get("entity_id") for row in widened})},
+            MIN_TELEMETRY_EVENTS,
+        ))
+
+    tp_changes = [row for row in position_changes if "tp" in (row.get("changed_fields") or [])]
+    if len(tp_changes) >= MIN_TELEMETRY_EVENTS:
+        detectors.append(_detector(
+            "FREQUENT_TAKE_PROFIT_CHANGES", "MEDIUM", len(tp_changes), None,
+            {"changes": len(tp_changes),
+             "positions_affected": len({row.get("entity_id") for row in tp_changes})},
+            MIN_TELEMETRY_EVENTS,
+        ))
+
+    volume_changes = [row for row in position_changes if "volume" in (row.get("changed_fields") or [])]
+    if len(volume_changes) >= MIN_TELEMETRY_EVENTS:
+        detectors.append(_detector(
+            "POSITION_SIZE_CHANGES", "MEDIUM", len(volume_changes), None,
+            {"changes": len(volume_changes),
+             "positions_affected": len({row.get("entity_id") for row in volume_changes})},
+            MIN_TELEMETRY_EVENTS,
+        ))
+
+    winners = [row for row in trades if decimal_value(row["net_pnl"]) > 0]
+    losers = [row for row in trades if decimal_value(row["net_pnl"]) < 0]
+    if len(winners) >= MIN_BUCKET_SAMPLES and len(losers) >= MIN_BUCKET_SAMPLES:
+        winner_median = median(row["duration_seconds"] for row in winners)
+        loser_median = median(row["duration_seconds"] for row in losers)
+        if loser_median >= max(3600, winner_median * 1.5):
+            impact = sum((decimal_value(row["net_pnl"]) for row in losers), Decimal("0"))
+            detectors.append(_detector(
+                "LOSSES_HELD_TOO_LONG", "HIGH" if loser_median >= winner_median * 2 else "MEDIUM",
+                len(winners) + len(losers), impact,
+                {"winning_trades": len(winners), "losing_trades": len(losers),
+                 "median_winner_minutes": round(winner_median / 60, 1),
+                 "median_loser_minutes": round(loser_median / 60, 1),
+                 "duration_ratio": round(loser_median / max(winner_median, 1), 2)},
+                MIN_BUCKET_SAMPLES * 2,
+            ))
+    return detectors
+
+
 def trading_score(trades: list[dict], detectors: list[dict]) -> dict:
     """Compute five deterministic 0-100 dimensions and their equal-weight score."""
     if len(trades) < MIN_TRADES:
@@ -163,9 +252,15 @@ def trading_score(trades: list[dict], detectors: list[dict]) -> dict:
     mapping = {
         "OVERTRADING": ("discipline", "consistency"), "OVERTRADING_AFTER_LOSS": ("discipline", "risk"),
         "POSITION_SIZE_INCONSISTENCY": ("risk", "consistency"), "BEHAVIOR_AFTER_LOSS_STREAK": ("discipline", "risk"),
-        "BEHAVIOR_AFTER_WIN_STREAK": ("discipline", "consistency"), "SESSION_PERFORMANCE": ("timing",),
-        "WEEKDAY_PERFORMANCE": ("timing",), "SYMBOL_PERFORMANCE": ("execution",),
+        "BEHAVIOR_AFTER_WIN_STREAK": ("discipline", "consistency"), "PERFORMANCE_AFTER_WIN": ("discipline", "consistency"),
+        "SESSION_PERFORMANCE": ("timing",), "WEEKDAY_PERFORMANCE": ("timing",), "SYMBOL_PERFORMANCE": ("execution",),
         "HOLDING_TIME_PERFORMANCE": ("execution", "timing"),
+        "POSITIONS_WITHOUT_STOP_LOSS": ("risk", "discipline"),
+        "FREQUENT_STOP_LOSS_CHANGES": ("risk", "discipline"),
+        "STOP_LOSS_WIDENING": ("risk", "discipline"),
+        "FREQUENT_TAKE_PROFIT_CHANGES": ("execution", "discipline"),
+        "POSITION_SIZE_CHANGES": ("risk", "consistency"),
+        "LOSSES_HELD_TOO_LONG": ("execution", "discipline"),
     }
     for detector in detectors:
         for component in mapping.get(detector["pattern"], ("discipline",)):
@@ -183,10 +278,17 @@ INSIGHT_COPY = {
     "POSITION_SIZE_INCONSISTENCY": ("Votre taille de position manque de régularité", "Définissez une règle de taille fixe liée au risque."),
     "BEHAVIOR_AFTER_LOSS_STREAK": ("Vos résultats baissent après une série de pertes", "Arrêtez la session après trois pertes consécutives."),
     "BEHAVIOR_AFTER_WIN_STREAK": ("Votre avantage baisse après une série gagnante", "Conservez les mêmes critères après une série positive."),
+    "PERFORMANCE_AFTER_WIN": ("Vos décisions après un gain sont moins performantes", "Gardez les mêmes critères après un trade gagnant."),
     "SESSION_PERFORMANCE": ("Vos résultats varient fortement selon la session", "Concentrez-vous sur les sessions où votre historique est le plus solide."),
     "WEEKDAY_PERFORMANCE": ("Vos résultats varient selon le jour", "Adaptez votre exposition aux jours historiquement faibles."),
     "SYMBOL_PERFORMANCE": ("Tous vos actifs ne contribuent pas de la même façon", "Priorisez les actifs où votre exécution est mesurablement meilleure."),
     "HOLDING_TIME_PERFORMANCE": ("La durée de détention influence vos résultats", "Cadrez vos sorties autour de la durée la plus robuste."),
+    "POSITIONS_WITHOUT_STOP_LOSS": ("Vous ouvrez régulièrement sans stop-loss", "Définissez votre invalidation avant chaque entrée."),
+    "FREQUENT_STOP_LOSS_CHANGES": ("Vous modifiez souvent vos stop-loss", "Fixez une règle précise avant de déplacer un stop-loss."),
+    "STOP_LOSS_WIDENING": ("Vous éloignez vos stop-loss", "N’augmentez pas le risque initial après l’entrée."),
+    "FREQUENT_TAKE_PROFIT_CHANGES": ("Vous modifiez souvent vos objectifs", "Définissez votre objectif avant l’entrée et documentez toute exception."),
+    "POSITION_SIZE_CHANGES": ("Votre exposition change en cours de position", "Respectez une règle stable de réduction ou de renforcement."),
+    "LOSSES_HELD_TOO_LONG": ("Vous conservez les pertes plus longtemps que les gains", "Cadrez une durée maximale cohérente avec votre plan."),
 }
 
 
@@ -201,7 +303,8 @@ def build_insights(detectors: list[dict], period: dict) -> list[dict]:
     return insights
 
 
-def review(deals: list[dict], timezone_name: str, review_type: str, now: datetime | None = None) -> dict:
+def review(deals: list[dict], timezone_name: str, review_type: str, now: datetime | None = None,
+           behavior_events: list[dict] | None = None) -> dict:
     tz = ZoneInfo(validate_timezone(timezone_name))
     local_now = (now or datetime.now(tz)).astimezone(tz)
     review_type = review_type.lower()
@@ -226,13 +329,17 @@ def review(deals: list[dict], timezone_name: str, review_type: str, now: datetim
     rolling_start = local_now - timedelta(days=max(90, days * 3))
     rolling = [trade for trade in all_trades if rolling_start <= trade["closed_at"].astimezone(tz) <= local_now]
     detectors = detect_behavior(rolling, timezone_name)
+    detectors.extend(detect_mt5_behavior(behavior_events or [], rolling))
+    detectors.sort(key=lambda row: ({"HIGH": 3, "MEDIUM": 2, "LOW": 1}[row["severity"]], row["confidence"]), reverse=True)
     period = {"type": review_type, "from": start.isoformat(), "to": local_now.isoformat()}
     insights = build_insights(detectors, period)
     pnl = sum((decimal_value(t["net_pnl"]) for t in period_trades), Decimal("0"))
     previous_pnl = sum((decimal_value(t["net_pnl"]) for t in previous_trades), Decimal("0"))
-    positive = [row for row in insights if (row["financial_impact_if_measurable"] or 0) >= 0]
-    negative = [row for row in insights if (row["financial_impact_if_measurable"] or 0) < 0]
-    main = negative[0] if negative else None
+    positive = [row for row in insights if row["financial_impact_if_measurable"] is not None
+                and row["financial_impact_if_measurable"] >= 0]
+    negative = [row for row in insights if row["financial_impact_if_measurable"] is None
+                or row["financial_impact_if_measurable"] < 0]
+    main = negative[0] if negative else (insights[0] if insights else None)
     ranked_strengths = sorted((row for row in insights if (row["financial_impact_if_measurable"] or 0) >= 0),
                               key=lambda row: row["confidence"], reverse=True)[:3]
     ranked_weaknesses = sorted(negative, key=lambda row: ((row["financial_impact_if_measurable"] or 0), -row["confidence"]))[:3]
@@ -250,4 +357,51 @@ def review(deals: list[dict], timezone_name: str, review_type: str, now: datetim
                         "weakest_behavior": ranked_weaknesses[0] if ranked_weaknesses else None,
                         "biggest_leak": ranked_weaknesses[0] if ranked_weaknesses else None,
                         "top_strengths": ranked_strengths, "top_weaknesses": ranked_weaknesses},
-            "data_sufficiency": "SUFFICIENT" if len(rolling) >= MIN_TRADES else "INSUFFICIENT"}
+            "telemetry": {"events_analyzed": len(behavior_events or []),
+                          "sampling": "PERIODIC_MT5_STATE", "external_api_cost": 0},
+            "data_sufficiency": "SUFFICIENT" if detectors or len(rolling) >= MIN_TRADES else "INSUFFICIENT"}
+
+
+def answer_question(deals: list[dict], behavior_events: list[dict], timezone_name: str,
+                    question: str, now: datetime | None = None) -> dict:
+    """Answer common coaching questions locally from structured evidence only."""
+    clean = " ".join(str(question or "").strip().split())[:500]
+    if not clean:
+        raise ValueError("Posez une question au Coach.")
+    report = review(deals, timezone_name, "monthly", now=now, behavior_events=behavior_events)
+    lowered = clean.casefold()
+    intents = {
+        "stop_loss": ("stop", "sl", "risque"),
+        "overtrading": ("trop de trade", "overtrad", "fréquence", "frequence", "revenge", "vengeance"),
+        "position_size": ("lot", "taille", "exposition"),
+        "holding": ("temps", "durée", "duree", "longtemps", "position"),
+        "after_loss": ("perte", "perds", "perdant"),
+        "timing": ("session", "jour", "horaire", "moment"),
+        "symbol": ("actif", "symbole", "instrument", "xau", "gold"),
+    }
+    patterns = {
+        "stop_loss": {"POSITIONS_WITHOUT_STOP_LOSS", "FREQUENT_STOP_LOSS_CHANGES", "STOP_LOSS_WIDENING"},
+        "overtrading": {"OVERTRADING", "OVERTRADING_AFTER_LOSS"},
+        "position_size": {"POSITION_SIZE_INCONSISTENCY", "POSITION_SIZE_CHANGES"},
+        "holding": {"HOLDING_TIME_PERFORMANCE", "LOSSES_HELD_TOO_LONG"},
+        "after_loss": {"OVERTRADING_AFTER_LOSS", "BEHAVIOR_AFTER_LOSS_STREAK"},
+        "timing": {"SESSION_PERFORMANCE", "WEEKDAY_PERFORMANCE"},
+        "symbol": {"SYMBOL_PERFORMANCE"},
+    }
+    intent = next((name for name, words in intents.items() if any(word in lowered for word in words)), None)
+    eligible = [row for row in report["insights"] if not intent or row["pattern"] in patterns[intent]]
+    if not eligible:
+        return {"question": clean, "answer": (
+            "Je n’ai pas encore assez d’observations vérifiées pour répondre à cette question sans inventer. "
+            "La collecte continue automatiquement."
+        ), "evidence": {"trades": report["sample"]["rolling_trades"],
+                         "telemetry_events": report["telemetry"]["events_analyzed"]},
+            "confidence": None, "recommendation": None, "source": "BECTANSE_LOCAL_ENGINE",
+            "external_api_cost": 0}
+    top = eligible[0]
+    return {"question": clean,
+            "answer": f"{top['observation']} {top['recommendation']}",
+            "evidence": top["evidence"], "confidence": top["confidence"],
+            "recommendation": top["recommendation"], "pattern": top["pattern"],
+            "financial_impact_if_measurable": top["financial_impact_if_measurable"],
+            "source": "BECTANSE_LOCAL_ENGINE", "external_api_cost": 0}

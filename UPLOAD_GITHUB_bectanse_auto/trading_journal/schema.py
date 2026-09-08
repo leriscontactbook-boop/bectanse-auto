@@ -110,6 +110,7 @@ STATEMENTS = (
     """ALTER TABLE trading_accounts ADD COLUMN IF NOT EXISTS account_type TEXT NOT NULL DEFAULT ''""",
     """ALTER TABLE trading_accounts ADD COLUMN IF NOT EXISTS last_reconciliation_at TIMESTAMPTZ""",
     """ALTER TABLE trading_accounts ADD COLUMN IF NOT EXISTS last_deep_reconciliation_at TIMESTAMPTZ""",
+    """ALTER TABLE trading_accounts ADD COLUMN IF NOT EXISTS last_telemetry_at TIMESTAMPTZ""",
     """CREATE TABLE IF NOT EXISTS trading_credentials (
         trading_account_id BIGINT PRIMARY KEY REFERENCES trading_accounts(id) ON DELETE CASCADE,
         encrypted_password BYTEA NOT NULL,
@@ -175,6 +176,36 @@ STATEMENTS = (
     )""",
     """CREATE INDEX IF NOT EXISTS trading_snapshots_account_time_idx
         ON trading_account_snapshots (trading_account_id, captured_at DESC)""",
+    """CREATE TABLE IF NOT EXISTS trading_mt5_state (
+        trading_account_id BIGINT NOT NULL REFERENCES trading_accounts(id) ON DELETE CASCADE,
+        entity_type TEXT NOT NULL,
+        entity_id BIGINT NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        first_observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        closed_at TIMESTAMPTZ,
+        PRIMARY KEY (trading_account_id, entity_type, entity_id)
+    )""",
+    """CREATE INDEX IF NOT EXISTS trading_mt5_state_active_idx
+        ON trading_mt5_state (trading_account_id, entity_type, is_active, last_observed_at DESC)""",
+    """CREATE TABLE IF NOT EXISTS trading_mt5_events (
+        id BIGSERIAL PRIMARY KEY,
+        trading_account_id BIGINT NOT NULL REFERENCES trading_accounts(id) ON DELETE CASCADE,
+        sync_job_id TEXT,
+        entity_type TEXT NOT NULL,
+        entity_id BIGINT NOT NULL,
+        event_type TEXT NOT NULL,
+        changed_fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+        previous_state JSONB,
+        current_state JSONB,
+        observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE INDEX IF NOT EXISTS trading_mt5_events_account_time_idx
+        ON trading_mt5_events (trading_account_id, observed_at DESC)""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS trading_mt5_events_job_entity_idx
+        ON trading_mt5_events (sync_job_id, entity_type, entity_id, event_type)
+        WHERE sync_job_id IS NOT NULL""",
     """CREATE TABLE IF NOT EXISTS trading_sync_jobs (
         id TEXT PRIMARY KEY,
         trading_account_id BIGINT NOT NULL REFERENCES trading_accounts(id) ON DELETE CASCADE,

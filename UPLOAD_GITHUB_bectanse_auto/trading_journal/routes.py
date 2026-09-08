@@ -15,7 +15,7 @@ from flask import jsonify, redirect, render_template, request, session
 from .service import JournalService
 from .security import verify_worker_request
 from .config import worker_secret
-from .coach import review as coach_review
+from .coach import answer_question as coach_answer_question, review as coach_review
 from .billing import create_checkout, create_portal
 
 
@@ -323,10 +323,40 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             try:
                 account_ids, _ = service._scope_account_ids(conn, session["member_code"], scope)
                 from datetime import datetime, timedelta, timezone
-                deals = service._fetch_deals(conn, account_ids, datetime.now(timezone.utc) - timedelta(days=365))
+                start = datetime.now(timezone.utc) - timedelta(days=365)
+                deals = service._fetch_deals(conn, account_ids, start)
+                behavior_events = service._fetch_behavior_events(conn, account_ids, start)
             finally:
                 conn.close()
-            return jsonify({"ok": True, **coach_review(deals, timezone_name, review_type)})
+            return jsonify({"ok": True, **coach_review(
+                deals, timezone_name, review_type, behavior_events=behavior_events
+            )})
+        except Exception as error:
+            return _api_error(error)
+
+    @app.route("/api/trading/coach/ask", methods=["POST"])
+    @login_required
+    @_rate_limited("trading-coach-ask", 30, 15 * 60)
+    def trading_coach_ask():
+        try:
+            entitlements = service.require_access(session["member_code"])
+            if not entitlements.get("features", {}).get("coach.ai_explanations", False):
+                raise PermissionError("Le Coach interactif n’est pas inclus dans votre formule.")
+            payload = request.get_json(silent=True) or {}
+            scope = str(payload.get("account_id") or "all")
+            timezone_name = str(payload.get("timezone") or service.profile(session["member_code"])["timezone"])
+            from datetime import datetime, timedelta, timezone
+            start = datetime.now(timezone.utc) - timedelta(days=365)
+            conn = get_conn()
+            try:
+                account_ids, _ = service._scope_account_ids(conn, session["member_code"], scope)
+                deals = service._fetch_deals(conn, account_ids, start)
+                behavior_events = service._fetch_behavior_events(conn, account_ids, start)
+            finally:
+                conn.close()
+            return jsonify({"ok": True, **coach_answer_question(
+                deals, behavior_events, timezone_name, payload.get("question")
+            )})
         except Exception as error:
             return _api_error(error)
 
@@ -476,6 +506,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             result = service.complete_job(
                 job_id, worker_id, payload.get("account") or {}, payload.get("duration_ms") or 0,
                 payload.get("received_deals"), payload.get("source_pnl"),
+                payload.get("positions"), payload.get("orders"), payload.get("terminal"),
             )
             return jsonify({"ok": True, **result})
         except (ValueError, LookupError, PermissionError) as error:

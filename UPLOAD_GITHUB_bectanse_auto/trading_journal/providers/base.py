@@ -93,6 +93,10 @@ class TradingProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_open_orders(self) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_terminal_info(self) -> dict:
         raise NotImplementedError
 

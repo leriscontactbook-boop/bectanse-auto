@@ -71,6 +71,12 @@ class JournalService:
         self.get_member = get_member
         self.logger = logger
         self.sync_interval_seconds = max(60, int(os.environ.get("MT5_SYNC_INTERVAL_SECONDS", "300")))
+        self.telemetry_interval_seconds = max(
+            30, int(os.environ.get("MT5_TELEMETRY_INTERVAL_SECONDS", "60"))
+        )
+        self.telemetry_batch_size = max(
+            1, min(100, int(os.environ.get("MT5_TELEMETRY_BATCH_SIZE", "50")))
+        )
         self.sync_overlap_seconds = max(0, int(os.environ.get("MT5_SYNC_OVERLAP_SECONDS", "900")))
         self.manual_cooldown_seconds = max(30, int(os.environ.get("MT5_MANUAL_SYNC_COOLDOWN_SECONDS", "60")))
         self.daily_reconciliation_days = max(1, int(os.environ.get("MT5_DAILY_RECONCILIATION_DAYS", "7")))
@@ -387,6 +393,18 @@ class JournalService:
                     job_type, priority = "INCREMENTAL", 10
                 if self._enqueue(conn, int(account_id), job_type, priority=priority):
                     created += 1
+            telemetry_due = conn.run("""SELECT a.id
+                FROM trading_accounts a JOIN trading_credentials c ON c.trading_account_id=a.id
+                WHERE a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR')
+                AND (a.last_telemetry_at IS NULL OR
+                     a.last_telemetry_at < NOW() - (:seconds * INTERVAL '1 second'))
+                AND NOT EXISTS (SELECT 1 FROM trading_sync_jobs j
+                    WHERE j.trading_account_id=a.id AND j.status IN ('PENDING','LEASED','RUNNING','RETRY'))
+                ORDER BY a.last_telemetry_at NULLS FIRST,a.id LIMIT :batch_size""",
+                seconds=self.telemetry_interval_seconds, batch_size=self.telemetry_batch_size)
+            for (account_id,) in telemetry_due:
+                if self._enqueue(conn, int(account_id), "TELEMETRY", priority=30):
+                    created += 1
             return created
         finally:
             conn.close()
@@ -671,8 +689,108 @@ class JournalService:
             "executed_at": executed_at,
         }
 
+    @staticmethod
+    def _normalize_mt5_entity(entity_type: str, item: dict) -> tuple[int, dict]:
+        if entity_type not in {"POSITION", "ORDER"} or not isinstance(item, dict):
+            raise ValueError("État MT5 invalide.")
+        id_key = "position_id" if entity_type == "POSITION" else "order_id"
+        entity_id = int(item.get(id_key) or item.get("ticket") or 0)
+        if entity_id <= 0:
+            raise ValueError("Identifiant MT5 invalide.")
+        numeric_fields = {
+            "volume", "volume_initial", "volume_current", "price_open", "price_current",
+            "price_stoplimit", "sl", "tp", "profit", "swap",
+        }
+        integer_fields = {"ticket", "position_id", "order_id", "magic"}
+        text_limits = {"symbol": 40, "type": 40, "reason": 40, "comment": 500,
+                       "opened_at": 50, "updated_at": 50, "created_at": 50, "expires_at": 50}
+        normalized: dict = {}
+        for key, value in item.items():
+            if key in numeric_fields:
+                normalized[key] = str(_safe_decimal(
+                    value, minimum=Decimal("-1e15"), maximum=Decimal("1e15")
+                ))
+            elif key in integer_fields:
+                normalized[key] = int(value or 0)
+            elif key in text_limits:
+                normalized[key] = str(value or "")[:text_limits[key]]
+        normalized[id_key] = entity_id
+        return entity_id, normalized
+
+    @staticmethod
+    def _behavior_fields(entity_type: str) -> set[str]:
+        if entity_type == "POSITION":
+            return {"type", "volume", "sl", "tp"}
+        return {"type", "volume_initial", "volume_current", "price_open",
+                "price_stoplimit", "sl", "tp"}
+
+    def _record_mt5_snapshot(self, conn, account_id: int, job_id: str,
+                             entity_type: str, items: list[dict]) -> int:
+        if not isinstance(items, list) or len(items) > 2000:
+            raise ValueError("Instantané MT5 invalide.")
+        existing_rows = conn.run("""SELECT entity_id,payload,is_active FROM trading_mt5_state
+            WHERE trading_account_id=:account_id AND entity_type=:entity_type FOR UPDATE""",
+            account_id=account_id, entity_type=entity_type)
+        existing = {int(row[0]): {"payload": dict(row[1] or {}), "active": bool(row[2])}
+                    for row in existing_rows}
+        incoming: dict[int, dict] = {}
+        for item in items:
+            entity_id, payload = self._normalize_mt5_entity(entity_type, item)
+            incoming[entity_id] = payload
+        recorded = 0
+        for entity_id, payload in incoming.items():
+            previous = existing.get(entity_id)
+            event_type = None
+            changed: list[str] = []
+            if previous is None or not previous["active"]:
+                event_type = f"{entity_type}_OPENED"
+            else:
+                tracked = self._behavior_fields(entity_type)
+                changed = sorted(key for key in tracked
+                                 if previous["payload"].get(key) != payload.get(key))
+                if changed:
+                    event_type = f"{entity_type}_CHANGED"
+            conn.run("""INSERT INTO trading_mt5_state
+                (trading_account_id,entity_type,entity_id,payload,is_active)
+                VALUES (:account_id,:entity_type,:entity_id,CAST(:payload AS jsonb),TRUE)
+                ON CONFLICT (trading_account_id,entity_type,entity_id) DO UPDATE SET
+                payload=EXCLUDED.payload,is_active=TRUE,last_observed_at=NOW(),closed_at=NULL""",
+                account_id=account_id, entity_type=entity_type, entity_id=entity_id,
+                payload=json.dumps(payload, separators=(",", ":")))
+            if event_type:
+                conn.run("""INSERT INTO trading_mt5_events
+                    (trading_account_id,sync_job_id,entity_type,entity_id,event_type,
+                     changed_fields,previous_state,current_state)
+                    VALUES (:account_id,:job_id,:entity_type,:entity_id,:event_type,
+                     CAST(:changed AS jsonb),CAST(:previous AS jsonb),CAST(:current AS jsonb))
+                    ON CONFLICT DO NOTHING""", account_id=account_id, job_id=job_id,
+                    entity_type=entity_type, entity_id=entity_id, event_type=event_type,
+                    changed=json.dumps(changed),
+                    previous=json.dumps(previous["payload"], separators=(",", ":")) if previous else None,
+                    current=json.dumps(payload, separators=(",", ":")))
+                recorded += 1
+        for entity_id, previous in existing.items():
+            if previous["active"] and entity_id not in incoming:
+                event_type = f"{entity_type}_CLOSED"
+                conn.run("""UPDATE trading_mt5_state SET is_active=FALSE,last_observed_at=NOW(),
+                    closed_at=NOW() WHERE trading_account_id=:account_id
+                    AND entity_type=:entity_type AND entity_id=:entity_id""",
+                    account_id=account_id, entity_type=entity_type, entity_id=entity_id)
+                conn.run("""INSERT INTO trading_mt5_events
+                    (trading_account_id,sync_job_id,entity_type,entity_id,event_type,
+                     previous_state,current_state)
+                    VALUES (:account_id,:job_id,:entity_type,:entity_id,:event_type,
+                     CAST(:previous AS jsonb),NULL) ON CONFLICT DO NOTHING""",
+                    account_id=account_id, job_id=job_id, entity_type=entity_type,
+                    entity_id=entity_id, event_type=event_type,
+                    previous=json.dumps(previous["payload"], separators=(",", ":")))
+                recorded += 1
+        return recorded
+
     def complete_job(self, job_id: str, worker_id: str, account: dict, duration_ms: int,
-                     received_deals: int | None = None, source_pnl=None) -> dict:
+                     received_deals: int | None = None, source_pnl=None,
+                     positions: list[dict] | None = None, orders: list[dict] | None = None,
+                     terminal: dict | None = None) -> dict:
         required = {"broker", "server", "currency", "balance", "equity", "margin", "free_margin", "leverage", "access_mode"}
         if not isinstance(account, dict) or not required.issubset(account):
             raise ValueError("Informations de compte incomplètes.")
@@ -712,21 +830,44 @@ class JournalService:
                 "leverage": max(0, int(account["leverage"] or 0)),
                 "access_mode": str(account["access_mode"]),
             }
-            conn.run("""UPDATE trading_accounts SET broker=:broker,server=:server,currency=:currency,account_type=:account_type,
+            is_telemetry = str(job_type) == "TELEMETRY"
+            sync_timestamp = "" if is_telemetry else ",last_successful_sync_at=NOW()"
+            conn.run(f"""UPDATE trading_accounts SET broker=:broker,server=:server,currency=:currency,account_type=:account_type,
                 balance=:balance,equity=:equity,margin=:margin,free_margin=:free_margin,
                 leverage=:leverage,access_mode=:access_mode,status='SYNCED',sync_status='SYNCED',
-                last_successful_sync_at=NOW(),last_error_code='',last_error_message='',updated_at=NOW()
+                last_telemetry_at=NOW(){sync_timestamp},last_error_code='',last_error_message='',updated_at=NOW()
                 WHERE id=:account_id""", account_id=account_id, **values)
-            conn.run("""INSERT INTO trading_account_snapshots
-                (trading_account_id,balance,equity,margin,free_margin)
-                VALUES (:account_id,:balance,:equity,:margin,:free_margin)""", account_id=account_id, **values)
-            db_rollup = conn.run("""SELECT COUNT(*),COALESCE(SUM(profit+commission+swap+fee),0)
-                FROM trading_deals WHERE trading_account_id=:account_id
-                AND executed_at>=:range_from AND executed_at<=:range_to""",
-                account_id=account_id, range_from=range_from, range_to=range_to)[0]
-            db_count, db_pnl = int(db_rollup[0] or 0), Decimal(str(db_rollup[1] or 0))
-            pnl_delta = Decimal("0") if source_pnl is None else db_pnl - _safe_decimal(source_pnl)
-            recon_status = "PASS" if source_pnl is None or abs(pnl_delta) <= Decimal("0.01") else "MISMATCH"
+            recent_snapshot = conn.run("""SELECT 1 FROM trading_account_snapshots
+                WHERE trading_account_id=:account_id AND captured_at>NOW()-INTERVAL '5 minutes' LIMIT 1""",
+                account_id=account_id)
+            if not recent_snapshot or not is_telemetry:
+                conn.run("""INSERT INTO trading_account_snapshots
+                    (trading_account_id,balance,equity,margin,free_margin)
+                    VALUES (:account_id,:balance,:equity,:margin,:free_margin)""",
+                    account_id=account_id, **values)
+            telemetry_events = 0
+            if positions is not None:
+                telemetry_events += self._record_mt5_snapshot(
+                    conn, account_id, job_id, "POSITION", positions
+                )
+            if orders is not None:
+                telemetry_events += self._record_mt5_snapshot(
+                    conn, account_id, job_id, "ORDER", orders
+                )
+            terminal = terminal or {}
+            if terminal and not bool(terminal.get("connected", False)):
+                raise ValueError("Le terminal MT5 n’est plus connecté.")
+            db_count = received
+            pnl_delta = Decimal("0")
+            recon_status = "PASS"
+            if not is_telemetry:
+                db_rollup = conn.run("""SELECT COUNT(*),COALESCE(SUM(profit+commission+swap+fee),0)
+                    FROM trading_deals WHERE trading_account_id=:account_id
+                    AND executed_at>=:range_from AND executed_at<=:range_to""",
+                    account_id=account_id, range_from=range_from, range_to=range_to)[0]
+                db_count, db_pnl = int(db_rollup[0] or 0), Decimal(str(db_rollup[1] or 0))
+                pnl_delta = Decimal("0") if source_pnl is None else db_pnl - _safe_decimal(source_pnl)
+                recon_status = "PASS" if source_pnl is None or abs(pnl_delta) <= Decimal("0.01") else "MISMATCH"
             if str(job_type) in {"DAILY_RECONCILIATION", "WEEKLY_RECONCILIATION"}:
                 conn.run("""INSERT INTO trading_reconciliation_reports
                     (trading_account_id,sync_job_id,range_from,range_to,mt5_count,db_count,
@@ -760,7 +901,8 @@ class JournalService:
                 server=str(expected_server))
             conn.run("COMMIT")
             return {"account_id": account_id, "imported_deals": imported,
-                    "received_deals": received, "status": "SYNCED", "integrity": recon_status}
+                    "received_deals": received, "telemetry_events": telemetry_events,
+                    "status": "SYNCED", "integrity": recon_status}
         except Exception:
             try: conn.run("ROLLBACK")
             except Exception: pass
@@ -1002,6 +1144,26 @@ class JournalService:
                 "symbol", "deal_type", "entry_type", "is_trading_deal", "volume", "price",
                 "profit", "commission", "swap", "fee", "executed_at")
         return [dict(zip(keys, row)) for row in rows]
+
+    def _fetch_behavior_events(self, conn, account_ids: list[int], start=None) -> list[dict]:
+        placeholders, params = self._account_where(account_ids)
+        filters = [f"trading_account_id IN ({placeholders})"]
+        if start is not None:
+            filters.append("observed_at>=:start")
+            params["start"] = start
+        rows = conn.run(f"""SELECT trading_account_id,entity_type,entity_id,event_type,
+            changed_fields,previous_state,current_state,observed_at FROM trading_mt5_events
+            WHERE {' AND '.join(filters)} ORDER BY observed_at,id""", **params)
+        keys = ("trading_account_id", "entity_type", "entity_id", "event_type",
+                "changed_fields", "previous_state", "current_state", "observed_at")
+        result = []
+        for row in rows:
+            item = dict(zip(keys, row))
+            for key in ("changed_fields", "previous_state", "current_state"):
+                if isinstance(item[key], str):
+                    item[key] = json.loads(item[key])
+            result.append(item)
+        return result
 
     def calendar(self, user_id: str, scope: str, month: str, timezone_name: str) -> dict:
         if not re.fullmatch(r"20\d{2}-(0[1-9]|1[0-2])", month):
