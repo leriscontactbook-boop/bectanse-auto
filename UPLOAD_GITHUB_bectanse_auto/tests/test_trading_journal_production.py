@@ -48,6 +48,9 @@ def test_journal_browser_never_reuses_stale_api_payloads_and_polls_quickly():
     assert "delay=syncing?2000:5000" in javascript
     assert "accountRevision(state.accounts)!==beforeRevision" in javascript
     assert "if(state.activeView==='calendar')renderCalendar(state.calendar)" in javascript
+    assert "if(canAggregateAccounts())select.add(new Option('Tous les comptes','all'))" in javascript
+    template = (ROOT / "templates" / "trading_journal.html").read_text()
+    assert "{% if aggregate_accounts %}<option value=\"all\"" in template
 
 
 def row(ticket, hour, *, day=1, position=None, entry="IN", kind="BUY", volume="1", profit="0", symbol="XAUUSD"):

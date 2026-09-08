@@ -84,11 +84,16 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
                             "advanced_analytics": False, "export": False, "features": {}}
         if accounts and entitlements["allowed"]:
             try:
-                scope = "all" if len(accounts) > 1 else str(accounts[0]["id"])
+                currencies = {str(account.get("currency") or "") for account in accounts}
+                currencies.discard("")
+                aggregate_accounts = len(accounts) > 1 and len(currencies) <= 1
+                scope = "all" if aggregate_accounts else str(accounts[0]["id"])
                 month = datetime.now(ZoneInfo(profile["timezone"])).strftime("%Y-%m")
                 overview = service.overview(user_id, scope, month, profile["timezone"])
             except Exception as error:
                 app.logger.error("Journal overview bootstrap %s: %s", user_id, error)
+        else:
+            aggregate_accounts = False
         return render_template(
             "trading_journal.html",
             member=member,
@@ -96,6 +101,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             profile=profile,
             entitlements=entitlements,
             overview=overview,
+            aggregate_accounts=aggregate_accounts,
         )
 
     @app.route("/api/trading/accounts", methods=["GET"])

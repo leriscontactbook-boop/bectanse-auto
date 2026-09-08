@@ -15,8 +15,8 @@
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
-  <link rel="preload" href="/static/trading-journal.js?v=20260908-live1" as="script">
-  <link rel="stylesheet" href="/static/css/trading-journal.css?v=20260908-live1">
+  <link rel="preload" href="/static/trading-journal.js?v=20260908-live2" as="script">
+  <link rel="stylesheet" href="/static/css/trading-journal.css?v=20260908-live2">
 </head>
 <body>
   <div class="tj-app">
@@ -62,7 +62,7 @@
         <div class="tj-top-actions{% if entitlements.source == 'JOURNAL_SUBSCRIPTION' %} has-billing{% endif %}">
           <label class="tj-account-select-label" for="accountSelect">Compte</label>
           <select id="accountSelect" class="tj-account-select" {% if not accounts %}disabled{% endif %}>
-            {% if accounts|length > 1 %}<option value="all">Tous les comptes</option>{% endif %}
+            {% if aggregate_accounts %}<option value="all">Tous les comptes</option>{% endif %}
             {% for account in accounts %}
               <option value="{{ account.id }}">{{ account.display_name or 'MT5' }} · {{ account.login_masked }}</option>
             {% endfor %}
@@ -287,7 +287,7 @@
   </dialog>
 
   <div id="toast" class="tj-toast" role="status"></div>
-  <script id="tradingBootstrap" type="application/json">{{ {"accounts": accounts, "profile": profile, "entitlements": entitlements, "overview": (overview|default(none))}|tojson }}</script>
-  <script src="/static/trading-journal.js?v=20260908-live1" defer></script>
+  <script id="tradingBootstrap" type="application/json">{{ {"accounts": accounts, "profile": profile, "entitlements": entitlements, "overview": (overview|default(none)), "aggregateAccounts": aggregate_accounts}|tojson }}</script>
+  <script src="/static/trading-journal.js?v=20260908-live2" defer></script>
 </body>
 </html>
