@@ -571,6 +571,33 @@ def test_mt5_entity_normalization_is_allowlisted_and_json_safe():
     assert "password" not in payload
 
 
+def test_legacy_workers_cannot_leave_telemetry_jobs_blocking_normal_sync(monkeypatch):
+    class QueueConnection:
+        def __init__(self):
+            self.queries = []
+
+        def run(self, query, **params):
+            compact = " ".join(query.split())
+            self.queries.append(compact)
+            if compact.startswith("SELECT 1 FROM trading_workers"):
+                return []
+            if compact.startswith("SELECT a.id,a.last_reconciliation_at"):
+                return []
+            if "ORDER BY a.last_telemetry_at" in compact:
+                raise AssertionError("Telemetry must not be queued without a compatible worker")
+            return []
+
+        def close(self):
+            pass
+
+    connection = QueueConnection()
+    service = JournalService(lambda: connection, lambda _user_id: None, None)
+    assert service.enqueue_due_accounts() == 0
+    cancellation = next(query for query in connection.queries if "WORKER_VERSION_UNSUPPORTED" in query)
+    assert "job_type='TELEMETRY'" in cancellation
+    assert "status IN ('PENDING','RETRY')" in cancellation
+
+
 def test_mt5_provider_initializes_with_account_credentials():
     class FakeMT5:
         def __init__(self):

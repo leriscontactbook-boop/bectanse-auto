@@ -374,6 +374,19 @@ class JournalService:
                 locked_at=NULL,heartbeat_at=NULL,lease_expires_at=NULL,not_before=NOW(),
                 last_error_code='WORKER_TIMEOUT',last_error_message='Lease expiré; relance automatique.'
                 WHERE status IN ('LEASED','RUNNING') AND lease_expires_at < NOW()""")
+            telemetry_ready = bool(conn.run("""SELECT 1 FROM trading_workers
+                WHERE version ~ '^[0-9]+[.][0-9]+[.][0-9]+$'
+                AND (CAST(split_part(version,'.',1) AS INTEGER)>1 OR
+                     (CAST(split_part(version,'.',1) AS INTEGER)=1 AND
+                      CAST(split_part(version,'.',2) AS INTEGER)>=2))
+                AND last_seen_at>NOW()-INTERVAL '90 seconds' LIMIT 1"""))
+            if not telemetry_ready:
+                # A telemetry job must never prevent legacy workers from processing
+                # the normal history queue while a worker upgrade is in progress.
+                conn.run("""UPDATE trading_sync_jobs SET status='CANCELLED',completed_at=NOW(),
+                    finished_at=NOW(),last_error_code='WORKER_VERSION_UNSUPPORTED',
+                    last_error_message='Télémétrie suspendue jusqu’au worker 1.2.'
+                    WHERE job_type='TELEMETRY' AND status IN ('PENDING','RETRY')""")
             due = conn.run("""SELECT a.id,a.last_reconciliation_at,a.last_deep_reconciliation_at
                 FROM trading_accounts a JOIN trading_credentials c ON c.trading_account_id=a.id
                 WHERE a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR')
@@ -393,18 +406,19 @@ class JournalService:
                     job_type, priority = "INCREMENTAL", 10
                 if self._enqueue(conn, int(account_id), job_type, priority=priority):
                     created += 1
-            telemetry_due = conn.run("""SELECT a.id
-                FROM trading_accounts a JOIN trading_credentials c ON c.trading_account_id=a.id
-                WHERE a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR')
-                AND (a.last_telemetry_at IS NULL OR
-                     a.last_telemetry_at < NOW() - (:seconds * INTERVAL '1 second'))
-                AND NOT EXISTS (SELECT 1 FROM trading_sync_jobs j
-                    WHERE j.trading_account_id=a.id AND j.status IN ('PENDING','LEASED','RUNNING','RETRY'))
-                ORDER BY a.last_telemetry_at NULLS FIRST,a.id LIMIT :batch_size""",
-                seconds=self.telemetry_interval_seconds, batch_size=self.telemetry_batch_size)
-            for (account_id,) in telemetry_due:
-                if self._enqueue(conn, int(account_id), "TELEMETRY", priority=30):
-                    created += 1
+            if telemetry_ready:
+                telemetry_due = conn.run("""SELECT a.id
+                    FROM trading_accounts a JOIN trading_credentials c ON c.trading_account_id=a.id
+                    WHERE a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR')
+                    AND (a.last_telemetry_at IS NULL OR
+                         a.last_telemetry_at < NOW() - (:seconds * INTERVAL '1 second'))
+                    AND NOT EXISTS (SELECT 1 FROM trading_sync_jobs j
+                        WHERE j.trading_account_id=a.id AND j.status IN ('PENDING','LEASED','RUNNING','RETRY'))
+                    ORDER BY a.last_telemetry_at NULLS FIRST,a.id LIMIT :batch_size""",
+                    seconds=self.telemetry_interval_seconds, batch_size=self.telemetry_batch_size)
+                for (account_id,) in telemetry_due:
+                    if self._enqueue(conn, int(account_id), "TELEMETRY", priority=30):
+                        created += 1
             return created
         finally:
             conn.close()
