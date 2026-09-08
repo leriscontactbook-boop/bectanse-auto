@@ -501,7 +501,8 @@ class JournalService:
                           CAST(split_part(compatible.version,'.',2) AS INTEGER)>=2))
                     AND compatible.last_seen_at>NOW()-INTERVAL '90 seconds'))
                 AND (circuit.opened_until IS NULL OR circuit.opened_until<=NOW())
-                ORDER BY j.priority DESC,j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1""")
+                ORDER BY j.priority DESC,j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1""",
+                worker_id=worker_id[:100])
             if not rows:
                 conn.run("COMMIT")
                 return None
