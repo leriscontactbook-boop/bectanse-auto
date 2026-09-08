@@ -42,6 +42,14 @@ from trading_journal.routes import _checkout_failure_code
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_journal_browser_never_reuses_stale_api_payloads_and_polls_quickly():
+    javascript = (ROOT / "static" / "trading-journal.js").read_text()
+    assert "cache:'no-store'" in javascript
+    assert "delay=syncing?2000:5000" in javascript
+    assert "accountRevision(state.accounts)!==beforeRevision" in javascript
+    assert "if(state.activeView==='calendar')renderCalendar(state.calendar)" in javascript
+
+
 def row(ticket, hour, *, day=1, position=None, entry="IN", kind="BUY", volume="1", profit="0", symbol="XAUUSD"):
     return {"trading_account_id": 1, "mt5_deal_ticket": ticket,
             "mt5_position_id": position or ticket, "symbol": symbol, "deal_type": kind,

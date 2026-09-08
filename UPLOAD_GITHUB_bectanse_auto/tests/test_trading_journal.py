@@ -114,6 +114,26 @@ def test_calendar_groups_by_user_timezone_not_utc_date():
     assert result["summary"]["trades"] == 1
 
 
+def test_calendar_keeps_verified_exit_pnl_when_broker_delays_the_entry_leg():
+    rows = [
+        deal(11, datetime(2026, 9, 8, 16, 10, tzinfo=timezone.utc),
+             position=555849074, entry="OUT", deal_type="BUY", profit=6338.56),
+        deal(12, datetime(2026, 9, 8, 16, 10, tzinfo=timezone.utc),
+             position=555823414, entry="OUT", deal_type="BUY", profit=6746.76),
+        deal(13, datetime(2026, 9, 8, 16, 10, tzinfo=timezone.utc),
+             position=555743086, entry="OUT", deal_type="BUY", profit=5351.81),
+        deal(14, datetime(2026, 9, 8, 16, 11, tzinfo=timezone.utc),
+             position=0, entry="IN", deal_type="BALANCE", profit=50000, trading=False),
+    ]
+    result = calendar_summary(rows, "Europe/Paris", "2026-09")
+    assert result["days"][0]["netPnl"] == 18437.13
+    assert result["days"][0]["trades"] == 3
+    assert result["summary"]["netPnl"] == 18437.13
+    assert result["dataQuality"] == {
+        "complete": False, "unmatchedClosedPositions": 3,
+    }
+
+
 def test_invalid_timezone_is_rejected_as_user_input():
     with pytest.raises(ValueError, match="Fuseau horaire invalide"):
         validate_timezone("Mars/Olympus")

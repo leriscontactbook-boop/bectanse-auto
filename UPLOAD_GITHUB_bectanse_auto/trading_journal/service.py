@@ -84,6 +84,14 @@ class JournalService:
             self.daily_reconciliation_days,
             int(os.environ.get("MT5_WEEKLY_RECONCILIATION_DAYS", "90")),
         )
+        self.incremental_max_lookback_seconds = max(
+            self.sync_overlap_seconds,
+            int(os.environ.get("MT5_INCREMENTAL_MAX_LOOKBACK_SECONDS", "86400")),
+        )
+        self.manual_reconciliation_days = max(
+            self.daily_reconciliation_days,
+            int(os.environ.get("MT5_MANUAL_RECONCILIATION_DAYS", str(self.weekly_reconciliation_days))),
+        )
         self.lease_seconds = max(60, int(os.environ.get("MT5_JOB_LEASE_SECONDS", "300")))
 
     def _cipher(self) -> CredentialCipher:
@@ -338,7 +346,13 @@ class JournalService:
                 remaining = self.manual_cooldown_seconds - int((datetime.now(timezone.utc) - as_utc(last_manual)).total_seconds())
                 conn.run("ROLLBACK")
                 return {"queued": False, "cooldown_seconds": max(1, remaining)}
-            job_id = self._enqueue(conn, account_id, "MANUAL", priority=80)
+            # A manual refresh is an authoritative reconciliation, not just a
+            # short incremental cursor. This repairs delayed MT5 history legs
+            # immediately instead of permanently skipping them.
+            job_id = self._enqueue(
+                conn, account_id, "MANUAL", priority=80,
+                range_from=datetime.now(timezone.utc) - timedelta(days=self.manual_reconciliation_days),
+            )
             conn.run("UPDATE trading_accounts SET last_manual_sync_at=NOW(),sync_status='PENDING',updated_at=NOW() WHERE id=:id", id=account_id)
             self._audit(conn, user_id, account_id, "MANUAL_SYNC_REQUESTED", {"queued": bool(job_id)})
             conn.run("COMMIT")
@@ -500,7 +514,10 @@ class JournalService:
             conn.run("BEGIN")
             rows = conn.run("""SELECT j.id,j.trading_account_id,j.job_type,j.attempts,
                 a.user_id,a.login,a.server,c.encrypted_password,c.nonce,c.auth_tag,c.key_version,
-                a.last_successful_sync_at,j.range_from,j.range_to
+                a.last_successful_sync_at,
+                (SELECT MAX(d.executed_at) FROM trading_deals d
+                 WHERE d.trading_account_id=a.id) AS latest_deal_at,
+                j.range_from,j.range_to
                 FROM trading_sync_jobs j JOIN trading_accounts a ON a.id=j.trading_account_id
                 JOIN trading_credentials c ON c.trading_account_id=a.id
                 LEFT JOIN trading_server_circuits circuit ON circuit.server=a.server
@@ -521,7 +538,8 @@ class JournalService:
                 conn.run("COMMIT")
                 return None
             (job_id, account_id, job_type, attempts, user_id, login, server,
-             ciphertext, nonce, tag, key_version, last_successful, requested_from, requested_to) = rows[0]
+             ciphertext, nonce, tag, key_version, last_successful, latest_deal_at,
+             requested_from, requested_to) = rows[0]
             subscription_rows = conn.run("""SELECT plan,subscription_status,current_period_end
                 FROM trading_subscriptions WHERE user_id=:user_id""", user_id=user_id)
             subscription = (
@@ -546,8 +564,15 @@ class JournalService:
                 date_from = now - timedelta(days=self.weekly_reconciliation_days)
             elif str(job_type) == "DAILY_RECONCILIATION":
                 date_from = now - timedelta(days=self.daily_reconciliation_days)
-            elif last_successful:
-                date_from = as_utc(last_successful) - timedelta(seconds=self.sync_overlap_seconds)
+            elif latest_deal_at or last_successful:
+                # The data high-water mark is safer than the last successful
+                # connection time: an empty/delayed MT5 response must not move
+                # the cursor past deals that the broker has not exposed yet.
+                cursor = as_utc(latest_deal_at or last_successful)
+                date_from = max(
+                    cursor - timedelta(seconds=self.sync_overlap_seconds),
+                    now - timedelta(seconds=self.incremental_max_lookback_seconds),
+                )
             elif entitlements.historical_days:
                 date_from = now - timedelta(days=entitlements.historical_days)
             else:
@@ -892,15 +917,21 @@ class JournalService:
                     account_id=account_id, range_from=range_from, range_to=range_to)[0]
                 db_count, db_pnl = int(db_rollup[0] or 0), Decimal(str(db_rollup[1] or 0))
                 pnl_delta = Decimal("0") if source_pnl is None else db_pnl - _safe_decimal(source_pnl)
-                recon_status = "PASS" if source_pnl is None or abs(pnl_delta) <= Decimal("0.01") else "MISMATCH"
+                count_matches = db_count == received
+                recon_status = (
+                    "PASS" if count_matches and
+                    (source_pnl is None or abs(pnl_delta) <= Decimal("0.01"))
+                    else "MISMATCH"
+                )
             if str(job_type) in {"DAILY_RECONCILIATION", "WEEKLY_RECONCILIATION"}:
                 conn.run("""INSERT INTO trading_reconciliation_reports
                     (trading_account_id,sync_job_id,range_from,range_to,mt5_count,db_count,
                      missing_count,repaired_count,pnl_delta,status)
                     VALUES (:account_id,:job_id,:range_from,:range_to,:mt5_count,:db_count,
-                     0,:repaired,:pnl_delta,:status)""", account_id=account_id, job_id=job_id,
+                     :missing,:repaired,:pnl_delta,:status)""", account_id=account_id, job_id=job_id,
                     range_from=range_from, range_to=range_to, mt5_count=received, db_count=db_count,
-                    repaired=imported, pnl_delta=pnl_delta, status=recon_status)
+                    missing=abs(db_count - received), repaired=imported,
+                    pnl_delta=pnl_delta, status=recon_status)
             reconcile_columns = ""
             if str(job_type) == "DAILY_RECONCILIATION":
                 reconcile_columns = ",last_reconciliation_at=NOW()"
@@ -1267,22 +1298,37 @@ class JournalService:
                 all_rows = [dict(zip(keys, row)) for row in rows]
             positions = [position for position in reconstruct_positions(all_rows)
                          if position["closed_at"].astimezone(tz).date() == local_date]
-            pnl = sum((item["net_pnl"] for item in positions), Decimal("0"))
-            wins = sum(1 for item in positions if item["net_pnl"] > 0)
-            losses = sum(1 for item in positions if item["net_pnl"] < 0)
+            verified_day = next(
+                (
+                    item for item in calendar_summary_from_trades(
+                        all_rows, reconstruct_positions(all_rows), timezone_name,
+                        local_date.strftime("%Y-%m"),
+                    )["days"]
+                    if item["date"] == date_value
+                ),
+                {"netPnl": 0, "trades": 0, "wins": 0, "losses": 0, "unmatched": 0},
+            )
+            pnl = Decimal(str(verified_day["netPnl"]))
+            wins = int(verified_day["wins"])
+            losses = int(verified_day["losses"])
             gross_profit = sum((item["net_pnl"] for item in positions if item["net_pnl"] > 0), Decimal("0"))
             gross_loss = sum((item["net_pnl"] for item in positions if item["net_pnl"] < 0), Decimal("0"))
             fees = sum((Decimal(str(row.get("commission") or 0)) + Decimal(str(row.get("swap") or 0)) + Decimal(str(row.get("fee") or 0)) for row in day_deals), Decimal("0"))
             return {
                 "date": date_value, "currency": currency, "timezone": timezone_name,
                 "summary": {
-                    "netPnl": round(float(pnl), 2), "trades": len(positions), "deals": len(day_deals),
+                    "netPnl": round(float(pnl), 2), "trades": int(verified_day["trades"]),
+                    "deals": len(day_deals),
                     "wins": wins, "losses": losses,
                     "winRate": round(100 * wins / (wins + losses), 2) if wins + losses else 0,
                     "volume": round(float(sum((item["volume"] for item in positions), Decimal("0"))), 2),
                     "grossProfit": round(float(gross_profit), 2), "grossLoss": round(float(gross_loss), 2),
                     "fees": round(float(fees), 2),
-                    "profitFactor": round(float(gross_profit / abs(gross_loss)), 2) if gross_loss else None,
+                    "profitFactor": (
+                        round(float(gross_profit / abs(gross_loss)), 2)
+                        if gross_loss and not int(verified_day.get("unmatched") or 0) else None
+                    ),
+                    "dataComplete": int(verified_day.get("unmatched") or 0) == 0,
                 },
                 "trades": [self._serialize_trade(item, tz) for item in reversed(positions)],
             }

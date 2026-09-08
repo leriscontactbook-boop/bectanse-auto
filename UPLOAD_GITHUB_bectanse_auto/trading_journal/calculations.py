@@ -154,30 +154,66 @@ def calendar_summary_from_trades(
     deals: list[dict], trades: list[dict], timezone_name: str, month: str
 ) -> dict:
     tz = ZoneInfo(validate_timezone(timezone_name))
-    daily: dict[str, dict] = defaultdict(lambda: {"netPnl": Decimal("0"), "deals": 0, "trades": 0, "wins": 0, "losses": 0})
+    daily: dict[str, dict] = defaultdict(lambda: {
+        "netPnl": Decimal("0"), "deals": 0, "trades": 0,
+        "wins": 0, "losses": 0, "unmatched": 0,
+    })
+    exit_groups: dict[tuple[int, int, str], Decimal] = defaultdict(Decimal)
     for row in deals:
-        if bool(row.get("is_trading_deal", str(row.get("deal_type") or "").upper() in TRADE_TYPES)):
-            day = as_utc(row["executed_at"]).astimezone(tz).date().isoformat()
-            if day.startswith(month):
+        if not _is_position_row(row):
+            continue
+        day = as_utc(row["executed_at"]).astimezone(tz).date().isoformat()
+        if day.startswith(month):
+            daily[day]["netPnl"] += deal_net_pnl(row)
+            if bool(row.get("is_trading_deal", str(row.get("deal_type") or "").upper() in TRADE_TYPES)):
                 daily[day]["deals"] += 1
+                if str(row.get("entry_type") or "").upper() in {"OUT", "OUT_BY", "INOUT"}:
+                    key = (
+                        int(row.get("trading_account_id") or 0),
+                        int(row.get("mt5_position_id") or row.get("mt5_deal_ticket") or 0),
+                        day,
+                    )
+                    exit_groups[key] += deal_net_pnl(row)
+    completed_groups: set[tuple[int, int, str]] = set()
     for trade in trades:
         day = trade["closed_at"].astimezone(tz).date().isoformat()
         if day.startswith(month):
-            daily[day]["netPnl"] += decimal_value(trade["net_pnl"])
+            completed_groups.add((
+                int(trade.get("trading_account_id") or 0),
+                int(trade.get("position_id") or 0),
+                day,
+            ))
             daily[day]["trades"] += 1
             if trade["net_pnl"] > 0:
                 daily[day]["wins"] += 1
             elif trade["net_pnl"] < 0:
                 daily[day]["losses"] += 1
-    days = [{"date": day, "netPnl": round(float(values["netPnl"]), 2), **{k: values[k] for k in ("deals", "trades", "wins", "losses")}}
+    # A broker can expose a closing deal a few seconds before its older opening
+    # leg is available in terminal history. The realized P&L is still an exact
+    # MT5 fact and must not disappear from the calendar while reconciliation is
+    # catching up. Count that closed position without inventing entry data.
+    for key, pnl in exit_groups.items():
+        if key in completed_groups:
+            continue
+        day = key[2]
+        daily[day]["trades"] += 1
+        daily[day]["unmatched"] += 1
+        if pnl > 0:
+            daily[day]["wins"] += 1
+        elif pnl < 0:
+            daily[day]["losses"] += 1
+    days = [{"date": day, "netPnl": round(float(values["netPnl"]), 2),
+             **{k: values[k] for k in ("deals", "trades", "wins", "losses", "unmatched")}}
             for day, values in sorted(daily.items())]
     net = sum((decimal_value(day["netPnl"]) for day in days), Decimal("0"))
     trades = sum(day["trades"] for day in days)
     wins, losses = sum(day["wins"] for day in days), sum(day["losses"] for day in days)
+    unmatched = sum(day["unmatched"] for day in days)
     return {"month": month, "summary": {"netPnl": round(float(net), 2), "trades": trades,
             "deals": sum(day["deals"] for day in days), "wins": wins, "losses": losses,
             "winRate": round(100 * wins / trades, 2) if trades else 0,
-            "tradingDays": sum(1 for day in days if day["trades"] > 0)}, "days": days}
+            "tradingDays": sum(1 for day in days if day["trades"] > 0)}, "days": days,
+            "dataQuality": {"complete": unmatched == 0, "unmatchedClosedPositions": unmatched}}
 
 
 def calendar_summary(deals: list[dict], timezone_name: str, month: str) -> dict:
