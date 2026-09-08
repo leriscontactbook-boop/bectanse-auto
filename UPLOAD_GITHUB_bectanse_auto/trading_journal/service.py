@@ -492,6 +492,14 @@ class JournalService:
                 LEFT JOIN trading_server_circuits circuit ON circuit.server=a.server
                 WHERE j.status IN ('PENDING','RETRY') AND j.not_before<=NOW()
                 AND a.status NOT IN ('DISCONNECTED','AUTH_ERROR','ACCESS_EXPIRED')
+                AND (j.job_type<>'TELEMETRY' OR EXISTS (
+                    SELECT 1 FROM trading_workers compatible
+                    WHERE compatible.worker_id=:worker_id
+                    AND compatible.version ~ '^[0-9]+[.][0-9]+[.][0-9]+$'
+                    AND (CAST(split_part(compatible.version,'.',1) AS INTEGER)>1 OR
+                         (CAST(split_part(compatible.version,'.',1) AS INTEGER)=1 AND
+                          CAST(split_part(compatible.version,'.',2) AS INTEGER)>=2))
+                    AND compatible.last_seen_at>NOW()-INTERVAL '90 seconds'))
                 AND (circuit.opened_until IS NULL OR circuit.opened_until<=NOW())
                 ORDER BY j.priority DESC,j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1""")
             if not rows:
@@ -831,11 +839,13 @@ class JournalService:
                 "access_mode": str(account["access_mode"]),
             }
             is_telemetry = str(job_type) == "TELEMETRY"
+            telemetry_received = positions is not None and orders is not None
             sync_timestamp = "" if is_telemetry else ",last_successful_sync_at=NOW()"
+            telemetry_timestamp = ",last_telemetry_at=NOW()" if telemetry_received else ""
             conn.run(f"""UPDATE trading_accounts SET broker=:broker,server=:server,currency=:currency,account_type=:account_type,
                 balance=:balance,equity=:equity,margin=:margin,free_margin=:free_margin,
                 leverage=:leverage,access_mode=:access_mode,status='SYNCED',sync_status='SYNCED',
-                last_telemetry_at=NOW(){sync_timestamp},last_error_code='',last_error_message='',updated_at=NOW()
+                last_error_code='',last_error_message='',updated_at=NOW(){sync_timestamp}{telemetry_timestamp}
                 WHERE id=:account_id""", account_id=account_id, **values)
             recent_snapshot = conn.run("""SELECT 1 FROM trading_account_snapshots
                 WHERE trading_account_id=:account_id AND captured_at>NOW()-INTERVAL '5 minutes' LIMIT 1""",

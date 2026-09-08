@@ -68,7 +68,7 @@ class WorkerBackendClient:
         if len(secret) < 32:
             raise RuntimeError("INTERNAL_MT5_WORKER_SECRET must contain at least 32 characters")
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "Bectanse-MT5-Worker/1.1"})
+        self.session.headers.update({"User-Agent": "Bectanse-MT5-Worker/1.2"})
 
     def request(self, method: str, path: str, payload: dict | None = None, timeout=60):
         body = json.dumps(payload or {}, separators=(",", ":")).encode("utf-8")
@@ -102,7 +102,7 @@ class WorkerBackendClient:
     def node_heartbeat(self, status="ONLINE", current_job_id="", terminal_fingerprint=""):
         return self.request("POST", "/internal/mt5/workers/heartbeat", {
             "status": status, "current_job_id": current_job_id,
-            "terminal_fingerprint": terminal_fingerprint, "version": "1.1.0",
+            "terminal_fingerprint": terminal_fingerprint, "version": "1.2.0",
         }, timeout=20)
 
     def upload(self, job_id: str, deals: list[dict], batch_id: str):
