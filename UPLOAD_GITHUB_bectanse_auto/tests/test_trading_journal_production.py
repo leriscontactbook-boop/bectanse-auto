@@ -490,6 +490,19 @@ def test_broker_catalog_combines_verified_and_successfully_seen_servers(monkeypa
     assert broker_name_from_server("Broker-MT5-Live") == "Broker"
 
 
+def test_requested_brokers_are_searchable_with_verified_mt5_seeds():
+    result = build_broker_catalog()
+    by_name = {row["name"]: row for row in result}
+    assert {"PU Prime", "VT Markets", "FXS", "Axi", "Vantage"} <= set(by_name)
+    assert set(by_name["PU Prime"]["servers"]) >= {
+        "PUPrime-Demo", "PUPrime-Live", "PUPrime-Live 4",
+        "PUPrime-Live 5", "PUPrime-Live 6", "PUPrime-Live2",
+    }
+    assert set(by_name["VT Markets"]["servers"]) == {"VTMarkets-Demo", "VTMarkets-Live"}
+    assert by_name["Axi"]["servers"] == []
+    assert by_name["Axi"]["manual_server_allowed"] is True
+
+
 @pytest.mark.parametrize("error,code", [
     (PermissionError("included"), "already-active"),
     (ValueError("email"), "account-required"),

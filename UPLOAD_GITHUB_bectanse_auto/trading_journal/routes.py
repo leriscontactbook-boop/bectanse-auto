@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import os
+import re
+import secrets
+import string
 import threading
 import time
 from collections import defaultdict, deque
@@ -66,6 +69,147 @@ def _checkout_failure_code(error: Exception) -> str:
 
 def register_trading_journal(app, get_conn, get_member, login_required, admin_required=None):
     service = JournalService(get_conn, get_member, app.logger)
+
+    def mobile_session_payload(user_id: str, *, recovery_code: str | None = None) -> dict:
+        member = get_member(user_id) or {}
+        entitlements = service.entitlements(user_id)
+        profile = service.profile(user_id)
+        accounts = (
+            service.list_accounts(user_id, entitlements["max_accounts"])
+            if entitlements["allowed"] else []
+        )
+        full_name = str(member.get("nom") or "Trader").strip()[:120] or "Trader"
+        payload = {
+            "ok": True,
+            "authenticated": True,
+            "member": {
+                "name": full_name,
+                "first_name": full_name.split(" ", 1)[0],
+                "email": str(member.get("email") or "")[:254],
+                "access_level": str(member.get("access_level") or "member")[:40],
+            },
+            "profile": profile,
+            "entitlements": entitlements,
+            "accounts": accounts,
+        }
+        if recovery_code:
+            payload["recovery_code"] = recovery_code
+        return payload
+
+    def install_mobile_session(member: dict) -> None:
+        session.clear()
+        session.permanent = True
+        session["member_code"] = member["code"]
+        try:
+            conn = get_conn()
+            conn.run("UPDATE members SET last_login=NOW() WHERE code=:code", code=member["code"])
+            conn.close()
+        except Exception as error:
+            app.logger.warning("Mobile last-login update failed: %s", error)
+
+    @app.route("/api/mobile/auth/code", methods=["POST"])
+    @_rate_limited("mobile-code-login", 10, 15 * 60)
+    def mobile_code_login():
+        payload = request.get_json(silent=True) or {}
+        code = re.sub(r"\s+", "", str(payload.get("code") or "")).upper()[:64]
+        member = get_member(code) if code else None
+        if not member or code == "BCT-DEMO2026":
+            return jsonify({"ok": False, "error": "Code Bectanse invalide."}), 401
+        try:
+            install_mobile_session(member)
+            response = jsonify(mobile_session_payload(member["code"]))
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        except Exception as error:
+            app.logger.error("Mobile code login %s: %s", code, error)
+            session.clear()
+            return _api_error(error)
+
+    @app.route("/api/mobile/auth/trial", methods=["POST"])
+    @_rate_limited("mobile-trial", 3, 24 * 60 * 60)
+    def mobile_trial_start():
+        payload = request.get_json(silent=True) or {}
+        name = " ".join(str(payload.get("name") or "").strip().split())[:120]
+        email = str(payload.get("email") or "").strip().lower()[:254]
+        if len(name) < 2:
+            return jsonify({"ok": False, "error": "Indiquez votre nom."}), 400
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            return jsonify({"ok": False, "error": "Adresse e-mail invalide."}), 400
+        try:
+            conn = get_conn()
+        except Exception as error:
+            app.logger.error("Mobile trial database unavailable: %s", error)
+            return _api_error(error)
+        try:
+            conn.run("BEGIN")
+            if conn.run("SELECT 1 FROM members WHERE LOWER(email)=LOWER(:email) LIMIT 1", email=email):
+                conn.run("ROLLBACK")
+                return jsonify({
+                    "ok": False,
+                    "error": "Un accès existe déjà pour cette adresse. Connectez-vous avec votre code Bectanse.",
+                }), 409
+            code = ""
+            alphabet = string.ascii_uppercase + string.digits
+            for _ in range(20):
+                candidate = "BTT-" + "".join(secrets.choice(alphabet) for _ in range(10))
+                if not conn.run("SELECT 1 FROM members WHERE code=:code", code=candidate):
+                    code = candidate
+                    break
+            if not code:
+                raise RuntimeError("mobile_trial_code_generation_failed")
+            conn.run("""INSERT INTO members
+                (code,nom,capital,actif,copy_actif,date_souscription,date_fin,email,
+                 params,historique,access_level,email_verified_at)
+                VALUES (:code,:name,'—',FALSE,FALSE,NOW(),NOW(),:email,'{}','[]','journal',NOW())""",
+                code=code, name=name, email=email)
+            conn.run("""INSERT INTO trading_subscriptions
+                (user_id,product,plan,subscription_status,current_period_end)
+                VALUES (:code,'JOURNAL','JOURNAL_ELITE','trialing',NOW() + INTERVAL '7 days')""",
+                code=code)
+            conn.run("COMMIT")
+        except Exception as error:
+            try:
+                conn.run("ROLLBACK")
+            except Exception:
+                pass
+            app.logger.error("Mobile trial creation failed: %s", error)
+            return _api_error(error)
+        finally:
+            conn.close()
+        try:
+            member = get_member(code)
+            if not member:
+                raise LookupError("Le compte d’essai n’a pas pu être ouvert.")
+            install_mobile_session(member)
+            response = jsonify(mobile_session_payload(code, recovery_code=code))
+            response.status_code = 201
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        except Exception as error:
+            app.logger.error("Mobile trial session failed %s: %s", code, error)
+            session.clear()
+            return _api_error(error)
+
+    @app.route("/api/mobile/session", methods=["GET"])
+    def mobile_session():
+        user_id = str(session.get("member_code") or "")
+        if not user_id or not get_member(user_id):
+            session.clear()
+            return jsonify({"ok": True, "authenticated": False}), 401
+        try:
+            response = jsonify(mobile_session_payload(user_id))
+            response.headers["Cache-Control"] = "private, no-store"
+            return response
+        except Exception as error:
+            app.logger.error("Mobile session bootstrap %s: %s", user_id, error)
+            return _api_error(error)
+
+    @app.route("/api/mobile/logout", methods=["POST"])
+    def mobile_logout():
+        session.clear()
+        response = jsonify({"ok": True, "authenticated": False})
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.route("/journal")
     @login_required

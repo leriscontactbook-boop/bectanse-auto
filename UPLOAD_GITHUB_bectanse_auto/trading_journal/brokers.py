@@ -12,8 +12,31 @@ import os
 import re
 
 
+POPULAR_BROKERS = (
+    "Axi",
+    "Exness",
+    "FXS",
+    "PU Prime",
+    "Vantage",
+    "VT Markets",
+)
+
+
+# Only exact MT5 names published by the broker are seeded here. Axi, FXS and
+# Vantage explicitly assign/return the exact server in the client portal or the
+# account confirmation e-mail, so their entries intentionally start empty and
+# are enriched from successful Bectanse connections below.
 VERIFIED_SERVERS = {
     "Exness": {"Exness-MT5Real34"},
+    "PU Prime": {
+        "PUPrime-Demo",
+        "PUPrime-Live",
+        "PUPrime-Live 4",
+        "PUPrime-Live 5",
+        "PUPrime-Live 6",
+        "PUPrime-Live2",
+    },
+    "VT Markets": {"VTMarkets-Demo", "VTMarkets-Live"},
 }
 
 
@@ -50,7 +73,9 @@ def _configured_servers() -> dict[str, set[str]]:
 
 
 def build_broker_catalog(database_rows=()) -> list[dict]:
-    merged = {broker: set(servers) for broker, servers in VERIFIED_SERVERS.items()}
+    merged = {broker: set() for broker in POPULAR_BROKERS}
+    for broker, servers in VERIFIED_SERVERS.items():
+        merged.setdefault(broker, set()).update(servers)
     for broker, servers in _configured_servers().items():
         merged.setdefault(broker, set()).update(servers)
     for broker, server in database_rows:
@@ -60,7 +85,10 @@ def build_broker_catalog(database_rows=()) -> list[dict]:
         broker_name = str(broker or "").strip()[:80] or broker_name_from_server(server_name)
         merged.setdefault(broker_name, set()).add(server_name)
     return [
-        {"name": broker, "servers": sorted(servers, key=str.casefold)}
+        {
+            "name": broker,
+            "servers": sorted(servers, key=str.casefold),
+            "manual_server_allowed": True,
+        }
         for broker, servers in sorted(merged.items(), key=lambda row: row[0].casefold())
-        if servers
     ]
