@@ -158,11 +158,11 @@ private struct AccessExpiredView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text("ACCÈS SUSPENDU").font(.trackLabel(10)).tracking(2).foregroundStyle(Brand.orange)
-                Text("Vos données restent\nà leur place.")
+                Text("ACCÈS À ACTIVER").font(.trackLabel(10)).tracking(2).foregroundStyle(Brand.orange)
+                Text("Validez avec Apple\npour continuer.")
                     .font(.trackDisplay(38))
                     .tracking(-1.1)
-                Text("L’accès au journal et les synchronisations sont arrêtés tant qu’aucun abonnement Bectanse Académie ou Bectanse Track n’est actif.")
+                Text("Le journal et les synchronisations MT5 restent verrouillés tant qu’aucun abonnement Bectanse Académie ou Bectanse Track n’est actif.")
                     .foregroundStyle(Brand.secondaryText)
                     .lineSpacing(4)
                 VStack(alignment: .leading, spacing: 14) {
@@ -186,6 +186,10 @@ private struct StorePaywall: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("CONTINUER AVEC BECTANSE TRACK")
                 .font(.trackLabel(10)).tracking(1.7).foregroundStyle(Brand.orange)
+            Text("Apple valide le moyen de paiement avant de démarrer l’essai. Changer de téléphone ou d’adresse Bectanse ne renouvelle pas l’éligibilité du même identifiant Apple.")
+                .font(.caption)
+                .foregroundStyle(Brand.secondaryText)
+                .lineSpacing(3)
             if storeKit.isLoading {
                 ProgressView().tint(Brand.orange).frame(maxWidth: .infinity)
             }
@@ -197,7 +201,20 @@ private struct StorePaywall: View {
                         Text(item.price).font(.trackMetric(16)).foregroundStyle(Brand.orange)
                     }
                     Text(item.description).font(.caption).foregroundStyle(Brand.secondaryText)
-                    Text("Renouvellement mensuel automatique. Résiliable à tout moment dans votre compte Apple.")
+                    if item.isEligibleForFreeTrial, let duration = item.freeTrialDuration {
+                        Text("\(duration) offerts, puis \(item.price) par \(item.renewalPeriod).")
+                            .font(.caption)
+                            .foregroundStyle(Brand.orange)
+                    } else if item.hasFreeTrialOffer {
+                        Text("\(item.price) par \(item.renewalPeriod). Aucun nouvel essai disponible pour cet identifiant Apple.")
+                            .font(.caption)
+                            .foregroundStyle(Brand.secondaryText)
+                    } else {
+                        Text("\(item.price) par \(item.renewalPeriod). Offre d’essai non configurée dans l’App Store.")
+                            .font(.caption)
+                            .foregroundStyle(Brand.secondaryText)
+                    }
+                    Text("Renouvellement automatique. Résiliable à tout moment dans votre compte Apple.")
                         .font(.caption2).foregroundStyle(Brand.secondaryText)
                     Button {
                         Task { _ = await storeKit.purchase(item.id) }
@@ -207,7 +224,7 @@ private struct StorePaywall: View {
                             if storeKit.purchasingProductID == item.id {
                                 ProgressView().tint(.black)
                             } else {
-                                Text("S’abonner avec Apple")
+                                Text(item.isEligibleForFreeTrial ? "Commencer l’essai avec Apple" : "S’abonner avec Apple")
                             }
                             Spacer()
                         }

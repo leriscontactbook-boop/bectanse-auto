@@ -8,6 +8,10 @@ final class StoreKitManager: ObservableObject {
         let displayName: String
         let description: String
         let price: String
+        let hasFreeTrialOffer: Bool
+        let isEligibleForFreeTrial: Bool
+        let freeTrialDuration: String?
+        let renewalPeriod: String
         let product: Product
     }
 
@@ -56,24 +60,77 @@ final class StoreKitManager: ObservableObject {
         defer { isLoading = false }
         do {
             let loaded = try await Product.products(for: productIDs)
-            products = loaded
+            let subscriptions = loaded
                 .filter { $0.type == .autoRenewable }
                 .sorted { $0.price < $1.price }
-                .map {
-                    AppProduct(
-                        id: $0.id,
-                        displayName: $0.displayName,
-                        description: $0.description,
-                        price: $0.displayPrice,
-                        product: $0
-                    )
+            var catalog: [AppProduct] = []
+            for product in subscriptions {
+                let subscription = product.subscription
+                let introductoryOffer = subscription?.introductoryOffer
+                let hasFreeTrial = introductoryOffer?.paymentMode == .freeTrial
+                let isEligible: Bool
+                if hasFreeTrial, let subscription {
+                    isEligible = await subscription.isEligibleForIntroOffer
+                } else {
+                    isEligible = false
                 }
+                catalog.append(AppProduct(
+                    id: product.id,
+                    displayName: product.displayName,
+                    description: product.description,
+                    price: product.displayPrice,
+                    hasFreeTrialOffer: hasFreeTrial,
+                    isEligibleForFreeTrial: isEligible,
+                    freeTrialDuration: hasFreeTrial ? Self.durationText(for: introductoryOffer) : nil,
+                    renewalPeriod: Self.periodText(subscription?.subscriptionPeriod),
+                    product: product
+                ))
+            }
+            products = catalog
             if products.isEmpty {
                 statusMessage = "Les abonnements Apple sont en cours d’activation."
+            } else if !products.contains(where: { $0.hasFreeTrialOffer }) {
+                statusMessage = "L’offre d’essai de 7 jours n’est pas encore activée dans l’App Store."
+            } else if !products.contains(where: { $0.isEligibleForFreeTrial }) {
+                statusMessage = "Cet identifiant Apple n’est pas éligible à un nouvel essai gratuit. Vous pouvez vous abonner ou restaurer un achat existant."
             }
         } catch {
             products = []
             statusMessage = "Impossible de charger les abonnements Apple pour le moment."
+        }
+    }
+
+    private static func durationText(for offer: Product.SubscriptionOffer?) -> String? {
+        guard let offer else { return nil }
+        let count = offer.period.value * offer.periodCount
+        switch offer.period.unit {
+        case .day:
+            return count == 1 ? "1 jour" : "\(count) jours"
+        case .week:
+            if count == 1 { return "7 jours" }
+            return "\(count) semaines"
+        case .month:
+            return count == 1 ? "1 mois" : "\(count) mois"
+        case .year:
+            return count == 1 ? "1 an" : "\(count) ans"
+        @unknown default:
+            return nil
+        }
+    }
+
+    private static func periodText(_ period: Product.SubscriptionPeriod?) -> String {
+        guard let period else { return "période" }
+        switch period.unit {
+        case .day:
+            return period.value == 1 ? "jour" : "\(period.value) jours"
+        case .week:
+            return period.value == 1 ? "semaine" : "\(period.value) semaines"
+        case .month:
+            return period.value == 1 ? "mois" : "\(period.value) mois"
+        case .year:
+            return period.value == 1 ? "an" : "\(period.value) ans"
+        @unknown default:
+            return "période"
         }
     }
 

@@ -149,6 +149,9 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             return _api_error(error)
         try:
             conn.run("BEGIN")
+            # Serialize registrations for the same normalized address so two
+            # simultaneous requests cannot create duplicate standalone users.
+            conn.run("SELECT pg_advisory_xact_lock(hashtext(LOWER(:email)))", email=email)
             if conn.run("SELECT 1 FROM members WHERE LOWER(email)=LOWER(:email) LIMIT 1", email=email):
                 conn.run("ROLLBACK")
                 return jsonify({
@@ -167,12 +170,15 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
             conn.run("""INSERT INTO members
                 (code,nom,capital,actif,copy_actif,date_souscription,date_fin,email,
                  params,historique,access_level,email_verified_at)
-                VALUES (:code,:name,'—',FALSE,FALSE,NOW(),NOW(),:email,'{}','[]','journal',NOW())""",
+                VALUES (:code,:name,'—',FALSE,FALSE,NOW(),NOW(),:email,'{}','[]','journal',NULL)""",
                 code=code, name=name, email=email)
             conn.run("""INSERT INTO trading_subscriptions
-                (user_id,product,plan,subscription_status,current_period_end)
-                VALUES (:code,'JOURNAL','JOURNAL_ELITE','trialing',NOW() + INTERVAL '7 days')""",
+                (user_id,product,plan,subscription_status,current_period_end,billing_provider)
+                VALUES (:code,'JOURNAL','JOURNAL_ELITE','inactive',NULL,'apple')""",
                 code=code)
+            conn.run("""INSERT INTO trading_audit_logs (user_id,action,metadata)
+                VALUES (:code,'APPLE_TRIAL_ACCOUNT_CREATED',jsonb_build_object(
+                    'access_granted',FALSE,'payment_required',TRUE))""", code=code)
             conn.run("COMMIT")
         except Exception as error:
             try:
@@ -186,7 +192,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         try:
             member = get_member(code)
             if not member:
-                raise LookupError("Le compte d’essai n’a pas pu être ouvert.")
+                raise LookupError("Le compte Bectanse Track n’a pas pu être ouvert.")
             install_mobile_session(member)
             response = jsonify(mobile_session_payload(code, recovery_code=code))
             response.status_code = 201

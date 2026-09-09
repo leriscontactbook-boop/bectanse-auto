@@ -75,14 +75,14 @@ struct AuthenticationView: View {
                                 Task { await store.startTrial(name: name, email: email) }
                             } label: {
                                 HStack {
-                                    Text(store.isLoading ? "Création en cours" : "Commencer gratuitement")
+                                    Text(store.isLoading ? "Création en cours" : "Continuer vers Apple")
                                     Spacer()
                                     Image(systemName: "arrow.right")
                                 }
                             }
                             .buttonStyle(PrimaryButtonStyle())
                             .disabled(name.count < 2 || !email.contains("@") || store.isLoading)
-                            Text("7 jours complets. Un seul essai par personne. L’accès se ferme automatiquement à la fin de la période si aucun abonnement n’est actif.")
+                            Text("Ce formulaire ne donne aucun accès. L’essai de 7 jours démarre uniquement après confirmation de l’abonnement et du moyen de paiement par Apple. Un seul essai est accordé par identifiant Apple et groupe d’abonnements.")
                                 .font(TrackType.body(12))
                                 .foregroundStyle(Brand.secondaryText)
                                 .lineSpacing(3)

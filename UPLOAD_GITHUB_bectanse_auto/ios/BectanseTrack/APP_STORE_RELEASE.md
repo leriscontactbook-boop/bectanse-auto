@@ -5,7 +5,7 @@
 - Bundle ID: `com.bectanse.track`
 - Apple team: `72C5MFHM2S`
 - Version: `1.0`
-- Build: `1`
+- Build: `3`
 - Category: Finance
 - Minimum iOS: 17.0
 
@@ -17,9 +17,17 @@ and prevents simultaneous subscriptions:
 - `com.bectanse.track.pro.monthly` → `JOURNAL_PRO`
 - `com.bectanse.track.elite.monthly` → `JOURNAL_ELITE`
 
-Configure any seven-day introductory offer in App Store Connect. Prices and
-localized product descriptions remain App Store catalog data and are never
-hardcoded in the app.
+Configure a seven-day free introductory offer for the subscription group in
+App Store Connect. StoreKit checks the Apple Account's introductory-offer
+eligibility before the paywall advertises the trial. The app creates only a
+locked profile before purchase; Journal access starts solely after the server
+has verified Apple's signed transaction. Prices and localized product
+descriptions remain App Store catalog data and are never hardcoded in the app.
+
+Changing iPhone or the e-mail entered in Bectanse Track does not reset the
+introductory offer for the same Apple Account. The backend also uniquely binds
+the original Apple transaction and every received transaction to one Bectanse
+profile, preventing purchase reuse between profiles.
 
 ## Server configuration
 

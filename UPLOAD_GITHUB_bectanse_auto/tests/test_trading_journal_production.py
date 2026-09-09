@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from trading_journal import apple_iap
 from trading_journal.calculations import (
     calculate_daily_pnl,
     calculate_monthly_pnl,
@@ -40,6 +41,86 @@ from trading_journal.routes import _checkout_failure_code
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_mobile_registration_cannot_grant_a_trial_without_apple():
+    routes = (ROOT / "trading_journal" / "routes.py").read_text()
+    start = routes.index('    @app.route("/api/mobile/auth/trial"')
+    end = routes.index('    @app.route("/api/mobile/session"', start)
+    registration = routes[start:end]
+
+    assert "pg_advisory_xact_lock" in registration
+    assert "'inactive',NULL,'apple'" in registration
+    assert "'access_granted',FALSE" in registration
+    assert "INTERVAL '7 days'" not in registration
+    assert "'trialing'" not in registration
+
+
+class _AppleOwnershipConnection:
+    def __init__(self, owner_rows):
+        self.owner_rows = owner_rows
+        self.queries = []
+
+    def run(self, query, **params):
+        compact = " ".join(query.split())
+        self.queries.append((compact, params))
+        if compact.startswith("SELECT user_id,app_account_token FROM trading_apple_accounts"):
+            return self.owner_rows
+        if compact.startswith("SELECT billing_provider,subscription_status,current_period_end"):
+            return [("apple", "inactive", None)]
+        return []
+
+    def close(self):
+        pass
+
+
+def _apple_transaction(*, token, original_id="original-1", transaction_id="transaction-1"):
+    return type("VerifiedAppleTransaction", (), {
+        "productId": "com.bectanse.track.elite.monthly",
+        "transactionId": transaction_id,
+        "originalTransactionId": original_id,
+        "appAccountToken": token,
+        "expiresDate": int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp() * 1000),
+        "revocationDate": None,
+        "environment": type("Environment", (), {"value": "Sandbox"})(),
+        "rawEnvironment": "Sandbox",
+    })()
+
+
+def test_verified_apple_purchase_is_bound_to_one_bectanse_profile(monkeypatch):
+    token = "11111111-1111-1111-1111-111111111111"
+    connection = _AppleOwnershipConnection([("BTT-OWNER", token)])
+    monkeypatch.setattr(apple_iap, "reconcile_trading_access", lambda *_args, **_kwargs: {"allowed": True})
+
+    result = apple_iap.apply_verified_transaction(
+        lambda: connection, "BTT-OWNER", _apple_transaction(token=token),
+    )
+
+    assert result["status"] == "active"
+    writes = "\n".join(query for query, _ in connection.queries)
+    assert "original_transaction_id=:original_id" in writes
+    assert "last_transaction_id=:transaction_id" in writes
+    assert "APPLE_SUBSCRIPTION_CHANGED" in writes
+    assert any(query == "COMMIT" for query, _ in connection.queries)
+
+
+def test_verified_apple_purchase_cannot_be_reused_by_another_profile(monkeypatch):
+    owner_token = "11111111-1111-1111-1111-111111111111"
+    attacker_token = "22222222-2222-2222-2222-222222222222"
+    connection = _AppleOwnershipConnection([
+        ("BTT-ATTACKER", attacker_token),
+        ("BTT-OWNER", owner_token),
+    ])
+    monkeypatch.setattr(apple_iap, "reconcile_trading_access", lambda *_args, **_kwargs: {"allowed": True})
+
+    with pytest.raises(PermissionError, match="déjà rattaché"):
+        apple_iap.apply_verified_transaction(
+            lambda: connection,
+            "BTT-ATTACKER",
+            _apple_transaction(token=attacker_token),
+        )
+
+    assert any(query == "ROLLBACK" for query, _ in connection.queries)
 
 
 def test_journal_browser_never_reuses_stale_api_payloads_and_polls_quickly():
