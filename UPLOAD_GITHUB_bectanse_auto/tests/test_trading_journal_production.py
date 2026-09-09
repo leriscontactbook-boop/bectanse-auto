@@ -194,6 +194,35 @@ def test_coach_review_has_required_contract_and_insufficient_copy():
     assert set(result) >= {"score", "detectors", "insights", "summary", "period"}
 
 
+def test_coach_weekly_and_monthly_compare_complete_previous_periods():
+    previous_entry = row(1, 8, position=701, entry="IN")
+    previous_exit = row(2, 9, position=701, entry="OUT", kind="SELL", profit="-20")
+    current_entry = row(3, 8, position=702, entry="IN")
+    current_exit = row(4, 9, position=702, entry="OUT", kind="SELL", profit="50")
+    previous_entry["executed_at"] = datetime(2026, 7, 30, 8, tzinfo=timezone.utc)
+    previous_exit["executed_at"] = datetime(2026, 7, 30, 9, tzinfo=timezone.utc)
+    current_entry["executed_at"] = datetime(2026, 8, 4, 8, tzinfo=timezone.utc)
+    current_exit["executed_at"] = datetime(2026, 8, 4, 9, tzinfo=timezone.utc)
+    deals = [previous_entry, previous_exit, current_entry, current_exit]
+    now = datetime(2026, 8, 4, 12, tzinfo=timezone.utc)
+
+    weekly = review(deals, "UTC", "weekly", now=now)
+    monthly = review(deals, "UTC", "monthly", now=now)
+
+    assert weekly["period_performance"] == {
+        "net_pnl": 50.0, "trades": 1, "previous_net_pnl": -20.0,
+        "pnl_change": 70.0, "previous_trades": 1,
+    }
+    assert monthly["period_performance"] == weekly["period_performance"]
+
+
+def test_live_trading_views_explicitly_disable_http_caching():
+    routes = (ROOT / "trading_journal" / "routes.py").read_text()
+    assert '"private, no-store, max-age=0"' in routes
+    assert "return live_json({\"ok\": True, **service.day" in routes
+    assert "return live_json({\"ok\": True, **coach_review" in routes
+
+
 def test_coach_detects_verified_positions_without_stop_loss():
     events = [{"trading_account_id": 1, "entity_id": index,
                "event_type": "POSITION_OPENED", "current_state": {"sl": "0", "type": "BUY"}}

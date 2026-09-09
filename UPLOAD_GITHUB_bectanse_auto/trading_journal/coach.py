@@ -321,8 +321,14 @@ def review(deals: list[dict], timezone_name: str, review_type: str, now: datetim
         raise ValueError("Type de revue Coach invalide.")
     all_trades = reconstruct_positions(deals)
     period_trades = [trade for trade in all_trades if start <= trade["closed_at"].astimezone(tz) <= local_now]
-    previous_start = start - (local_now - start if review_type != "daily" else timedelta(days=1))
     previous_end = start
+    if review_type == "daily":
+        previous_start = start - timedelta(days=1)
+    elif review_type == "weekly":
+        previous_start = start - timedelta(days=7)
+    else:
+        previous_month_last_day = start - timedelta(days=1)
+        previous_start = previous_month_last_day.replace(day=1)
     previous_trades = [trade for trade in all_trades if previous_start <= trade["closed_at"].astimezone(tz) < previous_end]
     # Detectors use the rolling history ending now so daily reviews remain useful
     # while every financial figure in the period summary stays period-bound.

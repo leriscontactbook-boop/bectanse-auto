@@ -62,6 +62,8 @@ extension AppStore {
         trades = [
             Trade(positionId: 1, symbol: "XAUUSD", direction: "BUY", volume: 0.10, entryPrice: 4394.15, exitPrice: 4402.80, openedAt: "2026-09-09T08:11:00+02:00", closedAt: "2026-09-09T09:02:00+02:00", durationSeconds: 3060, netPnl: 86.50, fees: -2.10, deals: 2),
             Trade(positionId: 2, symbol: "EURUSD", direction: "SELL", volume: 0.35, entryPrice: 1.1824, exitPrice: 1.1840, openedAt: "2026-09-08T14:20:00+02:00", closedAt: "2026-09-08T15:05:00+02:00", durationSeconds: 2700, netPnl: -56.00, fees: -1.20, deals: 2),
+            Trade(positionId: 3, symbol: "XAUUSD", direction: "SELL", volume: 0.15, entryPrice: 4412.20, exitPrice: 4401.63, openedAt: "2026-09-09T10:04:00+02:00", closedAt: "2026-09-09T10:47:00+02:00", durationSeconds: 2580, netPnl: 158.50, fees: -2.40, deals: 2),
+            Trade(positionId: 4, symbol: "GBPUSD", direction: "BUY", volume: 0.20, entryPrice: 1.3524, exitPrice: 1.3509, openedAt: "2026-09-09T11:15:00+02:00", closedAt: "2026-09-09T11:54:00+02:00", durationSeconds: 2340, netPnl: -30.00, fees: -1.10, deals: 2),
         ]
         tradeCurrency = "EUR"
         let analyticsRows = [
@@ -74,6 +76,9 @@ extension AppStore {
         )
         coach = CoachResponse(
             ok: true, reviewType: "daily",
+            period: CoachPeriod(type: "daily", from: "2026-09-09T00:00:00+02:00", to: "2026-09-09T12:00:00+02:00"),
+            sample: CoachSample(periodTrades: 3, rollingTrades: 157, minimumForPatterns: 20),
+            periodPerformance: CoachPeriodPerformance(netPnl: 215, trades: 3, previousNetPnl: -530, pnlChange: 745, previousTrades: 8),
             score: CoachScore(
                 available: true, minimumTrades: 20, sampleSize: 157, score: 82,
                 components: ["discipline": 78, "risk": 84, "consistency": 75, "execution": 88, "timing": 85]
@@ -85,6 +90,55 @@ extension AppStore {
                 recommendation: "Conservez la même limite de risque lors de la prochaine session.",
                 confidence: 0.91, pattern: "POSITION_SIZE_CONSISTENCY", severity: "MEDIUM", sampleSize: 42
             )],
+            summary: CoachSummary(mainImprovement: "Attendez 30 minutes après deux pertes consécutives avant toute nouvelle décision."),
+            dataSufficiency: "SUFFICIENT",
+            telemetry: CoachTelemetry(eventsAnalyzed: 326, externalApiCost: 0)
+        )
+    }
+
+    func uiTestTradingDay(_ date: String) -> TradingDayResponse {
+        let matching = trades.filter { String($0.closedAt.prefix(10)) == date }
+        let netPnl = matching.reduce(0) { $0 + $1.netPnl }
+        let wins = matching.filter { $0.netPnl > 0 }.count
+        let losses = matching.filter { $0.netPnl < 0 }.count
+        let grossProfit = matching.filter { $0.netPnl > 0 }.reduce(0) { $0 + $1.netPnl }
+        let grossLoss = matching.filter { $0.netPnl < 0 }.reduce(0) { $0 + $1.netPnl }
+        return TradingDayResponse(
+            ok: true, date: date, currency: tradeCurrency, timezone: profile.timezone,
+            summary: TradingDaySummary(
+                netPnl: netPnl, trades: matching.count, deals: matching.count * 2,
+                wins: wins, losses: losses,
+                winRate: matching.isEmpty ? 0 : Double(wins) / Double(matching.count) * 100,
+                volume: matching.reduce(0) { $0 + $1.volume },
+                grossProfit: grossProfit, grossLoss: grossLoss,
+                fees: matching.reduce(0) { $0 + $1.fees },
+                profitFactor: grossLoss == 0 ? nil : grossProfit / abs(grossLoss),
+                dataComplete: true
+            ),
+            trades: matching
+        )
+    }
+
+    func uiTestCoach(_ review: String) -> CoachResponse {
+        let values: (net: Double, trades: Int, previous: Double, previousTrades: Int, from: String)
+        switch review {
+        case "weekly": values = (864, 35, 421, 18, "2026-09-07T00:00:00+02:00")
+        case "monthly": values = (4826.40, 157, 3110, 126, "2026-09-01T00:00:00+02:00")
+        default: values = (215, 3, -530, 8, "2026-09-09T00:00:00+02:00")
+        }
+        return CoachResponse(
+            ok: true, reviewType: review,
+            period: CoachPeriod(type: review, from: values.from, to: "2026-09-09T12:00:00+02:00"),
+            sample: CoachSample(periodTrades: values.trades, rollingTrades: 157, minimumForPatterns: 20),
+            periodPerformance: CoachPeriodPerformance(
+                netPnl: values.net, trades: values.trades, previousNetPnl: values.previous,
+                pnlChange: values.net - values.previous, previousTrades: values.previousTrades
+            ),
+            score: CoachScore(
+                available: true, minimumTrades: 20, sampleSize: 157, score: 82,
+                components: ["discipline": 78, "risk": 84, "consistency": 75, "execution": 88, "timing": 85]
+            ),
+            insights: coach?.insights ?? [],
             summary: CoachSummary(mainImprovement: "Attendez 30 minutes après deux pertes consécutives avant toute nouvelle décision."),
             dataSufficiency: "SUFFICIENT",
             telemetry: CoachTelemetry(eventsAnalyzed: 326, externalApiCost: 0)

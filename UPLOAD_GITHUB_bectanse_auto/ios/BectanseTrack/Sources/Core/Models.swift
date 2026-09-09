@@ -155,6 +155,30 @@ struct TradingDay: Decodable, Identifiable {
     var id: String { date }
 }
 
+struct TradingDayResponse: Decodable {
+    let ok: Bool
+    let date: String
+    let currency: String
+    let timezone: String
+    let summary: TradingDaySummary
+    let trades: [Trade]
+}
+
+struct TradingDaySummary: Decodable {
+    let netPnl: Double
+    let trades: Int
+    let deals: Int
+    let wins: Int
+    let losses: Int
+    let winRate: Double
+    let volume: Double
+    let grossProfit: Double
+    let grossLoss: Double
+    let fees: Double
+    let profitFactor: Double?
+    let dataComplete: Bool
+}
+
 struct DataQuality: Decodable {
     let complete: Bool
     let unmatchedClosedPositions: Int
@@ -221,11 +245,34 @@ struct AnalyticsRow: Decodable, Identifiable {
 struct CoachResponse: Decodable {
     let ok: Bool
     let reviewType: String
+    let period: CoachPeriod?
+    let sample: CoachSample?
+    let periodPerformance: CoachPeriodPerformance?
     let score: CoachScore
     let insights: [CoachInsight]
     let summary: CoachSummary
     let dataSufficiency: String
     let telemetry: CoachTelemetry
+}
+
+struct CoachPeriod: Decodable {
+    let type: String
+    let from: String
+    let to: String
+}
+
+struct CoachSample: Decodable {
+    let periodTrades: Int
+    let rollingTrades: Int
+    let minimumForPatterns: Int
+}
+
+struct CoachPeriodPerformance: Decodable {
+    let netPnl: Double
+    let trades: Int
+    let previousNetPnl: Double
+    let pnlChange: Double
+    let previousTrades: Int
 }
 
 struct CoachScore: Decodable {

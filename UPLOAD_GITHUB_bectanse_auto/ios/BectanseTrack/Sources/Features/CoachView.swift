@@ -9,7 +9,14 @@ struct CoachView: View {
             VStack(alignment: .leading, spacing: 18) {
                 SectionHeading(eyebrow: "Analyste privé", title: "Bectanse Coach", trailing: "Analyse déterministe")
                 reviewSelector
-                if let coach = store.coach {
+                if let error = store.coachLoadError {
+                    EmptyPanel(title: "Analyse indisponible", message: error)
+                    Button("Réessayer") { Task { await store.loadCoach(review) } }
+                        .buttonStyle(PrimaryButtonStyle())
+                } else if store.isLoadingCoach || store.coach?.reviewType != review {
+                    LoadingPanel()
+                } else if let coach = store.coach {
+                    periodPanel(coach)
                     scorePanel(coach)
                     improvement(coach)
                     if coach.insights.isEmpty {
@@ -29,9 +36,7 @@ struct CoachView: View {
             .padding(.bottom, 18)
         }
         .scrollIndicators(.hidden)
-        .task {
-            if store.coach == nil { await store.loadCoach(review) }
-        }
+        .task(id: review) { await store.loadCoach(review) }
     }
 
     private var reviewSelector: some View {
@@ -48,7 +53,6 @@ struct CoachView: View {
             guard enabled else { return }
             Tactile.selection()
             review = value
-            Task { await store.loadCoach(value) }
         } label: {
             VStack(spacing: 6) {
                 Text(label)
@@ -63,6 +67,77 @@ struct CoachView: View {
         }
         .buttonStyle(TactileCardButtonStyle())
         .disabled(!enabled)
+        .accessibilityAddTraits(review == value ? .isSelected : [])
+        .accessibilityValue(enabled ? "Disponible" : "Non inclus dans cette formule")
+    }
+
+    private func periodPanel(_ coach: CoachResponse) -> some View {
+        let performance = coach.periodPerformance
+        let currency = store.overview?.stats.currency ?? "EUR"
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("BILAN \(reviewLabel.uppercased())")
+                        .font(.trackLabel(8.5))
+                        .tracking(1.35)
+                        .foregroundStyle(Brand.orange)
+                    Text(periodRange(coach.period))
+                        .font(TrackType.body(12))
+                        .foregroundStyle(Brand.secondaryText)
+                }
+                Spacer()
+                if store.isLoadingCoach {
+                    ProgressView().tint(Brand.orange)
+                }
+            }
+            HStack(spacing: 0) {
+                CoachPeriodMetric(
+                    label: "P&L NET",
+                    value: TrackFormat.money(performance?.netPnl ?? 0, currency: currency, signed: true),
+                    color: (performance?.netPnl ?? 0) >= 0 ? Brand.positive : Brand.negative
+                )
+                Rectangle().fill(Brand.line).frame(width: 1, height: 46)
+                CoachPeriodMetric(label: "POSITIONS", value: "\(performance?.trades ?? 0)")
+                Rectangle().fill(Brand.line).frame(width: 1, height: 46)
+                CoachPeriodMetric(
+                    label: "ÉVOLUTION",
+                    value: TrackFormat.money(performance?.pnlChange ?? 0, currency: currency, signed: true),
+                    color: (performance?.pnlChange ?? 0) >= 0 ? Brand.positive : Brand.negative
+                )
+            }
+            Text("Comparaison avec \(previousPeriodLabel) · \(performance?.previousTrades ?? 0) positions")
+                .font(TrackType.body(11))
+                .foregroundStyle(Brand.mutedText)
+        }
+        .trackCard(padding: 16, highlighted: true)
+    }
+
+    private var reviewLabel: String {
+        switch review {
+        case "weekly": "de la semaine"
+        case "monthly": "du mois"
+        default: "d’aujourd’hui"
+        }
+    }
+
+    private var previousPeriodLabel: String {
+        switch review {
+        case "weekly": "la semaine précédente"
+        case "monthly": "le mois précédent"
+        default: "la journée précédente"
+        }
+    }
+
+    private func periodRange(_ period: CoachPeriod?) -> String {
+        guard let period,
+              let start = ISO8601DateFormatter().date(from: period.from),
+              let end = ISO8601DateFormatter().date(from: period.to)
+        else { return "Données MT5 vérifiées" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.dateFormat = review == "daily" ? "d MMMM yyyy" : "d MMM"
+        if review == "daily" { return formatter.string(from: end).uppercased() }
+        return "\(formatter.string(from: start)) — \(formatter.string(from: end))".uppercased()
     }
 
     private func scorePanel(_ coach: CoachResponse) -> some View {
@@ -128,6 +203,31 @@ struct CoachView: View {
          ("execution", "Exécution"), ("timing", "Timing")]
     }
 }
+
+private struct CoachPeriodMetric: View {
+    let label: String
+    let value: String
+    var color: Color = Brand.primaryText
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.trackLabel(7))
+                .tracking(0.8)
+                .foregroundStyle(Brand.mutedText)
+                .lineLimit(1)
+            Text(value)
+                .font(.trackMetric(15))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .contentTransition(.numericText())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+    }
+}
+
 private struct ScoreBar: View {
     let label: String
     let value: Double

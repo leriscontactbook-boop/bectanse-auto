@@ -424,6 +424,11 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         timezone_name = str(request.args.get("timezone") or service.profile(session["member_code"])["timezone"])
         return scope, timezone_name
 
+    def live_json(payload):
+        response = jsonify(payload)
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
+        return response
+
     @app.route("/api/trading/calendar", methods=["GET"])
     @app.route("/trading/calendar", methods=["GET"])
     @login_required
@@ -431,7 +436,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         try:
             scope, timezone_name = query_context()
             month = str(request.args.get("month") or time.strftime("%Y-%m"))
-            return jsonify({"ok": True, **service.calendar(session["member_code"], scope, month, timezone_name)})
+            return live_json({"ok": True, **service.calendar(session["member_code"], scope, month, timezone_name)})
         except Exception as error:
             return _api_error(error)
 
@@ -441,7 +446,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     def trading_day(date_value):
         try:
             scope, timezone_name = query_context()
-            return jsonify({"ok": True, **service.day(session["member_code"], scope, date_value, timezone_name)})
+            return live_json({"ok": True, **service.day(session["member_code"], scope, date_value, timezone_name)})
         except Exception as error:
             return _api_error(error)
 
@@ -465,7 +470,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
                 "ok": True,
                 **service.overview(session["member_code"], scope, month, timezone_name),
             })
-            response.headers["Cache-Control"] = "private, no-cache"
+            response.headers["Cache-Control"] = "private, no-store, max-age=0"
             return response
         except Exception as error:
             return _api_error(error)
@@ -499,7 +504,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     def trading_trades():
         try:
             scope, timezone_name = query_context()
-            return jsonify({"ok": True, **service.trades(
+            return live_json({"ok": True, **service.trades(
                 session["member_code"], scope, timezone_name, request.args.get("limit", 100)
             )})
         except Exception as error:
@@ -534,7 +539,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
                 behavior_events = service._fetch_behavior_events(conn, account_ids, start)
             finally:
                 conn.close()
-            return jsonify({"ok": True, **coach_review(
+            return live_json({"ok": True, **coach_review(
                 deals, timezone_name, review_type, behavior_events=behavior_events
             )})
         except Exception as error:

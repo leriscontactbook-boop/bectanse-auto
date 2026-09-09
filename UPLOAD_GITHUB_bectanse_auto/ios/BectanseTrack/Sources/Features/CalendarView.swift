@@ -4,6 +4,7 @@ struct CalendarView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedDate: String?
+    @State private var presentedDay: CalendarDaySelection?
     @State private var appeared = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
@@ -46,6 +47,10 @@ struct CalendarView: View {
             withAnimation(reduceMotion ? nil : .easeOut(duration: 0.34)) { appeared = true }
         }
         .onChange(of: store.calendar?.month) { _, _ in selectTodayIfAvailable() }
+        .fullScreenCover(item: $presentedDay) { selection in
+            TradingDayHistoryView(date: selection.date)
+                .environmentObject(store)
+        }
     }
 
     private var monthHeader: some View {
@@ -182,14 +187,13 @@ struct CalendarView: View {
                     CalendarCell(
                         cell: cell,
                         currency: payload.currency,
-                        selected: cell.data?.date == selectedDate,
-                        today: cell.data?.date == Self.todayKey
+                        selected: cell.date == selectedDate,
+                        today: cell.date == Self.todayKey
                     ) {
-                        guard let date = cell.data?.date else { return }
+                        guard let date = cell.date else { return }
                         Tactile.selection()
-                        withAnimation(reduceMotion ? nil : Brand.Motion.spring) {
-                            selectedDate = selectedDate == date ? nil : date
-                        }
+                        selectedDate = date
+                        presentedDay = CalendarDaySelection(date: date)
                     }
                 }
             }
@@ -201,22 +205,31 @@ struct CalendarView: View {
     }
 
     private func selectedDayPanel(_ day: TradingDay, currency: String) -> some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(dayTitle(day.date))
-                    .font(.trackLabel(9))
-                    .tracking(1.2)
-                    .foregroundStyle(Brand.secondaryText)
-                Text(TrackFormat.money(day.netPnl, currency: currency, signed: true))
-                    .font(.trackMetric(24))
-                    .foregroundStyle(day.netPnl >= 0 ? Brand.positive : Brand.negative)
-                    .contentTransition(.numericText())
+        Button {
+            presentedDay = CalendarDaySelection(date: day.date)
+        } label: {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(dayTitle(day.date))
+                        .font(.trackLabel(9))
+                        .tracking(1.2)
+                        .foregroundStyle(Brand.secondaryText)
+                    Text(TrackFormat.money(day.netPnl, currency: currency, signed: true))
+                        .font(.trackMetric(24))
+                        .foregroundStyle(day.netPnl >= 0 ? Brand.positive : Brand.negative)
+                        .contentTransition(.numericText())
+                }
+                Spacer()
+                DayFact(label: "POSITIONS", value: "\(day.trades)")
+                DayFact(label: "G / P", value: "\(day.wins) / \(day.losses)")
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Brand.orange)
             }
-            Spacer()
-            DayFact(label: "POSITIONS", value: "\(day.trades)")
-            DayFact(label: "G / P", value: "\(day.wins) / \(day.losses)")
+            .trackCard(padding: 16, highlighted: true)
         }
-        .trackCard(padding: 16, highlighted: true)
+        .buttonStyle(TactileCardButtonStyle())
+        .accessibilityLabel("Voir les positions du \(dayTitle(day.date))")
     }
 
     private func buildCells(_ payload: CalendarPayload) -> [DayCell] {
@@ -248,7 +261,7 @@ struct CalendarView: View {
     private static let monthParser: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM"; return f
     }()
-    private static let dayParser: DateFormatter = {
+    fileprivate static let dayParser: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; return f
     }()
     private static let todayKey: String = dayParser.string(from: Date())
@@ -296,6 +309,11 @@ private struct DayCell {
     static let empty = DayCell(day: nil, date: nil, data: nil)
 }
 
+private struct CalendarDaySelection: Identifiable {
+    let date: String
+    var id: String { date }
+}
+
 private struct CalendarCell: View {
     let cell: DayCell
     let currency: String
@@ -333,15 +351,15 @@ private struct CalendarCell: View {
             .background(background)
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(selected ? Brand.orange : today ? Brand.orange.opacity(0.55) : Brand.line.opacity(0.55), lineWidth: selected ? 1.25 : 0.6)
+                    .stroke(selected ? Brand.orange : Brand.line.opacity(0.55), lineWidth: selected ? 1.25 : 0.6)
             }
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .shadow(color: selected ? Brand.orange.opacity(0.14) : .clear, radius: 8)
         }
         .buttonStyle(TactileCardButtonStyle())
-        .disabled(cell.day == nil)
-        .accessibilityElement(children: .ignore)
+        .disabled(cell.date == nil)
         .accessibilityLabel(accessibilityText)
+        .accessibilityHint("Ouvre l’historique des positions de cette journée")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
@@ -365,5 +383,152 @@ private struct CalendarCell: View {
         guard let day = cell.day else { return "Hors du mois" }
         guard let data = cell.data else { return "Jour \(day), aucune position" }
         return "Jour \(day), \(data.trades) positions, \(TrackFormat.money(data.netPnl, currency: currency, signed: true))"
+    }
+}
+
+private struct TradingDayHistoryView: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.dismiss) private var dismiss
+    let date: String
+
+    @State private var response: TradingDayResponse?
+    @State private var errorMessage: String?
+    @State private var isLoading = true
+
+    var body: some View {
+        ZStack {
+            Brand.background.ignoresSafeArea()
+            VStack(spacing: 0) {
+                header
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if isLoading {
+                            LoadingPanel()
+                        } else if let response {
+                            daySummary(response)
+                            SectionHeading(
+                                eyebrow: "Historique vérifié",
+                                title: "Positions clôturées",
+                                trailing: "\(response.trades.count)"
+                            )
+                            if response.trades.isEmpty {
+                                EmptyPanel(
+                                    title: "Aucune position clôturée",
+                                    message: "Aucun résultat MT5 vérifié n’est enregistré pour cette journée."
+                                )
+                            } else {
+                                ForEach(response.trades) { trade in
+                                    TradeRow(trade: trade, currency: response.currency, showsPrices: true)
+                                }
+                            }
+                        } else {
+                            EmptyPanel(
+                                title: "Historique indisponible",
+                                message: errorMessage ?? "Les données de cette journée n’ont pas pu être chargées."
+                            )
+                            Button("Réessayer") { Task { await load() } }
+                                .buttonStyle(PrimaryButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 18)
+                    .padding(.bottom, 28)
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+        .task(id: date) { await load() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("JOURNAL DE LA JOURNÉE")
+                    .font(.trackLabel(8))
+                    .tracking(1.5)
+                    .foregroundStyle(Brand.orange)
+                Text(dayTitle)
+                    .font(.trackDisplay(22))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            Spacer()
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 40, height: 40)
+                    .foregroundStyle(Brand.primaryText)
+                    .background(Brand.surface)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Brand.lineStrong, lineWidth: 0.75))
+            }
+            .buttonStyle(TactileCardButtonStyle())
+            .accessibilityLabel("Fermer l’historique")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Brand.backgroundElevated)
+        .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
+    }
+
+    private func daySummary(_ payload: TradingDayResponse) -> some View {
+        let summary = payload.summary
+        return VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("P&L NET")
+                    .font(.trackLabel(8)).tracking(1.2).foregroundStyle(Brand.secondaryText)
+                Text(TrackFormat.money(summary.netPnl, currency: payload.currency, signed: true))
+                    .font(.trackMetric(34))
+                    .foregroundStyle(summary.netPnl >= 0 ? Brand.positive : Brand.negative)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+            }
+            Rectangle().fill(Brand.line).frame(height: 1)
+            HStack(spacing: 0) {
+                SummaryDatum(label: "POSITIONS", value: "\(summary.trades)")
+                Rectangle().fill(Brand.line).frame(width: 1, height: 42)
+                SummaryDatum(label: "WIN RATE", value: TrackFormat.percent(summary.winRate))
+                Rectangle().fill(Brand.line).frame(width: 1, height: 42)
+                SummaryDatum(label: "VOLUME", value: summary.volume.formatted(.number.precision(.fractionLength(2))))
+            }
+            Rectangle().fill(Brand.line).frame(height: 1)
+            HStack(spacing: 0) {
+                SummaryDatum(label: "GAINS", value: "\(summary.wins)")
+                Rectangle().fill(Brand.line).frame(width: 1, height: 42)
+                SummaryDatum(label: "PERTES", value: "\(summary.losses)")
+                Rectangle().fill(Brand.line).frame(width: 1, height: 42)
+                SummaryDatum(label: "FRAIS", value: TrackFormat.money(summary.fees, currency: payload.currency))
+            }
+            if !summary.dataComplete {
+                Label("Rapprochement MT5 encore en cours", systemImage: "clock")
+                    .font(TrackType.body(12))
+                    .foregroundStyle(Brand.secondaryText)
+            }
+        }
+        .trackCard(padding: 16)
+    }
+
+    private var dayTitle: String {
+        guard let parsed = CalendarView.dayParser.date(from: date) else { return date }
+        return parsed.formatted(
+            .dateTime.weekday(.wide).day().month(.wide).year().locale(Locale(identifier: "fr_FR"))
+        ).uppercased()
+    }
+
+    @MainActor
+    private func load() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            response = try await store.tradingDay(date)
+        } catch is CancellationError {
+            return
+        } catch {
+            response = nil
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
     }
 }

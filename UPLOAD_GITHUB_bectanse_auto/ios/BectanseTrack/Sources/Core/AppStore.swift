@@ -16,6 +16,8 @@ final class AppStore: ObservableObject {
     @Published var tradeCurrency = "EUR"
     @Published var analytics: AnalyticsResponse?
     @Published var coach: CoachResponse?
+    @Published var isLoadingCoach = false
+    @Published var coachLoadError: String?
     @Published var brokers: [Broker] = []
     @Published var selectedTab: AppTab = .overview
     @Published var isLoading = false
@@ -26,6 +28,7 @@ final class AppStore: ObservableObject {
 
     private let api = APIClient.shared
     private var bootstrapped = false
+    private var coachRequestID: UUID?
 
     var activeAccount: TradingAccount? {
         accounts.first(where: { $0.id == selectedAccountID }) ?? accounts.first
@@ -178,6 +181,21 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func tradingDay(_ date: String) async throws -> TradingDayResponse {
+        guard !accounts.isEmpty, entitlements.allowed else {
+            throw APIError(statusCode: 403, message: "Aucun compte de trading actif.")
+        }
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing") {
+            return uiTestTradingDay(date)
+        }
+#endif
+        return try await api.get(
+            "api/trading/days/\(date)",
+            query: contextQuery
+        )
+    }
+
     func moveMonth(_ delta: Int) async {
         guard let current = Self.monthFormatter.date(from: month),
               let target = Calendar(identifier: .gregorian).date(byAdding: .month, value: delta, to: current)
@@ -196,9 +214,30 @@ final class AppStore: ObservableObject {
 
     func loadCoach(_ review: String = "daily") async {
         guard entitlements.features["coach.\(review)"] == true, !accounts.isEmpty else { return }
+        let requestID = UUID()
+        coachRequestID = requestID
+        isLoadingCoach = true
+        coachLoadError = nil
+        defer {
+            if coachRequestID == requestID { isLoadingCoach = false }
+        }
         do {
-            coach = try await api.get("api/trading/coach/\(review)", query: contextQuery)
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-ui-testing") {
+                coach = uiTestCoach(review)
+                return
+            }
+#endif
+            let response: CoachResponse = try await api.get(
+                "api/trading/coach/\(review)", query: contextQuery
+            )
+            guard coachRequestID == requestID, !Task.isCancelled else { return }
+            coach = response
+        } catch is CancellationError {
+            return
         } catch {
+            guard coachRequestID == requestID else { return }
+            coachLoadError = error.localizedDescription
             alertMessage = error.localizedDescription
         }
     }
@@ -253,6 +292,9 @@ final class AppStore: ObservableObject {
         trades = []
         analytics = nil
         coach = nil
+        coachRequestID = nil
+        isLoadingCoach = false
+        coachLoadError = nil
         await loadOverview()
     }
 

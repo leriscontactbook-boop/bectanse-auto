@@ -70,9 +70,10 @@ struct TradesView: View {
         .task { if store.trades.isEmpty { await store.loadTrades() } }
     }
 }
-private struct TradeRow: View {
+struct TradeRow: View {
     let trade: Trade
     let currency: String
+    var showsPrices = false
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
@@ -97,6 +98,16 @@ private struct TradeRow: View {
                 Spacer()
                 detail("DURÉE", TrackFormat.duration(trade.durationSeconds))
             }
+            if showsPrices {
+                Rectangle().fill(Brand.line).frame(height: 1)
+                HStack {
+                    detail("ENTRÉE", price(trade.entryPrice))
+                    Spacer()
+                    detail("SORTIE", price(trade.exitPrice))
+                    Spacer()
+                    detail("FRAIS", TrackFormat.money(trade.fees, currency: currency))
+                }
+            }
         }
         .trackCard(padding: 16)
     }
@@ -106,5 +117,10 @@ private struct TradeRow: View {
             Text(label).font(.trackLabel(7)).tracking(0.8).foregroundStyle(Brand.mutedText)
             Text(value).font(.trackLabel(10)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.66)
         }
+    }
+
+    private func price(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return value.formatted(.number.precision(.fractionLength(2...5)))
     }
 }
