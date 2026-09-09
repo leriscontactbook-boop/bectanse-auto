@@ -8,6 +8,14 @@ struct RootView: View {
     var body: some View {
         ZStack {
             Brand.background.ignoresSafeArea()
+            RadialGradient(
+                colors: [Brand.orange.opacity(0.028), .clear],
+                center: .topTrailing,
+                startRadius: 0,
+                endRadius: 320
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
             VStack(spacing: 0) {
                 AppHeader(
                     connect: { showsAccountConnection = true },
@@ -15,6 +23,8 @@ struct RootView: View {
                 )
                 if store.entitlements.allowed {
                     tabContent
+                        .id(store.selectedTab)
+                        .transition(.opacity)
                 } else {
                     AccessExpiredView()
                 }
@@ -54,38 +64,52 @@ private struct AppHeader: View {
     let profile: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            BrandLogo(size: 38, cornerRadius: 10)
+        HStack(spacing: 11) {
+            BrandLogo(size: 34, cornerRadius: 8)
             VStack(alignment: .leading, spacing: 1) {
-                Text("BECTANSE").font(.system(size: 13, weight: .heavy, design: .rounded)).tracking(2.4)
-                Text("TRACK").font(.trackLabel(8)).tracking(3).foregroundStyle(Brand.orange)
+                Text("BECTANSE")
+                    .font(TrackType.label(12))
+                    .tracking(2.25)
+                Text("TRACK")
+                    .font(.trackLabel(7.5))
+                    .tracking(2.75)
+                    .foregroundStyle(Brand.orange)
             }
             Spacer()
             if store.entitlements.allowed {
-                Button(action: connect) {
+                Button {
+                    Tactile.impact()
+                    connect()
+                } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .bold))
-                        .frame(width: 42, height: 42)
-                        .foregroundStyle(.black)
-                        .background(Brand.orange)
-                        .clipShape(RoundedRectangle(cornerRadius: 13))
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 40, height: 40)
+                        .foregroundStyle(Brand.orange)
+                        .background(Brand.surface)
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Brand.orange.opacity(0.35), lineWidth: 0.75))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
+                .buttonStyle(TactileCardButtonStyle())
                 .accessibilityLabel("Connecter un compte")
             }
-            Button(action: profile) {
+            Button {
+                Tactile.impact()
+                profile()
+            } label: {
                 Text(String(store.member?.firstName.prefix(1) ?? "B"))
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .frame(width: 42, height: 42)
+                    .font(TrackType.label(14))
+                    .frame(width: 40, height: 40)
                     .foregroundStyle(Brand.orange)
-                    .background(Brand.orange.opacity(0.10))
-                    .overlay(Circle().stroke(Brand.orange.opacity(0.38)))
+                    .background(Brand.orange.opacity(0.075))
+                    .overlay(Circle().stroke(Brand.orange.opacity(0.30), lineWidth: 0.75))
                     .clipShape(Circle())
             }
+            .buttonStyle(TactileCardButtonStyle())
             .accessibilityLabel("Profil")
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 11)
-        .background(Brand.background.opacity(0.97))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Brand.backgroundElevated.opacity(0.97))
         .overlay(alignment: .bottom) { Rectangle().fill(Brand.line).frame(height: 1) }
     }
 }
@@ -94,25 +118,28 @@ private struct BottomNavigation: View {
     @EnvironmentObject private var store: AppStore
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 3) {
             ForEach(AppTab.allCases) { tab in
                 Button {
-                    store.selectedTab = tab
+                    guard store.selectedTab != tab else { return }
+                    Tactile.selection()
+                    withAnimation(Brand.Motion.spring) { store.selectedTab = tab }
                 } label: {
-                    VStack(spacing: 5) {
+                    VStack(spacing: 4) {
                         Image(systemName: tab.icon)
-                            .font(.system(size: 18, weight: store.selectedTab == tab ? .semibold : .regular))
+                            .symbolRenderingMode(.monochrome)
+                            .font(.system(size: 17, weight: store.selectedTab == tab ? .semibold : .regular))
                         Text(tab.title)
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(TrackType.label(9))
                             .lineLimit(1)
                         Capsule()
                             .fill(store.selectedTab == tab ? Brand.orange : .clear)
-                            .frame(width: 22, height: 2)
+                            .frame(width: 18, height: 2)
                     }
                     .foregroundStyle(store.selectedTab == tab ? Brand.orange : Brand.secondaryText)
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .background(store.selectedTab == tab ? Brand.orange.opacity(0.075) : .clear)
-                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(store.selectedTab == tab ? Brand.orange.opacity(0.065) : .clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -120,10 +147,11 @@ private struct BottomNavigation: View {
                 .accessibilityAddTraits(store.selectedTab == tab ? .isSelected : [])
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.top, 7)
-        .background(.ultraThinMaterial)
-        .background(Brand.background.opacity(0.92))
+        .padding(.horizontal, 8)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+        .background(.thinMaterial)
+        .background(Brand.backgroundElevated.opacity(0.94))
         .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
     }
 }
@@ -135,7 +163,8 @@ private struct AccessExpiredView: View {
             VStack(alignment: .leading, spacing: 22) {
                 Text("ACCÈS SUSPENDU").font(.trackLabel(10)).tracking(2).foregroundStyle(Brand.orange)
                 Text("Vos données restent\nà leur place.")
-                    .font(.trackDisplay(44))
+                    .font(.trackDisplay(38))
+                    .tracking(-1.1)
                 Text("L’accès au journal et les synchronisations sont arrêtés tant qu’aucun abonnement Bectanse Académie ou Bectanse Track n’est actif.")
                     .foregroundStyle(Brand.secondaryText)
                     .lineSpacing(4)
@@ -144,7 +173,7 @@ private struct AccessExpiredView: View {
                     Label("Connexion MT5 suspendue", systemImage: "pause.circle")
                     Label("Réactivation dès validation", systemImage: "checkmark.shield")
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(TrackType.body(14, weight: .semibold))
                 .trackCard()
                 StorePaywall(storeKit: store.storeKit)
             }
@@ -166,9 +195,9 @@ private struct StorePaywall: View {
             ForEach(storeKit.products) { item in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(item.displayName).font(.headline)
+                        Text(item.displayName).font(TrackType.heading(17))
                         Spacer()
-                        Text(item.price).font(.headline).foregroundStyle(Brand.orange)
+                        Text(item.price).font(.trackMetric(16)).foregroundStyle(Brand.orange)
                     }
                     Text(item.description).font(.caption).foregroundStyle(Brand.secondaryText)
                     Text("Renouvellement mensuel automatique. Résiliable à tout moment dans votre compte Apple.")
@@ -194,10 +223,10 @@ private struct StorePaywall: View {
             if let message = storeKit.statusMessage {
                 Text(message).font(.caption).foregroundStyle(Brand.secondaryText)
             }
-            Button(storeKit.isRestoring ? "Restauration en cours…" : "Restaurer mes achats") {
-                Task { await storeKit.restorePurchases() }
-            }
-            .buttonStyle(.bordered)
+                Button(storeKit.isRestoring ? "Restauration en cours…" : "Restaurer mes achats") {
+                    Task { await storeKit.restorePurchases() }
+                }
+            .buttonStyle(SecondaryButtonStyle())
             .tint(Brand.orange)
             .disabled(storeKit.isRestoring || storeKit.purchasingProductID != nil)
             HStack(spacing: 18) {
@@ -220,7 +249,7 @@ private struct ProfileSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text(store.member?.name ?? "Trader").font(.trackDisplay(34))
+                        Text(store.member?.name ?? "Trader").font(.trackDisplay(30)).tracking(-0.7)
                         Text(store.member?.email ?? "").foregroundStyle(Brand.secondaryText)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -266,6 +295,7 @@ private struct ProfileLine: View {
             Text(label).foregroundStyle(Brand.secondaryText)
             Spacer()
             Text(value).fontWeight(.semibold).multilineTextAlignment(.trailing)
+                .monospacedDigit()
         }
         .font(.subheadline)
     }

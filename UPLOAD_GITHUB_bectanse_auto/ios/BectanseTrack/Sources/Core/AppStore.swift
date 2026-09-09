@@ -49,12 +49,15 @@ final class AppStore: ObservableObject {
             return
         }
 #endif
-        let started = Date()
         do {
             let response: MobileSessionResponse = try await api.get("api/mobile/session")
             apply(response)
-            await initializeStoreKit()
-            if entitlements.allowed { await loadOverview() }
+            if member != nil {
+                await initializeStoreKit()
+                if entitlements.allowed { await loadOverview() }
+            } else {
+                phase = .signedOut
+            }
         } catch {
             if let code = CredentialVault.read() {
                 do {
@@ -71,10 +74,6 @@ final class AppStore: ObservableObject {
             } else {
                 phase = .signedOut
             }
-        }
-        let elapsed = Date().timeIntervalSince(started)
-        if elapsed < 1.35 {
-            try? await Task.sleep(for: .seconds(1.35 - elapsed))
         }
         if member != nil { phase = .ready }
     }
@@ -107,6 +106,7 @@ final class AppStore: ObservableObject {
             let response = try await action()
             apply(response)
             phase = .ready
+            Tactile.success()
             await initializeStoreKit()
             if entitlements.allowed { await loadOverview() }
         } catch {
@@ -221,6 +221,7 @@ final class AppStore: ObservableObject {
             )
             accounts.append(response.account)
             selectedAccountID = response.account.id
+            Tactile.success()
             return true
         } catch {
             alertMessage = error.localizedDescription

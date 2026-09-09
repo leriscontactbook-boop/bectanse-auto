@@ -34,16 +34,20 @@ struct TradesView: View {
                     .trackField()
                     Menu {
                         ForEach(DirectionFilter.allCases) { item in
-                            Button(item.rawValue) { filter = item }
+                            Button(item.rawValue) {
+                                Tactile.selection()
+                                filter = item
+                            }
                         }
                     } label: {
                         Image(systemName: "line.3.horizontal.decrease")
                             .frame(width: 52, height: 52)
                             .foregroundStyle(Brand.orange)
                             .background(Brand.surface)
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Brand.line))
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous).stroke(Brand.lineStrong, lineWidth: 0.75))
+                            .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous))
                     }
+                    .buttonStyle(TactileCardButtonStyle())
                 }
 
                 if filtered.isEmpty {
@@ -72,7 +76,7 @@ private struct TradeRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Text(trade.symbol).font(.headline)
+                Text(trade.symbol).font(TrackType.heading(16)).tracking(-0.15)
                 Text(trade.direction)
                     .font(.trackLabel(8))
                     .foregroundStyle(trade.direction == "BUY" ? Brand.positive : Brand.negative)
@@ -81,16 +85,17 @@ private struct TradeRow: View {
                     .clipShape(Capsule())
                 Spacer()
                 Text(TrackFormat.money(trade.netPnl, currency: currency, signed: true))
-                    .font(.headline)
+                    .font(.trackMetric(16))
+                    .tracking(-0.25)
                     .foregroundStyle(trade.netPnl >= 0 ? Brand.positive : Brand.negative)
             }
             Rectangle().fill(Brand.line).frame(height: 1)
             HStack {
-                detail("Clôture", TrackFormat.dateTime(trade.closedAt))
+                detail("CLÔTURE", TrackFormat.dateTime(trade.closedAt))
                 Spacer()
-                detail("Volume", trade.volume.formatted(.number.precision(.fractionLength(2))) + " lot")
+                detail("VOLUME", trade.volume.formatted(.number.precision(.fractionLength(2))) + " lot")
                 Spacer()
-                detail("Durée", TrackFormat.duration(trade.durationSeconds))
+                detail("DURÉE", TrackFormat.duration(trade.durationSeconds))
             }
         }
         .trackCard(padding: 16)
@@ -98,8 +103,8 @@ private struct TradeRow: View {
 
     private func detail(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label.uppercased()).font(.trackLabel(7)).tracking(1).foregroundStyle(Brand.secondaryText)
-            Text(value).font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(.trackLabel(7)).tracking(0.8).foregroundStyle(Brand.mutedText)
+            Text(value).font(.trackLabel(10)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.66)
         }
     }
 }

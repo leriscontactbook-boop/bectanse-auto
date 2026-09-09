@@ -2,71 +2,112 @@ import SwiftUI
 
 struct CalendarView: View {
     @EnvironmentObject private var store: AppStore
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 7)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var selectedDate: String?
+    @State private var appeared = false
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
     private let weekdayLabels = ["L", "M", "M", "J", "V", "S", "D"]
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
+            LazyVStack(alignment: .leading, spacing: 16) {
                 monthHeader
                 if let payload = store.calendar {
                     summary(payload)
                     calendarGrid(payload)
+                    if let selected = payload.days.first(where: { $0.date == selectedDate }) {
+                        selectedDayPanel(selected, currency: payload.currency)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                     if payload.dataQuality?.complete == false {
                         Label(
-                            "Certaines positions sont encore en rapprochement. Le P&L affiché vient bien des sorties MT5 vérifiées.",
+                            "Certaines positions sont encore en rapprochement. Le P&L affiché vient des sorties MT5 vérifiées.",
                             systemImage: "checkmark.shield"
                         )
-                        .font(.caption)
+                        .font(TrackType.body(12))
                         .foregroundStyle(Brand.secondaryText)
                         .trackCard(padding: 14)
                     }
                 } else {
-                    ProgressView().tint(Brand.orange).frame(maxWidth: .infinity).padding(50)
+                    LoadingPanel()
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 20)
+            .padding(.horizontal, 14)
+            .padding(.top, 18)
             .padding(.bottom, 18)
+            .opacity(appeared ? 1 : 0.01)
+            .offset(y: appeared ? 0 : (reduceMotion ? 0 : 8))
         }
         .scrollIndicators(.hidden)
-        .task { if store.calendar == nil { await store.loadOverview() } }
+        .task {
+            if store.calendar == nil { await store.loadOverview() }
+            selectTodayIfAvailable()
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.34)) { appeared = true }
+        }
+        .onChange(of: store.calendar?.month) { _, _ in selectTodayIfAvailable() }
     }
 
     private var monthHeader: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("JOUR APRÈS JOUR").font(.trackLabel(9)).tracking(2).foregroundStyle(Brand.secondaryText)
-                Text(monthTitle).font(.trackDisplay(36))
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 16) {
+                monthIdentity
+                Spacer(minLength: 8)
+                monthNavigation
             }
-            Spacer()
-            HStack(spacing: 2) {
-                monthButton("chevron.left", delta: -1)
-                monthButton("circle", delta: 0)
-                monthButton("chevron.right", delta: 1)
+            VStack(alignment: .leading, spacing: 14) {
+                monthIdentity
+                monthNavigation
             }
-            .background(Brand.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Brand.line))
         }
+    }
+
+    private var monthIdentity: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("JOUR APRÈS JOUR")
+                .font(.trackLabel(9))
+                .tracking(1.7)
+                .foregroundStyle(Brand.secondaryText)
+            Text(monthTitle)
+                .font(.trackDisplay(30))
+                .tracking(-0.9)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+    }
+
+    private var monthNavigation: some View {
+        HStack(spacing: 0) {
+            monthButton("chevron.left", delta: -1)
+            Rectangle().fill(Brand.line).frame(width: 1, height: 22)
+            monthButton("circle.fill", delta: 0)
+            Rectangle().fill(Brand.line).frame(width: 1, height: 22)
+            monthButton("chevron.right", delta: 1)
+        }
+        .background(Brand.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous).stroke(Brand.lineStrong, lineWidth: 0.75))
     }
 
     private func monthButton(_ icon: String, delta: Int) -> some View {
         Button {
+            Tactile.selection()
+            selectedDate = nil
             Task {
                 if delta == 0 {
-                    let current = Date().formatted(.iso8601.year().month())
-                    await store.loadCalendar(month: String(current.prefix(7)))
+                    await store.loadCalendar(month: Self.monthParser.string(from: Date()))
                 } else {
                     await store.moveMonth(delta)
                 }
             }
         } label: {
             Image(systemName: icon)
-                .font(.system(size: icon == "circle" ? 7 : 12, weight: .bold))
-                .frame(width: 40, height: 42)
-                .foregroundStyle(icon == "circle" ? Brand.orange : Brand.secondaryText)
+                .font(.system(size: delta == 0 ? 6 : 11, weight: .semibold))
+                .frame(width: 42, height: 42)
+                .foregroundStyle(delta == 0 ? Brand.orange : Brand.secondaryText)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(TactileCardButtonStyle())
         .accessibilityLabel(delta == -1 ? "Mois précédent" : delta == 1 ? "Mois suivant" : "Mois actuel")
     }
 
@@ -76,35 +117,106 @@ struct CalendarView: View {
     }
 
     private func summary(_ payload: CalendarPayload) -> some View {
-        let s = payload.summary
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-            CalendarMetric(label: "P&L DU MOIS", value: TrackFormat.money(s.netPnl, currency: payload.currency, signed: true), tone: s.netPnl >= 0 ? Brand.positive : Brand.negative)
-            CalendarMetric(label: "RETURN", value: TrackFormat.percent(s.returnPct, signed: true))
-            CalendarMetric(label: "POSITIONS", value: "\(s.trades)")
-            CalendarMetric(label: "WIN RATE", value: TrackFormat.percent(s.winRate))
-            CalendarMetric(label: "JOURS TRADÉS", value: "\(s.tradingDays)")
-            CalendarMetric(label: "GAINS / PERTES", value: "\(s.wins) / \(s.losses)")
+        let summary = payload.summary
+        return VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("P&L DU MOIS")
+                    .font(.trackLabel(8.5)).tracking(1.2).foregroundStyle(Brand.secondaryText)
+                Text(TrackFormat.money(summary.netPnl, currency: payload.currency, signed: true))
+                    .font(.trackMetric(32))
+                    .tracking(-1.0)
+                    .foregroundStyle(summary.netPnl >= 0 ? Brand.positive : Brand.negative)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.62)
+                    .contentTransition(.numericText())
+            }
+            .padding(16)
+
+            Rectangle().fill(Brand.line).frame(height: 1)
+
+            HStack(spacing: 0) {
+                SummaryDatum(label: "RETURN", value: TrackFormat.percent(summary.returnPct, signed: true))
+                verticalDivider
+                SummaryDatum(label: "POSITIONS", value: "\(summary.trades)")
+                verticalDivider
+                SummaryDatum(label: "WIN RATE", value: TrackFormat.percent(summary.winRate))
+            }
+            .padding(.vertical, 14)
+
+            Rectangle().fill(Brand.line).frame(height: 1)
+
+            HStack(spacing: 0) {
+                SummaryDatum(label: "JOURS TRADÉS", value: "\(summary.tradingDays)")
+                verticalDivider
+                SummaryDatum(label: "GAINS / PERTES", value: "\(summary.wins) / \(summary.losses)")
+            }
+            .padding(.vertical, 14)
         }
+        .background {
+            ZStack {
+                Brand.surface
+                LinearGradient(colors: [Color.white.opacity(0.022), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous).stroke(Brand.lineStrong, lineWidth: 0.75))
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
+    }
+
+    private var verticalDivider: some View {
+        Rectangle().fill(Brand.line).frame(width: 1, height: 42)
     }
 
     private func calendarGrid(_ payload: CalendarPayload) -> some View {
         let cells = buildCells(payload)
-        return VStack(spacing: 3) {
-            LazyVGrid(columns: columns, spacing: 3) {
+        return VStack(spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 4) {
                 ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { _, label in
-                    Text(label).font(.trackLabel(8)).foregroundStyle(Brand.secondaryText).frame(height: 28)
+                    Text(label)
+                        .font(.trackLabel(8))
+                        .foregroundStyle(Brand.mutedText)
+                        .frame(height: 28)
                 }
             }
-            LazyVGrid(columns: columns, spacing: 3) {
+            LazyVGrid(columns: columns, spacing: 4) {
                 ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
-                    CalendarCell(cell: cell, currency: payload.currency)
+                    CalendarCell(
+                        cell: cell,
+                        currency: payload.currency,
+                        selected: cell.data?.date == selectedDate,
+                        today: cell.data?.date == Self.todayKey
+                    ) {
+                        guard let date = cell.data?.date else { return }
+                        Tactile.selection()
+                        withAnimation(reduceMotion ? nil : Brand.Motion.spring) {
+                            selectedDate = selectedDate == date ? nil : date
+                        }
+                    }
                 }
             }
         }
-        .padding(7)
-        .background(Brand.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 21))
-        .overlay(RoundedRectangle(cornerRadius: 21).stroke(Brand.line))
+        .padding(8)
+        .background(Brand.backgroundElevated)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous).stroke(Brand.lineStrong, lineWidth: 0.75))
+    }
+
+    private func selectedDayPanel(_ day: TradingDay, currency: String) -> some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(dayTitle(day.date))
+                    .font(.trackLabel(9))
+                    .tracking(1.2)
+                    .foregroundStyle(Brand.secondaryText)
+                Text(TrackFormat.money(day.netPnl, currency: currency, signed: true))
+                    .font(.trackMetric(24))
+                    .foregroundStyle(day.netPnl >= 0 ? Brand.positive : Brand.negative)
+                    .contentTransition(.numericText())
+            }
+            Spacer()
+            DayFact(label: "POSITIONS", value: "\(day.trades)")
+            DayFact(label: "G / P", value: "\(day.wins) / \(day.losses)")
+        }
+        .trackCard(padding: 16, highlighted: true)
     }
 
     private func buildCells(_ payload: CalendarPayload) -> [DayCell] {
@@ -117,10 +229,20 @@ struct CalendarView: View {
         var result = Array(repeating: DayCell.empty, count: leading)
         for day in range {
             let key = String(format: "%@-%02d", payload.month, day)
-            result.append(DayCell(day: day, data: map[key]))
+            result.append(DayCell(day: day, date: key, data: map[key]))
         }
         while result.count % 7 != 0 { result.append(.empty) }
         return result
+    }
+
+    private func selectTodayIfAvailable() {
+        guard selectedDate == nil, store.calendar?.days.contains(where: { $0.date == Self.todayKey }) == true else { return }
+        selectedDate = Self.todayKey
+    }
+
+    private func dayTitle(_ raw: String) -> String {
+        guard let date = Self.dayParser.date(from: raw) else { return raw }
+        return date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "fr_FR"))).uppercased()
     }
 
     private static let monthParser: DateFormatter = {
@@ -129,60 +251,108 @@ struct CalendarView: View {
     private static let dayParser: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; return f
     }()
+    private static let todayKey: String = dayParser.string(from: Date())
 }
-private struct CalendarMetric: View {
+
+private struct SummaryDatum: View {
     let label: String
     let value: String
-    var tone: Color = Brand.primaryText
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(label).font(.trackLabel(7)).tracking(0.8).foregroundStyle(Brand.secondaryText).lineLimit(1)
-            Text(value).font(.trackDisplay(20)).foregroundStyle(tone).lineLimit(1).minimumScaleFactor(0.55)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.trackLabel(7.5))
+                .tracking(0.85)
+                .foregroundStyle(Brand.mutedText)
+                .lineLimit(1)
+            Text(value)
+                .font(.trackMetric(17))
+                .tracking(-0.4)
+                .foregroundStyle(Brand.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.62)
         }
-        .frame(maxWidth: .infinity, minHeight: 69, alignment: .leading)
-        .trackCard(padding: 11)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+    }
+}
+
+private struct DayFact: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(label).font(.trackLabel(7)).tracking(0.8).foregroundStyle(Brand.mutedText)
+            Text(value).font(.trackMetric(14)).foregroundStyle(Brand.primaryText)
+        }
     }
 }
 
 private struct DayCell {
     let day: Int?
+    let date: String?
     let data: TradingDay?
-    static let empty = DayCell(day: nil, data: nil)
+    static let empty = DayCell(day: nil, date: nil, data: nil)
 }
 
 private struct CalendarCell: View {
     let cell: DayCell
     let currency: String
+    let selected: Bool
+    let today: Bool
+    let action: () -> Void
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            if let day = cell.day {
-                Text("\(day)")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(Brand.secondaryText)
-                Spacer(minLength: 1)
-                if let data = cell.data, data.trades > 0 {
-                    Text(compact(data.netPnl))
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .foregroundStyle(data.netPnl >= 0 ? Brand.positive : Brand.negative)
-                        .lineLimit(1).minimumScaleFactor(0.55)
-                    Text("\(data.trades) pos.")
-                        .font(.system(size: 6.5, weight: .medium, design: .rounded))
-                        .foregroundStyle(Brand.secondaryText)
-                        .lineLimit(1)
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                if let day = cell.day {
+                    HStack {
+                        Text("\(day)")
+                            .font(.trackLabel(8.5))
+                            .foregroundStyle(today || selected ? Brand.primaryText : Brand.secondaryText)
+                        Spacer(minLength: 0)
+                        if today { Circle().fill(Brand.orange).frame(width: 4, height: 4) }
+                    }
+                    Spacer(minLength: 1)
+                    if let data = cell.data, data.trades > 0 {
+                        Text(compact(data.netPnl))
+                            .font(.trackMetric(8))
+                            .foregroundStyle(data.netPnl >= 0 ? Brand.positive : Brand.negative)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.52)
+                        Text("\(data.trades) pos.")
+                            .font(.trackLabel(6.5))
+                            .foregroundStyle(Brand.mutedText)
+                            .lineLimit(1)
+                    }
                 }
             }
+            .padding(7)
+            .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
+            .background(background)
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(selected ? Brand.orange : today ? Brand.orange.opacity(0.55) : Brand.line.opacity(0.55), lineWidth: selected ? 1.25 : 0.6)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .shadow(color: selected ? Brand.orange.opacity(0.14) : .clear, radius: 8)
         }
-        .padding(7)
-        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-        .background(background)
-        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .buttonStyle(TactileCardButtonStyle())
+        .disabled(cell.day == nil)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private var background: Color {
-        guard let data = cell.data, data.trades > 0 else { return Brand.raised.opacity(cell.day == nil ? 0.15 : 0.42) }
-        return (data.netPnl >= 0 ? Brand.positive : Brand.negative).opacity(0.105)
+    private var background: some ShapeStyle {
+        guard let data = cell.data, data.trades > 0 else {
+            return AnyShapeStyle(Brand.surface.opacity(cell.day == nil ? 0.18 : 0.58))
+        }
+        let tone = data.netPnl >= 0 ? Brand.positive : Brand.negative
+        return AnyShapeStyle(
+            LinearGradient(colors: [tone.opacity(0.14), tone.opacity(0.055)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        )
     }
 
     private func compact(_ value: Double) -> String {

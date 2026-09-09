@@ -17,7 +17,7 @@ struct AnalyticsView: View {
                     RankingPanel(title: "Direction", subtitle: "Buy et Sell", rows: analytics.direction, currency: analytics.currency)
                     RankingPanel(title: "Évolution", subtitle: "Résultat mensuel", rows: analytics.month, currency: analytics.currency)
                 } else {
-                    ProgressView().tint(Brand.orange).frame(maxWidth: .infinity).padding(60)
+                    LoadingPanel()
                 }
             }
             .padding(.horizontal, 16)
@@ -38,24 +38,36 @@ private struct RankingPanel: View {
         VStack(alignment: .leading, spacing: 15) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(subtitle.uppercased()).font(.trackLabel(8)).tracking(1.4).foregroundStyle(Brand.secondaryText)
-                Text(title).font(.trackDisplay(27))
+                Text(title).font(.trackDisplay(24)).tracking(-0.5)
             }
             if rows.isEmpty {
                 Text("Pas encore assez de données.").font(.subheadline).foregroundStyle(Brand.secondaryText)
             } else {
                 ForEach(Array(rows.prefix(6).enumerated()), id: \.element.id) { index, row in
-                    HStack(spacing: 12) {
-                        Text(String(format: "%02d", index + 1))
-                            .font(.trackLabel(8)).foregroundStyle(Brand.secondaryText)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(display(row.label)).font(.subheadline.weight(.bold))
-                            Text("\(row.trades) positions · \(TrackFormat.percent(row.winRate))")
-                                .font(.caption).foregroundStyle(Brand.secondaryText)
+                    VStack(spacing: 9) {
+                        HStack(spacing: 12) {
+                            Text(String(format: "%02d", index + 1))
+                                .font(.trackLabel(8)).monospacedDigit().foregroundStyle(Brand.mutedText)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(display(row.label)).font(TrackType.body(14, weight: .semibold))
+                                Text("\(row.trades) positions · \(TrackFormat.percent(row.winRate))")
+                                    .font(.trackLabel(9)).monospacedDigit().foregroundStyle(Brand.secondaryText)
+                            }
+                            Spacer()
+                            Text(TrackFormat.money(row.netPnl, currency: currency, signed: true))
+                                .font(.trackMetric(14))
+                                .tracking(-0.25)
+                                .foregroundStyle(row.netPnl >= 0 ? Brand.positive : Brand.negative)
                         }
-                        Spacer()
-                        Text(TrackFormat.money(row.netPnl, currency: currency, signed: true))
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(row.netPnl >= 0 ? Brand.positive : Brand.negative)
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Brand.line).frame(height: 2)
+                                Capsule()
+                                    .fill(row.netPnl >= 0 ? Brand.positive : Brand.negative)
+                                    .frame(width: proxy.size.width * relativeWidth(row, in: rows), height: 2)
+                            }
+                        }
+                        .frame(height: 2)
                     }
                     if index < min(rows.count, 6) - 1 { Rectangle().fill(Brand.line).frame(height: 1) }
                 }
@@ -66,5 +78,11 @@ private struct RankingPanel: View {
 
     private func display(_ raw: String) -> String {
         raw.replacingOccurrences(of: "_", with: " ").localizedCapitalized
+    }
+
+    private func relativeWidth(_ row: AnalyticsRow, in rows: [AnalyticsRow]) -> CGFloat {
+        let maximum = rows.prefix(6).map { abs($0.netPnl) }.max() ?? 0
+        guard maximum > 0 else { return 0 }
+        return CGFloat(max(0.04, min(1, abs(row.netPnl) / maximum)))
     }
 }

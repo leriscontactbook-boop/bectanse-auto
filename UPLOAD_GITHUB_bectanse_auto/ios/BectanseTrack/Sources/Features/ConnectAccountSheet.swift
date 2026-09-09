@@ -26,21 +26,23 @@ struct ConnectAccountSheet: View {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 7) {
                         Text("META TRADER 5").font(.trackLabel(9)).tracking(2).foregroundStyle(Brand.orange)
-                        Text("Connecter un compte").font(.trackDisplay(36))
+                        Text("Connecter un compte").font(.trackDisplay(30)).tracking(-0.75)
                         Text("Utilisez le serveur exact indiqué dans l’e-mail ou le portail de votre broker.")
-                            .font(.subheadline).foregroundStyle(Brand.secondaryText).lineSpacing(3)
+                            .font(TrackType.body(14)).foregroundStyle(Brand.secondaryText).lineSpacing(3)
                     }
 
                     fieldSection("Broker") {
                         Menu {
                             ForEach(store.brokers) { item in
                                 Button(item.name) {
+                                    Tactile.selection()
                                     selectedBroker = item.name
                                     selectedServer = item.servers.first ?? "Saisie manuelle"
                                     customServer = ""
                                 }
                             }
                             Button("Autre broker") {
+                                Tactile.selection()
                                 selectedBroker = "Autre broker"
                                 selectedServer = "Saisie manuelle"
                             }
@@ -55,8 +57,16 @@ struct ConnectAccountSheet: View {
                     fieldSection("Serveur MT5") {
                         if let servers = broker?.servers, !servers.isEmpty {
                             Menu {
-                                ForEach(servers, id: \.self) { server in Button(server) { selectedServer = server } }
-                                Button("Saisie manuelle") { selectedServer = "Saisie manuelle" }
+                                ForEach(servers, id: \.self) { server in
+                                    Button(server) {
+                                        Tactile.selection()
+                                        selectedServer = server
+                                    }
+                                }
+                                Button("Saisie manuelle") {
+                                    Tactile.selection()
+                                    selectedServer = "Saisie manuelle"
+                                }
                             } label: {
                                 menuLabel(selectedServer.isEmpty ? "Sélectionner le serveur" : selectedServer)
                             }
@@ -83,11 +93,12 @@ struct ConnectAccountSheet: View {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "lock.shield.fill").foregroundStyle(Brand.positive)
                         Text("Les identifiants sont chiffrés sur le serveur. Le mot de passe investisseur reste recommandé, mais le mot de passe principal est accepté.")
-                            .font(.caption).foregroundStyle(Brand.secondaryText).lineSpacing(2)
+                            .font(TrackType.body(12)).foregroundStyle(Brand.secondaryText).lineSpacing(2)
                     }
                     .trackCard(padding: 14)
 
                     Button {
+                        Tactile.impact()
                         let body = ConnectAccountBody(
                             displayName: displayName,
                             broker: resolvedBroker,
