@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A00A6A218CA68A4797621601 /* bectanse-app-icon-master.png in Resources */ = {isa = PBXBuildFile; fileRef = B00B6B218CA68A4797621601 /* bectanse-app-icon-master.png */; };
 		0796E0F3886894EA323415E9 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F09EDB0FD39C2A625B8FA01 /* RootView.swift */; };
 		17B9920E626A09B41594AE2F /* BectanseTrackApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0890489037940FC291E3559 /* BectanseTrackApp.swift */; };
 		1B7029CBE8778BE3F80E9EC0 /* CoachView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DFB83E8913A9988966A5FB3 /* CoachView.swift */; };
@@ -23,11 +22,11 @@
 		899F3AEC23D61440C26FECBA /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3972BF33A23EDB705F2F09 /* DesignSystem.swift */; };
 		A19523DB15FBF48E6A339BD2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E82CE90C5767A423967F9C52 /* APIClient.swift */; };
 		A2DDDAD7835CB4D0A1BEC97C /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B79FCEFDB69734E1F8C7CC2 /* Models.swift */; };
+		B0CDDEC89133DDFBB9A7EF8A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6D955C4EF3E8A4111B7923DA /* Assets.xcassets */; };
 		BF36EF5E40D77B6457B516D9 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4DD450B493D7AE6C9E06A2 /* OverviewView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		B00B6B218CA68A4797621601 /* bectanse-app-icon-master.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "bectanse-app-icon-master.png"; path = "../../static/icons/bectanse-app-icon-master.png"; sourceTree = "<group>"; };
 		0F09EDB0FD39C2A625B8FA01 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		2DFB83E8913A9988966A5FB3 /* CoachView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachView.swift; sourceTree = "<group>"; };
 		3635092592444E168458C079 /* ConnectAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectAccountSheet.swift; sourceTree = "<group>"; };
@@ -38,6 +37,7 @@
 		5BABFCBD95C814A6B43F4962 /* BectanseTrack.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BectanseTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D53EC2751B78E9BD3D3B720 /* AnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsView.swift; sourceTree = "<group>"; };
 		6B79FCEFDB69734E1F8C7CC2 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		6D955C4EF3E8A4111B7923DA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8C23E000AA1915A3E8F47698 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		B0890489037940FC291E3559 /* BectanseTrackApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BectanseTrackApp.swift; sourceTree = "<group>"; };
 		BE99AD0AB5BCBDD0D6C42F7E /* TradesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradesView.swift; sourceTree = "<group>"; };
@@ -70,6 +70,7 @@
 				A8B11DC6ECB1E9060CF34265 /* Core */,
 				C4D90E5B2A7D9E403ED21A99 /* Design */,
 				0AFADBCE85A20CC86B3F8345 /* Features */,
+				E38CA18D0DF7285E11900A85 /* Resources */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -89,7 +90,6 @@
 		ACD1CB7E651E9A4305B4FBBD = {
 			isa = PBXGroup;
 			children = (
-				B00B6B218CA68A4797621601 /* bectanse-app-icon-master.png */,
 				7661D24A50DA70A9322111EF /* Sources */,
 				D8C52AE3202A1F672889C703 /* Products */,
 			);
@@ -112,6 +112,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		E38CA18D0DF7285E11900A85 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				6D955C4EF3E8A4111B7923DA /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -120,7 +128,7 @@
 			buildConfigurationList = 9AF463E1BC7A94CC7CF2B74B /* Build configuration list for PBXNativeTarget "BectanseTrack" */;
 			buildPhases = (
 				2B3897A3B2DFEB0BE6B020DD /* Sources */,
-				C00C6C218CA68A4797621601 /* Resources */,
+				4192EF36B2C38A8D0F4C0CD1 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -164,11 +172,11 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		C00C6C218CA68A4797621601 /* Resources */ = {
+		4192EF36B2C38A8D0F4C0CD1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A00A6A218CA68A4797621601 /* bectanse-app-icon-master.png in Resources */,
+				B0CDDEC89133DDFBB9A7EF8A /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

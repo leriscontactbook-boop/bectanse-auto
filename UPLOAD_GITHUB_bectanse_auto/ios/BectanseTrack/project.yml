@@ -15,7 +15,7 @@ targets:
     sources:
       - Sources
     resources:
-      - path: ../../static/icons/bectanse-app-icon-master.png
+      - path: Sources/Resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bectanse.track

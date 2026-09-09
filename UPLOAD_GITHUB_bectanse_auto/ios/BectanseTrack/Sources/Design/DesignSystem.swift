@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 enum Brand {
     static let background = Color(red: 0.018, green: 0.018, blue: 0.018)
@@ -18,18 +17,9 @@ struct BrandLogo: View {
     let cornerRadius: CGFloat
 
     var body: some View {
-        Group {
-            if let url = Bundle.main.url(forResource: "bectanse-app-icon-master", withExtension: "png"),
-               let image = UIImage(contentsOfFile: url.path) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Brand.surface)
-                    .overlay(Text("B").font(.trackDisplay(size * 0.56)).foregroundStyle(Brand.orange))
-            }
-        }
+        Image("BectanseLogo")
+            .resizable()
+            .scaledToFit()
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
