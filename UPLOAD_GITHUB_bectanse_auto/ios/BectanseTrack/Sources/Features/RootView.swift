@@ -146,12 +146,67 @@ private struct AccessExpiredView: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .trackCard()
-                Button("Vérifier mon accès") {
-                    Task { await store.refreshSession() }
-                }
-                .buttonStyle(PrimaryButtonStyle())
+                StorePaywall(storeKit: store.storeKit)
             }
             .padding(22)
+        }
+    }
+}
+
+private struct StorePaywall: View {
+    @ObservedObject var storeKit: StoreKitManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("CONTINUER AVEC BECTANSE TRACK")
+                .font(.trackLabel(10)).tracking(1.7).foregroundStyle(Brand.orange)
+            if storeKit.isLoading {
+                ProgressView().tint(Brand.orange).frame(maxWidth: .infinity)
+            }
+            ForEach(storeKit.products) { item in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(item.displayName).font(.headline)
+                        Spacer()
+                        Text(item.price).font(.headline).foregroundStyle(Brand.orange)
+                    }
+                    Text(item.description).font(.caption).foregroundStyle(Brand.secondaryText)
+                    Text("Renouvellement mensuel automatique. Résiliable à tout moment dans votre compte Apple.")
+                        .font(.caption2).foregroundStyle(Brand.secondaryText)
+                    Button {
+                        Task { _ = await storeKit.purchase(item.id) }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if storeKit.purchasingProductID == item.id {
+                                ProgressView().tint(.black)
+                            } else {
+                                Text("S’abonner avec Apple")
+                            }
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(storeKit.purchasingProductID != nil || storeKit.isRestoring)
+                }
+                .trackCard()
+            }
+            if let message = storeKit.statusMessage {
+                Text(message).font(.caption).foregroundStyle(Brand.secondaryText)
+            }
+            Button(storeKit.isRestoring ? "Restauration en cours…" : "Restaurer mes achats") {
+                Task { await storeKit.restorePurchases() }
+            }
+            .buttonStyle(.bordered)
+            .tint(Brand.orange)
+            .disabled(storeKit.isRestoring || storeKit.purchasingProductID != nil)
+            HStack(spacing: 18) {
+                Link("Conditions", destination: URL(string: "https://acces.bectanse-academie.com/bectanse-track/legal/conditions")!)
+                Link("Confidentialité", destination: URL(string: "https://acces.bectanse-academie.com/bectanse-track/legal/confidentialite")!)
+            }
+            .font(.caption2).foregroundStyle(Brand.secondaryText)
+            Text("Le paiement est débité de votre compte Apple après confirmation. L’abonnement se renouvelle automatiquement sauf résiliation au moins 24 heures avant la fin de la période en cours.")
+                .font(.caption2).foregroundStyle(Brand.secondaryText).lineSpacing(2)
         }
     }
 }

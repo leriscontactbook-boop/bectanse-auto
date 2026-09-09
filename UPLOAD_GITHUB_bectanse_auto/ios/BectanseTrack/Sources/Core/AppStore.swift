@@ -22,6 +22,8 @@ final class AppStore: ObservableObject {
     @Published var isRefreshing = false
     @Published var alertMessage: String?
 
+    let storeKit = StoreKitManager()
+
     private let api = APIClient.shared
     private var bootstrapped = false
 
@@ -51,6 +53,7 @@ final class AppStore: ObservableObject {
         do {
             let response: MobileSessionResponse = try await api.get("api/mobile/session")
             apply(response)
+            await initializeStoreKit()
             if entitlements.allowed { await loadOverview() }
         } catch {
             if let code = CredentialVault.read() {
@@ -59,6 +62,7 @@ final class AppStore: ObservableObject {
                         "api/mobile/auth/code", body: CodeLoginBody(code: code)
                     )
                     apply(response)
+                    await initializeStoreKit()
                     if entitlements.allowed { await loadOverview() }
                 } catch {
                     CredentialVault.clear()
@@ -103,6 +107,7 @@ final class AppStore: ObservableObject {
             let response = try await action()
             apply(response)
             phase = .ready
+            await initializeStoreKit()
             if entitlements.allowed { await loadOverview() }
         } catch {
             alertMessage = error.localizedDescription
@@ -112,6 +117,7 @@ final class AppStore: ObservableObject {
     func logout() async {
         let _: MessageResponse? = try? await api.post("api/mobile/logout", body: EmptyRequest())
         CredentialVault.clear()
+        storeKit.reset()
         member = nil
         accounts = []
         overview = nil
@@ -122,6 +128,7 @@ final class AppStore: ObservableObject {
         do {
             let response: MobileSessionResponse = try await api.get("api/mobile/session")
             apply(response)
+            await initializeStoreKit()
             if entitlements.allowed { await loadOverview() }
         } catch {
             alertMessage = error.localizedDescription
@@ -273,6 +280,29 @@ final class AppStore: ObservableObject {
         entitlements = response.entitlements ?? .locked
         accounts = response.accounts ?? []
         if activeAccount == nil { selectedAccountID = accounts.first?.id }
+    }
+
+    private func initializeStoreKit() async {
+        guard member != nil else { return }
+        do {
+            let context: StoreKitContextResponse = try await api.get("api/mobile/storekit/context")
+            guard let token = UUID(uuidString: context.appAccountToken) else {
+                throw APIError(statusCode: 0, message: "Compte Apple invalide.")
+            }
+            storeKit.configure(productIDs: context.productIds, accountToken: token) { [weak self] jws in
+                guard let self else { return }
+                let response: StoreKitSyncResponse = try await self.api.post(
+                    "api/mobile/storekit/sync",
+                    body: StoreKitSyncBody(signedTransaction: jws)
+                )
+                self.apply(response.session)
+                if self.entitlements.allowed { await self.loadOverview() }
+            }
+            await storeKit.initialize()
+        } catch {
+            // The journal remains available for Academy and existing web subscribers.
+            // StoreKit exposes its own retry state on the paywall when access is locked.
+        }
     }
 
     private static let monthFormatter: DateFormatter = {

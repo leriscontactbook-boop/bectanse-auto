@@ -20,6 +20,7 @@ from .security import verify_worker_request
 from .config import worker_secret
 from .coach import answer_question as coach_answer_question, review as coach_review
 from .billing import create_checkout, create_portal
+from .apple_iap import process_notification, storekit_context, synchronize_transaction
 
 
 _RATE_LOCK = threading.Lock()
@@ -69,6 +70,12 @@ def _checkout_failure_code(error: Exception) -> str:
 
 def register_trading_journal(app, get_conn, get_member, login_required, admin_required=None):
     service = JournalService(get_conn, get_member, app.logger)
+
+    @app.route("/bectanse-track/legal/<slug>")
+    def bectanse_track_legal(slug):
+        if slug not in {"conditions", "confidentialite"}:
+            return "Page introuvable", 404
+        return render_template("bectanse_track_legal.html", slug=slug)
 
     def mobile_session_payload(user_id: str, *, recovery_code: str | None = None) -> dict:
         member = get_member(user_id) or {}
@@ -210,6 +217,55 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         response = jsonify({"ok": True, "authenticated": False})
         response.headers["Cache-Control"] = "no-store"
         return response
+
+    @app.route("/api/mobile/storekit/context", methods=["GET"])
+    def mobile_storekit_context():
+        user_id = str(session.get("member_code") or "")
+        if not user_id or not get_member(user_id):
+            session.clear()
+            return jsonify({"ok": False, "error": "Votre session a expiré."}), 401
+        try:
+            response = jsonify({"ok": True, **storekit_context(get_conn, user_id)})
+            response.headers["Cache-Control"] = "private, no-store"
+            return response
+        except Exception as error:
+            app.logger.error("StoreKit context %s: %s", user_id, error)
+            return _api_error(error)
+
+    @app.route("/api/mobile/storekit/sync", methods=["POST"])
+    @_rate_limited("mobile-storekit-sync", 30, 15 * 60)
+    def mobile_storekit_sync():
+        user_id = str(session.get("member_code") or "")
+        if not user_id or not get_member(user_id):
+            session.clear()
+            return jsonify({"ok": False, "error": "Votre session a expiré."}), 401
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = synchronize_transaction(get_conn, user_id, payload.get("signed_transaction") or "")
+            response = jsonify({"ok": True, **result, "session": mobile_session_payload(user_id)})
+            response.headers["Cache-Control"] = "private, no-store"
+            return response
+        except Exception as error:
+            if not isinstance(error, (ValueError, PermissionError)):
+                app.logger.error("StoreKit sync %s: %s", user_id, error)
+            return _api_error(error)
+
+    @app.route("/api/mobile/storekit/notifications", methods=["POST"])
+    @_rate_limited("apple-storekit-notification", 300, 60 * 60)
+    def mobile_storekit_notifications():
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = process_notification(get_conn, payload.get("signedPayload") or "")
+            return jsonify({"ok": True, **result})
+        except ValueError as error:
+            app.logger.warning("Invalid App Store notification: %s", error)
+            return jsonify({"ok": False, "error": "Notification Apple invalide."}), 400
+        except LookupError as error:
+            app.logger.warning("Unmatched App Store notification: %s", error)
+            return jsonify({"ok": False, "error": "Abonnement Apple non associé."}), 404
+        except Exception as error:
+            app.logger.error("App Store notification failed: %s", error)
+            return jsonify({"ok": False, "error": "Notification Apple non traitée."}), 500
 
     @app.route("/journal")
     @login_required

@@ -19,9 +19,11 @@
 		65FDDE03F3272E500A99891C /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE72E309CCC78BA55F34145A /* AppStore.swift */; };
 		704403A6F2556E6BAE5C132F /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFC4469387FC0914F5EB34AD /* AuthenticationView.swift */; };
 		7C185638B536C6A27D2588D5 /* ConnectAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3635092592444E168458C079 /* ConnectAccountSheet.swift */; };
+		83708DF7F1C1DF521CC54E77 /* StoreKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FCF75B4786883577B22DE49 /* StoreKitManager.swift */; };
 		899F3AEC23D61440C26FECBA /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3972BF33A23EDB705F2F09 /* DesignSystem.swift */; };
 		A19523DB15FBF48E6A339BD2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E82CE90C5767A423967F9C52 /* APIClient.swift */; };
 		A2DDDAD7835CB4D0A1BEC97C /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B79FCEFDB69734E1F8C7CC2 /* Models.swift */; };
+		A3107823FD6E422A19ED5D8C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = CD5BE34F6079737704A4DF51 /* PrivacyInfo.xcprivacy */; };
 		B0CDDEC89133DDFBB9A7EF8A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6D955C4EF3E8A4111B7923DA /* Assets.xcassets */; };
 		BF36EF5E40D77B6457B516D9 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4DD450B493D7AE6C9E06A2 /* OverviewView.swift */; };
 /* End PBXBuildFile section */
@@ -39,8 +41,10 @@
 		6B79FCEFDB69734E1F8C7CC2 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		6D955C4EF3E8A4111B7923DA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8C23E000AA1915A3E8F47698 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
+		8FCF75B4786883577B22DE49 /* StoreKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitManager.swift; sourceTree = "<group>"; };
 		B0890489037940FC291E3559 /* BectanseTrackApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BectanseTrackApp.swift; sourceTree = "<group>"; };
 		BE99AD0AB5BCBDD0D6C42F7E /* TradesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradesView.swift; sourceTree = "<group>"; };
+		CD5BE34F6079737704A4DF51 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CE72E309CCC78BA55F34145A /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
 		E675E2C61E412A850C8A4D9E /* UITestFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestFixtures.swift; sourceTree = "<group>"; };
 		E82CE90C5767A423967F9C52 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -82,6 +86,7 @@
 				CE72E309CCC78BA55F34145A /* AppStore.swift */,
 				550644C8A12D5DFA9D1BAFE2 /* CredentialVault.swift */,
 				6B79FCEFDB69734E1F8C7CC2 /* Models.swift */,
+				8FCF75B4786883577B22DE49 /* StoreKitManager.swift */,
 				E675E2C61E412A850C8A4D9E /* UITestFixtures.swift */,
 			);
 			path = Core;
@@ -116,6 +121,7 @@
 			isa = PBXGroup;
 			children = (
 				6D955C4EF3E8A4111B7923DA /* Assets.xcassets */,
+				CD5BE34F6079737704A4DF51 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -150,6 +156,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					56E9CA26E16B687ECD7D0B2D = {
+						DevelopmentTeam = 72C5MFHM2S;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 213A17C71406E56AFEE6D7FB /* Build configuration list for PBXProject "BectanseTrack" */;
@@ -177,6 +187,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0CDDEC89133DDFBB9A7EF8A /* Assets.xcassets in Resources */,
+				A3107823FD6E422A19ED5D8C /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -201,6 +212,7 @@
 				A2DDDAD7835CB4D0A1BEC97C /* Models.swift in Sources */,
 				BF36EF5E40D77B6457B516D9 /* OverviewView.swift in Sources */,
 				0796E0F3886894EA323415E9 /* RootView.swift in Sources */,
+				83708DF7F1C1DF521CC54E77 /* StoreKitManager.swift in Sources */,
 				2BD69312FFC1DFB3546DDF8A /* TradesView.swift in Sources */,
 				1F6B2A7FBB56F40A9ADF50BD /* UITestFixtures.swift in Sources */,
 			);
@@ -279,6 +291,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 72C5MFHM2S;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Bectanse Track";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
@@ -359,6 +373,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 72C5MFHM2S;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Bectanse Track";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";

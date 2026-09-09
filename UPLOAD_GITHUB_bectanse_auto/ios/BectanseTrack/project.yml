@@ -15,9 +15,12 @@ targets:
     sources:
       - Sources
     resources:
-      - path: Sources/Resources
+      - path: Sources/Resources/Assets.xcassets
+      - path: Sources/Resources/PrivacyInfo.xcprivacy
     settings:
       base:
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 72C5MFHM2S
         PRODUCT_BUNDLE_IDENTIFIER: com.bectanse.track
         PRODUCT_NAME: Bectanse Track
         GENERATE_INFOPLIST_FILE: YES

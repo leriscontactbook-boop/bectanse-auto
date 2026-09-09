@@ -10,6 +10,24 @@ struct MobileSessionResponse: Decodable {
     let recoveryCode: String?
     let error: String?
 }
+
+struct StoreKitContextResponse: Decodable {
+    let ok: Bool
+    let appAccountToken: String
+    let productIds: [String]
+}
+
+struct StoreKitSyncResponse: Decodable {
+    let ok: Bool
+    let status: String
+    let plan: String
+    let expiresAt: String
+    let session: MobileSessionResponse
+}
+
+struct StoreKitSyncBody: Encodable {
+    let signedTransaction: String
+}
 struct MemberProfile: Decodable {
     let name: String
     let firstName: String

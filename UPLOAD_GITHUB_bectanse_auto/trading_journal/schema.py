@@ -43,6 +43,40 @@ STATEMENTS = (
     """CREATE INDEX IF NOT EXISTS trading_subscriptions_customer_idx
         ON trading_subscriptions (stripe_customer_id)
         WHERE stripe_customer_id <> ''""",
+    """ALTER TABLE trading_subscriptions
+        ADD COLUMN IF NOT EXISTS billing_provider TEXT NOT NULL DEFAULT ''""",
+    """ALTER TABLE trading_subscriptions
+        ADD COLUMN IF NOT EXISTS apple_original_transaction_id TEXT NOT NULL DEFAULT ''""",
+    """ALTER TABLE trading_subscriptions
+        ADD COLUMN IF NOT EXISTS apple_product_id TEXT NOT NULL DEFAULT ''""",
+    """CREATE TABLE IF NOT EXISTS trading_apple_accounts (
+        user_id TEXT PRIMARY KEY REFERENCES members(code) ON DELETE CASCADE,
+        app_account_token TEXT NOT NULL UNIQUE,
+        original_transaction_id TEXT NOT NULL DEFAULT '',
+        last_transaction_id TEXT NOT NULL DEFAULT '',
+        product_id TEXT NOT NULL DEFAULT '',
+        environment TEXT NOT NULL DEFAULT '',
+        subscription_status TEXT NOT NULL DEFAULT 'inactive',
+        expires_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS trading_apple_original_transaction_idx
+        ON trading_apple_accounts (original_transaction_id)
+        WHERE original_transaction_id <> ''""",
+    """CREATE UNIQUE INDEX IF NOT EXISTS trading_apple_last_transaction_idx
+        ON trading_apple_accounts (last_transaction_id)
+        WHERE last_transaction_id <> ''""",
+    """CREATE TABLE IF NOT EXISTS trading_apple_notifications (
+        notification_uuid TEXT PRIMARY KEY,
+        notification_type TEXT NOT NULL DEFAULT '',
+        subtype TEXT NOT NULL DEFAULT '',
+        original_transaction_id TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'processing',
+        error TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        processed_at TIMESTAMPTZ
+    )""",
     """CREATE TABLE IF NOT EXISTS product_entitlements (
         id BIGSERIAL PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES members(code) ON DELETE CASCADE,

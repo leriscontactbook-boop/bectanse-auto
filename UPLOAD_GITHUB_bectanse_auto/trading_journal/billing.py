@@ -298,11 +298,12 @@ def process_webhook(event: dict, get_conn) -> dict:
         payment_failed_at = datetime.now(timezone.utc) if event_type == "invoice.payment_failed" else None
         conn.run("""INSERT INTO trading_subscriptions
             (user_id,product,plan,subscription_status,stripe_customer_id,stripe_subscription_id,
-             stripe_price_id,cancel_at_period_end,payment_failed_at,current_period_end)
+             stripe_price_id,cancel_at_period_end,payment_failed_at,current_period_end,billing_provider)
             VALUES (:user_id,'JOURNAL',:plan,:status,:customer,:subscription,:price_id,
-             :cancel_at_period_end,:payment_failed_at,:period_end)
+             :cancel_at_period_end,:payment_failed_at,:period_end,'stripe')
             ON CONFLICT (user_id) DO UPDATE SET plan=EXCLUDED.plan,
              subscription_status=EXCLUDED.subscription_status,
+             billing_provider='stripe',
              stripe_customer_id=CASE WHEN EXCLUDED.stripe_customer_id<>'' THEN EXCLUDED.stripe_customer_id ELSE trading_subscriptions.stripe_customer_id END,
              stripe_subscription_id=CASE WHEN EXCLUDED.stripe_subscription_id<>'' THEN EXCLUDED.stripe_subscription_id ELSE trading_subscriptions.stripe_subscription_id END,
              stripe_price_id=CASE WHEN EXCLUDED.stripe_price_id<>'' THEN EXCLUDED.stripe_price_id ELSE trading_subscriptions.stripe_price_id END,
