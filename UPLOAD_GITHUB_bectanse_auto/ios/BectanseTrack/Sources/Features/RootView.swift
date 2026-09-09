@@ -158,98 +158,30 @@ private struct AccessExpiredView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text("ACCÈS À ACTIVER").font(.trackLabel(10)).tracking(2).foregroundStyle(Brand.orange)
-                Text("Validez avec Apple\npour continuer.")
+                Text("ACCÈS MEMBRE REQUIS").font(.trackLabel(10)).tracking(2).foregroundStyle(Brand.orange)
+                Text("Votre accès Académie\nn’est pas actif.")
                     .font(.trackDisplay(38))
                     .tracking(-1.1)
-                Text("Le journal et les synchronisations MT5 restent verrouillés tant qu’aucun abonnement Bectanse Académie ou Bectanse Track n’est actif.")
+                Text("Cette première version de Bectanse Track est exclusivement réservée aux membres Bectanse Académie disposant d’un abonnement actif.")
                     .foregroundStyle(Brand.secondaryText)
                     .lineSpacing(4)
                 VStack(alignment: .leading, spacing: 14) {
                     Label("Historique conservé", systemImage: "externaldrive")
                     Label("Connexion MT5 suspendue", systemImage: "pause.circle")
-                    Label("Réactivation dès validation", systemImage: "checkmark.shield")
+                    Label("Réactivation automatique avec l’Académie", systemImage: "checkmark.shield")
                 }
                 .font(TrackType.body(14, weight: .semibold))
                 .trackCard()
-                StorePaywall(storeKit: store.storeKit)
+                Button {
+                    Task { await store.logout() }
+                } label: {
+                    Label("Utiliser un autre code BCT", systemImage: "rectangle.portrait.and.arrow.right")
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                }
+                .buttonStyle(SecondaryButtonStyle())
+                .tint(Brand.orange)
             }
             .padding(22)
-        }
-    }
-}
-
-private struct StorePaywall: View {
-    @ObservedObject var storeKit: StoreKitManager
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("CONTINUER AVEC BECTANSE TRACK")
-                .font(.trackLabel(10)).tracking(1.7).foregroundStyle(Brand.orange)
-            Text("Apple valide le moyen de paiement avant de démarrer l’essai. Changer de téléphone ou d’adresse Bectanse ne renouvelle pas l’éligibilité du même identifiant Apple.")
-                .font(.caption)
-                .foregroundStyle(Brand.secondaryText)
-                .lineSpacing(3)
-            if storeKit.isLoading {
-                ProgressView().tint(Brand.orange).frame(maxWidth: .infinity)
-            }
-            ForEach(storeKit.products) { item in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(item.displayName).font(TrackType.heading(17))
-                        Spacer()
-                        Text(item.price).font(.trackMetric(16)).foregroundStyle(Brand.orange)
-                    }
-                    Text(item.description).font(.caption).foregroundStyle(Brand.secondaryText)
-                    if item.isEligibleForFreeTrial, let duration = item.freeTrialDuration {
-                        Text("\(duration) offerts, puis \(item.price) par \(item.renewalPeriod).")
-                            .font(.caption)
-                            .foregroundStyle(Brand.orange)
-                    } else if item.hasFreeTrialOffer {
-                        Text("\(item.price) par \(item.renewalPeriod). Aucun nouvel essai disponible pour cet identifiant Apple.")
-                            .font(.caption)
-                            .foregroundStyle(Brand.secondaryText)
-                    } else {
-                        Text("\(item.price) par \(item.renewalPeriod). Offre d’essai non configurée dans l’App Store.")
-                            .font(.caption)
-                            .foregroundStyle(Brand.secondaryText)
-                    }
-                    Text("Renouvellement automatique. Résiliable à tout moment dans votre compte Apple.")
-                        .font(.caption2).foregroundStyle(Brand.secondaryText)
-                    Button {
-                        Task { _ = await storeKit.purchase(item.id) }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if storeKit.purchasingProductID == item.id {
-                                ProgressView().tint(.black)
-                            } else {
-                                Text(item.isEligibleForFreeTrial ? "Commencer l’essai avec Apple" : "S’abonner avec Apple")
-                            }
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .disabled(storeKit.purchasingProductID != nil || storeKit.isRestoring)
-                }
-                .trackCard()
-            }
-            if let message = storeKit.statusMessage {
-                Text(message).font(.caption).foregroundStyle(Brand.secondaryText)
-            }
-                Button(storeKit.isRestoring ? "Restauration en cours…" : "Restaurer mes achats") {
-                    Task { await storeKit.restorePurchases() }
-                }
-            .buttonStyle(SecondaryButtonStyle())
-            .tint(Brand.orange)
-            .disabled(storeKit.isRestoring || storeKit.purchasingProductID != nil)
-            HStack(spacing: 18) {
-                Link("Conditions", destination: URL(string: "https://acces.bectanse-academie.com/bectanse-track/legal/conditions")!)
-                Link("Confidentialité", destination: URL(string: "https://acces.bectanse-academie.com/bectanse-track/legal/confidentialite")!)
-            }
-            .font(.caption2).foregroundStyle(Brand.secondaryText)
-            Text("Le paiement est débité de votre compte Apple après confirmation. L’abonnement se renouvelle automatiquement sauf résiliation au moins 24 heures avant la fin de la période en cours.")
-                .font(.caption2).foregroundStyle(Brand.secondaryText).lineSpacing(2)
         }
     }
 }

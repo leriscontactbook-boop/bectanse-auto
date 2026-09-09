@@ -5,43 +5,45 @@
 - Bundle ID: `com.bectanse.track`
 - Apple team: `72C5MFHM2S`
 - Version: `1.0`
-- Build: `3`
+- Build: `4`
 - Category: Finance
 - Minimum iOS: 17.0
 
-## Auto-renewable subscriptions
+## Version 1 access model
 
-Create both products in the same subscription group so Apple manages upgrades
-and prevents simultaneous subscriptions:
+The first public version is a free companion app reserved for active Bectanse
+Academy members. It contains no purchase, free trial, subscription paywall or
+link encouraging an external purchase.
 
-- `com.bectanse.track.pro.monthly` → `JOURNAL_PRO`
-- `com.bectanse.track.elite.monthly` → `JOURNAL_ELITE`
+- Authentication uses the member's existing BCT code.
+- The backend verifies the Academy membership before creating the mobile
+  session and before every trading API request.
+- Expired, cancelled, suspended, Explorer and demo accounts receive no journal
+  or MT5 access.
+- Access is withdrawn automatically when the Academy subscription expires.
 
-Configure a seven-day free introductory offer for the subscription group in
-App Store Connect. StoreKit checks the Apple Account's introductory-offer
-eligibility before the paywall advertises the trial. The app creates only a
-locked profile before purchase; Journal access starts solely after the server
-has verified Apple's signed transaction. Prices and localized product
-descriptions remain App Store catalog data and are never hardcoded in the app.
-
-Changing iPhone or the e-mail entered in Bectanse Track does not reset the
-introductory offer for the same Apple Account. The backend also uniquely binds
-the original Apple transaction and every received transaction to one Bectanse
-profile, preventing purchase reuse between profiles.
+Keep the future StoreKit infrastructure dormant. Do not attach the PRO or ELITE
+in-app purchases to this App Store version. A standalone paid version can be
+enabled later through a new reviewed build.
 
 ## Server configuration
 
-Set the numeric App Store application ID as `APPLE_APP_ID` in production. If
-the product IDs are changed in App Store Connect, also set
-`APPLE_TRACK_PRO_PRODUCT_ID` and `APPLE_TRACK_ELITE_PRODUCT_ID`.
+Leave `BECTANSE_TRACK_STANDALONE_ENABLED` unset or set it to `false` in
+production. StoreKit context, purchase synchronization and standalone account
+creation are then unavailable while the website Journal architecture remains
+unchanged.
 
-Use this App Store Server Notifications V2 URL for Production and Sandbox:
+Before a future standalone release, configure `APPLE_APP_ID`, the subscription
+products and App Store Server Notifications, then explicitly set
+`BECTANSE_TRACK_STANDALONE_ENABLED=true` in the reviewed release environment.
 
-`https://acces.bectanse-academie.com/api/mobile/storekit/notifications`
+## App Review access
 
-The backend verifies Apple JWS signatures against Apple Root CA G3, the bundle
-ID, environment, product ID, expiry, revocation state, account token and
-transaction ownership before changing access.
+Provide Apple with a dedicated active Academy review account and code BCT.
+Keep its MT5 demo account connected and the backend available for the full
+review period. Explain in Review Notes that Bectanse Track is the free mobile
+companion to the existing Bectanse Academy service and contains no commerce or
+external purchase call to action.
 
 ## Public metadata
 

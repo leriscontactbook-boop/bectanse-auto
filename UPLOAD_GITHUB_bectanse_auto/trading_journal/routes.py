@@ -21,10 +21,18 @@ from .config import worker_secret
 from .coach import answer_question as coach_answer_question, review as coach_review
 from .billing import create_checkout, create_portal
 from .apple_iap import process_notification, storekit_context, synchronize_transaction
+from .entitlements import PLAN_RULES, academy_membership_state
 
 
 _RATE_LOCK = threading.Lock()
 _RATE_BUCKETS: dict[str, deque] = defaultdict(deque)
+
+
+def _mobile_standalone_enabled() -> bool:
+    """Keep the first App Store release Academy-only unless explicitly reopened."""
+    return os.environ.get("BECTANSE_TRACK_STANDALONE_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
 
 
 def _rate_limited(name: str, limit: int, window_seconds: int):
@@ -71,6 +79,25 @@ def _checkout_failure_code(error: Exception) -> str:
 def register_trading_journal(app, get_conn, get_member, login_required, admin_required=None):
     service = JournalService(get_conn, get_member, app.logger)
 
+    def mobile_entitlements(user_id: str, member: dict) -> dict:
+        if _mobile_standalone_enabled() or academy_membership_state(member)[0]:
+            return service.entitlements(user_id)
+        return PLAN_RULES["NONE"].as_dict()
+
+    @app.before_request
+    def require_active_academy_for_mobile_trading_api():
+        """Prevent a mobile session from bypassing the Academy-only UI."""
+        if (_mobile_standalone_enabled() or not session.get("bectanse_track_mobile") or
+                not request.path.startswith("/api/trading/")):
+            return None
+        member = get_member(str(session.get("member_code") or ""))
+        if academy_membership_state(member)[0]:
+            return None
+        return jsonify({
+            "ok": False,
+            "error": "Cette première version est réservée aux membres Bectanse Académie actifs.",
+        }), 403
+
     @app.route("/bectanse-track/legal/<slug>")
     def bectanse_track_legal(slug):
         if slug not in {"conditions", "confidentialite"}:
@@ -79,7 +106,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
 
     def mobile_session_payload(user_id: str, *, recovery_code: str | None = None) -> dict:
         member = get_member(user_id) or {}
-        entitlements = service.entitlements(user_id)
+        entitlements = mobile_entitlements(user_id, member)
         profile = service.profile(user_id)
         accounts = (
             service.list_accounts(user_id, entitlements["max_accounts"])
@@ -107,6 +134,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         session.clear()
         session.permanent = True
         session["member_code"] = member["code"]
+        session["bectanse_track_mobile"] = True
         try:
             conn = get_conn()
             conn.run("UPDATE members SET last_login=NOW() WHERE code=:code", code=member["code"])
@@ -122,6 +150,11 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         member = get_member(code) if code else None
         if not member or code == "BCT-DEMO2026":
             return jsonify({"ok": False, "error": "Code Bectanse invalide."}), 401
+        if not _mobile_standalone_enabled() and not academy_membership_state(member)[0]:
+            return jsonify({
+                "ok": False,
+                "error": "Votre abonnement Bectanse Académie doit être actif pour utiliser l’application.",
+            }), 403
         try:
             install_mobile_session(member)
             response = jsonify(mobile_session_payload(member["code"]))
@@ -135,6 +168,11 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     @app.route("/api/mobile/auth/trial", methods=["POST"])
     @_rate_limited("mobile-trial", 3, 24 * 60 * 60)
     def mobile_trial_start():
+        if not _mobile_standalone_enabled():
+            return jsonify({
+                "ok": False,
+                "error": "Cette première version est réservée aux membres Bectanse Académie.",
+            }), 403
         payload = request.get_json(silent=True) or {}
         name = " ".join(str(payload.get("name") or "").strip().split())[:120]
         email = str(payload.get("email") or "").strip().lower()[:254]
@@ -226,6 +264,11 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
 
     @app.route("/api/mobile/storekit/context", methods=["GET"])
     def mobile_storekit_context():
+        if not _mobile_standalone_enabled():
+            return jsonify({
+                "ok": False,
+                "error": "Les abonnements Apple ne sont pas proposés dans cette version.",
+            }), 404
         user_id = str(session.get("member_code") or "")
         if not user_id or not get_member(user_id):
             session.clear()
@@ -241,6 +284,11 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     @app.route("/api/mobile/storekit/sync", methods=["POST"])
     @_rate_limited("mobile-storekit-sync", 30, 15 * 60)
     def mobile_storekit_sync():
+        if not _mobile_standalone_enabled():
+            return jsonify({
+                "ok": False,
+                "error": "Les abonnements Apple ne sont pas proposés dans cette version.",
+            }), 404
         user_id = str(session.get("member_code") or "")
         if not user_id or not get_member(user_id):
             session.clear()

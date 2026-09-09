@@ -3,17 +3,8 @@ import SwiftUI
 struct AuthenticationView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var mode: Mode = .academy
     @State private var code = ""
-    @State private var name = ""
-    @State private var email = ""
     @State private var appeared = false
-
-    enum Mode: String, CaseIterable, Identifiable {
-        case academy = "Membre Académie"
-        case trial = "Essai 7 jours"
-        var id: String { rawValue }
-    }
 
     var body: some View {
         ZStack {
@@ -41,52 +32,32 @@ struct AuthenticationView: View {
                             .lineSpacing(4)
                     }
 
-                    accessSelector
-
-                    VStack(spacing: 13) {
-                        if mode == .academy {
-                            TextField("Code BCT", text: $code)
-                                .textInputAutocapitalization(.characters)
-                                .autocorrectionDisabled()
-                                .textContentType(.password)
-                                .trackField()
-                            Button {
-                                Tactile.impact()
-                                Task { await store.login(code: code) }
-                            } label: {
-                                HStack {
-                                    Text(store.isLoading ? "Connexion en cours" : "Ouvrir mon journal")
-                                    Spacer()
-                                    Image(systemName: "arrow.right")
-                                }
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("ACCÈS MEMBRE ACADÉMIE")
+                            .font(.trackLabel(10))
+                            .tracking(1.8)
+                            .foregroundStyle(Brand.orange)
+                        TextField("Code BCT", text: $code)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .textContentType(.password)
+                            .trackField()
+                        Button {
+                            Tactile.impact()
+                            Task { await store.login(code: code) }
+                        } label: {
+                            HStack {
+                                Text(store.isLoading ? "Connexion en cours" : "Ouvrir mon journal")
+                                Spacer()
+                                Image(systemName: "arrow.right")
                             }
-                            .buttonStyle(PrimaryButtonStyle())
-                            .disabled(code.trimmingCharacters(in: .whitespaces).count < 5 || store.isLoading)
-                        } else {
-                            TextField("Nom", text: $name).textContentType(.name).trackField()
-                            TextField("E-mail", text: $email)
-                                .textInputAutocapitalization(.never)
-                                .keyboardType(.emailAddress)
-                                .textContentType(.emailAddress)
-                                .autocorrectionDisabled()
-                                .trackField()
-                            Button {
-                                Tactile.impact()
-                                Task { await store.startTrial(name: name, email: email) }
-                            } label: {
-                                HStack {
-                                    Text(store.isLoading ? "Création en cours" : "Continuer vers Apple")
-                                    Spacer()
-                                    Image(systemName: "arrow.right")
-                                }
-                            }
-                            .buttonStyle(PrimaryButtonStyle())
-                            .disabled(name.count < 2 || !email.contains("@") || store.isLoading)
-                            Text("Ce formulaire ne donne aucun accès. L’essai de 7 jours démarre uniquement après confirmation de l’abonnement et du moyen de paiement par Apple. Un seul essai est accordé par identifiant Apple et groupe d’abonnements.")
-                                .font(TrackType.body(12))
-                                .foregroundStyle(Brand.secondaryText)
-                                .lineSpacing(3)
                         }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .disabled(code.trimmingCharacters(in: .whitespaces).count < 5 || store.isLoading)
+                        Text("Cette première version est exclusivement réservée aux membres dont l’abonnement Bectanse Académie est actif.")
+                            .font(TrackType.body(12))
+                            .foregroundStyle(Brand.secondaryText)
+                            .lineSpacing(3)
                     }
                     .trackCard()
 
@@ -110,31 +81,6 @@ struct AuthenticationView: View {
         }
     }
 
-    private var accessSelector: some View {
-        HStack(spacing: 4) {
-            ForEach(Mode.allCases) { item in
-                Button {
-                    Tactile.selection()
-                    withAnimation(Brand.Motion.quick) { mode = item }
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(item.rawValue)
-                            .font(TrackType.body(12, weight: .semibold))
-                        Capsule().fill(mode == item ? Brand.orange : .clear).frame(width: 20, height: 2)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .foregroundStyle(mode == item ? Brand.orange : Brand.secondaryText)
-                    .background(mode == item ? Brand.orange.opacity(0.065) : .clear)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
-                .buttonStyle(TactileCardButtonStyle())
-            }
-        }
-        .padding(4)
-        .background(Brand.surface)
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Brand.lineStrong, lineWidth: 0.75))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
 }
 
 private struct TradingBackdropForAuth: View {

@@ -131,16 +131,19 @@ def test_manifest_launches_canonical_home_in_any_orientation():
     assert {icon["sizes"] for icon in manifest["icons"]} >= {"192x192", "512x512"}
 
 
-def test_ios_trial_requires_apple_and_displays_real_introductory_offer_eligibility():
+def test_ios_first_release_is_academy_members_only():
     authentication = read("ios/BectanseTrack/Sources/Features/AuthenticationView.swift")
-    storekit = read("ios/BectanseTrack/Sources/Core/StoreKitManager.swift")
     paywall = read("ios/BectanseTrack/Sources/Features/RootView.swift")
+    app_store = read("ios/BectanseTrack/Sources/Core/AppStore.swift")
     release = read("ios/BectanseTrack/APP_STORE_RELEASE.md")
 
-    assert "Continuer vers Apple" in authentication
-    assert "Ce formulaire ne donne aucun accès" in authentication
-    assert "isEligibleForIntroOffer" in storekit
-    assert "paymentMode == .freeTrial" in storekit
-    assert "Commencer l’essai avec Apple" in paywall
-    assert "même identifiant Apple" in paywall
-    assert "same subscription group" in release
+    assert "ACCÈS MEMBRE ACADÉMIE" in authentication
+    assert "Code BCT" in authentication
+    assert "Essai 7 jours" not in authentication
+    assert "Continuer vers Apple" not in authentication
+    assert "StorePaywall" not in paywall
+    assert "S’abonner avec Apple" not in paywall
+    assert "startTrial" not in app_store
+    assert "initializeStoreKit" not in app_store
+    assert "free companion app reserved for active Bectanse" in release
+    assert "no purchase, free trial, subscription paywall" in release

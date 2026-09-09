@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from flask import Flask
 
 from trading_journal import apple_iap
 from trading_journal.calculations import (
@@ -37,7 +38,11 @@ from trading_journal.providers.mt5 import MetaTrader5Provider
 from trading_journal.providers.mock import MockTradingProvider
 from trading_journal.security import CredentialCipher, canonical_worker_signature, verify_worker_request
 from trading_journal.service import JournalService, RETRY_DELAYS_SECONDS
-from trading_journal.routes import _checkout_failure_code
+from trading_journal.routes import (
+    _checkout_failure_code,
+    _mobile_standalone_enabled,
+    register_trading_journal,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +59,50 @@ def test_mobile_registration_cannot_grant_a_trial_without_apple():
     assert "'access_granted',FALSE" in registration
     assert "INTERVAL '7 days'" not in registration
     assert "'trialing'" not in registration
+
+
+def test_first_mobile_release_disables_standalone_access_by_default(monkeypatch):
+    monkeypatch.delenv("BECTANSE_TRACK_STANDALONE_ENABLED", raising=False)
+    assert _mobile_standalone_enabled() is False
+
+    monkeypatch.setenv("BECTANSE_TRACK_STANDALONE_ENABLED", "true")
+    assert _mobile_standalone_enabled() is True
+
+
+def test_mobile_members_only_mode_rejects_expired_codes_and_api_bypass(monkeypatch):
+    monkeypatch.delenv("BECTANSE_TRACK_STANDALONE_ENABLED", raising=False)
+    expired_member = {
+        "code": "BCT-EXPIRED",
+        "nom": "Expired Member",
+        "email": "expired@example.test",
+        "actif": False,
+        "access_level": "member",
+        "billing_status": "canceled",
+        "date_fin": datetime(2026, 1, 1),
+    }
+    web = Flask(__name__, template_folder=str(ROOT / "templates"))
+    web.secret_key = "mobile-members-only-test"
+    register_trading_journal(
+        web,
+        get_conn=lambda: (_ for _ in ()).throw(AssertionError("database must not be queried")),
+        get_member=lambda code: expired_member if code == "BCT-EXPIRED" else None,
+        login_required=lambda function: function,
+    )
+    client = web.test_client()
+
+    login = client.post("/api/mobile/auth/code", json={"code": "BCT-EXPIRED"})
+    assert login.status_code == 403
+    assert "abonnement Bectanse Académie" in login.get_json()["error"]
+
+    trial = client.post("/api/mobile/auth/trial", json={})
+    assert trial.status_code == 403
+
+    with client.session_transaction() as mobile_session:
+        mobile_session["member_code"] = "BCT-EXPIRED"
+        mobile_session["bectanse_track_mobile"] = True
+    bypass = client.get("/api/trading/brokers")
+    assert bypass.status_code == 403
+    assert "réservée aux membres" in bypass.get_json()["error"]
 
 
 class _AppleOwnershipConnection:
