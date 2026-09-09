@@ -41,10 +41,6 @@ struct RootView: View {
             ProfileSheet()
                 .presentationBackground(Brand.background)
         }
-        .refreshable {
-            await store.reloadAccounts()
-            await store.loadOverview()
-        }
     }
 
     @ViewBuilder private var tabContent: some View {
@@ -132,6 +128,7 @@ private struct BottomNavigation: View {
                         Text(tab.title)
                             .font(TrackType.label(9))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.72)
                         Capsule()
                             .fill(store.selectedTab == tab ? Brand.orange : .clear)
                             .frame(width: 18, height: 2)

@@ -2,13 +2,11 @@ import SwiftUI
 
 struct CoachView: View {
     @EnvironmentObject private var store: AppStore
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var review = "daily"
-    @State private var pulse = false
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 18) {
                 SectionHeading(eyebrow: "Analyste privé", title: "Bectanse Coach", trailing: "Analyse déterministe")
                 reviewSelector
                 if let coach = store.coach {
@@ -33,8 +31,6 @@ struct CoachView: View {
         .scrollIndicators(.hidden)
         .task {
             if store.coach == nil { await store.loadCoach(review) }
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { pulse = true }
         }
     }
 
@@ -93,7 +89,7 @@ struct CoachView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(spacing: 7) {
                         ZStack {
-                            Circle().fill(Brand.orange.opacity(0.14)).frame(width: pulse ? 15 : 9, height: pulse ? 15 : 9)
+                            Circle().fill(Brand.orange.opacity(0.14)).frame(width: 15, height: 15)
                             Circle().fill(Brand.orange).frame(width: 5, height: 5)
                         }
                         .frame(width: 15, height: 15)

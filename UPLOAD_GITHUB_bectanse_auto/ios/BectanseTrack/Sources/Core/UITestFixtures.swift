@@ -19,6 +19,12 @@ extension AppStore {
             lastSyncAt: "2026-09-09T08:25:00+02:00", lastSuccessfulSyncAt: "2026-09-09T08:25:00+02:00",
             lastErrorCode: nil, lastErrorMessage: nil
         )]
+        brokers = [
+            Broker(name: "PU Prime", servers: ["PUPrime-Live 1", "PUPrime-Live 6"], manualServerAllowed: true),
+            Broker(name: "VT Markets", servers: ["VTMarkets-Live", "VTMarkets-Live 2"], manualServerAllowed: true),
+            Broker(name: "Axi", servers: ["Axi-US03-Live", "Axi-US07-Live"], manualServerAllowed: true),
+            Broker(name: "Vantage", servers: ["VantageInternational-Live", "VantageInternational-Live 2"], manualServerAllowed: true),
+        ]
         selectedAccountID = 1
         let days = [
             TradingDay(date: "2026-09-01", netPnl: 482, trades: 7, wins: 5, losses: 2, unmatched: 0),

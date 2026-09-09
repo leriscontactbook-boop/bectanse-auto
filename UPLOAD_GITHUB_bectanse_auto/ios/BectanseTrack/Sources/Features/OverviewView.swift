@@ -144,77 +144,118 @@ struct OverviewView: View {
     @ViewBuilder private var equityChart: some View {
         if let equity = store.overview?.equity {
             VStack(alignment: .leading, spacing: 15) {
-                HStack {
+                HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("COURBE DE PERFORMANCE").font(.trackLabel(9)).tracking(1.45).foregroundStyle(Brand.secondaryText)
                         Text("P&L cumulé").font(TrackType.heading(20)).tracking(-0.35)
                     }
                     Spacer()
-                    Text("\(equity.tradeCount) positions").font(.caption).foregroundStyle(Brand.secondaryText)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("\(equity.tradeCount) positions")
+                            .font(.caption)
+                            .foregroundStyle(Brand.secondaryText)
+                        if let point = focusedPoint(in: equity.points) {
+                            Text(TrackFormat.money(point.cumulativePnl, currency: equity.currency, signed: true))
+                                .font(.trackMetric(14))
+                                .foregroundStyle(point.cumulativePnl >= 0 ? Brand.positive : Brand.negative)
+                                .contentTransition(.numericText())
+                            Text(chartPointLabel(point))
+                                .font(.trackLabel(7.5))
+                                .foregroundStyle(Brand.secondaryText)
+                                .lineLimit(1)
+                        }
+                    }
                 }
                 if equity.points.count > 1 {
                     Chart {
                         ForEach(equity.points) { point in
-                        AreaMark(
-                            x: .value("Position", point.tradeIndex ?? 0),
-                            y: .value("P&L", point.cumulativePnl)
-                        )
-                        .foregroundStyle(LinearGradient(colors: [Brand.orange.opacity(0.20), .clear], startPoint: .top, endPoint: .bottom))
-                        LineMark(
-                            x: .value("Position", point.tradeIndex ?? 0),
-                            y: .value("P&L", point.cumulativePnl)
-                        )
-                        .foregroundStyle(Brand.orange)
-                        .lineStyle(StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                            AreaMark(
+                                x: .value("Position", point.tradeIndex ?? 0),
+                                y: .value("P&L", point.cumulativePnl)
+                            )
+                            .interpolationMethod(.monotone)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Brand.orange.opacity(0.24), Brand.orange.opacity(0.035), .clear],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            LineMark(
+                                x: .value("Position", point.tradeIndex ?? 0),
+                                y: .value("P&L", point.cumulativePnl)
+                            )
+                            .interpolationMethod(.monotone)
+                            .foregroundStyle(Brand.orange)
+                            .lineStyle(StrokeStyle(lineWidth: 2.25, lineCap: .round, lineJoin: .round))
                         }
                         if let selected = selectedPoint(in: equity.points) {
                             RuleMark(x: .value("Position", selected.tradeIndex ?? 0))
-                                .foregroundStyle(Brand.lineStrong)
-                                .lineStyle(StrokeStyle(lineWidth: 0.75, dash: [3, 3]))
-                                .annotation(position: .top, spacing: 8) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(selected.date ?? "Position \(selected.tradeIndex ?? 0)")
-                                            .font(.trackLabel(8))
-                                            .foregroundStyle(Brand.secondaryText)
-                                        Text(TrackFormat.money(selected.cumulativePnl, currency: equity.currency, signed: true))
-                                            .font(.trackMetric(13))
-                                            .foregroundStyle(selected.cumulativePnl >= 0 ? Brand.positive : Brand.negative)
-                                    }
-                                    .padding(.horizontal, 10).padding(.vertical, 8)
-                                    .background(Brand.surfaceRaised)
-                                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Brand.lineStrong, lineWidth: 0.75))
-                                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                                }
+                                .foregroundStyle(Brand.primaryText.opacity(0.46))
+                                .lineStyle(StrokeStyle(lineWidth: 0.8, dash: [3, 3]))
+                            PointMark(
+                                x: .value("Position", selected.tradeIndex ?? 0),
+                                y: .value("P&L", selected.cumulativePnl)
+                            )
+                            .symbolSize(52)
+                            .foregroundStyle(Brand.orange)
                         }
                     }
-                    .chartXAxis(.hidden)
-                    .chartYAxis {
-                        AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
-                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 5])).foregroundStyle(Brand.line)
-                            AxisValueLabel().font(.trackLabel(8)).foregroundStyle(Brand.mutedText)
+                    .chartXScale(domain: chartXDomain(equity.points))
+                    .chartYScale(domain: chartYDomain(equity.points))
+                    .chartXAxis {
+                        AxisMarks(position: .bottom, values: .automatic(desiredCount: 3)) { value in
+                            AxisTick(stroke: StrokeStyle(lineWidth: 0.6)).foregroundStyle(Brand.lineStrong)
+                            AxisValueLabel {
+                                if let index = value.as(Int.self) {
+                                    Text("#\(index + 1)")
+                                        .font(.trackLabel(7.5))
+                                        .foregroundStyle(Brand.secondaryText)
+                                }
+                            }
                         }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
+                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.55, dash: [3, 5])).foregroundStyle(Brand.lineStrong)
+                            AxisTick(stroke: StrokeStyle(lineWidth: 0.6)).foregroundStyle(Brand.lineStrong)
+                            AxisValueLabel {
+                                if let amount = value.as(Double.self) {
+                                    Text(chartAxisLabel(amount))
+                                        .font(.trackMetric(8.5))
+                                        .foregroundStyle(Brand.secondaryText)
+                                }
+                            }
+                        }
+                    }
+                    .chartPlotStyle { plot in
+                        plot
+                            .background(Brand.backgroundElevated.opacity(0.34))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .chartOverlay { proxy in
                         GeometryReader { geometry in
                             Rectangle().fill(.clear).contentShape(Rectangle())
-                                .gesture(
+                                .simultaneousGesture(
                                     DragGesture(minimumDistance: 0)
                                         .onChanged { value in
+                                            guard abs(value.translation.height) <= abs(value.translation.width) + 10 else { return }
                                             guard let plotFrame = proxy.plotFrame else { return }
                                             let frame = geometry[plotFrame]
                                             let x = value.location.x - frame.origin.x
                                             guard x >= 0, x <= frame.width,
                                                   let index: Int = proxy.value(atX: x)
                                             else { return }
-                                            selectedTradeIndex = index
-                                        }
-                                        .onEnded { _ in
-                                            withAnimation(Brand.Motion.quick) { selectedTradeIndex = nil }
+                                            let nearest = selectedPoint(to: index, in: equity.points)?.tradeIndex
+                                            if nearest != selectedTradeIndex {
+                                                Tactile.selection()
+                                                withAnimation(Brand.Motion.quick) { selectedTradeIndex = nearest }
+                                            }
                                         }
                                 )
                         }
                     }
-                    .frame(height: 210)
+                    .frame(height: 228)
                     .mask(alignment: .leading) {
                         Rectangle()
                             .scaleEffect(x: appeared || reduceMotion ? 1 : 0.02, anchor: .leading)
@@ -298,6 +339,50 @@ struct OverviewView: View {
 
     private func selectedPoint(in points: [EquityPoint]) -> EquityPoint? {
         guard let selectedTradeIndex else { return nil }
-        return points.min { abs(($0.tradeIndex ?? 0) - selectedTradeIndex) < abs(($1.tradeIndex ?? 0) - selectedTradeIndex) }
+        return selectedPoint(to: selectedTradeIndex, in: points)
+    }
+
+    private func focusedPoint(in points: [EquityPoint]) -> EquityPoint? {
+        selectedPoint(in: points) ?? points.last
+    }
+
+    private func selectedPoint(to index: Int, in points: [EquityPoint]) -> EquityPoint? {
+        points.min { abs(($0.tradeIndex ?? 0) - index) < abs(($1.tradeIndex ?? 0) - index) }
+    }
+
+    private func chartXDomain(_ points: [EquityPoint]) -> ClosedRange<Int> {
+        let values = points.map { $0.tradeIndex ?? 0 }
+        let lower = values.min() ?? 0
+        let upper = values.max() ?? max(1, lower + 1)
+        return lower...max(lower + 1, upper)
+    }
+
+    private func chartYDomain(_ points: [EquityPoint]) -> ClosedRange<Double> {
+        let values = points.map(\.cumulativePnl)
+        let minimum = values.min() ?? 0
+        let maximum = values.max() ?? 1
+        let span = max(1, maximum - minimum)
+        let padding = max(span * 0.12, max(abs(minimum), abs(maximum)) * 0.025, 1)
+        return (minimum - padding)...(maximum + padding)
+    }
+
+    private func chartAxisLabel(_ value: Double) -> String {
+        let magnitude = abs(value)
+        if magnitude >= 1_000_000 { return String(format: "%.1f M", value / 1_000_000) }
+        if magnitude >= 10_000 { return String(format: "%.0f k", value / 1_000) }
+        if magnitude >= 1_000 { return String(format: "%.1f k", value / 1_000) }
+        return String(format: "%.0f", value)
+    }
+
+    private func chartPointLabel(_ point: EquityPoint) -> String {
+        guard let raw = point.at ?? point.date else { return "POSITION #\((point.tradeIndex ?? 0) + 1)" }
+        if let date = ISO8601DateFormatter().date(from: raw) {
+            return date.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(Locale(identifier: "fr_FR"))).uppercased()
+        }
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: raw) else { return raw }
+        return date.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "fr_FR"))).uppercased()
     }
 }
