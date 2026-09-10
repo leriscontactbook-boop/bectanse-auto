@@ -147,3 +147,16 @@ def test_ios_first_release_is_academy_members_only():
     assert "initializeStoreKit" not in app_store
     assert "free companion app reserved for active Bectanse" in release
     assert "no purchase, free trial, subscription paywall" in release
+
+
+def test_bectanse_track_uses_the_registered_llc_identity():
+    legal = read("templates/bectanse_track_legal.html")
+    release = read("ios/BectanseTrack/APP_STORE_RELEASE.md")
+
+    assert legal.count("BECTANSE L.L.C.") == 2
+    assert "LERIS CORP FZCO" not in legal
+    assert "numéro 3291799" in legal
+    assert "27 août 2026" in legal
+    assert "1209 Mountain Road PL NE, STE R" in legal
+    assert "Legal entity: `BECTANSE L.L.C.`" in release
+    assert "StoreKit paywall includes" not in release

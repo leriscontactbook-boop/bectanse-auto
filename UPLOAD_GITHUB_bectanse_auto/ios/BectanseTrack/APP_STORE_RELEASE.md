@@ -9,6 +9,19 @@
 - Category: Finance
 - Minimum iOS: 17.0
 
+## Publisher
+
+- Legal entity: `BECTANSE L.L.C.`
+- Jurisdiction: New Mexico, United States
+- New Mexico Secretary of State file number: `3291799`
+- Formation date: August 27, 2026
+- Principal address: `1209 Mountain Road PL NE, STE R, Albuquerque, NM 87110, United States`
+
+Before submitting under the company name, the Apple Developer membership and
+App Store Connect seller must represent `BECTANSE L.L.C.`. Do not submit this
+release under the current individual seller identity if the intended public
+seller is the LLC.
+
 ## Version 1 access model
 
 The first public version is a free companion app reserved for active Bectanse
@@ -51,5 +64,6 @@ external purchase call to action.
 - Terms: `https://acces.bectanse-academie.com/bectanse-track/legal/conditions`
 - Support: `support@bectanse-academie.com`
 
-The StoreKit paywall includes the live Apple price, automatic-renewal notice,
-restore action, terms and privacy links.
+Build 4 contains no StoreKit paywall, purchase action, trial claim or external
+purchase link. The public legal pages identify `BECTANSE L.L.C.` as the editor
+and data controller for Bectanse Track.
