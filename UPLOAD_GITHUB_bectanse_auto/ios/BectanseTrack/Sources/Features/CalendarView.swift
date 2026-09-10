@@ -187,7 +187,7 @@ struct CalendarView: View {
                     CalendarCell(
                         cell: cell,
                         currency: payload.currency,
-                        selected: cell.date == selectedDate,
+                        selected: cell.date != nil && cell.date == selectedDate,
                         today: cell.date == Self.todayKey
                     ) {
                         guard let date = cell.date else { return }

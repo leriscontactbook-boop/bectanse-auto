@@ -5,7 +5,7 @@
 - Bundle ID: `com.bectanse.track`
 - Apple team: `72C5MFHM2S`
 - Version: `1.0`
-- Build: `4`
+- Build: `5`
 - Category: Finance
 - Minimum iOS: 17.0
 
@@ -60,10 +60,55 @@ external purchase call to action.
 
 ## Public metadata
 
+- App name: `Bectanse Track`
+- Subtitle: `Votre trading sous contrôle`
+- Promotional text: `Vos performances MetaTrader, votre discipline et vos axes de progression dans un journal privé réservé aux membres Bectanse.`
+- Keywords: `trading,journal,MetaTrader,MT5,performance,statistiques,risque,discipline,coach,bourse`
+- Category: `Finance`
+- Copyright: `2026 BECTANSE L.L.C.`
+- Release: automatic after App Review approval
 - Privacy: `https://acces.bectanse-academie.com/bectanse-track/legal/confidentialite`
 - Terms: `https://acces.bectanse-academie.com/bectanse-track/legal/conditions`
-- Support: `support@bectanse-academie.com`
+- Support: `https://acces.bectanse-academie.com/bectanse-track/legal/support`
+- Support email: `support@bectanse-academie.com`
 
-Build 4 contains no StoreKit paywall, purchase action, trial claim or external
+### Description (French)
+
+Bectanse Track transforme votre historique MetaTrader 5 en un journal de
+performance clair, précis et directement exploitable.
+
+Consultez votre P&L, votre balance, votre equity, votre taux de réussite et
+votre courbe de performance. Retrouvez chaque position clôturée avec ses prix
+d’entrée et de sortie, son volume, sa durée et ses frais. Le calendrier restitue
+vos résultats jour après jour, tandis que les Analytics mettent en évidence vos
+performances par actif, session et période.
+
+Bectanse Coach analyse vos données vérifiées avec des règles déterministes pour
+faire ressortir vos habitudes de discipline, de risque, de régularité,
+d’exécution et de timing. Il ne génère aucun signal et ne passe aucun ordre.
+
+Cette première version est le compagnon mobile de Bectanse Académie. Elle est
+réservée aux membres disposant d’un abonnement actif et s’utilise avec le code
+BCT personnel déjà fourni par l’Académie.
+
+### App Review notes
+
+Bectanse Track is the free mobile companion app for existing active Bectanse
+Academy members. The app contains no purchase flow, trial, subscription paywall
+or external purchase link. Reviewers can sign in with the dedicated BCT review
+code supplied in App Review Information. A connected MetaTrader demo account
+must remain available throughout review. The app is read-only: it imports
+trading history and never places orders or generates trading signals.
+
+### App Privacy declarations
+
+- Contact Info: name and email address; linked to the user; app functionality.
+- Identifiers: user ID/member code; linked to the user; app functionality.
+- Purchases: Academy membership status; linked to the user; app functionality.
+- Financial Info: MetaTrader account and trading history; linked to the user;
+  app functionality and product personalization.
+- Tracking: no.
+
+Build 5 contains no StoreKit paywall, purchase action, trial claim or external
 purchase link. The public legal pages identify `BECTANSE L.L.C.` as the editor
 and data controller for Bectanse Track.

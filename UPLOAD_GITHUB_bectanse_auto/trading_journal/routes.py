@@ -100,7 +100,7 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
 
     @app.route("/bectanse-track/legal/<slug>")
     def bectanse_track_legal(slug):
-        if slug not in {"conditions", "confidentialite"}:
+        if slug not in {"conditions", "confidentialite", "support"}:
             return "Page introuvable", 404
         return render_template("bectanse_track_legal.html", slug=slug)
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>{% if slug == 'conditions' %}Conditions d’utilisation{% else %}Confidentialité{% endif %} — Bectanse Track</title>
+  <title>{% if slug == 'conditions' %}Conditions d’utilisation{% elif slug == 'support' %}Support{% else %}Confidentialité{% endif %} — Bectanse Track</title>
   <meta name="theme-color" content="#070807">
   <style>
     :root{--orange:#ff641e;--bg:#070807;--card:#111210;--line:#292b27;--text:#f5f5f2;--muted:#a4a79f}
@@ -16,7 +16,7 @@
 <body>
 <header>BECTANSE <span>TRACK</span></header>
 <main>
-  <nav><a href="/bectanse-track/legal/conditions">Conditions</a><a href="/bectanse-track/legal/confidentialite">Confidentialité</a></nav>
+  <nav><a href="/bectanse-track/legal/conditions">Conditions</a><a href="/bectanse-track/legal/confidentialite">Confidentialité</a><a href="/bectanse-track/legal/support">Support</a></nav>
   {% if slug == 'conditions' %}
   <h1>Conditions d’utilisation</h1><p class="date">Version du 10 septembre 2026</p>
   <h2>Service</h2><p>Bectanse Track est un journal de trading édité par <strong>BECTANSE L.L.C.</strong>, société à responsabilité limitée constituée au Nouveau-Mexique (États-Unis), enregistrée auprès du New Mexico Secretary of State le 27 août 2026 sous le numéro 3291799, dont l’établissement principal est situé au 1209 Mountain Road PL NE, STE R, Albuquerque, NM 87110, États-Unis. Il importe les données d’un compte MetaTrader autorisé par l’utilisateur, calcule des statistiques et présente des observations comportementales éducatives.</p>
@@ -25,6 +25,11 @@
   <h2>Expiration et conservation</h2><p>À l’expiration de l’abonnement Académie, l’accès à l’application et les synchronisations sont suspendus automatiquement. L’historique déjà importé est conservé pendant la durée nécessaire au service et peut redevenir accessible après réactivation, sous réserve des règles de conservation et des droits de suppression applicables.</p>
   <h2>Sécurité</h2><p>L’utilisateur doit protéger son code et ses accès. Les identifiants MetaTrader sont chiffrés et utilisés uniquement pour la synchronisation demandée. Bectanse Track ne détient pas les fonds du compte de trading.</p>
   <h2>Support</h2><p>Pour toute question liée au service ou à l’accès membre, écrivez à <a href="mailto:support@bectanse-academie.com">support@bectanse-academie.com</a>.</p>
+  {% elif slug == 'support' %}
+  <h1>Support</h1><p class="date">Bectanse Track</p>
+  <h2>Nous contacter</h2><p>Pour toute question concernant votre accès, la connexion de votre compte MetaTrader ou la synchronisation de vos données, écrivez à <a href="mailto:support@bectanse-academie.com">support@bectanse-academie.com</a>.</p>
+  <h2>Informations utiles</h2><p>Indiquez votre code membre BCT, le nom de votre broker et le serveur MetaTrader concerné. Ne transmettez jamais votre mot de passe MetaTrader par e-mail.</p>
+  <h2>Délai de réponse</h2><p>Les demandes sont traitées par l’équipe Bectanse. En cas d’incident de synchronisation, vos données déjà importées restent conservées et aucune opération de trading n’est effectuée par l’application.</p>
   {% else %}
   <h1>Confidentialité</h1><p class="date">Version du 10 septembre 2026</p>
   <h2>Responsable</h2><p><strong>BECTANSE L.L.C.</strong>, société à responsabilité limitée constituée au Nouveau-Mexique (États-Unis), enregistrée sous le numéro 3291799 et exploitant Bectanse Track. Adresse : 1209 Mountain Road PL NE, STE R, Albuquerque, NM 87110, États-Unis. Contact : <a href="mailto:support@bectanse-academie.com">support@bectanse-academie.com</a>.</p>
