@@ -109,6 +109,12 @@ trading history and never places orders or generates trading signals.
   app functionality and product personalization.
 - Tracking: no.
 
+### Screenshots
+
+The five French iPhone 6.9-inch screenshots are stored in
+`AppStore/Screenshots/fr-FR`. Each image is 1320 × 2868 pixels, without an alpha
+channel, and covers Overview, Trades, Calendar, Analytics and Coach.
+
 Build 5 contains no StoreKit paywall, purchase action, trial claim or external
 purchase link. The public legal pages identify `BECTANSE L.L.C.` as the editor
 and data controller for Bectanse Track.
