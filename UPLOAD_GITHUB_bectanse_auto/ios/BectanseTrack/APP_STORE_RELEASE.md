@@ -111,7 +111,7 @@ trading history and never places orders or generates trading signals.
 
 ### Screenshots
 
-The five French iPhone 6.9-inch screenshots are stored in
+The five French iPhone 6.9-inch JPEG screenshots are stored in
 `AppStore/Screenshots/fr-FR`. Each image is 1320 × 2868 pixels, without an alpha
 channel, and covers Overview, Trades, Calendar, Analytics and Coach.
 
