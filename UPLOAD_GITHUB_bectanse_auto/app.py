@@ -1332,11 +1332,8 @@ def vip_landing():
             'Ils te parlent<br><em>directement</em>', 'Parole de<br><em>membre</em>', 1
         )
 
-    candidature_enabled = os.environ.get('CANDIDATURE_ENABLED') == '1' and os.environ.get('CANDIDATURE_PUBLIC_ENABLED') == '1'
     offers = testimonial_section + (render_template("vip_black_friday.html") if 1793232000 <= time.time() < 1793401200 else render_template("academy_offers_section.html",
         plans=list(ACADEMY_SUBSCRIPTION_PLANS.values())))
-    if candidature_enabled:
-        offers += render_template('vip_candidature.html')
     marker = '<section class="section explorer-entry" id="capture">'
     if marker in html:
         html = html.replace(marker, offers + marker, 1)
