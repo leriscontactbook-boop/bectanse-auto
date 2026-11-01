@@ -1366,7 +1366,10 @@ def vip_presentation_media(kind):
              "copy-video": "copy-trading.mp4", "copy-cover": "copy-trading.jpg"}
     if kind not in files:
         abort(404)
-    return send_from_directory("broker_trial_assets/media", files[kind], conditional=True)
+    # These public presentation files are kept with the published release so
+    # that the production image remains small enough for its deployment lane.
+    published = "https://raw.githubusercontent.com/leriscontactbook-boop/bectanse-auto/codex/mt5-journal-production/UPLOAD_GITHUB_bectanse_auto/broker_trial_assets/media/"
+    return redirect(published + files[kind], code=302)
 
 
 @app.route("/lerisluketo", strict_slashes=False)

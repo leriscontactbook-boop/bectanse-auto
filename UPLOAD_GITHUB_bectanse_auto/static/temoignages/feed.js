@@ -6,13 +6,19 @@
   const audioMount = section.querySelector('[data-member-feed="audios"]');
   if (!visualMount && !audioMount) return;
   const audioOnly = !visualMount && Boolean(audioMount);
+  const localTestimonials = '/static/temoignages';
+  const publishedTestimonials = 'https://raw.githubusercontent.com/leriscontactbook-boop/bectanse-auto/codex/mt5-journal-production/UPLOAD_GITHUB_bectanse_auto/static/temoignages';
+  const testimonialBase = location.hostname === 'acces.bectanse-academie.com' ? publishedTestimonials : localTestimonials;
   let catalog = window.__BECTANSE_TESTIMONIALS__ || null;
   if (!catalog) {
     try {
-      const response = await fetch('/static/temoignages/temoignages.json?v=97b3374a9dc4');
+      const response = await fetch(`${testimonialBase}/temoignages.json?v=97b3374a9dc4`);
       if (!response.ok) return;
       catalog = await response.json();
     } catch (_) { return; }
+  }
+  if (testimonialBase !== localTestimonials) {
+    catalog = JSON.parse(JSON.stringify(catalog).replaceAll(localTestimonials, testimonialBase));
   }
   if (!catalog.items?.length) return;
   const make = (tag, cls, text) => {
