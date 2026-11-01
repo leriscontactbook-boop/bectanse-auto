@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
-from flask import send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from flask import abort, send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify, Response
 from werkzeug.utils import secure_filename
 import pg8000.native
 from cryptography.fernet import Fernet, InvalidToken
@@ -1312,7 +1312,68 @@ def login_required(f):
 
 @app.route("/vip")
 def vip_landing():
-    return send_from_directory("static/vip", "index.html")
+    response = send_from_directory("static/vip", "index-20261029-compact.html", conditional=False)
+    response.direct_passthrough = False
+    # Show the same detailed plans as the member offers page on /vip only.
+    html = response.get_data(as_text=True)
+    html = html.replace('<div class="mobile-sticky"><a class="btn btn-primary" href="#capture">Créer mon compte gratuit</a></div>', '', 1)
+    # Move the real member voices immediately before the commercial offers.  The
+    # original feed remains the single source of truth; its visual rail is not
+    # duplicated in this audio-focused placement.
+    testimonial_match = re.search(
+        r'<section class="section social-proof" id="temoignages"[\s\S]*?</section>', html
+    )
+    testimonial_section = ''
+    if testimonial_match:
+        testimonial_section = testimonial_match.group(0)
+        html = html[:testimonial_match.start()] + html[testimonial_match.end():]
+        testimonial_section = testimonial_section.replace('Paroles de membres', 'Parole de membre', 1)
+        testimonial_section = testimonial_section.replace(
+            'Ils te parlent<br><em>directement</em>', 'Parole de<br><em>membre</em>', 1
+        )
+
+    candidature_enabled = os.environ.get('CANDIDATURE_ENABLED') == '1' and os.environ.get('CANDIDATURE_PUBLIC_ENABLED') == '1'
+    offers = testimonial_section + (render_template("vip_black_friday.html") if 1793232000 <= time.time() < 1793401200 else render_template("academy_offers_section.html",
+        plans=list(ACADEMY_SUBSCRIPTION_PLANS.values())))
+    if candidature_enabled:
+        offers += render_template('vip_candidature.html')
+    marker = '<section class="section explorer-entry" id="capture">'
+    if marker in html:
+        html = html.replace(marker, offers + marker, 1)
+    else:
+        html = html.replace('</main>', offers + '</main>', 1)
+    # Restore the original 15-day selection offer, with its video and candidature route.
+    trial_offer = render_template("vip_trial_invite.html")
+    trial_marker = '<section class="section explorer-entry" id="capture">'
+    if trial_marker in html:
+        html = html.replace(trial_marker, trial_offer + trial_marker, 1)
+
+    html = html.replace('<div data-vip-copy-video></div>',
+        render_template("vip_copy_video.html"), 1)
+    # The CryptOwl-inspired direction is applied by CSS and progressive JS only.
+    html = html.replace('/static/js/vip-premium.js?v=20261015-repair1', '/static/js/vip-premium.js?v=20261101-scene54', 1)
+    html = html.replace('</head>', '<link rel="stylesheet" href="/static/css/vip-cryptowl-direction.css?v=20261101-scene54"></head>', 1)
+    response.set_data(html)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers.pop("ETag", None)
+    return response
+
+
+@app.get("/vip/presentation-media/<kind>")
+def vip_presentation_media(kind):
+    # Expose only the public Academy presentation, not the private trial library.
+    files = {"video": "academie.mp4", "cover": "academie.jpg",
+             "copy-video": "copy-trading.mp4", "copy-cover": "copy-trading.jpg"}
+    if kind not in files:
+        abort(404)
+    return send_from_directory("broker_trial_assets/media", files[kind], conditional=True)
+
+
+@app.route("/lerisluketo", strict_slashes=False)
+def founder_landing():
+    response = send_from_directory("static/lerisluketo", "index.html", conditional=False)
+    response.direct_passthrough = False
+    return response
 
 
 @app.route("/support", methods=["GET", "POST"])

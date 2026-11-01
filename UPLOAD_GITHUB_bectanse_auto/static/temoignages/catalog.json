@@ -1,0 +1,11 @@
+{
+  "members": [
+    {"id":"samir","name":"Samir","description":"Témoignage d’un membre","caption":"Samir raconte son expérience de l’Académie en vidéo.","video":"/static/vip/assets/video-testimonial-samir.mp4","poster":"/static/vip/assets/video-testimonial-samir.jpg","images":[]},
+    {"id":"warren","name":"Warren","description":"Vocal et captures partagés","caption":"Son retour en message vocal, accompagné de deux captures à consulter en détail.","audio":"/static/vip/assets/testimonial-warren.mp3","images":[{"src":"/static/vip/assets/warren-dashboard-1.webp","alt":"Première capture de résultats partagée par Warren"},{"src":"/static/vip/assets/warren-dashboard-2.webp","alt":"Deuxième capture de résultats partagée par Warren"}]},
+    {"id":"wendy","name":"Wendy","description":"Témoignage d’une membre","caption":"Wendy partage son expérience avec ses propres mots.","video":"/static/vip/assets/video-testimonial-wendy.mp4","poster":"/static/vip/assets/video-testimonial-wendy.jpg","images":[]},
+    {"id":"julien","name":"Julien","description":"Vocal et capture partagés","caption":"Écoute le retour de Julien et ouvre la capture qui l’accompagne.","audio":"/static/vip/assets/testimonial-julien.mp3","images":[{"src":"/static/vip/assets/testimonial-proof-julien.jpg","alt":"Capture partagée par Julien"}]},
+    {"id":"gianlucas","name":"Gianlucas","description":"Témoignage d’un membre","caption":"Gianlucas prend la parole pour raconter son expérience.","video":"/static/vip/assets/video-testimonial-gianlucas.mp4","poster":"/static/vip/assets/video-testimonial-gianlucas.jpg","images":[]},
+    {"id":"angel","name":"Angel","description":"Vocal et capture partagés","caption":"Le témoignage vocal d’Angel, avec la capture qu’il a partagée.","audio":"/static/vip/assets/testimonial-angel.mp3","images":[{"src":"/static/vip/assets/testimonial-proof-angel.png","alt":"Capture partagée par Angel"}]},
+    {"id":"samuel","name":"Samuel","description":"Message vocal d’un membre","caption":"Un retour à écouter directement, à ton rythme.","audio":"/static/vip/assets/testimonial-samuel.mp3","images":[]}
+  ]
+}

@@ -1,0 +1,390 @@
+{
+  "items": [
+    {
+      "id": "yujiro-hanma-jan16",
+      "name": "Yujiro Hanma",
+      "caption": "1 092,69 · bénéfice affiché sur MT5",
+      "video": "/static/temoignages/medias/yujiro-hanma.mp4",
+      "poster": "/static/temoignages/medias/yujiro-hanma.jpg",
+      "audio": "/static/temoignages/medias/yujiro-hanma.ogg",
+      "association": "Même auteur transféré, vidéo puis vocal à 16:55 le 16 janvier ; contexte vérifié dans le canal.",
+      "source": "RÉSULTAT MEMBRE BECTANSE / 16 janvier / 16:55"
+    },
+    {
+      "id": "5796175382795982017",
+      "name": "Kevin",
+      "image": "/static/temoignages/medias/5796175382795982017.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5796639033105518662",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5796639033105518662.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5163727966557638121",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5163727966557638121.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5163727966557638120",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5163727966557638120.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6026203458823720322",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6026203458823720322.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6017261671920897402",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6017261671920897402.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6019332962849069345",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6019332962849069345.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5980978677262519914",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5980978677262519914.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5981223632132312403",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5981223632132312403.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5922316605184480410",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5922316605184480410.jpg",
+      "caption": "Conversation Telegram",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5924977122675985933",
+      "name": "Yanno",
+      "image": "/static/temoignages/medias/5924977122675985933.jpg",
+      "caption": "Conversation Telegram",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5917934694865506021",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5917934694865506021.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5904263633573711394",
+      "name": "Alexander",
+      "image": "/static/temoignages/medias/5904263633573711394.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5821061960907296743",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5821061960907296743.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5810055548865547994",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5810055548865547994.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5801108612296937486",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5801108612296937486.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5791851811017788745",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5791851811017788745.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6021699489829163022",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6021699489829163022.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6019554261038992463",
+      "name": "Sushi",
+      "image": "/static/temoignages/medias/6019554261038992463.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6019554261038992462",
+      "name": "Sushi",
+      "image": "/static/temoignages/medias/6019554261038992462.jpg",
+      "caption": "Conversation Telegram",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6014901441362857298",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6014901441362857298.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5933964333152930946",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5933964333152930946.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5918232035451407781",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5918232035451407781.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5904780769110985998",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5904780769110985998.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5904576801114098776",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5904576801114098776.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5900073261616270459",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5900073261616270459.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5900073261616270458",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5900073261616270458.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5899881809154084027",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5899881809154084027.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5897517743190250361",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5897517743190250361.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5017256580898032787",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5017256580898032787.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5883988244020530384",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5883988244020530384.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5882221242935348486",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5882221242935348486.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5017075633925852056",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5017075633925852056.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5879731351609609417",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5879731351609609417.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5857064318107585801",
+      "name": "Ad",
+      "image": "/static/temoignages/medias/5857064318107585801.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5857064318107585800",
+      "name": "Ad",
+      "image": "/static/temoignages/medias/5857064318107585800.jpg",
+      "caption": "Conversation Telegram",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5836709158126817293",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5836709158126817293.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5821195693303991613",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5821195693303991613.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5796200559894269509",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5796200559894269509.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5796566486812921115",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5796566486812921115.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6046455814467292613",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6046455814467292613.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5170408990050028568",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5170408990050028568.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5168372574256302959",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5168372574256302959.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "5167904869497637827",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/5167904869497637827.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6019102189961284640",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6019102189961284640.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6019578063747746854",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6019578063747746854.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    },
+    {
+      "id": "6019578063747746853",
+      "name": "Résultat partagé par un membre",
+      "image": "/static/temoignages/medias/6019578063747746853.jpg",
+      "caption": "Capture MetaTrader 5",
+      "audio": null,
+      "association": "Aucun vocal attribué sans confirmation de l’auteur"
+    }
+  ]
+}
