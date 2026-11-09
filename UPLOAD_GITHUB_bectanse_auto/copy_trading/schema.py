@@ -175,6 +175,23 @@ STATEMENTS = (
         role TEXT NOT NULL DEFAULT ''""",
     """CREATE INDEX IF NOT EXISTS copy_trading_worker_nonces_created_idx
         ON copy_trading_worker_nonces (created_at)""",
+    """CREATE TABLE IF NOT EXISTS copy_trading_terminal_probes (
+        worker_id TEXT NOT NULL,
+        slot_role TEXT NOT NULL CHECK (slot_role IN ('MASTER','FOLLOWER')),
+        member_code TEXT NOT NULL REFERENCES members(code) ON DELETE CASCADE,
+        account_fingerprint TEXT NOT NULL,
+        server TEXT NOT NULL DEFAULT '',
+        state TEXT NOT NULL CHECK (state IN ('CONNECTED','FAILED')),
+        failure_code TEXT NOT NULL DEFAULT '',
+        terminal_path_verified BOOLEAN NOT NULL DEFAULT FALSE,
+        diagnostic_code INTEGER,
+        process_id BIGINT,
+        session_id INTEGER,
+        checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (worker_id, member_code)
+    )""",
+    """CREATE INDEX IF NOT EXISTS copy_trading_terminal_probes_member_idx
+        ON copy_trading_terminal_probes (member_code, checked_at DESC)""",
     """CREATE TABLE IF NOT EXISTS copy_trading_follower_locks (
         member_code TEXT PRIMARY KEY REFERENCES members(code) ON DELETE CASCADE,
         job_id UUID,

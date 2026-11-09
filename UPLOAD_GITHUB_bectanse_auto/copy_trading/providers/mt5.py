@@ -8,6 +8,7 @@ gated by the worker's demo/live release policy.
 from __future__ import annotations
 
 import os
+import ntpath
 from decimal import Decimal
 
 from trading_journal.providers.base import ProviderError
@@ -38,15 +39,25 @@ class MetaTrader5ExecutionProvider:
             timeout=self.timeout_ms, portable=True,
         )
         if not initialized:
-            code, message = mt5.last_error() or (None, "")
+            code, _message = mt5.last_error() or (None, "")
+            try:
+                mt5.shutdown()
+            except Exception:
+                pass
+            self._connected = False
             raise ProviderError("TERMINAL_CONNECTION_FAILED", "La session MT5 n’a pas pu se connecter.",
                                 retryable=True, diagnostic_code=code)
         self._connected = True
-        account = self.account_info()
-        if str(account["login"]) != str(login) or account["server"].casefold() != server.casefold():
+        try:
+            account = self.account_info()
+            if (str(account["login"]) != str(login)
+                    or account["server"].casefold() != server.casefold()):
+                raise ProviderError("TERMINAL_IDENTITY_MISMATCH",
+                                    "Le terminal est connecté à un autre compte ou serveur.")
+            return account
+        except Exception:
             self.disconnect()
-            raise ProviderError("TERMINAL_IDENTITY_MISMATCH", "Le terminal est connecté à un autre compte ou serveur.")
-        return account
+            raise
 
     def account_info(self) -> dict:
         mt5 = self._module()
@@ -56,6 +67,12 @@ class MetaTrader5ExecutionProvider:
             code, _message = mt5.last_error() or (None, "")
             raise ProviderError("TERMINAL_CONNECTION_FAILED", "La session MT5 n’est pas connectée.",
                                 retryable=True, diagnostic_code=code)
+        actual_path = str(getattr(terminal, "path", "") or "").strip()
+        expected_path = ntpath.dirname(ntpath.normpath(self.terminal_path))
+        if (not actual_path or ntpath.normcase(ntpath.normpath(actual_path))
+                != ntpath.normcase(expected_path)):
+            raise ProviderError("TERMINAL_PROCESS_PATH_MISMATCH",
+                                "La session IPC MT5 ne correspond pas au terminal Windows configuré.")
         demo_value = getattr(mt5, "ACCOUNT_TRADE_MODE_DEMO", 0)
         return {
             "login": str(getattr(info, "login", "")),
@@ -68,6 +85,7 @@ class MetaTrader5ExecutionProvider:
             "trade_allowed": bool(getattr(info, "trade_allowed", False)),
             "is_demo": getattr(info, "trade_mode", None) == demo_value,
             "terminal_connected": bool(getattr(terminal, "connected", False)),
+            "terminal_path_verified": True,
             "terminal_build": int(getattr(terminal, "build", 0) or 0),
         }
 
@@ -319,5 +337,7 @@ class MetaTrader5ExecutionProvider:
         if self._mt5 is not None and self._connected:
             try:
                 self._mt5.shutdown()
+            except Exception:
+                pass
             finally:
                 self._connected = False

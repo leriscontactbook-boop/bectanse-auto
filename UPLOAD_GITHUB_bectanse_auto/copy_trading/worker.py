@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import multiprocessing as mp
+import os
 import threading
 import time
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from trading_journal.providers.base import ProviderError
 from .config import validate_worker_config
 from .domain import execution_release_allowed, worker_claims_enabled
 from .providers.mt5 import MetaTrader5ExecutionProvider
+from .security import terminal_account_fingerprint
 from .worker_client import CopyTradingClient, CopyWorkerAPIError
 
 
@@ -40,12 +42,36 @@ def _client(config, worker_id, role):
     return CopyTradingClient(config["backend_url"], worker_id, role, secret)
 
 
-def _heartbeat(client, worker_id, role, *, status, fingerprint="", job_id=""):
+def _windows_session_id():
+    """Return the Windows logon session that owns this MT5 IPC process."""
     try:
-        client.post("/internal/copy-trading/workers/heartbeat", {
+        import ctypes
+
+        if os.name != "nt":
+            return None
+        value = ctypes.c_uint32()
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        if not kernel.ProcessIdToSessionId(os.getpid(), ctypes.byref(value)):
+            return None
+        return int(value.value)
+    except (AttributeError, OSError, ImportError):
+        return None
+
+
+def _heartbeat(client, worker_id, role, *, status, fingerprint="", job_id="",
+               terminal_probe=None):
+    try:
+        payload = {
             "role": role, "instance_id": worker_id, "terminal_fingerprint": fingerprint,
             "status": status, "current_job_id": str(job_id or ""),
-        })
+        }
+        if terminal_probe is not None:
+            payload["terminal_probe"] = {
+                **terminal_probe,
+                "process_id": mp.current_process().pid,
+                "session_id": _windows_session_id(),
+            }
+        client.post("/internal/copy-trading/workers/heartbeat", payload)
         log.info("worker_heartbeat role=%s status=%s", role, status)
     except CopyWorkerAPIError as error:
         log.warning("heartbeat_failed role=%s code=%s", role, error.code)
@@ -77,7 +103,15 @@ def run_master_monitor(config=None):
             if not connected:
                 account = provider.connect(credentials["login"], credentials["server"], credentials["password"])
                 connected = True
-            account = provider.account_info()
+            else:
+                account = provider.account_info()
+            terminal_probe = {
+                "member_code": config["master_member_code"],
+                "account_fingerprint": terminal_account_fingerprint(
+                    client.secret, account["login"], account["server"]),
+                "server": account["server"], "terminal_path_verified": account["terminal_path_verified"],
+                "state": "CONNECTED", "diagnostic_code": None,
+            }
             positions = provider.positions()
             close_candidates = client.post("/internal/copy-trading/master/close-candidates", {})
             close_deals = provider.closing_deals(close_candidates.get("position_ids") or [])
@@ -93,16 +127,29 @@ def run_master_monitor(config=None):
                 "observed_at": observed,
             })
             _heartbeat(client, worker_id, "MASTER", status="ONLINE",
-                       fingerprint=_fingerprint(config["master_terminal_path"], account))
+                       fingerprint=_fingerprint(config["master_terminal_path"], account),
+                       terminal_probe=terminal_probe)
             failures = 0
             time.sleep(config["poll_seconds"])
         except ProviderError as error:
             log.warning("master_terminal_error code=%s diagnostic=%s", error.code, error.diagnostic_code)
+            terminal_probe = None
+            if error.code in {"TERMINAL_CONNECTION_FAILED", "TERMINAL_IDENTITY_MISMATCH",
+                              "TERMINAL_PROCESS_PATH_MISMATCH"} and credentials:
+                terminal_probe = {
+                    "member_code": config["master_member_code"],
+                    "account_fingerprint": terminal_account_fingerprint(
+                        client.secret, credentials["login"], credentials["server"]),
+                    "server": credentials["server"], "terminal_path_verified": False,
+                    "state": "FAILED", "failure_code": error.code,
+                    "diagnostic_code": error.diagnostic_code,
+                }
             connected = False
             credentials = None
             failures += 1
             provider.disconnect()
-            _heartbeat(client, worker_id, "MASTER", status="DEGRADED")
+            _heartbeat(client, worker_id, "MASTER", status="DEGRADED",
+                       terminal_probe=terminal_probe)
             time.sleep(min(30, 2 ** min(failures, 4)))
         except CopyWorkerAPIError as error:
             log.warning("master_backend_error code=%s", error.code)
@@ -179,8 +226,21 @@ def _process_claimed_job(config, worker_id, job, pipe):
     job_id = str(job["job_id"])
     token = str(job["lease_token"])
     dispatch_started = False
+    terminal_connected = False
+    account = None
     try:
         account = provider.connect(job["follower_login"], job["follower_server"], job["follower_password"])
+        terminal_connected = True
+        _heartbeat(client, worker_id, "FOLLOWER", status="ONLINE",
+                   fingerprint=_fingerprint(config["follower_terminal_path"], account),
+                   job_id=job_id, terminal_probe={
+                       "member_code": job["follower_member_code"],
+                       "account_fingerprint": terminal_account_fingerprint(
+                           client.secret, account["login"], account["server"]),
+                       "server": account["server"],
+                       "terminal_path_verified": account["terminal_path_verified"],
+                       "state": "CONNECTED", "diagnostic_code": None,
+                   })
         if not execution_release_allowed(
             mode=config["mode"], execution_enabled=config["execution_enabled"],
             live_release_approved=config["live_release_approved"], account_is_demo=account["is_demo"],
@@ -303,6 +363,7 @@ def _process_claimed_job(config, worker_id, job, pipe):
             post_matches = _native_match(after_positions, target_id)
             result["native_postcondition"] = {
                 "terminal_connected": after_account.get("terminal_connected") is True,
+                "terminal_path_verified": after_account.get("terminal_path_verified") is True,
                 "login": str(after_account.get("login") or ""),
                 "server": str(after_account.get("server") or ""),
                 "positions_complete": True,
@@ -353,6 +414,27 @@ def _process_claimed_job(config, worker_id, job, pipe):
     except ProviderError as error:
         log.warning("follower_terminal_error worker=%s code=%s diagnostic=%s",
                     worker_id, error.code, error.diagnostic_code)
+        if error.code in {"TERMINAL_CONNECTION_FAILED", "TERMINAL_IDENTITY_MISMATCH",
+                          "TERMINAL_PROCESS_PATH_MISMATCH"}:
+            _heartbeat(client, worker_id, "FOLLOWER", status="DEGRADED", job_id=job_id,
+                       terminal_probe={
+                           "member_code": job["follower_member_code"],
+                           "account_fingerprint": terminal_account_fingerprint(
+                               client.secret, job["follower_login"], job["follower_server"]),
+                           "server": job["follower_server"], "terminal_path_verified": False,
+                           "state": "FAILED", "failure_code": error.code,
+                           "diagnostic_code": error.diagnostic_code,
+                       })
+        elif terminal_connected:
+            _heartbeat(client, worker_id, "FOLLOWER", status="DEGRADED", job_id=job_id,
+                       terminal_probe={
+                           "member_code": job["follower_member_code"],
+                           "account_fingerprint": terminal_account_fingerprint(
+                               client.secret, job["follower_login"], job["follower_server"]),
+                           "server": job["follower_server"],
+                           "terminal_path_verified": bool(account and account.get("terminal_path_verified")),
+                           "state": "CONNECTED", "failure_code": "", "diagnostic_code": None,
+                       })
         if not dispatch_started:
             try:
                 client.post(f"/internal/copy-trading/jobs/{job_id}/fail", {

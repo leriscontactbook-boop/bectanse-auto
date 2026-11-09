@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import ntpath
 from urllib.parse import urlparse
 
 
@@ -51,8 +52,19 @@ def validate_worker_config() -> dict:
     if not follower_paths:
         raise CopyTradingConfigurationError("Configure at least one dedicated follower terminal")
     all_paths = [master_path, *follower_paths]
-    if len({path.casefold() for path in all_paths}) != len(all_paths):
-        raise CopyTradingConfigurationError("Master and follower processes must use distinct MT5 terminal paths")
+    normalized_paths = [ntpath.normcase(ntpath.normpath(os.path.realpath(path))) for path in all_paths]
+    normalized_dirs = [ntpath.normcase(ntpath.normpath(ntpath.dirname(path))) for path in normalized_paths]
+    if len(set(normalized_paths)) != len(all_paths) or len(set(normalized_dirs)) != len(all_paths):
+        raise CopyTradingConfigurationError(
+            "Master and follower processes must use distinct MT5 terminal installations and portable data paths"
+        )
+    if os.name == "nt":
+        for path in all_paths:
+            if (not ntpath.isabs(path) or ntpath.basename(path).casefold() != "terminal64.exe"
+                    or not os.path.isfile(path)):
+                raise CopyTradingConfigurationError(
+                    "Each MT5 terminal path must be an existing absolute terminal64.exe path"
+                )
     if execution_enabled and mode == "simulation":
         raise CopyTradingConfigurationError("Simulation mode cannot enable broker order execution")
     if mode == "live" and execution_enabled and not live_release_approved:

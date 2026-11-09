@@ -36,3 +36,10 @@ def verify_copy_worker_request(secret: str, method: str, path: str, timestamp: s
 
 def lease_token_hash(token: str) -> str:
     return hashlib.sha256(str(token).encode("utf-8")).hexdigest()
+
+
+def terminal_account_fingerprint(secret: str, login: str, server: str) -> str:
+    """Bind a native terminal probe to an account without storing its login."""
+    material = "\n".join((str(login or "").strip(), str(server or "").strip().casefold()))
+    return hmac.new(secret.encode("utf-8"), b"copy-trading-terminal\n" + material.encode("utf-8"),
+                    hashlib.sha256).hexdigest()

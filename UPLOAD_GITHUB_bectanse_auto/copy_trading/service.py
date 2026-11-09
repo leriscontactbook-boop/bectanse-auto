@@ -179,7 +179,8 @@ class CopyTradingService:
         """Re-evaluate the worker's signed terminal read-back before completion."""
         native = result.get("native_postcondition")
         try:
-            if not isinstance(native, dict) or native.get("terminal_connected") is not True:
+            if (not isinstance(native, dict) or native.get("terminal_connected") is not True
+                    or native.get("terminal_path_verified") is not True):
                 return False
             if native.get("positions_complete") is not True:
                 return False
@@ -669,6 +670,7 @@ class CopyTradingService:
                            AND demo_job.status='COMPLETE'
                            AND demo_job.native_evidence #>> '{market,is_demo}'='true'
                            AND demo_job.result_payload #>> '{native_postcondition,terminal_connected}'='true'
+                           AND demo_job.result_payload #>> '{native_postcondition,terminal_path_verified}'='true'
                            AND demo_job.updated_at>NOW()-INTERVAL '24 hours'
                      ))
                      AND NOT COALESCE(l.blocked,FALSE)

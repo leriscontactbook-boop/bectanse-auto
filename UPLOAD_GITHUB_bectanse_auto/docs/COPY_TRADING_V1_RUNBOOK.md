@@ -102,6 +102,14 @@ dossiers de journaux et les dossiers MT5 dédiés. Vérifier cette ACL sur le VP
 en particulier si les terminaux sont installés sous `Program Files`. Le secret
 local n'est lisible que par le worker, `SYSTEM` et les administrateurs.
 
+Chaque compte doit avoir un exécutable `terminal64.exe` dans un dossier
+d'installation portable distinct. Le worker refuse les chemins MT5 qui
+partagent le même dossier de données. À la connexion, il compare également le
+`terminal_info().path` natif au dossier configuré ; une différence entraîne
+`TERMINAL_PROCESS_PATH_MISMATCH` et aucune requête d'ordre n'est envoyée. Un
+`initialize()` en échec appelle `shutdown()` avant la prochaine tentative pour
+libérer l'état IPC du module.
+
 Démarrage/arrêt et vérification :
 
 ```powershell
@@ -114,6 +122,15 @@ Le script de santé vérifie l'existence de la tâche, du processus du worker et
 d'un heartbeat local récent. L'état faisant autorité reste le heartbeat signé
 du backend et le statut opérationnel par membre ; un fichier de log local seul
 ne prouve pas la connexion du compte.
+
+Après une tentative de connexion native, le backend conserve par membre l'état
+`CONNECTED`/`FAILED`, le code diagnostic MT5 (dont `-10005`), le PID et la
+session Windows du processus Python qui a ouvert l'IPC, ainsi qu'une empreinte
+HMAC du couple compte/serveur. Aucun identifiant de connexion ni mot de passe
+n'est ajouté à ce journal. Un échec récent reste visible et bloque le statut
+opérationnel jusqu'à une connexion native réussie. La preuve est une dernière
+connexion lue dans les 24 heures, pas une promesse que le terminal reste
+attaché à l'API Python entre deux événements.
 
 ## Limites à lever avant la démo
 

@@ -17,9 +17,11 @@ from copy_trading.domain import (
     verify_native_symbol_mapping,
     worker_claims_enabled,
 )
+from copy_trading.config import CopyTradingConfigurationError, validate_worker_config
 from copy_trading.providers.mt5 import MetaTrader5ExecutionProvider
 from copy_trading.security import (
     canonical_copy_signature,
+    terminal_account_fingerprint,
     verify_copy_worker_request,
 )
 from copy_trading.service import CopyTradingService, _native_update_datetime, _native_update_msc
@@ -179,6 +181,126 @@ def test_worker_signature_binds_role_identity_path_and_body():
                                           now=1794132031)
 
 
+def test_terminal_account_fingerprint_is_secret_bound_and_does_not_expose_login():
+    first = terminal_account_fingerprint("s" * 40, "123456", "Broker-Demo")
+    assert len(first) == 64
+    assert first == terminal_account_fingerprint("s" * 40, "123456", "broker-demo")
+    assert first != terminal_account_fingerprint("x" * 40, "123456", "Broker-Demo")
+    assert first != terminal_account_fingerprint("s" * 40, "654321", "Broker-Demo")
+    assert "123456" not in first
+
+
+def test_worker_config_rejects_terminals_sharing_portable_ipc_directory(monkeypatch):
+    values = {
+        "COPY_TRADING_BACKEND_URL": "https://backend.example",
+        "COPY_TRADING_MASTER_WORKER_SECRET": "m" * 40,
+        "COPY_TRADING_FOLLOWER_WORKER_SECRET": "f" * 40,
+        "COPY_TRADING_MASTER_MEMBER_CODE": "MASTER",
+        "COPY_TRADING_WORKER_ID": "node-1",
+        "MT5_COPY_MASTER_TERMINAL_PATH": r"C:\MT5\NODE-01\terminal64.exe",
+        "MT5_COPY_TERMINAL_PATHS": r"C:\MT5\NODE-01\other-terminal64.exe",
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    with pytest.raises(CopyTradingConfigurationError, match="portable data paths"):
+        validate_worker_config()
+
+
+def test_mt5_initialize_failure_shuts_down_stale_ipc_state():
+    class NativeMT5:
+        shutdown_calls = 0
+
+        @staticmethod
+        def initialize(*_args, **_kwargs):
+            return False
+
+        @staticmethod
+        def last_error():
+            return (-10005, "IPC timeout")
+
+        def shutdown(self):
+            self.shutdown_calls += 1
+
+    native = NativeMT5()
+    provider = MetaTrader5ExecutionProvider(r"C:\MT5\NODE-01\terminal64.exe")
+    provider._mt5 = native
+    with pytest.raises(ProviderError) as error:
+        provider.connect("123", "Broker-Demo", "password")
+    assert error.value.code == "TERMINAL_CONNECTION_FAILED"
+    assert error.value.diagnostic_code == -10005
+    assert native.shutdown_calls == 1
+    assert provider._connected is False
+
+
+def test_mt5_connection_requires_expected_terminal_process_path():
+    class NativeMT5:
+        shutdown_calls = 0
+
+        @staticmethod
+        def initialize(*_args, **_kwargs):
+            return True
+
+        @staticmethod
+        def terminal_info():
+            return SimpleNamespace(connected=True, path=r"C:\MT5\OTHER-NODE")
+
+        @staticmethod
+        def account_info():
+            return SimpleNamespace(login=123, server="Broker-Demo", company="Broker",
+                                  currency="USD", balance=1000, equity=1000,
+                                  trade_mode=0, trade_allowed=True)
+
+        @staticmethod
+        def last_error():
+            return (0, "OK")
+
+        def shutdown(self):
+            self.shutdown_calls += 1
+
+    native = NativeMT5()
+    provider = MetaTrader5ExecutionProvider(r"C:\MT5\NODE-01\terminal64.exe")
+    provider._mt5 = native
+    with pytest.raises(ProviderError) as error:
+        provider.connect("123", "Broker-Demo", "password")
+    assert error.value.code == "TERMINAL_PROCESS_PATH_MISMATCH"
+    assert native.shutdown_calls == 1
+    assert provider._connected is False
+
+
+def test_mt5_connection_confirms_expected_terminal_process_path():
+    class NativeMT5:
+        shutdown_calls = 0
+
+        @staticmethod
+        def initialize(*_args, **_kwargs):
+            return True
+
+        @staticmethod
+        def terminal_info():
+            return SimpleNamespace(connected=True, path=r"C:\MT5\NODE-01", build=5420)
+
+        @staticmethod
+        def account_info():
+            return SimpleNamespace(login=123, server="Broker-Demo", company="Broker",
+                                  currency="USD", balance=1000, equity=1000,
+                                  trade_mode=0, trade_allowed=True)
+
+        @staticmethod
+        def last_error():
+            return (0, "OK")
+
+        def shutdown(self):
+            self.shutdown_calls += 1
+
+    native = NativeMT5()
+    provider = MetaTrader5ExecutionProvider(r"C:\MT5\NODE-01\terminal64.exe")
+    provider._mt5 = native
+    account = provider.connect("123", "Broker-Demo", "password")
+    assert account["terminal_path_verified"] is True
+    provider.disconnect()
+    assert native.shutdown_calls == 1
+
+
 def test_native_close_evidence_uses_latest_confirmed_exit_deal():
     class NativeMT5:
         DEAL_ENTRY_OUT = 1
@@ -296,7 +418,8 @@ def test_native_postcondition_is_recomputed_from_terminal_evidence():
                  "take_profit": "1.12"},
     }
     opened = {"confirmed": True, "position_id": "88", "volume": "0.2",
-              "native_postcondition": {"terminal_connected": True, "positions_complete": True,
+              "native_postcondition": {"terminal_connected": True, "terminal_path_verified": True,
+                                        "positions_complete": True,
                                         "login": "123", "server": "Demo-1", "matches": [{
                                             "ticket": "88", "position_id": "88", "symbol": "EURUSD",
                                             "side": "BUY", "volume": "0.2", "comment": "BCT-job",
@@ -304,19 +427,26 @@ def test_native_postcondition_is_recomputed_from_terminal_evidence():
     assert CopyTradingService._verify_native_postcondition(
         execution_action="OPEN", evidence=evidence, request_comment="BCT-job", result=opened,
     )
+    opened["native_postcondition"]["terminal_path_verified"] = False
+    assert not CopyTradingService._verify_native_postcondition(
+        execution_action="OPEN", evidence=evidence, request_comment="BCT-job", result=opened,
+    )
+    opened["native_postcondition"]["terminal_path_verified"] = True
     opened["native_postcondition"]["matches"][0]["volume"] = "0.3"
     assert not CopyTradingService._verify_native_postcondition(
         execution_action="OPEN", evidence=evidence, request_comment="BCT-job", result=opened,
     )
     close = {"volume": "0.3", "native_postcondition": {
-        "terminal_connected": True, "positions_complete": True, "login": "123",
+        "terminal_connected": True, "terminal_path_verified": True,
+        "positions_complete": True, "login": "123",
         "server": "Demo-1", "matches": [],
     }}
     assert CopyTradingService._verify_native_postcondition(
         execution_action="CLOSE", evidence=evidence, request_comment="", result=close,
     )
     resize = {"volume": "0.1", "native_postcondition": {
-        "terminal_connected": True, "positions_complete": True, "login": "123", "server": "Demo-1",
+        "terminal_connected": True, "terminal_path_verified": True,
+        "positions_complete": True, "login": "123", "server": "Demo-1",
         "matches": [{"ticket": "77", "position_id": "77", "symbol": "EURUSD", "volume": "0.2"}],
     }}
     assert CopyTradingService._verify_native_postcondition(

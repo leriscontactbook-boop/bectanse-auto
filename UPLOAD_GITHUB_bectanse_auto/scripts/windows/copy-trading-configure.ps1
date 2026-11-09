@@ -18,8 +18,16 @@ foreach ($terminal in $FollowerTerminalPaths) {
   if (-not (Test-Path $terminal)) { throw "Terminal suiveur introuvable." }
 }
 $allPaths = @($MasterTerminalPath) + @($FollowerTerminalPaths)
-if (($allPaths | ForEach-Object { $_.ToLowerInvariant() } | Select-Object -Unique).Count -ne $allPaths.Count) {
-  throw "Chaque session MT5 doit utiliser un chemin de terminal distinct."
+$resolvedTerminalPaths = @($allPaths | ForEach-Object { (Resolve-Path -LiteralPath $_).Path })
+if (($resolvedTerminalPaths | ForEach-Object { $_.ToLowerInvariant() } | Select-Object -Unique).Count -ne $resolvedTerminalPaths.Count) {
+  throw "Chaque session MT5 doit utiliser un exécutable distinct."
+}
+if (@($resolvedTerminalPaths | ForEach-Object { (Split-Path -Parent $_).ToLowerInvariant() } |
+      Select-Object -Unique).Count -ne $resolvedTerminalPaths.Count) {
+  throw "Chaque compte doit utiliser un dossier d'installation MT5 portable distinct pour isoler son IPC."
+}
+if ($resolvedTerminalPaths | Where-Object { (Split-Path -Leaf $_) -ine 'terminal64.exe' }) {
+  throw "Chaque chemin doit désigner l'exécutable MT5 terminal64.exe."
 }
 if ($MasterMemberCode -notmatch '^[A-Za-z0-9_-]{2,100}$') { throw "Code maître invalide." }
 if ($WorkerId -notmatch '^[A-Za-z0-9._-]{1,48}$') { throw "Identifiant worker invalide." }

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import jsonify, request, session
@@ -14,7 +15,7 @@ from .domain import (
     CopyDecisionError, academy_settings, enabled_unsupported_academy_guards,
     worker_claims_enabled,
 )
-from .security import verify_copy_worker_request
+from .security import terminal_account_fingerprint, verify_copy_worker_request
 from .service import CopyTradingService
 
 
@@ -124,6 +125,12 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                    WHERE last_seen_at>NOW()-INTERVAL '90 seconds' AND status='ONLINE'
                    ORDER BY slot_role,worker_id"""
             )
+            terminal_probe_rows = conn.run(
+                """SELECT state,failure_code,diagnostic_code,checked_at,process_id,session_id,
+                          account_fingerprint,server,terminal_path_verified
+                   FROM copy_trading_terminal_probes WHERE member_code=:code
+                   ORDER BY checked_at DESC LIMIT 1""", code=code,
+            )
             jobs = conn.run(
                 """SELECT status,COUNT(*) FROM copy_trading_jobs
                    WHERE follower_member_code=:code AND created_at>NOW()-INTERVAL '7 days'
@@ -138,6 +145,7 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                    WHERE follower_member_code=:code AND status='COMPLETE'
                      AND native_evidence #>> '{market,is_demo}'='true'
                      AND result_payload #>> '{native_postcondition,terminal_connected}'='true'
+                     AND result_payload #>> '{native_postcondition,terminal_path_verified}'='true'
                      AND updated_at>NOW()-INTERVAL '24 hours'
                    ORDER BY updated_at DESC LIMIT 1""", code=code,
             )
@@ -165,6 +173,31 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         profile_ready = bool(params.get("mt_login") and
                              (params.get("serveur") or params.get("mt_server")) and
                              params.get("mt_password"))
+        terminal_probe = terminal_probe_rows[0] if terminal_probe_rows else None
+        expected_login = str(params.get("mt_login") or "").strip()
+        expected_server = str(params.get("serveur") or params.get("mt_server") or "").strip()
+        expected_fingerprint = terminal_account_fingerprint(
+            worker_secrets["FOLLOWER"], expected_login, expected_server,
+        ) if worker_secrets["FOLLOWER"] and expected_login and expected_server else ""
+        terminal_probe_matches_profile = bool(
+            terminal_probe and str(terminal_probe[6] or "").strip() == expected_fingerprint
+            and str(terminal_probe[7] or "").strip().casefold() == expected_server.casefold()
+            and terminal_probe[8] is True
+        )
+        terminal_probe_recent = bool(
+            terminal_probe and terminal_probe[3]
+            and terminal_probe[3] > datetime.now(timezone.utc) - timedelta(hours=24)
+        )
+        terminal_probe_ready = bool(
+            terminal_probe and terminal_probe[0] == "CONNECTED"
+            and terminal_probe_matches_profile and terminal_probe_recent
+        )
+        if terminal_probe and terminal_probe[0] == "FAILED":
+            terminal_probe_blocker = str(terminal_probe[1] or "TERMINAL_CONNECTION_FAILED")
+            if terminal_probe[2] is not None:
+                terminal_probe_blocker += f"_{terminal_probe[2]}"
+        else:
+            terminal_probe_blocker = "TERMINAL_CONNECTION_NOT_VERIFIED"
         master_ready = bool(master_rows and master_rows[0][0])
         worker_ready = any(row[0] == "FOLLOWER" for row in (workers or []))
         master_worker_ready = any(row[0] == "MASTER" for row in (workers or []))
@@ -185,7 +218,7 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                                       master_ready, master_worker_ready, copy_enabled,
                                       mode in {"demo", "live"}, worker_ready, membership_ready,
                                       runtime_release_ready, demo_e2e_verified, not unsupported_guards,
-                                      not settings_invalid, not reconciliation_required,
+                                      not settings_invalid, terminal_probe_ready, not reconciliation_required,
                                       calendar_ready)) else "BLOCKED"
         job_counts = {str(status): int(count) for status, count in (jobs or [])}
         mapping_counts = {str(state): int(count) for state, count in (mapping or [])}
@@ -195,6 +228,17 @@ def register_copy_trading(app, get_conn, get_member, login_required,
             "copy_preference_enabled": bool(member.get("copy_actif")),
             "account_profile_configured": profile_ready,
             "demo_account_end_to_end_verified": demo_e2e_verified,
+            "terminal_connection": {
+                "state": str(terminal_probe[0]) if terminal_probe else "UNKNOWN",
+                "failure_code": terminal_probe[1] if terminal_probe else None,
+                "diagnostic_code": terminal_probe[2] if terminal_probe else None,
+                "checked_at": terminal_probe[3].isoformat() if terminal_probe and terminal_probe[3] else None,
+                "worker_process_id": terminal_probe[4] if terminal_probe else None,
+                "windows_session_id": terminal_probe[5] if terminal_probe else None,
+                "terminal_path_verified": terminal_probe[8] is True if terminal_probe else False,
+                "matches_account_profile": terminal_probe_matches_profile,
+                "recent": terminal_probe_recent,
+            },
             "position_reconciliation_required": reconciliation_required,
             "position_reconciliation_reason": (
                 str(follower_locks[0][1] or "POSITION_RECONCILIATION_REQUIRED")
@@ -214,6 +258,7 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                     (not worker_ready, "FOLLOWER_WORKER_OFFLINE"),
                     (not demo_e2e_verified and mode in {"demo", "live"},
                      "DEMO_ACCOUNT_END_TO_END_UNVERIFIED" if mode == "demo" else "LIVE_ACCOUNT_END_TO_END_UNVERIFIED"),
+                    (not terminal_probe_ready, terminal_probe_blocker),
                     (reconciliation_required, "POSITION_RECONCILIATION_REQUIRED"),
                     (bool(unsupported_guards), "ACADEMY_GUARD_NOT_SUPPORTED"),
                     (settings_invalid, "ACADEMY_SETTINGS_INVALID"),
@@ -345,6 +390,11 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 """SELECT worker_id,slot_role,status,last_seen_at,current_job_id
                    FROM copy_trading_workers ORDER BY last_seen_at DESC LIMIT 100"""
             )
+            terminal_probes = conn.run(
+                """SELECT worker_id,slot_role,member_code,server,state,failure_code,
+                          diagnostic_code,terminal_path_verified,process_id,session_id,checked_at
+                   FROM copy_trading_terminal_probes ORDER BY checked_at DESC LIMIT 100"""
+            )
             jobs = conn.run(
                 """SELECT status,COUNT(*) FROM copy_trading_jobs
                    WHERE created_at>NOW()-INTERVAL '24 hours' GROUP BY status ORDER BY status"""
@@ -368,6 +418,12 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                                 in {"1", "true", "yes", "on"},
             "workers": [{"id": r[0], "role": r[1], "status": r[2], "last_seen_at": r[3].isoformat(),
                          "current_job_id": r[4]} for r in (workers or [])],
+            "terminal_probes": [{
+                "worker_id": r[0], "role": r[1], "member_code": r[2], "server": r[3],
+                "state": r[4], "failure_code": r[5], "diagnostic_code": r[6],
+                "terminal_path_verified": r[7], "process_id": r[8],
+                "session_id": r[9], "checked_at": r[10].isoformat(),
+            } for r in (terminal_probes or [])],
             "jobs_24h": {str(r[0]): int(r[1]) for r in (jobs or [])},
             "recent": [{"event": r[0], "master": r[1], "follower": r[2], "job_id": r[3],
                         "outcome": r[4], "created_at": r[5].isoformat()} for r in (recent or [])],
@@ -485,6 +541,39 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         role = str(payload.get("role") or "").upper()
         if role not in {"MASTER", "FOLLOWER", "CALENDAR"} or role != request.environ.get("copy_worker_role"):
             return jsonify({"ok": False, "error": "Rôle worker invalide."}), 400
+        probe = payload.get("terminal_probe")
+        if probe is not None:
+            if not isinstance(probe, dict) or role not in {"MASTER", "FOLLOWER"}:
+                return jsonify({"ok": False, "error": "Preuve de terminal invalide."}), 400
+            state = str(probe.get("state") or "").upper()
+            member_code = str(probe.get("member_code") or "").strip()
+            account_fingerprint = str(probe.get("account_fingerprint") or "").strip().lower()
+            server = str(probe.get("server") or "").strip()
+            failure_code = str(probe.get("failure_code") or "")[:80]
+            terminal_path_verified = probe.get("terminal_path_verified")
+            job_id = str(payload.get("current_job_id") or "").strip()
+            diagnostic_code = probe.get("diagnostic_code")
+            process_id = probe.get("process_id")
+            session_id = probe.get("session_id")
+            integer_fields = (diagnostic_code, process_id, session_id)
+            if (state not in {"CONNECTED", "FAILED"} or not member_code
+                    or len(account_fingerprint) != 64
+                    or any(char not in "0123456789abcdef" for char in account_fingerprint)
+                    or not server
+                    or failure_code not in {"", "TERMINAL_CONNECTION_FAILED",
+                                             "TERMINAL_IDENTITY_MISMATCH",
+                                             "TERMINAL_PROCESS_PATH_MISMATCH"}
+                    or not isinstance(terminal_path_verified, bool)
+                    or (state == "CONNECTED" and
+                        (failure_code or not terminal_path_verified or diagnostic_code is not None))
+                    or (state == "FAILED" and not failure_code)
+                    or any(isinstance(value, bool) or (value is not None and not isinstance(value, int))
+                           for value in integer_fields)
+                    or (process_id is not None and process_id <= 0)
+                    or (session_id is not None and session_id < 0)):
+                return jsonify({"ok": False, "error": "Identité ou état de terminal invalide."}), 400
+            if role == "MASTER" and member_code.casefold() != master_member_code.casefold():
+                return jsonify({"ok": False, "error": "Le terminal maître ne correspond pas au maître configuré."}), 403
         conn = get_conn()
         try:
             previous_rows = conn.run(
@@ -504,6 +593,42 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 status=str(payload.get("status") or "ONLINE")[:32],
                 job=str(payload.get("current_job_id") or "")[:80],
             )
+            if probe is not None:
+                if role == "FOLLOWER":
+                    active_job = conn.run(
+                        """SELECT follower_member_code FROM copy_trading_jobs
+                           WHERE job_id=:job AND worker_id=:worker
+                             AND status IN ('LEASED','PREPARED','DISPATCHING')""",
+                        job=job_id, worker=worker_id,
+                    )
+                    if not active_job or str(active_job[0][0]).casefold() != member_code.casefold():
+                        return jsonify({"ok": False, "error": "La preuve MT5 ne correspond pas au bail actif."}), 409
+                conn.run(
+                    """INSERT INTO copy_trading_terminal_probes
+                       (worker_id,slot_role,member_code,account_fingerprint,server,state,failure_code,
+                        terminal_path_verified,diagnostic_code,process_id,session_id,checked_at)
+                       VALUES (:worker,:role,:member,:fingerprint,:server,:state,:failure_code,
+                               :path_verified,:diagnostic,
+                               :process_id,:session_id,NOW())
+                       ON CONFLICT(worker_id,member_code) DO UPDATE SET
+                         slot_role=EXCLUDED.slot_role,account_fingerprint=EXCLUDED.account_fingerprint,
+                         server=EXCLUDED.server,failure_code=EXCLUDED.failure_code,
+                         terminal_path_verified=EXCLUDED.terminal_path_verified,
+                         state=EXCLUDED.state,diagnostic_code=EXCLUDED.diagnostic_code,
+                         process_id=EXCLUDED.process_id,session_id=EXCLUDED.session_id,
+                         checked_at=NOW()""",
+                    worker=worker_id, role=role, member=member_code,
+                    fingerprint=account_fingerprint,
+                    server=server[:120], state=state, failure_code=failure_code,
+                    path_verified=terminal_path_verified, diagnostic=diagnostic_code,
+                    process_id=process_id, session_id=session_id,
+                )
+                audit(conn, "TERMINAL_CONNECTION_PROBE", master=member_code if role == "MASTER" else "",
+                      follower=member_code if role == "FOLLOWER" else "",
+                      outcome=state, details={"worker_id": worker_id,
+                                              "diagnostic_code": diagnostic_code,
+                                              "process_id": process_id,
+                                              "session_id": session_id})
             new_status = str(payload.get("status") or "ONLINE")[:32]
             if not previous_rows or str(previous_rows[0][0]) != new_status:
                 audit(conn, "WORKER_STATE", outcome=new_status,

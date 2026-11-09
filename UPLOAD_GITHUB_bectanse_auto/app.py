@@ -40,6 +40,7 @@ def _required_secret(name):
 
 
 app = Flask(__name__)
+_DATABASE_READY = threading.Event()
 app.secret_key = _required_secret("SECRET_KEY")
 DATA_CIPHER = Fernet(_required_secret("DATA_ENCRYPTION_KEY").encode("utf-8"))
 validate_backend_config()
@@ -5726,7 +5727,19 @@ def calculateur():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok"}), 200
+    if not _DATABASE_READY.is_set():
+        return jsonify({"status": "starting", "database": "not_ready"}), 503
+    conn = None
+    try:
+        conn = get_conn()
+        conn.run("SELECT 1")
+        return jsonify({"status": "ok", "database": "ok"}), 200
+    except Exception as error:
+        app.logger.warning("healthcheck database readiness failed: %s", type(error).__name__)
+        return jsonify({"status": "not_ready", "database": "unavailable"}), 503
+    finally:
+        if conn is not None:
+            conn.close()
 
 @app.route("/", methods=["GET","POST"])
 def login():
@@ -9518,7 +9531,10 @@ def job_submit_indexnow():
 def _startup():
     time.sleep(1)
     try:
-        init_db()
+        if not init_db():
+            app.logger.error("DB startup failed; readiness remains unavailable")
+            return
+        _DATABASE_READY.set()
         app.logger.info("DB ready")
         register_webhook()
         app.logger.info("Webhook enregistré")
