@@ -1492,6 +1492,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="section-body">
           <div class="toggle-grid">
 
+            <div class="field-help" role="status" style="grid-column:1/-1;color:#fca5a5;">
+              Non disponible dans le moteur actuel : si un seuil drawdown ou objectif est activé, les événements de copie sont bloqués. Aucune clôture automatique ni remise à zéro de période n’est effectuée. Désactive ces options avant d’enregistrer.
+            </div>
+
             <label class="toggle-row">
               <div class="toggle-info">
                 <div class="toggle-label" style="display:flex;align-items:center;">
@@ -1524,6 +1528,9 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             </label>
 
+            <div class="field-help" role="status" style="grid-column:1/-1;color:#fca5a5;">
+              Non disponible : le moteur ne reçoit ni ne place les ordres en attente. Activer cette option sera refusé et n’entraînera jamais une conversion automatique en ordre marché.
+            </div>
             <label class="toggle-row">
               <div class="toggle-info">
                 <div class="toggle-label" style="display:flex;align-items:center;">
@@ -1590,8 +1597,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Fermer tous les trades si le drawdown total dépasse</div>
-                <div class="toggle-desc">Protection automatique en cas de perte excessive</div>
+                <div class="toggle-label">Protection drawdown sur perte (indisponible)</div>
+                <div class="toggle-desc">L’activation bloque les opérations de copie; aucune fermeture de positions n’est exécutée.</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="drawdown_actif" id="drawdown_actif"
@@ -1612,8 +1619,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Fermer tous les trades si le gain total dépasse</div>
-                <div class="toggle-desc">Sécurise automatiquement les gains atteints</div>
+                <div class="toggle-label">Protection drawdown sur gain (indisponible)</div>
+                <div class="toggle-desc">L’activation bloque les opérations de copie; aucune fermeture de positions n’est exécutée.</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="drawdown_gain_actif" id="drawdown_gain_actif"
@@ -1641,8 +1648,8 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="section-header">
           <div class="section-icon">🎯</div>
           <div>
-            <div class="section-title">Objectif d'arrêt de trading</div>
-            <div class="section-desc">Le système s'arrête automatiquement quand l'objectif gain/perte est atteint</div>
+            <div class="section-title">Objectifs de gain/perte (indisponibles)</div>
+            <div class="section-desc">Ces seuils ne disposent pas de baseline durable; leur activation bloque actuellement le moteur.</div>
           </div>
         </div>
         <div class="section-body">
@@ -1650,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <label class="toggle-row" style="margin-bottom:14px;">
             <div class="toggle-info">
               <div class="toggle-label">Arrêter le trading si l'objectif de gain/perte est atteint</div>
-              <div class="toggle-desc">Se réinitialise automatiquement au début de chaque nouvelle période</div>
+              <div class="toggle-desc">Aucun arrêt ni redémarrage automatique n’est exécuté pour l’instant.</div>
             </div>
             <div class="toggle-switch">
               <input type="checkbox" name="objectif_actif" id="objectif_actif"
@@ -1702,10 +1709,13 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="section-body">
+          <div class="field-help" role="status" style="color:#fca5a5;margin-bottom:12px;">
+            Désactivé : aucun fournisseur de calendrier n’est intégré à ce service. La sélection sera refusée à l’enregistrement et le filtre restera inactif.
+          </div>
           <label class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Utiliser le filtre du calendrier économique</div>
-              <div class="toggle-desc">Le système se met en pause automatiquement pendant NFP, Fed, CPI et autres annonces majeures</div>
+              <div class="toggle-label">Filtre du calendrier économique (indisponible)</div>
+              <div class="toggle-desc">Aucune source d’événements n’est actuellement configurée; ne compte pas sur ce filtre.</div>
             </div>
             <div class="toggle-switch">
               <input type="checkbox" name="filtre_news" id="filtre_news" {% if params.filtre_news %}checked{% endif %}>
@@ -2125,8 +2135,13 @@ async function refreshCopyTradingStatus() {
       FOLLOWER_WORKER_OFFLINE: 'worker suiveur hors ligne',
       POSITION_RECONCILIATION_REQUIRED: 'position dupliquée à rapprocher avant reprise',
       ACADEMY_GUARD_NOT_SUPPORTED: 'seuil drawdown/objectif Académie non pris en charge',
+      PENDING_ORDER_COPY_NOT_SUPPORTED: 'copie des ordres en attente non disponible',
+      TERMINAL_PROBE_STALE: 'preuve de connexion MT5 périmée — nouvelle vérification native requise',
+      TERMINAL_IDENTITY_MISMATCH: 'preuve MT5 différente du compte configuré',
       ACADEMY_SETTINGS_INVALID: 'paramètres Académie invalides',
-      CALENDAR_FEED_STALE_OR_UNAVAILABLE: 'flux calendrier activé mais indisponible ou périmé'
+      CALENDAR_FEED_STALE_OR_UNAVAILABLE: 'flux calendrier activé mais indisponible ou périmé',
+      PENDING_ORDER_COPY_NOT_SUPPORTED: 'copie des ordres en attente non disponible',
+      CALENDAR_PROVIDER_NOT_CONFIGURED: 'fournisseur de calendrier non configuré'
     };
     const blockers = (data.operational_blockers || []).map(code => names[code] || code);
     target.textContent = data.operational_readiness === 'READY'

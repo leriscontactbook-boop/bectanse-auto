@@ -2,6 +2,7 @@ param(
   [Parameter(Mandatory=$true)][string]$InstallRoot,
   [Parameter(Mandatory=$true)][string]$ReleaseRoot,
   [Parameter(Mandatory=$true)][string]$TerminalPath,
+  [string]$ExpectedLogin = '',
   [string]$ResultPath = '',
   [switch]$PromptDemoCredentials
 )
@@ -27,6 +28,7 @@ $context = [pscustomobject]@{
 }
 $context | ConvertTo-Json -Compress | Set-Content "$ResultPath.context" -Encoding UTF8
 $commandArgs = @($probe, '--terminal-path', $TerminalPath)
+if ($ExpectedLogin) { $commandArgs += @('--expected-login', $ExpectedLogin) }
 if ($PromptDemoCredentials) { $commandArgs += '--prompt-demo-credentials' }
 & $python @commandArgs *> $ResultPath
 exit $LASTEXITCODE

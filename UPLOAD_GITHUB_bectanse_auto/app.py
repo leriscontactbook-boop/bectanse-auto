@@ -1158,7 +1158,7 @@ def enforce_member_access_state():
 def default_params():
     return {"mode_risque":"Lots fixes","lots":0.01,"lots_max":5,"slippage":100,
             "forcer_lot_minimum":False,"inverser_trades":False,
-            "copier_ordres_en_attente":True,"convertir_pending_invalide":False,
+            "copier_ordres_en_attente":False,"convertir_pending_invalide":False,
             "copier_sl":True,"drawdown_actif":False,"drawdown_pct":5.0,
             "drawdown_gain_actif":False,"drawdown_gain_pct":5.0,
             "objectif_actif":False,"objectif_gain_pct":5.0,"objectif_perte_pct":3.0,
@@ -6030,26 +6030,62 @@ def save():
     code = session["member_code"]
     member = get_member(code)
     if not member: return jsonify({"ok": False})
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"ok": False, "error": "Paramètres invalides."}), 400
+
+    def request_flag(name):
+        value = data.get(name, False)
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
+
+    unsupported_academy = [name for name in (
+        "drawdown_actif", "drawdown_gain_actif", "objectif_actif",
+    ) if request_flag(name)]
+    if unsupported_academy:
+        return jsonify({
+            "ok": False,
+            "code": "ACADEMY_GUARD_NOT_SUPPORTED",
+            "error": "Les protections drawdown et objectif ne sont pas encore exécutées par le moteur. Elles restent désactivées; aucune clôture automatique n’est garantie.",
+            "settings": unsupported_academy,
+        }), 409
+    unsupported_pending = [name for name in (
+        "copier_ordres_en_attente", "convertir_pending_invalide",
+    ) if request_flag(name)]
+    if unsupported_pending:
+        return jsonify({
+            "ok": False,
+            "code": "PENDING_ORDER_COPY_NOT_SUPPORTED",
+            "error": "La copie des ordres en attente n’est pas encore implémentée. Aucun ordre en attente ni conversion en ordre marché ne sera exécuté.",
+            "settings": unsupported_pending,
+        }), 409
+    if request_flag("filtre_news"):
+        return jsonify({
+            "ok": False,
+            "code": "CALENDAR_PROVIDER_NOT_CONFIGURED",
+            "error": "Le fournisseur de calendrier n’est pas intégré. Le filtre reste désactivé; active-le uniquement après configuration et vérification du flux.",
+        }), 409
+
     p = {
         "mode_risque": data.get("mode_risque","Lots fixes"),
         "lots": float(data.get("lots",0.01)),
         "lots_max": float(data.get("lots_max",5)),
         "slippage": int(data.get("slippage",100)),
-        "forcer_lot_minimum": bool(data.get("forcer_lot_minimum")),
-        "inverser_trades": bool(data.get("inverser_trades")),
-        "copier_ordres_en_attente": bool(data.get("copier_ordres_en_attente")),
-        "convertir_pending_invalide": bool(data.get("convertir_pending_invalide")),
-        "copier_sl": bool(data.get("copier_sl")),
-        "drawdown_actif": bool(data.get("drawdown_actif")),
+        "forcer_lot_minimum": request_flag("forcer_lot_minimum"),
+        "inverser_trades": request_flag("inverser_trades"),
+        "copier_ordres_en_attente": request_flag("copier_ordres_en_attente"),
+        "convertir_pending_invalide": request_flag("convertir_pending_invalide"),
+        "copier_sl": request_flag("copier_sl"),
+        "drawdown_actif": request_flag("drawdown_actif"),
         "drawdown_pct": float(data.get("drawdown_pct",5)),
-        "drawdown_gain_actif": bool(data.get("drawdown_gain_actif")),
+        "drawdown_gain_actif": request_flag("drawdown_gain_actif"),
         "drawdown_gain_pct": float(data.get("drawdown_gain_pct",5)),
-        "objectif_actif": bool(data.get("objectif_actif")),
+        "objectif_actif": request_flag("objectif_actif"),
         "objectif_gain_pct": float(data.get("objectif_gain_pct",5)),
         "objectif_perte_pct": float(data.get("objectif_perte_pct",3)),
         "objectif_periode": data.get("objectif_periode","Mensuel"),
-        "filtre_news": bool(data.get("filtre_news")),
+        "filtre_news": request_flag("filtre_news"),
         "risque_pct": float(data.get("risque_pct",1)),
         "multiplicateur": float(data.get("multiplicateur",1)),
         "risque_balance_pct": float(data.get("risque_balance_pct",1)),

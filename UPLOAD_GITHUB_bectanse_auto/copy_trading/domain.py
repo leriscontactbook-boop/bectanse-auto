@@ -169,6 +169,19 @@ def enabled_unsupported_academy_guards(params: Mapping[str, Any] | None) -> tupl
     return tuple(key for key in keys if enabled(p.get(key)))
 
 
+def enabled_unsupported_pending_order_settings(params: Mapping[str, Any] | None) -> tuple[str, ...]:
+    """Pending-order preferences are retained for compatibility, not executed."""
+    p = dict(params or {})
+
+    def enabled(value: Any) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
+
+    keys = ("copier_ordres_en_attente", "convertir_pending_invalide")
+    return tuple(key for key in keys if enabled(p.get(key)))
+
+
 def verify_native_symbol_mapping(
     master: Mapping[str, Any], follower: Mapping[str, Any], *,
     reviewed_alias: bool = False,

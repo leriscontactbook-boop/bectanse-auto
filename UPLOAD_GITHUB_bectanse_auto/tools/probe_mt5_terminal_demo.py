@@ -17,9 +17,13 @@ def main() -> int:
     parser.add_argument("--timeout-ms", type=int, default=60_000)
     parser.add_argument("--shared-terminal-data", action="store_true",
                         help="Use shared MT5 data paths; isolated portable mode is the default.")
+    parser.add_argument("--expected-login", default="",
+                        help="Expected demo login identifier; never treated as a password.")
     parser.add_argument("--prompt-demo-credentials", action="store_true",
                         help="Prompt interactively; credentials are never accepted in command arguments or env vars.")
     args = parser.parse_args()
+    if args.expected_login and not args.expected_login.strip().isdigit():
+        parser.error("The expected MT5 login must be numeric.")
     login = input("Demo MT5 login (leave empty to use the account already open in this dedicated terminal): ").strip() \
         if args.prompt_demo_credentials else ""
     server = input("Demo MT5 server: ").strip() if login else ""
@@ -46,6 +50,8 @@ def main() -> int:
         is_demo = bool(account is not None and getattr(account, "trade_mode", None) ==
                        getattr(mt5, "ACCOUNT_TRADE_MODE_DEMO", object()))
         login_value = str(getattr(account, "login", "") or "") if account else ""
+        expected_login = str(int(args.expected_login.strip())) if args.expected_login else ""
+        expected_login_matches = (not expected_login or login_value == expected_login)
         diagnostic = (mt5.last_error() or (None,))[0]
         print(json.dumps({
             "initialized": initialized,
@@ -54,12 +60,14 @@ def main() -> int:
             "terminal_path_verified": terminal_path_verified,
             "account_info": account is not None,
             "demo_account_verified": is_demo,
+            "expected_login_matches": expected_login_matches,
             "login_masked": "••••" + login_value[-4:] if login_value else "",
             "build": int(getattr(info, "build", 0) or 0) if info else 0,
             "diagnostic_code": diagnostic,
         }, separators=(",", ":")))
         return 0 if (initialized and info is not None and account is not None
-                     and bool(getattr(info, "connected", False)) and terminal_path_verified and is_demo) else 1
+                     and bool(getattr(info, "connected", False)) and terminal_path_verified
+                     and is_demo and expected_login_matches) else 1
     finally:
         if password:
             password = ""

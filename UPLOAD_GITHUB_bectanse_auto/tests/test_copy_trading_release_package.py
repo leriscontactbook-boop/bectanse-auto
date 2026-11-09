@@ -16,7 +16,8 @@ def test_release_archive_is_deterministic_and_contains_only_allowlisted_files(tm
     assert first.read_bytes() == second.read_bytes()
     with zipfile.ZipFile(first) as archive:
         names = archive.namelist()
-        assert all(name.startswith("bectanse-copy-trading-release-0.1.0-preflight.1/") for name in names)
+        version = (release.ROOT / "COPY_TRADING_RELEASE_VERSION").read_text(encoding="utf-8").strip()
+        assert all(name.startswith(f"bectanse-copy-trading-release-{version}/") for name in names)
         assert not any(".env" in name or ".git" in name or "__pycache__" in name for name in names)
         assert not any(name.endswith((".log", ".sqlite", ".db")) for name in names)
         manifest_name = next(name for name in names if name.endswith("COPY_TRADING_RELEASE_MANIFEST.json"))
@@ -26,6 +27,7 @@ def test_release_archive_is_deterministic_and_contains_only_allowlisted_files(tm
         listed = {entry["path"] for entry in manifest["files"]}
         assert "copy_trading/worker.py" in listed
         assert "scripts/windows/copy-trading-rollback.ps1" in listed
+        assert "scripts/windows/copy-trading-validate.ps1" in listed
         assert "requirements-copy-trading-worker.lock" in listed
         assert all(name.split("/", 1)[1] in listed or name.endswith("COPY_TRADING_RELEASE_MANIFEST.json")
                    for name in names)
@@ -61,3 +63,19 @@ def test_windows_install_and_probe_scripts_do_not_kill_mt5_or_pass_password_as_a
     assert "--password" not in smoke
     assert "-Password" not in smoke
     assert "--prompt-demo-credentials" in smoke
+
+
+def test_single_command_windows_validator_is_read_only_and_demo_scoped():
+    validator = (release.ROOT / "scripts/windows/copy-trading-validate.ps1").read_text(encoding="utf-8")
+    probe = (release.ROOT / "tools/probe_mt5_terminal_demo.py").read_text(encoding="utf-8")
+
+    assert "ExpectedMasterLogin" in validator and "ExpectedFollowerLogin" in validator
+    assert "ExpectedMasterMemberCode" in validator and "ExpectedFollowerMemberCode" in validator
+    assert "copy-trading-health.ps1" in validator
+    assert "test-terminal-interactive.ps1" in validator
+    assert "/admin/api/copy-trading/operations" in validator
+    assert "-Method Get" in validator
+    assert "Start-Process" in validator
+    assert "orders_sent_by_validation = $false" in validator
+    assert "order_send" not in validator and "order_send" not in probe
+    assert "ACCOUNT_TRADE_MODE_DEMO" in probe

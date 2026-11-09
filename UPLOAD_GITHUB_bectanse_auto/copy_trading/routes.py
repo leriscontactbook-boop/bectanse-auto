@@ -13,7 +13,7 @@ from flask import jsonify, request, session
 
 from .domain import (
     CopyDecisionError, academy_settings, enabled_unsupported_academy_guards,
-    worker_claims_enabled,
+    enabled_unsupported_pending_order_settings, worker_claims_enabled,
 )
 from .security import terminal_account_fingerprint, verify_copy_worker_request
 from .service import CopyTradingService
@@ -26,6 +26,17 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         role: (os.environ.get(f"COPY_TRADING_{role}_WORKER_SECRET") or "").strip()
         for role in ("MASTER", "FOLLOWER", "CALENDAR")
     }
+    try:
+        terminal_probe_ttl_seconds = int(os.environ.get(
+            "COPY_TRADING_TERMINAL_PROBE_TTL_SECONDS", "90"
+        ))
+    except (TypeError, ValueError):
+        terminal_probe_ttl_seconds = 90
+    if not 30 <= terminal_probe_ttl_seconds <= 300:
+        app.logger.warning(
+            "COPY_TRADING_TERMINAL_PROBE_TTL_SECONDS outside 30..300; using 90 seconds"
+        )
+        terminal_probe_ttl_seconds = 90
     master_member_code = (os.environ.get("COPY_TRADING_MASTER_MEMBER_CODE") or "").strip().upper()
     service = CopyTradingService(
         get_conn, get_member, can_copy_member,
@@ -48,7 +59,8 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 "EVENT_EXPIRED", "MAPPING_REVIEW_REQUIRED", "FOLLOWER_NOT_AUTHORIZED",
                 "OPERATIONAL_RELEASE_REQUIRED", "ATOMIC_HANDOFF_REJECTED",
                 "TERMINAL_IDENTITY_MISMATCH", "TERMINAL_TRADING_DISABLED",
-                "ACADEMY_GUARD_NOT_SUPPORTED",
+                "ACADEMY_GUARD_NOT_SUPPORTED", "PENDING_ORDER_COPY_NOT_SUPPORTED",
+                "CALENDAR_FEED_STALE_OR_UNAVAILABLE",
             } else 400
             return jsonify({"ok": False, "code": error.code, "error": str(error)}), status
         app.logger.error("Copy-trading request failed (%s)", type(error).__name__)
@@ -162,12 +174,14 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         try:
             settings = academy_settings(params)
             unsupported_guards = enabled_unsupported_academy_guards(params)
+            unsupported_pending_settings = enabled_unsupported_pending_order_settings(params)
             calendar_allows, calendar_state = service.calendar_allows(
                 settings, region=str(params.get("calendar_region") or "ALL"),
             )
         except Exception:
             settings_invalid = True
             unsupported_guards = ()
+            unsupported_pending_settings = ()
             calendar_allows, calendar_state = False, "CALENDAR_OR_SETTINGS_UNAVAILABLE"
         consent_accepted = bool(consent and consent[0] == consent_version and consent[1] and not consent[2])
         profile_ready = bool(params.get("mt_login") and
@@ -186,7 +200,8 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         )
         terminal_probe_recent = bool(
             terminal_probe and terminal_probe[3]
-            and terminal_probe[3] > datetime.now(timezone.utc) - timedelta(hours=24)
+            and terminal_probe[3] > datetime.now(timezone.utc)
+            - timedelta(seconds=terminal_probe_ttl_seconds)
         )
         terminal_probe_ready = bool(
             terminal_probe and terminal_probe[0] == "CONNECTED"
@@ -196,6 +211,10 @@ def register_copy_trading(app, get_conn, get_member, login_required,
             terminal_probe_blocker = str(terminal_probe[1] or "TERMINAL_CONNECTION_FAILED")
             if terminal_probe[2] is not None:
                 terminal_probe_blocker += f"_{terminal_probe[2]}"
+        elif terminal_probe and terminal_probe[0] == "CONNECTED" and not terminal_probe_recent:
+            terminal_probe_blocker = "TERMINAL_PROBE_STALE"
+        elif terminal_probe and not terminal_probe_matches_profile:
+            terminal_probe_blocker = "TERMINAL_IDENTITY_MISMATCH"
         else:
             terminal_probe_blocker = "TERMINAL_CONNECTION_NOT_VERIFIED"
         master_ready = bool(master_rows and master_rows[0][0])
@@ -218,6 +237,7 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                                       master_ready, master_worker_ready, copy_enabled,
                                       mode in {"demo", "live"}, worker_ready, membership_ready,
                                       runtime_release_ready, demo_e2e_verified, not unsupported_guards,
+                                      not unsupported_pending_settings,
                                       not settings_invalid, terminal_probe_ready, not reconciliation_required,
                                       calendar_ready)) else "BLOCKED"
         job_counts = {str(status): int(count) for status, count in (jobs or [])}
@@ -229,7 +249,10 @@ def register_copy_trading(app, get_conn, get_member, login_required,
             "account_profile_configured": profile_ready,
             "demo_account_end_to_end_verified": demo_e2e_verified,
             "terminal_connection": {
-                "state": str(terminal_probe[0]) if terminal_probe else "UNKNOWN",
+                "state": (str(terminal_probe[0]) if terminal_probe and terminal_probe_recent
+                          else "STALE" if terminal_probe and terminal_probe[0] == "CONNECTED"
+                          else str(terminal_probe[0]) if terminal_probe else "UNKNOWN"),
+                "last_observed_state": str(terminal_probe[0]) if terminal_probe else "UNKNOWN",
                 "failure_code": terminal_probe[1] if terminal_probe else None,
                 "diagnostic_code": terminal_probe[2] if terminal_probe else None,
                 "checked_at": terminal_probe[3].isoformat() if terminal_probe and terminal_probe[3] else None,
@@ -238,6 +261,7 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 "terminal_path_verified": terminal_probe[8] is True if terminal_probe else False,
                 "matches_account_profile": terminal_probe_matches_profile,
                 "recent": terminal_probe_recent,
+                "freshness_ttl_seconds": terminal_probe_ttl_seconds,
             },
             "position_reconciliation_required": reconciliation_required,
             "position_reconciliation_reason": (
@@ -261,6 +285,7 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                     (not terminal_probe_ready, terminal_probe_blocker),
                     (reconciliation_required, "POSITION_RECONCILIATION_REQUIRED"),
                     (bool(unsupported_guards), "ACADEMY_GUARD_NOT_SUPPORTED"),
+                    (bool(unsupported_pending_settings), "PENDING_ORDER_COPY_NOT_SUPPORTED"),
                     (settings_invalid, "ACADEMY_SETTINGS_INVALID"),
                     (not calendar_ready, "CALENDAR_FEED_STALE_OR_UNAVAILABLE"),
                 ) if condition
@@ -276,6 +301,7 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 "filtre_news": bool(params.get("filtre_news", False)),
                 "copier_sl": bool(params.get("copier_sl", True)),
                 "enabled_unsupported_guards": list(unsupported_guards),
+                "enabled_unsupported_pending_settings": list(unsupported_pending_settings),
                 "calendar_filter_state": calendar_state,
                 "calendar_allows_dispatch": bool(calendar_allows),
             },
@@ -399,6 +425,34 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 """SELECT status,COUNT(*) FROM copy_trading_jobs
                    WHERE created_at>NOW()-INTERVAL '24 hours' GROUP BY status ORDER BY status"""
             )
+            job_actions = conn.run(
+                """SELECT execution_action,status,COUNT(*) FROM copy_trading_jobs
+                   WHERE created_at>NOW()-INTERVAL '24 hours'
+                   GROUP BY execution_action,status ORDER BY execution_action,status"""
+            )
+            events = conn.run(
+                """SELECT status,COUNT(*) FROM copy_trading_events
+                   WHERE created_at>NOW()-INTERVAL '24 hours' GROUP BY status ORDER BY status"""
+            )
+            demo_confirmations = conn.run(
+                """SELECT e.master_member_code,j.follower_member_code,j.execution_action,COUNT(*)
+                   FROM copy_trading_jobs j JOIN copy_trading_events e ON e.event_id=j.event_id
+                   WHERE j.created_at>NOW()-INTERVAL '24 hours' AND j.status='COMPLETE'
+                     AND j.execution_action IN ('OPEN','CLOSE')
+                     AND j.native_evidence #>> '{market,is_demo}'='true'
+                     AND j.result_payload #>> '{native_postcondition,terminal_connected}'='true'
+                     AND j.result_payload #>> '{native_postcondition,terminal_path_verified}'='true'
+                   GROUP BY e.master_member_code,j.follower_member_code,j.execution_action
+                   ORDER BY e.master_member_code,j.follower_member_code,j.execution_action"""
+            )
+            position_links = conn.run(
+                """SELECT state,COUNT(*) FROM copy_trading_position_links
+                   GROUP BY state ORDER BY state"""
+            )
+            recovery_jobs = conn.run(
+                """SELECT COUNT(*) FROM copy_trading_jobs
+                   WHERE status='VERIFY_REQUIRED' AND created_at>NOW()-INTERVAL '24 hours'"""
+            )
             recent = conn.run(
                 """SELECT event_type,master_member_code,follower_member_code,job_id::text,
                           outcome_code,created_at FROM copy_trading_audit_events
@@ -425,6 +479,19 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 "session_id": r[9], "checked_at": r[10].isoformat(),
             } for r in (terminal_probes or [])],
             "jobs_24h": {str(r[0]): int(r[1]) for r in (jobs or [])},
+            "job_actions_24h": {
+                action: {str(status): int(count) for row_action, status, count in (job_actions or [])
+                         if row_action == action}
+                for action in sorted({str(row[0]) for row in (job_actions or [])})
+            },
+            "events_24h": {str(r[0]): int(r[1]) for r in (events or [])},
+            "demo_native_confirmations_by_pair_24h": [
+                {"master_member_code": str(r[0]), "follower_member_code": str(r[1]),
+                 "action": str(r[2]).lower(), "count": int(r[3])}
+                for r in (demo_confirmations or [])
+            ],
+            "position_links_by_state": {str(r[0]): int(r[1]) for r in (position_links or [])},
+            "recovery_required_jobs_24h": int(recovery_jobs[0][0]) if recovery_jobs else 0,
             "recent": [{"event": r[0], "master": r[1], "follower": r[2], "job_id": r[3],
                         "outcome": r[4], "created_at": r[5].isoformat()} for r in (recent or [])],
             "blocked_followers": [

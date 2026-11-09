@@ -150,6 +150,32 @@ natif, compte/serveur masqués et diagnostic) et les opérations/job audit.
 `TERMINAL_CONNECTION_FAILED (-10005)` demeure un échec tant qu'une preuve
 native plus récente et réussie n'est pas reçue.
 
+Après installation de la release, une seule commande réunit les contrôles
+worker/backend/PostgreSQL/logs, deux connexions natives dédiées aux comptes
+démo attendus et un rapport admin **en lecture seule** des événements, jobs,
+positions rapprochées, ouvertures/clôtures et reprises. Saisir les mots de
+passe MT5 aux invites cachées et coller la valeur du cookie de session admin
+dans l'invite sécurisée : aucune de ces valeurs n'est écrite au rapport.
+
+```powershell
+& "$releaseRoot\scripts\windows\copy-trading-validate.ps1" `
+  -InstallRoot 'C:\Bectanse\CopyTrading' -ReleaseRoot $releaseRoot `
+  -MasterTerminalPath 'C:\Bectanse\CopyTradingTerminals\NODE-01\terminal64.exe' `
+  -FollowerTerminalPath 'C:\Bectanse\CopyTradingTerminals\NODE-02\terminal64.exe' `
+  -ExpectedMasterLogin '12345678' -ExpectedFollowerLogin '87654321' `
+  -ExpectedMasterMemberCode 'BCT-MASTER' -ExpectedFollowerMemberCode 'BCT-FOLLOWER'
+```
+
+La commande refuse les chemins terminaux identiques ou non gérés, vérifie le
+mode démo et le login attendu pour chacun, puis lit l'API admin authentifiée.
+Elle n'injecte aucun événement et ne crée, modifie ou ferme aucune position.
+Elle retourne le code `2` et `DEMO_END_TO_END_OR_RECOVERY_NOT_VERIFIED` s'il
+n'existe pas déjà une confirmation native démo d'ouverture **et** de clôture
+pour cette paire sur les dernières 24 h, si le backend n'est pas explicitement
+en mode démo avec exécution activée, ou si des rapprochements/récupérations restent
+nécessaires pour cette paire exacte maître/suiveur. Un contrôle vert valide les preuves présentes; il ne constitue
+pas un nouveau test d'exécution.
+
 Pour tester une connexion de manière strictement non transactionnelle, utiliser
 uniquement un répertoire terminal marqué et dédié. Le test ne place aucun
 ordre, exige une identité de compte démo, vérifie `terminal_info().path`,

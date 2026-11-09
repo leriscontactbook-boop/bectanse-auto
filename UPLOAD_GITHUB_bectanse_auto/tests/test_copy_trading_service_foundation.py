@@ -8,6 +8,7 @@ from copy_trading.domain import (
     CopyDecisionError,
     academy_settings,
     enabled_unsupported_academy_guards,
+    enabled_unsupported_pending_order_settings,
     ensure_event_fresh,
     event_expiry,
     event_idempotency_key,
@@ -105,6 +106,15 @@ def test_enabled_academy_drawdown_and_objective_guards_are_explicitly_unsupporte
     assert enabled_unsupported_academy_guards({
         "drawdown_actif": "on", "drawdown_gain_actif": True, "objectif_actif": "1",
     }) == ("drawdown_actif", "drawdown_gain_actif", "objectif_actif")
+
+
+def test_pending_order_preferences_are_detected_as_unsupported():
+    assert enabled_unsupported_pending_order_settings({
+        "copier_ordres_en_attente": "false", "convertir_pending_invalide": False,
+    }) == ()
+    assert enabled_unsupported_pending_order_settings({
+        "copier_ordres_en_attente": "on", "convertir_pending_invalide": True,
+    }) == ("copier_ordres_en_attente", "convertir_pending_invalide")
 
 
 def test_calendar_state_is_ignored_when_academy_filter_is_off():

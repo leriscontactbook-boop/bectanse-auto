@@ -120,6 +120,71 @@ def test_robot_settings_save_keeps_the_member_trading_profile():
     assert revealed["lots"] == 0.02
 
 
+def test_robot_settings_cannot_enable_unimplemented_close_guards():
+    app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
+    client = app.app.test_client()
+    member = _member(params={"mt_login": "445566", "serveur": "PUPrime-Live"})
+    connection = ProfileConnection(member["params"])
+    with client.session_transaction() as session:
+        session["member_code"] = member["code"]
+
+    with patch.object(app, "enforce_member_access_state"), \
+         patch.object(app, "get_member", return_value=member), \
+         patch.object(app, "get_conn", return_value=connection):
+        response = client.post("/save", json={"drawdown_actif": True})
+
+    assert response.status_code == 409
+    assert response.get_json()["code"] == "ACADEMY_GUARD_NOT_SUPPORTED"
+    assert not any(query.startswith("update members set params=") for query, _ in connection.calls)
+
+
+def test_robot_settings_do_not_enable_pending_copy_or_calendar_without_providers():
+    app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
+    client = app.app.test_client()
+    member = _member(params={"mt_login": "445566", "serveur": "PUPrime-Live"})
+    connection = ProfileConnection(member["params"])
+    with client.session_transaction() as session:
+        session["member_code"] = member["code"]
+
+    with patch.object(app, "enforce_member_access_state"), \
+         patch.object(app, "get_member", return_value=member), \
+         patch.object(app, "get_conn", return_value=connection):
+        pending = client.post("/save", json={"copier_ordres_en_attente": True})
+        calendar = client.post("/save", json={"filtre_news": True})
+
+    assert pending.status_code == 409
+    assert pending.get_json()["code"] == "PENDING_ORDER_COPY_NOT_SUPPORTED"
+    assert calendar.status_code == 409
+    assert calendar.get_json()["code"] == "CALENDAR_PROVIDER_NOT_CONFIGURED"
+    assert not any(query.startswith("update members set params=") for query, _ in connection.calls)
+
+
+def test_robot_settings_parse_false_strings_as_false():
+    app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
+    client = app.app.test_client()
+    member = _member(params={"mt_login": "445566", "serveur": "PUPrime-Live"})
+    connection = ProfileConnection(member["params"])
+    with client.session_transaction() as session:
+        session["member_code"] = member["code"]
+
+    with patch.object(app, "enforce_member_access_state"), \
+         patch.object(app, "get_member", return_value=member), \
+         patch.object(app, "get_conn", return_value=connection), \
+         patch.object(app, "build_notif", return_value="test"), \
+         patch.object(app, "send_telegram"):
+        response = client.post("/save", json={
+            "drawdown_actif": "false", "drawdown_gain_actif": "false",
+            "objectif_actif": "false", "copier_ordres_en_attente": "false",
+            "filtre_news": "false", "mode_risque": "Lots fixes", "lots": 0.02,
+        })
+
+    assert response.status_code == 200
+    saved = app._reveal_params(connection.params)
+    assert saved["drawdown_actif"] is False
+    assert saved["copier_ordres_en_attente"] is False
+    assert saved["filtre_news"] is False
+
+
 def test_admin_profile_update_targets_the_selected_member():
     app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
     client = app.app.test_client()

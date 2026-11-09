@@ -20,6 +20,7 @@ from .domain import (
     canonical_hash,
     ensure_event_fresh,
     enabled_unsupported_academy_guards,
+    enabled_unsupported_pending_order_settings,
     execution_release_allowed,
     event_idempotency_key,
     normalized_volume,
@@ -36,6 +37,7 @@ ACADEMY_SETTINGS_KEYS = (
     "inverser_trades", "copier_sl", "filtre_news", "lot_symboles", "slippage",
     "drawdown_actif", "drawdown_pct", "drawdown_gain_actif", "drawdown_gain_pct",
     "objectif_actif", "objectif_gain_pct", "objectif_perte_pct", "objectif_periode",
+    "copier_ordres_en_attente", "convertir_pending_invalide",
 )
 
 
@@ -976,6 +978,28 @@ class CopyTradingService:
                 raise CopyDecisionError(
                     "ACADEMY_GUARD_NOT_SUPPORTED",
                     "Un seuil drawdown/objectif Académie est activé mais n’est pas encore appliqué par le moteur de copie.",
+                )
+            unsupported_pending_settings = enabled_unsupported_pending_order_settings(raw_settings_dict)
+            if unsupported_pending_settings:
+                conn.run(
+                    """UPDATE copy_trading_jobs SET status='REJECTED',
+                       failure_code='PENDING_ORDER_COPY_NOT_SUPPORTED',updated_at=NOW()
+                       WHERE job_id=:job AND status='LEASED'""", job=job_id,
+                )
+                conn.run(
+                    """UPDATE copy_trading_follower_locks SET job_id=NULL,
+                       lease_expires_at=NULL,updated_at=NOW()
+                       WHERE member_code=:member AND job_id=:job""",
+                    member=follower_code, job=job_id,
+                )
+                self._audit(conn, "UNSUPPORTED_COPY_SETTING_BLOCKED", master=master_code,
+                            follower=follower_code, job=job_id,
+                            outcome="PENDING_ORDER_COPY_NOT_SUPPORTED",
+                            details={"settings": list(unsupported_pending_settings)})
+                conn.run("COMMIT")
+                raise CopyDecisionError(
+                    "PENDING_ORDER_COPY_NOT_SUPPORTED",
+                    "La copie des ordres en attente n’est pas implémentée; le job a été bloqué.",
                 )
             settings = academy_settings(raw_settings_dict)
             min_volume = _number(follower_evidence.get("volume_min"), "volume_min", positive=True)
