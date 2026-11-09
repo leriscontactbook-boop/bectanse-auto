@@ -21,6 +21,8 @@ from marketing_automation import (
 )
 from seo_features import register_seo_features, submit_indexnow_urls
 from trading_journal import ensure_trading_schema, register_trading_journal
+from copy_trading import ensure_copy_schema
+from copy_trading.routes import register_copy_trading
 from trading_journal.config import validate_backend_config
 from trading_journal.billing import (
     is_journal_event,
@@ -644,6 +646,7 @@ def init_db():
             ensure_marketing_schema(conn)
             ensure_activation_schema(conn)
             ensure_trading_schema(conn)
+            ensure_copy_schema(conn)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -5904,7 +5907,8 @@ def dashboard():
         notif_message=notif_message,
         afficher_notif=afficher_notif
     ,
-        demo_mode=_current_demo_mode(code, member))
+        demo_mode=_current_demo_mode(code, member),
+        copy_trading_consent_version=(os.environ.get("COPY_TRADING_CONSENT_VERSION") or "").strip())
 
 
 @app.route("/abonnement")
@@ -6078,6 +6082,21 @@ def toggle_copy():
         rows = conn.run("SELECT copy_actif FROM members WHERE code=:c", c=code)
         current = rows[0][0] if rows and rows[0][0] is not None else True
         new_state = not current
+        if new_state:
+            consent_version = (os.environ.get("COPY_TRADING_CONSENT_VERSION") or "").strip()
+            consent = conn.run(
+                """SELECT consent_version,consented_at,revoked_at FROM copy_trading_consents
+                   WHERE member_code=:code""", code=code,
+            ) if consent_version else []
+            if not consent or consent[0][0] != consent_version or not consent[0][1] or consent[0][2]:
+                conn.close()
+                return jsonify({"ok": False, "code": "CONSENT_REQUIRED",
+                                "error": "Lis et accepte d’abord les conditions du copy trading."}), 409
+            params = dict(member.get("params") or {})
+            if not params.get("mt_login") or not (params.get("serveur") or params.get("mt_server")) or not params.get("mt_password"):
+                conn.close()
+                return jsonify({"ok": False, "code": "MT5_PROFILE_INCOMPLETE",
+                                "error": "Configure ton compte MetaTrader avant l’activation."}), 409
         conn.run("UPDATE members SET copy_actif=:s WHERE code=:c", s=new_state, c=code)
         conn.close()
         icon = "✅" if new_state else "⏸️"
@@ -6087,7 +6106,7 @@ def toggle_copy():
             f"👤 *{member['nom']}* | `{code}`\n"
             f"💰 *{member['capital']}*\n"
             f"🕐 {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
-            + ("✅ Copy actif." if new_state else "⚠️ *Action requise* — Désactiver sur notre système.")
+          + ("✅ Préférence Copy ON enregistrée." if new_state else "⏸️ Préférence Copy OFF enregistrée.")
         )
         return jsonify({"ok": True, "copy_actif": new_state})
     except Exception as e:
@@ -9408,6 +9427,16 @@ trading_journal_service = register_trading_journal(
     admin_required=admin_required,
 )
 
+copy_trading_service = register_copy_trading(
+    app=app,
+    get_conn=get_conn,
+    get_member=get_member,
+    login_required=login_required,
+    academy_access_required=academy_access_required,
+    admin_required=admin_required,
+    can_copy_member=lambda member: academy_membership_state(member)[0],
+)
+
 
 def _notify_activation_member(member_code, title, body, url):
     """Affiche l'information dans l'espace membre et sur ses appareils inscrits."""
@@ -9533,6 +9562,12 @@ def _startup():
             id='mt5_sync_orchestrator', replace_existing=True,
             next_run_time=_paris_now() + timedelta(seconds=15),
             coalesce=True, max_instances=1, misfire_grace_time=120,
+        )
+        scheduler.add_job(
+            copy_trading_service.recover_dispatching_jobs, 'interval', seconds=10,
+            id='copy_trading_dispatch_recovery', replace_existing=True,
+            next_run_time=_paris_now() + timedelta(seconds=5),
+            coalesce=True, max_instances=1, misfire_grace_time=20,
         )
         scheduler.add_job(
             process_scheduled_telegram_posts, 'interval', minutes=1,

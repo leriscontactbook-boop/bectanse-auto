@@ -1,0 +1,185 @@
+# Copy Trading V1 — préparation et acceptation
+
+## État de livraison
+
+Cette branche ajoute une API/outbox Copy Trading distincte du worker de
+journalisation MT5. Elle est **préparée pour revue et déploiement**, mais ne
+constitue pas une remise en service vérifiée : aucun worker Windows, terminal,
+compte démo ajouté ou parcours MT5 de bout en bout n'a été connecté ici. Le
+backend conserve l'exécution désactivée par défaut et le mode `simulation`.
+Ne pas présenter `READY` comme un simple état du site ou de Railway.
+
+Le worker de journalisation `trading_journal.worker` reste séparé. Il importe
+les transactions et positions pour le journal et ne doit pas être utilisé
+comme exécuteur d'ordres du copier.
+
+## Architecture cible
+
+- **Railway** : application Flask, API signée, PostgreSQL, outbox, consentements,
+  liens de positions, preuves de mapping, audit et récupération au démarrage.
+- **VPS Windows** : un processus superviseur dédié `python -m copy_trading`, un
+  terminal MT5 maître en lecture seule et un terminal indépendant par suiveur.
+  Chaque session IPC MT5 est isolée dans un processus enfant. Le worker utilise
+  HTTPS sortant ; aucun port entrant n'est nécessaire.
+- **Reprise** : une tâche qui a commencé le handoff reste `VERIFY_REQUIRED`
+  après une panne ou un résultat ambigu. Elle n'est jamais renvoyée aveuglément.
+- **Fraîcheur MT5** : l'expiration absolue de 120 secondes part du
+  `time_update_msc` natif de la position ou du deal de clôture, jamais de
+  l'heure à laquelle un worker redémarré a redécouvert l'objet. Une position
+  ouverte déjà ancienne devient une référence de base sans ouverture tardive.
+  Une clôture confirmée par un deal trop ancien n'est pas envoyée ; les
+  suiveurs ayant un lien ouvert passent en rapprochement requis jusqu'à une
+  vérification opérateur. Le statut membre et l'API admin des opérations
+  exposent le verrou. Cette V1 ne le lève pas automatiquement : le terminal
+  suiveur doit être rapproché par un opérateur avant toute reprise.
+
+## Configuration Railway
+
+La migration est additive et relançable via `ensure_copy_schema` au démarrage
+de l'application. Avant de déployer cette branche sur un environnement de
+préproduction, configurer les variables suivantes dans son gestionnaire de
+secrets :
+
+| Variable | Valeur initiale |
+| --- | --- |
+| `COPY_TRADING_MODE` | `simulation` |
+| `COPY_TRADING_EXECUTION_ENABLED` | `false` |
+| `COPY_TRADING_LIVE_RELEASE_APPROVED` | `false` |
+| `COPY_TRADING_CONSENT_VERSION` | vide tant que le texte de consentement n'est pas publié |
+| `COPY_TRADING_MASTER_MEMBER_CODE` | code maître explicitement validé |
+| `COPY_TRADING_MASTER_WORKER_SECRET` | secret aléatoire ≥ 32 caractères |
+| `COPY_TRADING_FOLLOWER_WORKER_SECRET` | secret aléatoire distinct ≥ 32 caractères |
+| `COPY_TRADING_CALENDAR_WORKER_SECRET` | secret distinct, seulement si un collecteur calendrier est déployé |
+
+Ne pas copier de secrets dans Git, une image de conteneur, un journal ou un
+ticket. Ne pas réutiliser les secrets des workers du journal MT5. L'API seule
+doit servir les routes internes du nouveau worker ; le service Railway ne doit
+pas importer le paquet Windows `MetaTrader5`.
+
+Le module Flask existant héberge les routes Copy Trading ; il n'y a pas de
+module `copy_trading.server_host` dans cette livraison. Le service Railway
+doit conserver le démarrage Flask utilisé par l'application (migration puis
+`gunicorn app:app`) et ne doit pas être basculé vers un module absent. Vérifier
+le manifeste du **déploiement actif**, pas seulement la configuration de
+service en attente, avant tout redéploiement.
+
+## Préparer le VPS Windows
+
+Prérequis : Windows Server 2022, accès administrateur, Python x64 compatible
+avec la dépendance épinglée, accès HTTPS sortant, accès réseau aux serveurs
+brokers, et un terminal MT5 officiel par compte connecté en parallèle. Utiliser
+des dossiers de terminal distincts. Le maître et un suiveur ne peuvent pas
+partager la même session MT5.
+
+Depuis PowerShell administrateur, après avoir copié une archive de cette
+branche sur le VPS :
+
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope Process -Force
+cd C:\Bectanse\release
+.\scripts\windows\install-copy-trading-worker.ps1 -InstallRoot C:\Bectanse\CopyTrading
+$master = Read-Host 'Secret worker maître' -AsSecureString
+$follower = Read-Host 'Secret worker suiveur' -AsSecureString
+.\scripts\windows\copy-trading-configure.ps1 `
+  -BackendUrl 'https://acces.bectanse-academie.com' `
+  -MasterMemberCode 'CODE_MAITRE_VALIDE' `
+  -MasterTerminalPath 'C:\MT5\Master\terminal64.exe' `
+  -FollowerTerminalPaths @('C:\MT5\Follower-01\terminal64.exe') `
+  -MasterWorkerSecret $master -FollowerWorkerSecret $follower
+.\scripts\windows\copy-trading-provision-task.ps1
+```
+
+La tâche démarre à l'ouverture de session interactive de l'utilisateur worker.
+MT5 Python utilise une session interactive ; une tâche exécutée comme `SYSTEM`
+ou une session Windows de service n'est pas équivalente. Après un redémarrage
+complet, il faut prouver que la session interactive revient automatiquement
+(ou qu'un opérateur se reconnecte). Ce point dépend de la politique de connexion
+Windows du VPS ; ce dépôt ne configure pas de mot de passe d'ouverture de
+session automatique.
+
+Le script de configuration autorise l'utilisateur worker à écrire dans les
+dossiers de journaux et les dossiers MT5 dédiés. Vérifier cette ACL sur le VPS,
+en particulier si les terminaux sont installés sous `Program Files`. Le secret
+local n'est lisible que par le worker, `SYSTEM` et les administrateurs.
+
+Démarrage/arrêt et vérification :
+
+```powershell
+.\scripts\windows\copy-trading-start.ps1
+.\scripts\windows\copy-trading-health.ps1
+.\scripts\windows\copy-trading-stop.ps1
+```
+
+Le script de santé vérifie l'existence de la tâche, du processus du worker et
+d'un heartbeat local récent. L'état faisant autorité reste le heartbeat signé
+du backend et le statut opérationnel par membre ; un fichier de log local seul
+ne prouve pas la connexion du compte.
+
+## Limites à lever avant la démo
+
+1. **Paramètres Académie** : lots fixes, taille selon le maître, plafond de lots,
+   modes de risque, lot par symbole, inversion, protection SL/TP et expiration
+   absolue disposent de règles dans ce V1. Les seuils drawdown/performance et
+   objectifs de période n'ont pas de baseline durable ni d'exécuteur de
+   clôture totale ; lorsqu'ils sont activés, le job est refusé avec
+   `ACADEMY_GUARD_NOT_SUPPORTED`. Le statut du membre affiche ce blocage.
+2. **Calendrier** : le calendrier durable est consulté uniquement si
+   `filtre_news` est activé. Dans ce cas, l'absence de données fraîches bloque
+   l'exécution. Le endpoint signé de réception existe, mais aucun fournisseur
+   ni collecteur calendrier n'est intégré à cette livraison ; il faut en
+   choisir et valider un avant d'activer ce filtre. Quand le filtre est OFF,
+   le calendrier ne bloque pas.
+3. **Volume maître augmenté** : le scale-in est mis en revue et bloque le
+   suiveur jusqu'à l'ajout d'un registre de composants natifs. Il n'est pas
+   considéré comme synchronisé.
+4. **Positions déjà ouvertes** : l'abonnement d'un nouveau suiveur ne crée pas
+   automatiquement de copie historique des positions maître. Seuls les
+   événements observés après son inscription sont candidats.
+5. Les alias de symboles restent en attente tant qu'une revue humaine ne les a
+   pas confirmés avec preuves natives des deux terminaux.
+6. Un verrou de rapprochement créé par une clôture source périmée n'a pas de
+   route de déblocage automatique. Il nécessite une revue opérateur des
+   positions natives suiveur ; aucune clôture broker n'est simulée.
+7. Chaque suiveur en mode live doit avoir sa propre preuve Copy Trading démo
+   complète et récente (24 h) ; le backend filtre les jobs sans cette preuve,
+   même si un worker live est démarré.
+
+## Acceptation préproduction — compte démo uniquement
+
+Effectuer ces étapes seulement après que le VPS, l'API préproduction, un compte
+maître autorisé, un compte suiveur démo et le consentement de test soient
+configurés. Les essais suivants créent des ordres **sur le compte démo** ; ne
+pas les remplacer par un compte réel.
+
+1. Vérifier que les deux workers ont un heartbeat frais, avec l'identité native
+   attendue, et que le membre indique les consentements et accès requis.
+2. Ouvrir une position démo maître autorisée et vérifier l'événement outbox,
+   l'unique job par membre, le mapping à partir des preuves MT5 et l'ordre démo.
+3. Répéter le même snapshot maître : vérifier qu'aucun second ordre n'est créé.
+4. Fermer la position maître ; après confirmation sur deux snapshots complets
+   et lecture du deal natif MT5, vérifier la fermeture de la position liée sur
+   le terminal démo. Un deal de clôture périmé (120 secondes) bloque le
+   rapprochement au lieu de générer un ordre tardif.
+5. Changer le profil Académie en préproduction et vérifier le volume/les
+   protections correspondants sur une nouvelle opération démo.
+6. Redémarrer le worker après une ouverture démo. Une tâche interrompue avant
+   l'envoi peut expirer ; une tâche interrompue après le handoff doit être
+   quarantinée et réconciliée, jamais répétée automatiquement.
+7. Tester l'expiration absolue à 120 s depuis les timestamps MT5 natifs, la
+   mise en rapprochement d'une clôture ancienne, le refus du filtre calendrier
+   ON quand ses données sont périmées, et l'absence de blocage calendrier OFF.
+8. Vérifier les événements d'audit API/DB et le statut membre. Chaque résultat
+   doit refléter une lecture native après action, pas seulement le retcode MT5.
+
+Ne pas ouvrir un compte réel pour un test de déploiement. Un déploiement Railway
+ou un processus Windows lancé ne vaut pas preuve du parcours ci-dessus.
+
+## Conditions de libération
+
+La mise en production est bloquée jusqu'à : migration revue sur une base de
+préproduction, tests du dépôt, validation des limites ci-dessus, compte démo
+ajouté parcourant connexion/ouverture/fermeture/reprise, confirmation des
+sessions IPC réelles après redémarrage, accord explicite sur le texte de
+consentement et vérification du worker réellement exécuté. La libération live
+demande en plus une autorisation séparée ; les paramètres de production ne
+doivent pas être forcés pour afficher un état prêt.

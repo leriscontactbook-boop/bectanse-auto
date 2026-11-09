@@ -1740,6 +1740,28 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
+      <section class="param-section robot-section" id="copy-consent-panel" style="margin-bottom:16px;padding:18px;border:1px solid rgba(155,220,245,.22);border-radius:14px;">
+        <div class="section-title">Autorisation du copy trading</div>
+        <p style="color:rgba(255,255,255,.72);line-height:1.6;margin:10px 0;">
+          La copie automatique peut transmettre des ordres d’ouverture, d’ajustement de protection et de clôture du compte maître au compte MT5 associé à ce profil. Le volume suit le mode de risque et les limites enregistrés dans tes paramètres Académie. Les ordres restent soumis à l’état du terminal, au courtier, au contrôle MT5 et au délai de fraîcheur de 120 secondes. Une incertitude après envoi bloque les nouvelles opérations de ce compte jusqu’à vérification.
+        </p>
+        <p style="color:rgba(255,255,255,.58);line-height:1.5;margin:8px 0 14px;">
+          Le trading comporte un risque de perte. Tu peux mettre la copie en pause depuis le bouton Copy ON/OFF ou retirer cette autorisation à tout moment. L’activation ne garantit ni disponibilité du VPS ni exécution par le courtier.
+        </p>
+        {% if copy_trading_consent_version %}
+          <label style="display:flex;gap:10px;align-items:flex-start;color:#fff;line-height:1.5;">
+            <input id="copyConsentCheckbox" type="checkbox" style="margin-top:4px;">
+            <span>J’ai lu ces informations et j’accepte la version <strong>{{ copy_trading_consent_version }}</strong>. Je demande l’activation de la copie pour mon compte configuré.</span>
+          </label>
+          <button id="copyConsentAcceptButton" type="button" onclick="acceptCopyTradingConsent()" style="margin-top:12px;padding:11px 16px;border:0;border-radius:9px;background:#9bdcf5;color:#061018;font-weight:700;cursor:pointer;">Accepter et autoriser</button>
+        {% else %}
+          <p style="color:#fbbf24;margin:0;">Les conditions de consentement ne sont pas encore publiées. L’activation reste indisponible.</p>
+        {% endif %}
+        <button type="button" onclick="revokeCopyTradingConsent()" style="margin:12px 0 0 8px;padding:10px 14px;border:1px solid rgba(255,255,255,.25);border-radius:9px;background:transparent;color:#fff;cursor:pointer;">Retirer mon autorisation</button>
+        <div id="copyConsentStatus" role="status" aria-live="polite" style="margin-top:10px;color:rgba(255,255,255,.7);"></div>
+        <div id="copyRuntimeStatus" role="status" aria-live="polite" style="margin-top:8px;color:rgba(255,255,255,.7);"></div>
+      </section>
+
 
       <!-- BOUTON ENVOYER MOBILE DANS LE CONTENT -->
       <div class="mobile-envoyer-wrap robot-section">
@@ -2024,8 +2046,8 @@ async function toggleCopy() {
       confirmBox.classList.remove('show');
       showToast(
         data.copy_actif
-          ? '✅ Copy trading activé ! Notification envoyée.'
-          : '⏸️ Copy trading désactivé. Notification envoyée.',
+          ? '✅ Préférence Copy ON enregistrée.'
+          : '⏸️ Préférence Copy OFF enregistrée.',
         data.copy_actif ? 'success' : 'error'
       );
       setTimeout(() => location.reload(), 2000);
@@ -2040,6 +2062,81 @@ async function toggleCopy() {
     btn.disabled = false;
   }
 }
+
+async function acceptCopyTradingConsent() {
+  const checkbox = document.getElementById('copyConsentCheckbox');
+  const button = document.getElementById('copyConsentAcceptButton');
+  const status = document.getElementById('copyConsentStatus');
+  if (!checkbox || !checkbox.checked) {
+    if (status) status.textContent = 'Coche la case après avoir lu les informations.';
+    return;
+  }
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/copy-trading/consent', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+      body: JSON.stringify({accepted: true, version: {{ copy_trading_consent_version|tojson }}})
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Autorisation non enregistrée.');
+    if (status) status.textContent = 'Autorisation enregistrée. Le compte reste soumis aux contrôles opérationnels.';
+    checkbox.checked = false;
+    await refreshCopyTradingStatus();
+  } catch (error) {
+    if (status) status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function revokeCopyTradingConsent() {
+  const status = document.getElementById('copyConsentStatus');
+  try {
+    const response = await fetch('/api/copy-trading/revoke-consent', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+      body: '{}'
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Retrait non enregistré.');
+    if (status) status.textContent = 'Autorisation retirée. Aucune nouvelle opération ne sera admise.';
+    await refreshCopyTradingStatus();
+  } catch (error) {
+    if (status) status.textContent = error.message;
+  }
+}
+
+async function refreshCopyTradingStatus() {
+  const target = document.getElementById('copyRuntimeStatus');
+  if (!target) return;
+  try {
+    const response = await fetch('/api/copy-trading/status', {credentials: 'same-origin'});
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'État indisponible.');
+    const names = {
+      CLIENT_PAUSED: 'préférence client en pause', CONSENT_REQUIRED: 'autorisation client manquante',
+      MEMBERSHIP_NOT_ELIGIBLE: 'abonnement non éligible',
+      MT5_PROFILE_INCOMPLETE: 'profil MT5 incomplet', MASTER_NOT_RELEASED: 'compte maître non libéré',
+      MASTER_WORKER_OFFLINE: 'worker maître hors ligne',
+      EXECUTION_NOT_RELEASED: 'exécution non libérée', LIVE_RELEASE_REQUIRED: 'validation de mise en service réelle requise',
+      DEMO_ACCOUNT_END_TO_END_UNVERIFIED: 'parcours démo complet non vérifié',
+      LIVE_ACCOUNT_END_TO_END_UNVERIFIED: 'parcours réel non vérifié',
+      FOLLOWER_WORKER_OFFLINE: 'worker suiveur hors ligne',
+      POSITION_RECONCILIATION_REQUIRED: 'position dupliquée à rapprocher avant reprise',
+      ACADEMY_GUARD_NOT_SUPPORTED: 'seuil drawdown/objectif Académie non pris en charge',
+      ACADEMY_SETTINGS_INVALID: 'paramètres Académie invalides',
+      CALENDAR_FEED_STALE_OR_UNAVAILABLE: 'flux calendrier activé mais indisponible ou périmé'
+    };
+    const blockers = (data.operational_blockers || []).map(code => names[code] || code);
+    target.textContent = data.operational_readiness === 'READY'
+      ? 'État opérationnel : prêt selon les contrôles actuels.'
+      : 'État opérationnel : non prêt — ' + blockers.join(', ') + '.';
+  } catch (_error) {
+    target.textContent = 'État opérationnel indisponible ; aucune exécution ne doit être présumée.';
+  }
+}
+refreshCopyTradingStatus();
 
 // ── Fermer alerte renouvellement
 async function fermerAlerte() {
