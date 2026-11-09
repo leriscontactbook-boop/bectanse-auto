@@ -65,63 +65,34 @@ service en attente, avant tout redéploiement.
 
 ## Préparer le VPS Windows
 
-Prérequis : Windows Server 2022, accès administrateur, Python x64 compatible
-avec la dépendance épinglée, accès HTTPS sortant, accès réseau aux serveurs
-brokers, et un terminal MT5 officiel par compte connecté en parallèle. Utiliser
-des dossiers de terminal distincts. Le maître et un suiveur ne peuvent pas
-partager la même session MT5.
+Le paquet et les limites opérationnelles (installation, configuration,
+supervision et retour arrière) sont décrits dans
+[`COPY_TRADING_WINDOWS_OPERATIONS.md`](COPY_TRADING_WINDOWS_OPERATIONS.md).
+Ce runbook reste la référence pour les comportements du moteur et les critères
+de libération.
 
-Depuis PowerShell administrateur, après avoir copié une archive de cette
-branche sur le VPS :
+Le paquet Windows est généré depuis un commit propre avec un manifeste de
+hashes par fichier, une archive ZIP déterministe et un SHA-256 externe. Il
+installe Python x64 `3.14.10` après vérification du hash et de la signature,
+puis installe les wheels exclusivement depuis le lock hashé. Chaque version
+est immuable sous `C:\Bectanse\CopyTrading\releases\`; secrets et journaux
+restent dans des répertoires persistants séparés. Le worker n'est pas démarré
+par l'installation.
 
-```powershell
-Set-ExecutionPolicy RemoteSigned -Scope Process -Force
-cd C:\Bectanse\release
-.\scripts\windows\install-copy-trading-worker.ps1 -InstallRoot C:\Bectanse\CopyTrading
-$master = Read-Host 'Secret worker maître' -AsSecureString
-$follower = Read-Host 'Secret worker suiveur' -AsSecureString
-.\scripts\windows\copy-trading-configure.ps1 `
-  -BackendUrl 'https://acces.bectanse-academie.com' `
-  -MasterMemberCode 'CODE_MAITRE_VALIDE' `
-  -MasterTerminalPath 'C:\MT5\Master\terminal64.exe' `
-  -FollowerTerminalPaths @('C:\MT5\Follower-01\terminal64.exe') `
-  -MasterWorkerSecret $master -FollowerWorkerSecret $follower
-.\scripts\windows\copy-trading-provision-task.ps1
-```
+Le script MT5 crée des répertoires portables distincts sous
+`C:\Bectanse\CopyTradingTerminals`. Il refuse d'adopter un dossier existant
+sans marqueur géré par Bectanse et ne termine aucun processus MT5. L'installateur
+MetaQuotes évolue indépendamment du paquet : sa signature, son hash et la
+version du binaire sont enregistrés localement pour la reproductibilité de
+l'installation effectivement réalisée.
 
-La tâche démarre à l'ouverture de session interactive de l'utilisateur worker.
-MT5 Python utilise une session interactive ; une tâche exécutée comme `SYSTEM`
-ou une session Windows de service n'est pas équivalente. Après un redémarrage
-complet, il faut prouver que la session interactive revient automatiquement
-(ou qu'un opérateur se reconnecte). Ce point dépend de la politique de connexion
-Windows du VPS ; ce dépôt ne configure pas de mot de passe d'ouverture de
-session automatique.
-
-Le script de configuration autorise l'utilisateur worker à écrire dans les
-dossiers de journaux et les dossiers MT5 dédiés. Vérifier cette ACL sur le VPS,
-en particulier si les terminaux sont installés sous `Program Files`. Le secret
-local n'est lisible que par le worker, `SYSTEM` et les administrateurs.
-
-Chaque compte doit avoir un exécutable `terminal64.exe` dans un dossier
-d'installation portable distinct. Le worker refuse les chemins MT5 qui
-partagent le même dossier de données. À la connexion, il compare également le
-`terminal_info().path` natif au dossier configuré ; une différence entraîne
-`TERMINAL_PROCESS_PATH_MISMATCH` et aucune requête d'ordre n'est envoyée. Un
-`initialize()` en échec appelle `shutdown()` avant la prochaine tentative pour
-libérer l'état IPC du module.
-
-Démarrage/arrêt et vérification :
-
-```powershell
-.\scripts\windows\copy-trading-start.ps1
-.\scripts\windows\copy-trading-health.ps1
-.\scripts\windows\copy-trading-stop.ps1
-```
-
-Le script de santé vérifie l'existence de la tâche, du processus du worker et
-d'un heartbeat local récent. L'état faisant autorité reste le heartbeat signé
-du backend et le statut opérationnel par membre ; un fichier de log local seul
-ne prouve pas la connexion du compte.
+Après configuration, le worker planifié s'exécute uniquement dans la session
+interactive de l'utilisateur prévu. Nous ne configurons pas l'ouverture de
+session automatique Windows ni un stockage de mot de passe de connexion. Après
+redémarrage du VPS, il faut confirmer que cette session revient, puis vérifier
+le PID/session, la release chargée, le heartbeat backend et la dernière preuve
+native MT5. Un processus Python lancé ou `/health` en HTTP 200 ne prouve pas un
+parcours Copy Trading MT5.
 
 Après une tentative de connexion native, le backend conserve par membre l'état
 `CONNECTED`/`FAILED`, le code diagnostic MT5 (dont `-10005`), le PID et la

@@ -43,6 +43,9 @@ def _component(role: str, target, config: dict) -> None:
 
 def main() -> None:
     _configure_logging()
+    log.info("worker_release version=%s source_commit=%s",
+             os.environ.get("COPY_TRADING_RELEASE_VERSION", "unmanaged"),
+             os.environ.get("COPY_TRADING_SOURCE_COMMIT", "unmanaged"))
     config = validate_worker_config()
     context = mp.get_context("spawn")
     components = [
