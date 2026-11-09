@@ -113,15 +113,20 @@ def run_master_monitor(config=None):
                 "state": "CONNECTED", "diagnostic_code": None,
             }
             positions = provider.positions()
+            pending_orders = provider.pending_orders()
             close_candidates = client.post("/internal/copy-trading/master/close-candidates", {})
             close_deals = provider.closing_deals(close_candidates.get("position_ids") or [])
+            order_candidates = client.post("/internal/copy-trading/master/order-close-candidates", {})
+            pending_history = provider.pending_order_history(order_candidates.get("order_tickets") or [])
             symbols = {}
-            for symbol in sorted({str(row["symbol"]) for row in positions}):
+            for symbol in sorted({str(row["symbol"]) for row in positions + pending_orders}):
                 symbols[symbol] = provider.symbol_evidence(symbol)
             observed = _iso(_utc_now())
             client.post("/internal/copy-trading/master/snapshot", {
                 "account": account,
                 "positions": positions,
+                "pending_orders": pending_orders,
+                "pending_order_history": pending_history,
                 "close_deals": close_deals,
                 "native_symbols": symbols,
                 "observed_at": observed,
@@ -252,7 +257,18 @@ def _process_claimed_job(config, worker_id, job, pipe):
 
         symbol = str(job.get("mapped_symbol") or job["symbol"])
         positions = provider.positions()
-        market = {**account, "positions": positions, "positions_complete": True}
+        pending_orders = provider.pending_orders()
+        pending_order_history = []
+        follower_pending_ticket = str(job.get("follower_order_ticket") or "")
+        if (follower_pending_ticket.isdigit()
+                and not any(str(order.get("order_ticket") or "") == follower_pending_ticket
+                            for order in pending_orders)):
+            pending_order_history = provider.pending_order_history([follower_pending_ticket])
+        market = {**account, "positions": positions, "positions_complete": True,
+                  "orders": pending_orders, "orders_complete": True}
+        if follower_pending_ticket.isdigit():
+            market["pending_order_history"] = pending_order_history
+            market["pending_order_history_complete"] = True
         try:
             follower_evidence = provider.symbol_evidence(symbol)
         except ProviderError as error:
@@ -275,9 +291,20 @@ def _process_claimed_job(config, worker_id, job, pipe):
         risk_stop = Decimal(str(job.get("stop_loss") or 0))
         if effective_side != str(job["side"]):
             risk_stop = Decimal(str(job.get("take_profit") or 0))
-        loss_per_lot = provider.risk_loss_per_lot(symbol, effective_side, risk_stop)
-        if loss_per_lot is not None:
-            market["loss_per_lot"] = str(loss_per_lot)
+        if str(job.get("action") or "").startswith("PENDING_"):
+            pending_risk_stop = (Decimal(str(job.get("take_profit") or 0))
+                                 if academy.get("inverser_trades") in (True, 1, "true", "True", "1", "on", "yes")
+                                 else Decimal(str(job.get("stop_loss") or 0)))
+            pending_price = Decimal(str(job.get("price_open") or 0))
+            pending_risk = provider.risk_loss_per_lot_at_price(
+                symbol, effective_side, pending_price, pending_risk_stop,
+            ) if pending_risk_stop > 0 else None
+            if pending_risk is not None:
+                market["pending_loss_per_lot"] = str(pending_risk)
+        else:
+            loss_per_lot = provider.risk_loss_per_lot(symbol, effective_side, risk_stop)
+            if loss_per_lot is not None:
+                market["loss_per_lot"] = str(loss_per_lot)
         request_comment = "BCT-" + job_id.replace("-", "")[:24]
         prepared_data = client.post(f"/internal/copy-trading/jobs/{job_id}/prepared", {
             "lease_token": token, "symbol": symbol,
@@ -289,7 +316,8 @@ def _process_claimed_job(config, worker_id, job, pipe):
         action = str(prepared_data.get("execution_action") or "")
         if action == "NOOP":
             return
-        if action not in {"OPEN", "CLOSE", "RESIZE_CLOSE", "PROTECT"}:
+        if action not in {"OPEN", "CLOSE", "RESIZE_CLOSE", "PROTECT",
+                          "PENDING_CREATE", "PENDING_MODIFY", "PENDING_CANCEL", "PENDING_EXPIRE"}:
             client.post(f"/internal/copy-trading/jobs/{job_id}/fail", {
                 "lease_token": token, "code": "UNSUPPORTED_EXECUTION_ACTION", "retryable": False,
             })
@@ -300,7 +328,18 @@ def _process_claimed_job(config, worker_id, job, pipe):
         deviation = int(academy.get("slippage", 100) or 0)
         before_position = None
 
-        if action == "OPEN":
+        if action.startswith("PENDING_"):
+            request = provider.pending_request(
+                action=action, symbol=symbol, pending_type=str(plan.get("pending_type") or job.get("pending_type") or ""),
+                volume=volume, price=Decimal(str(plan.get("price") or job.get("price_open") or 0)),
+                stop_loss=Decimal(str(plan.get("stop_loss") or 0)),
+                take_profit=Decimal(str(plan.get("take_profit") or 0)),
+                stop_limit=Decimal(str(plan.get("stop_limit") or 0)),
+                time_type=int(plan.get("time_type") or 0),
+                expiration_at=plan.get("expiration_at"), comment=request_comment,
+                order_ticket=str(plan.get("follower_order_ticket") or ""),
+            )
+        elif action == "OPEN":
             request = provider.open_request(
                 symbol=symbol, side=str(plan.get("side") or effective_side), volume=volume,
                 stop_loss=Decimal(str(plan.get("stop_loss") or 0)),
@@ -354,6 +393,59 @@ def _process_claimed_job(config, worker_id, job, pipe):
         dispatch_started = True
         _send_phase(pipe, "DISPATCHING")
         result = provider.submit_request(request)
+        if result.get("confirmed") is True and action.startswith("PENDING_"):
+            after_account = provider.account_info()
+            after_orders = provider.pending_orders()
+            target_ticket = (str(result.get("order_ticket") or "") if action == "PENDING_CREATE"
+                             else str(plan.get("follower_order_ticket") or ""))
+            matches = [row for row in after_orders
+                       if str(row.get("order_ticket") or "") == target_ticket] if target_ticket else []
+            result["native_postcondition"] = {
+                "terminal_connected": after_account.get("terminal_connected") is True,
+                "terminal_path_verified": after_account.get("terminal_path_verified") is True,
+                "login": str(after_account.get("login") or ""),
+                "server": str(after_account.get("server") or ""),
+                "orders_complete": True,
+                "matches": [{key: str(row.get(key) or "") for key in (
+                    "order_ticket", "symbol", "pending_type", "side", "volume", "price_open",
+                    "stop_loss", "take_profit", "stop_limit", "expiration_at", "time_type", "comment",
+                )} for row in matches],
+            }
+            expected_values = {
+                "symbol": symbol, "pending_type": str(plan.get("pending_type") or ""),
+                "side": str(plan.get("side") or effective_side),
+                "volume": str(volume), "price_open": str(plan.get("price") or job.get("price_open") or "0"),
+                "stop_loss": str(plan.get("stop_loss") or "0"),
+                "take_profit": str(plan.get("take_profit") or "0"),
+                "stop_limit": str(plan.get("stop_limit") or "0"),
+            }
+            if action in {"PENDING_CANCEL", "PENDING_EXPIRE"}:
+                result["verified"] = not matches
+            elif len(matches) == 1:
+                actual = matches[0]
+                try:
+                    result["verified"] = all(str(actual.get(key) or "") == value for key, value in (
+                        ("symbol", expected_values["symbol"]),
+                        ("pending_type", expected_values["pending_type"]),
+                        ("side", expected_values["side"]),
+                    )) and all(Decimal(str(actual.get(key) or "0")) == Decimal(value) for key, value in (
+                        ("volume", expected_values["volume"]), ("price_open", expected_values["price_open"]),
+                        ("stop_loss", expected_values["stop_loss"]),
+                        ("take_profit", expected_values["take_profit"]),
+                        ("stop_limit", expected_values["stop_limit"]),
+                    ))
+                except Exception:
+                    result["verified"] = False
+            else:
+                result["verified"] = False
+            if result["verified"] and action == "PENDING_CREATE":
+                result["order_ticket"] = target_ticket
+            if not result["verified"]:
+                result.update({"confirmed": False, "ambiguous": True,
+                               "failure_code": "NATIVE_POSTCONDITION_UNVERIFIED"})
+            _post_complete(client, job_id, result)
+            _send_phase(pipe, "RESULT_RECORDED")
+            return
         if result.get("confirmed") is True:
             after_account = provider.account_info()
             after_positions = provider.positions()
@@ -485,6 +577,39 @@ def _process_claimed_job(config, worker_id, job, pipe):
             pass
 
 
+def _process_protection_monitor(config, worker_id, terminal_path, client, target):
+    """Read one consenting follower account and report native protection inputs."""
+    provider = MetaTrader5ExecutionProvider(
+        terminal_path, timeout_ms=config["connect_timeout_ms"],
+    )
+    member_code = str(target.get("member_code") or "")
+    try:
+        account = provider.connect(target["login"], target["server"], target["password"])
+        positions = provider.positions()
+        pending_orders = provider.pending_orders()
+        result = client.post(f"/internal/copy-trading/protections/{member_code}/snapshot", {
+            "monitor_token": target.get("monitor_token"), "account": account,
+            "positions": positions, "positions_complete": True,
+            "pending_orders": pending_orders, "pending_orders_complete": True,
+        })
+        _heartbeat(client, worker_id, "FOLLOWER", status="ONLINE",
+                   fingerprint=_fingerprint(terminal_path, account), terminal_probe={
+                       "member_code": member_code,
+                       "account_fingerprint": terminal_account_fingerprint(
+                           client.secret, account["login"], account["server"]),
+                       "server": account["server"],
+                       "terminal_path_verified": account["terminal_path_verified"],
+                       "state": "CONNECTED", "diagnostic_code": None,
+                   })
+        log.info("protection_sample member=%s suspended=%s reason=%s trigger=%s",
+                 member_code, result.get("suspended"), result.get("reason"), result.get("trigger"))
+    except (ProviderError, CopyWorkerAPIError) as error:
+        log.warning("protection_sample_failed member=%s code=%s", member_code,
+                    getattr(error, "code", "PROTECTION_SAMPLE_FAILED"))
+    finally:
+        provider.disconnect()
+
+
 def _follower_slot(config, slot_index, terminal_path):
     worker_id = f"{config['worker_node_id']}-copy-follower-{slot_index + 1:02d}"[:100]
     client = _client(config, worker_id, "FOLLOWER")
@@ -498,6 +623,11 @@ def _follower_slot(config, slot_index, terminal_path):
             continue
         try:
             _heartbeat(client, worker_id, "FOLLOWER", status="ONLINE")
+            monitor = client.post("/internal/copy-trading/protections/claim", {}).get("target")
+            if monitor:
+                _process_protection_monitor(config, worker_id, terminal_path, client, monitor)
+                time.sleep(0.1)
+                continue
             claimed = client.post("/internal/copy-trading/jobs/claim", {})
             job = claimed.get("job")
             if not job:

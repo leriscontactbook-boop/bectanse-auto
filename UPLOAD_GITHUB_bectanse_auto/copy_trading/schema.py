@@ -58,6 +58,26 @@ STATEMENTS = (
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (master_member_code, position_id)
     )""",
+    """CREATE TABLE IF NOT EXISTS copy_trading_master_orders (
+        master_member_code TEXT NOT NULL REFERENCES members(code) ON DELETE CASCADE,
+        order_ticket TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        side TEXT NOT NULL CHECK (side IN ('BUY','SELL')),
+        pending_type TEXT NOT NULL,
+        volume NUMERIC NOT NULL CHECK (volume > 0),
+        price_open NUMERIC NOT NULL,
+        stop_loss NUMERIC NOT NULL DEFAULT 0,
+        take_profit NUMERIC NOT NULL DEFAULT 0,
+        stop_limit NUMERIC NOT NULL DEFAULT 0,
+        expiration_at TIMESTAMPTZ,
+        time_type INTEGER NOT NULL DEFAULT 0,
+        source_version TEXT NOT NULL DEFAULT '',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        missing_snapshots INTEGER NOT NULL DEFAULT 0,
+        last_seen_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (master_member_code,order_ticket)
+    )""",
     """CREATE TABLE IF NOT EXISTS copy_trading_native_symbols (
         master_member_code TEXT NOT NULL REFERENCES members(code) ON DELETE CASCADE,
         symbol TEXT NOT NULL,
@@ -87,6 +107,17 @@ STATEMENTS = (
             CHECK (status IN ('READY','EXPIRED','COMPLETE','REJECTED')),
         CHECK (expires_at <= source_time + INTERVAL '120 seconds')
     )""",
+    "ALTER TABLE copy_trading_events ADD COLUMN IF NOT EXISTS pending_type TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE copy_trading_events ADD COLUMN IF NOT EXISTS stop_limit NUMERIC NOT NULL DEFAULT 0",
+    "ALTER TABLE copy_trading_events ADD COLUMN IF NOT EXISTS expiration_at TIMESTAMPTZ",
+    "ALTER TABLE copy_trading_events ADD COLUMN IF NOT EXISTS time_type INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE copy_trading_events DROP CONSTRAINT IF EXISTS copy_trading_events_action_check",
+    """DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='copy_trading_events_action_v2') THEN
+            ALTER TABLE copy_trading_events ADD CONSTRAINT copy_trading_events_action_v2
+              CHECK (action IN ('OPEN','RECONCILE','CLOSE','PENDING_CREATE','PENDING_MODIFY','PENDING_CANCEL','PENDING_EXPIRE'));
+        END IF;
+    END $$""",
     """CREATE INDEX IF NOT EXISTS copy_trading_events_ready_idx
         ON copy_trading_events (expires_at, created_at) WHERE status='READY'""",
     """CREATE TABLE IF NOT EXISTS copy_trading_jobs (
@@ -102,6 +133,7 @@ STATEMENTS = (
         attempts INTEGER NOT NULL DEFAULT 0,
         academy_settings JSONB NOT NULL DEFAULT '{}'::jsonb,
         academy_settings_hash TEXT NOT NULL DEFAULT '',
+        protection_close BOOLEAN NOT NULL DEFAULT FALSE,
         native_evidence JSONB NOT NULL DEFAULT '{}'::jsonb,
         follower_symbol TEXT NOT NULL DEFAULT '',
         execution_action TEXT NOT NULL DEFAULT 'OPEN'
@@ -118,6 +150,15 @@ STATEMENTS = (
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (event_id, follower_member_code)
     )""",
+    "ALTER TABLE copy_trading_jobs ADD COLUMN IF NOT EXISTS protection_close BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE copy_trading_jobs DROP CONSTRAINT IF EXISTS copy_trading_jobs_execution_action_check",
+    """DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='copy_trading_jobs_execution_action_v2') THEN
+            ALTER TABLE copy_trading_jobs ADD CONSTRAINT copy_trading_jobs_execution_action_v2
+              CHECK (execution_action IN ('OPEN','CLOSE','PROTECT','RESIZE_OPEN','RESIZE_CLOSE','NOOP',
+                'PENDING_CREATE','PENDING_MODIFY','PENDING_CANCEL','PENDING_EXPIRE'));
+        END IF;
+    END $$""",
     """CREATE INDEX IF NOT EXISTS copy_trading_jobs_claim_idx
         ON copy_trading_jobs (expires_at, created_at) WHERE status IN ('PENDING','RETRY','LEASED','PREPARED')""",
     """CREATE INDEX IF NOT EXISTS copy_trading_jobs_member_idx
@@ -141,6 +182,26 @@ STATEMENTS = (
     )""",
     """ALTER TABLE copy_trading_position_links ADD COLUMN IF NOT EXISTS
         current_follower_volume NUMERIC NOT NULL DEFAULT 0""",
+    """CREATE TABLE IF NOT EXISTS copy_trading_pending_order_links (
+        master_member_code TEXT NOT NULL REFERENCES members(code) ON DELETE CASCADE,
+        follower_member_code TEXT NOT NULL REFERENCES members(code) ON DELETE CASCADE,
+        master_order_ticket TEXT NOT NULL,
+        follower_order_ticket TEXT NOT NULL,
+        master_symbol TEXT NOT NULL,
+        follower_symbol TEXT NOT NULL,
+        master_type TEXT NOT NULL,
+        follower_type TEXT NOT NULL,
+        current_volume NUMERIC NOT NULL CHECK (current_volume > 0),
+        current_price NUMERIC NOT NULL,
+        current_stop_loss NUMERIC NOT NULL DEFAULT 0,
+        current_take_profit NUMERIC NOT NULL DEFAULT 0,
+        current_stop_limit NUMERIC NOT NULL DEFAULT 0,
+        expiration_at TIMESTAMPTZ,
+        time_type INTEGER NOT NULL DEFAULT 0,
+        state TEXT NOT NULL DEFAULT 'OPEN' CHECK (state IN ('OPEN','CLOSED','VERIFY_REQUIRED')),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (master_member_code,follower_member_code,master_order_ticket)
+    )""",
     """CREATE TABLE IF NOT EXISTS copy_trading_calendar_events (
         source TEXT NOT NULL,
         external_id TEXT NOT NULL,
@@ -148,13 +209,33 @@ STATEMENTS = (
         starts_at TIMESTAMPTZ NOT NULL,
         ends_at TIMESTAMPTZ NOT NULL,
         impact TEXT NOT NULL DEFAULT '',
+        currency TEXT NOT NULL DEFAULT '',
+        importance SMALLINT NOT NULL DEFAULT 0,
+        event_title TEXT NOT NULL DEFAULT '',
+        estimated_time BOOLEAN NOT NULL DEFAULT FALSE,
         fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         payload_hash TEXT NOT NULL DEFAULT '',
         PRIMARY KEY (source, external_id),
         CHECK (ends_at > starts_at)
     )""",
-    """CREATE INDEX IF NOT EXISTS copy_trading_calendar_window_idx
-        ON copy_trading_calendar_events (starts_at, ends_at, region)""",
+    "ALTER TABLE copy_trading_calendar_events ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE copy_trading_calendar_events ADD COLUMN IF NOT EXISTS importance SMALLINT NOT NULL DEFAULT 0",
+    "ALTER TABLE copy_trading_calendar_events ADD COLUMN IF NOT EXISTS event_title TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE copy_trading_calendar_events ADD COLUMN IF NOT EXISTS estimated_time BOOLEAN NOT NULL DEFAULT FALSE",
+    """CREATE INDEX IF NOT EXISTS copy_trading_calendar_window_v2_idx
+        ON copy_trading_calendar_events (starts_at, ends_at, region, currency, importance)""",
+    """CREATE TABLE IF NOT EXISTS copy_trading_calendar_sources (
+        source TEXT PRIMARY KEY,
+        configured BOOLEAN NOT NULL DEFAULT FALSE,
+        last_attempt_at TIMESTAMPTZ,
+        last_success_at TIMESTAMPTZ,
+        last_failure_code TEXT NOT NULL DEFAULT '',
+        event_count INTEGER NOT NULL DEFAULT 0,
+        coverage_start TIMESTAMPTZ,
+        coverage_end TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK (coverage_end IS NULL OR coverage_start IS NULL OR coverage_end > coverage_start)
+    )""",
     """CREATE TABLE IF NOT EXISTS copy_trading_workers (
         worker_id TEXT PRIMARY KEY,
         instance_id TEXT NOT NULL,
@@ -200,6 +281,33 @@ STATEMENTS = (
         blocked_reason TEXT NOT NULL DEFAULT '',
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )""",
+    """CREATE TABLE IF NOT EXISTS copy_trading_account_protections (
+        member_code TEXT PRIMARY KEY REFERENCES members(code) ON DELETE CASCADE,
+        guard_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        period_key TEXT NOT NULL DEFAULT '',
+        baseline_balance NUMERIC,
+        baseline_equity NUMERIC,
+        risk_anchor_equity NUMERIC,
+        peak_equity NUMERIC,
+        last_balance NUMERIC,
+        last_equity NUMERIC,
+        loss_drawdown_pct NUMERIC,
+        gain_pct NUMERIC,
+        objective_pct NUMERIC,
+        suspended BOOLEAN NOT NULL DEFAULT FALSE,
+        suspension_reason TEXT NOT NULL DEFAULT '',
+        triggered_at TIMESTAMPTZ,
+        resume_requested BOOLEAN NOT NULL DEFAULT FALSE,
+        resume_requested_at TIMESTAMPTZ,
+        objective_resume_pending BOOLEAN NOT NULL DEFAULT FALSE,
+        monitor_worker_id TEXT NOT NULL DEFAULT '',
+        monitor_token_hash TEXT NOT NULL DEFAULT '',
+        monitor_lease_expires_at TIMESTAMPTZ,
+        last_sample_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    "ALTER TABLE copy_trading_account_protections ADD COLUMN IF NOT EXISTS objective_resume_pending BOOLEAN NOT NULL DEFAULT FALSE",
+    "CREATE INDEX IF NOT EXISTS copy_trading_protection_monitor_idx ON copy_trading_account_protections(last_sample_at,monitor_lease_expires_at) WHERE guard_enabled=TRUE OR suspended=TRUE",
     """CREATE TABLE IF NOT EXISTS copy_trading_audit_events (
         event_id BIGSERIAL PRIMARY KEY,
         event_type TEXT NOT NULL,

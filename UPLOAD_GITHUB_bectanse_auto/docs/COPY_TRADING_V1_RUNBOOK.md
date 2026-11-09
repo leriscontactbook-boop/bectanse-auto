@@ -49,7 +49,10 @@ secrets :
 | `COPY_TRADING_MASTER_MEMBER_CODE` | code maître explicitement validé |
 | `COPY_TRADING_MASTER_WORKER_SECRET` | secret aléatoire ≥ 32 caractères |
 | `COPY_TRADING_FOLLOWER_WORKER_SECRET` | secret aléatoire distinct ≥ 32 caractères |
-| `COPY_TRADING_CALENDAR_WORKER_SECRET` | secret distinct, seulement si un collecteur calendrier est déployé |
+| `COPY_TRADING_CALENDAR_WORKER_SECRET` | secret aléatoire distinct ≥ 32 caractères |
+| `COPY_TRADING_CALENDAR_PROVIDER` | `tradingeconomics` uniquement après souscription et configuration du collecteur |
+| `COPY_TRADING_CALENDAR_FAILURE_POLICY` | `BLOCK` (défaut). `ALLOW` est un choix global explicite qui laisse les copies passer si le flux est indisponible |
+| `COPY_TRADING_CALENDAR_SYNC_TTL_SECONDS` | fraîcheur maximale du flux, 900 s par défaut, bornée entre 120 et 3600 s |
 
 Ne pas copier de secrets dans Git, une image de conteneur, un journal ou un
 ticket. Ne pas réutiliser les secrets des workers du journal MT5. L'API seule
@@ -62,6 +65,32 @@ doit conserver le démarrage Flask utilisé par l'application (migration puis
 `gunicorn app:app`) et ne doit pas être basculé vers un module absent. Vérifier
 le manifeste du **déploiement actif**, pas seulement la configuration de
 service en attente, avant tout redéploiement.
+
+### Collecteur du calendrier
+
+Créer un **service Railway distinct** depuis le même commit avec la commande
+`python -m copy_trading.calendar_worker`. Il pousse des snapshots signés vers
+`/internal/copy-trading/calendar/snapshot`; aucun accès PostgreSQL direct
+n'est requis. Fournir au service le backend HTTPS, le secret calendrier
+(`COPY_TRADING_CALENDAR_WORKER_SECRET`, identique au backend et distinct des
+secrets maître/suiveur), `COPY_TRADING_CALENDAR_PROVIDER=tradingeconomics`
+et `TRADING_ECONOMICS_API_KEY`. Le collecteur s'arrête proprement si son URL,
+son secret worker ou son identifiant ne sont pas configurés. Il synchronise
+toutes les 300 secondes par défaut et signale les erreurs sans journaliser la
+clé ni l'URL authentifiée. Le fournisseur renvoie les dates en UTC; le moteur
+compare des instants UTC et des durées écoulées, ce qui évite les erreurs de
+changement d'heure. Pour une heure estimée (`DateSpan=1`), la journée UTC
+entière est bloquée de façon conservatrice.
+
+L'accès à l'API Trading Economics requiert une souscription et une clé fournie
+par son gestionnaire de secrets; la clé n'est pas incluse dans le dépôt ou le
+package Windows. Le snapshot est remplacé en une transaction PostgreSQL et
+une tentative ratée ne marque jamais les anciennes données comme fraîches.
+Avec la politique `BLOCK`, l'absence de source, un échec de synchronisation,
+une couverture expirée ou un paramètre invalide bloque la nouvelle ouverture
+ou modification; les clôtures et annulations de sécurité restent permises.
+La politique `ALLOW` n'est activée que par configuration serveur explicite
+et le statut la signale comme `CALENDAR_UNAVAILABLE_FAIL_OPEN`.
 
 ## Préparer le VPS Windows
 
@@ -105,19 +134,32 @@ attaché à l'API Python entre deux événements.
 
 ## Limites à lever avant la démo
 
-1. **Paramètres Académie** : lots fixes, taille selon le maître, plafond de lots,
-   modes de risque, lot par symbole, inversion, protection SL/TP et expiration
-   absolue disposent de règles dans ce V1. Les seuils drawdown/performance et
-   objectifs de période n'ont pas de baseline durable ni d'exécuteur de
-   clôture totale ; lorsqu'ils sont activés, le job est refusé avec
-   `ACADEMY_GUARD_NOT_SUPPORTED`. Le statut du membre affiche ce blocage.
-2. **Calendrier** : le calendrier durable est consulté uniquement si
-   `filtre_news` est activé. Dans ce cas, l'absence de données fraîches bloque
-   l'exécution. Le endpoint signé de réception existe, mais aucun fournisseur
-   ni collecteur calendrier n'est intégré à cette livraison ; il faut en
-   choisir et valider un avant d'activer ce filtre. Quand le filtre est OFF,
-   le calendrier ne bloque pas.
-3. **Volume maître augmenté** : le scale-in est mis en revue et bloque le
+1. **Protections Académie** : drawdown equity depuis le plus haut observé,
+   plafond de gain equity, et objectifs/pertes sur balance réalisée par période
+   UTC ont des seuils persistés et un moniteur MT5 par suiveur. Un déclenchement
+   suspend les nouvelles copies; les clôtures des positions liées sont mises
+   en file idempotente et confirmées par relecture native. La reprise est
+   explicite et attend la réconciliation. Les protections ne ferment jamais
+   une position sur un relevé périmé ou incomplet.
+2. **Ordres en attente** : création, modification, annulation et expiration
+   sont reliées au ticket maître, envoyées avec un handoff atomique et
+   confirmées par un snapshot d'ordres MT5 complet. Deux snapshots maître
+   absents plus un état d'historique terminal permettent de fermer le lien;
+   côté suiveur, un ticket absent n'est considéré terminé qu'après lecture de
+   son historique MT5; un ticket rempli est mis en vérification, jamais déclaré
+   annulé. Une protection de capital met également en file l'annulation des
+   ordres liés après comparaison exacte du snapshot natif. Une preuve
+   incomplète bloque pour revue. La conversion en ordre au marché reste
+   volontairement non prise en charge et est refusée.
+3. **Calendrier** : le filtre n'est consulté que lorsqu'il est activé.
+   Devises (liste vide = toutes), importance minimale et marges avant/après
+   sont réglables par compte. Les paramètres temporels sont des minutes réelles
+   autour d'instants UTC; le champ IANA sert à l'usage local et les décisions
+   restent indépendantes du DST. L'activation est refusée tant qu'un snapshot
+   valide n'a pas été synchronisé, sauf si un opérateur a explicitement choisi
+   `ALLOW` au niveau serveur. Quand le filtre est OFF, aucune requête calendrier
+   ne bloque l'exécution.
+4. **Volume maître augmenté** : le scale-in est mis en revue et bloque le
    suiveur jusqu'à l'ajout d'un registre de composants natifs. Il n'est pas
    considéré comme synchronisé.
 4. **Positions déjà ouvertes** : l'abonnement d'un nouveau suiveur ne crée pas

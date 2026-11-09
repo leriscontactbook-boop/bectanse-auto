@@ -1,4 +1,4 @@
-import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re, html as html_lib
+import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re, html as html_lib, math
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
@@ -22,6 +22,7 @@ from marketing_automation import (
 from seo_features import register_seo_features, submit_indexnow_urls
 from trading_journal import ensure_trading_schema, register_trading_journal
 from copy_trading import ensure_copy_schema
+from copy_trading.domain import academy_settings
 from copy_trading.routes import register_copy_trading
 from trading_journal.config import validate_backend_config
 from trading_journal.billing import (
@@ -6040,32 +6041,86 @@ def save():
             return value.strip().lower() in {"1", "true", "yes", "on"}
         return bool(value)
 
-    unsupported_academy = [name for name in (
-        "drawdown_actif", "drawdown_gain_actif", "objectif_actif",
-    ) if request_flag(name)]
-    if unsupported_academy:
-        return jsonify({
-            "ok": False,
-            "code": "ACADEMY_GUARD_NOT_SUPPORTED",
-            "error": "Les protections drawdown et objectif ne sont pas encore exécutées par le moteur. Elles restent désactivées; aucune clôture automatique n’est garantie.",
-            "settings": unsupported_academy,
-        }), 409
-    unsupported_pending = [name for name in (
-        "copier_ordres_en_attente", "convertir_pending_invalide",
-    ) if request_flag(name)]
+    for name, default, maximum in (
+        ("drawdown_pct", 5, 100), ("drawdown_gain_pct", 5, 10000),
+        ("objectif_gain_pct", 5, 10000), ("objectif_perte_pct", 3, 100),
+    ):
+        try:
+            value = float(data.get(name, default))
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                            "error": f"Le seuil {name} doit être numérique."}), 400
+        if not math.isfinite(value) or value < 0.1 or value > maximum:
+            return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                            "error": f"Le seuil {name} doit être compris entre 0,1 et {maximum}."}), 400
+    if str(data.get("objectif_periode", "Mensuel")) not in {"Quotidien", "Hebdomadaire", "Mensuel"}:
+        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                        "error": "La période d’objectif est invalide."}), 400
+    unsupported_pending = ["convertir_pending_invalide"] if request_flag("convertir_pending_invalide") else []
     if unsupported_pending:
         return jsonify({
             "ok": False,
             "code": "PENDING_ORDER_COPY_NOT_SUPPORTED",
-            "error": "La copie des ordres en attente n’est pas encore implémentée. Aucun ordre en attente ni conversion en ordre marché ne sera exécuté.",
+            "error": "La conversion automatique d’un ordre en attente invalide en ordre au marché n’est pas prise en charge. Désactive cette option; les ordres en attente valides peuvent être copiés séparément.",
             "settings": unsupported_pending,
         }), 409
-    if request_flag("filtre_news"):
-        return jsonify({
-            "ok": False,
-            "code": "CALENDAR_PROVIDER_NOT_CONFIGURED",
-            "error": "Le fournisseur de calendrier n’est pas intégré. Le filtre reste désactivé; active-le uniquement après configuration et vérification du flux.",
-        }), 409
+    calendar_currencies = data.get("calendar_currencies", "")
+    if isinstance(calendar_currencies, (list, tuple)):
+        calendar_currencies = ",".join(str(value) for value in calendar_currencies)
+    if not isinstance(calendar_currencies, str):
+        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                        "error": "La liste de devises du calendrier est invalide."}), 400
+    currencies = sorted({value.strip().upper() for value in calendar_currencies.split(",") if value.strip()})
+    if any(not value.isalnum() or len(value) > 8 for value in currencies):
+        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                        "error": "Les devises doivent être séparées par des virgules (ex. USD,EUR)."}), 400
+    try:
+        calendar_min_importance = int(data.get("calendar_min_importance", 2))
+        calendar_minutes_before = int(data.get("calendar_minutes_before", 30))
+        calendar_minutes_after = int(data.get("calendar_minutes_after", 30))
+    except (TypeError, ValueError, OverflowError):
+        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                        "error": "Les paramètres de fenêtre calendrier doivent être entiers."}), 400
+    if (calendar_min_importance not in (1, 2, 3) or
+            not 0 <= calendar_minutes_before <= 360 or
+            not 0 <= calendar_minutes_after <= 360):
+        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                        "error": "Importance doit être 1–3 et chaque marge doit être comprise entre 0 et 360 minutes."}), 400
+    calendar_timezone = str(data.get("calendar_timezone") or "UTC").strip()
+    if len(calendar_timezone) > 64:
+        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                        "error": "Le fuseau horaire IANA est invalide."}), 400
+    try:
+        ZoneInfo(calendar_timezone)
+    except Exception:
+        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
+                        "error": "Choisis un fuseau horaire IANA reconnu (ex. Europe/Paris)."}), 400
+    calendar_preferences = {
+        "filtre_news": request_flag("filtre_news"),
+        "calendar_currencies": ",".join(currencies),
+        "calendar_min_importance": calendar_min_importance,
+        "calendar_minutes_before": calendar_minutes_before,
+        "calendar_minutes_after": calendar_minutes_after,
+        "calendar_timezone": calendar_timezone,
+        "calendar_region": str(data.get("calendar_region") or "ALL").strip()[:40] or "ALL",
+    }
+    if calendar_preferences["filtre_news"]:
+        try:
+            enabled, calendar_state = copy_trading_service.calendar_allows(
+                academy_settings(calendar_preferences),
+                region=calendar_preferences["calendar_region"],
+                preferences=calendar_preferences,
+            )
+        except Exception:
+            enabled, calendar_state = False, "CALENDAR_STALE_OR_UNAVAILABLE"
+        if not enabled and calendar_state in {
+            "CALENDAR_PROVIDER_NOT_CONFIGURED", "CALENDAR_STALE_OR_UNAVAILABLE",
+            "CALENDAR_SETTINGS_INVALID",
+        }:
+            return jsonify({
+                "ok": False, "code": calendar_state,
+                "error": "Le filtre reste inchangé : le flux Trading Economics n’est pas configuré et synchronisé récemment, ou sa politique de panne bloque l’activation.",
+            }), 409
 
     p = {
         "mode_risque": data.get("mode_risque","Lots fixes"),
@@ -6085,7 +6140,7 @@ def save():
         "objectif_gain_pct": float(data.get("objectif_gain_pct",5)),
         "objectif_perte_pct": float(data.get("objectif_perte_pct",3)),
         "objectif_periode": data.get("objectif_periode","Mensuel"),
-        "filtre_news": request_flag("filtre_news"),
+        **calendar_preferences,
         "risque_pct": float(data.get("risque_pct",1)),
         "multiplicateur": float(data.get("multiplicateur",1)),
         "risque_balance_pct": float(data.get("risque_balance_pct",1)),

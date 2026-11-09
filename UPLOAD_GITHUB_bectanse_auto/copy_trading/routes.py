@@ -12,7 +12,7 @@ from functools import wraps
 from flask import jsonify, request, session
 
 from .domain import (
-    CopyDecisionError, academy_settings, enabled_unsupported_academy_guards,
+    CopyDecisionError, academy_protection_enabled, academy_settings, enabled_unsupported_academy_guards,
     enabled_unsupported_pending_order_settings, worker_claims_enabled,
 )
 from .security import terminal_account_fingerprint, verify_copy_worker_request
@@ -61,6 +61,9 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 "TERMINAL_IDENTITY_MISMATCH", "TERMINAL_TRADING_DISABLED",
                 "ACADEMY_GUARD_NOT_SUPPORTED", "PENDING_ORDER_COPY_NOT_SUPPORTED",
                 "CALENDAR_FEED_STALE_OR_UNAVAILABLE",
+                "ACADEMY_PROTECTION_ACTIVE", "PROTECTION_CLOSES_PENDING",
+                "ACADEMY_PROTECTION_SAMPLE_STALE",
+                "ACADEMY_PROTECTION_ACTIVE", "PROTECTION_CLOSES_PENDING",
             } else 400
             return jsonify({"ok": False, "code": error.code, "error": str(error)}), status
         app.logger.error("Copy-trading request failed (%s)", type(error).__name__)
@@ -165,6 +168,13 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 """SELECT blocked,blocked_reason FROM copy_trading_follower_locks
                    WHERE member_code=:code""", code=code,
             )
+            protection_rows = conn.run(
+                """SELECT guard_enabled,period_key,baseline_balance,baseline_equity,peak_equity,
+                          last_balance,last_equity,loss_drawdown_pct,gain_pct,objective_pct,
+                          suspended,suspension_reason,triggered_at,last_sample_at,resume_requested,
+                          objective_resume_pending
+                   FROM copy_trading_account_protections WHERE member_code=:code""", code=code,
+            )
         finally:
             conn.close()
         consent = consents[0] if consents else None
@@ -177,12 +187,18 @@ def register_copy_trading(app, get_conn, get_member, login_required,
             unsupported_pending_settings = enabled_unsupported_pending_order_settings(params)
             calendar_allows, calendar_state = service.calendar_allows(
                 settings, region=str(params.get("calendar_region") or "ALL"),
+                preferences=params,
             )
+            calendar_active_window = service.calendar_active_window(
+                settings, region=str(params.get("calendar_region") or "ALL"),
+                preferences=params,
+            ) if calendar_state == "NEWS_WINDOW_ACTIVE" else None
         except Exception:
             settings_invalid = True
             unsupported_guards = ()
             unsupported_pending_settings = ()
             calendar_allows, calendar_state = False, "CALENDAR_OR_SETTINGS_UNAVAILABLE"
+            calendar_active_window = None
         consent_accepted = bool(consent and consent[0] == consent_version and consent[1] and not consent[2])
         profile_ready = bool(params.get("mt_login") and
                              (params.get("serveur") or params.get("mt_server")) and
@@ -226,12 +242,22 @@ def register_copy_trading(app, get_conn, get_member, login_required,
             membership_ready = False
         demo_e2e_verified = bool(native_proofs)
         reconciliation_required = bool(follower_locks and follower_locks[0][0])
+        protection = protection_rows[0] if protection_rows else None
+        protection_suspended = bool(protection and protection[10])
+        protection_sample_ready = bool(
+            not academy_protection_enabled(params) or
+            (protection and protection[0] and protection[13]
+             and protection[13] > datetime.now(timezone.utc) - timedelta(seconds=30))
+        )
         runtime_release_ready = (mode == "demo" and copy_enabled) or (
             mode == "live" and copy_enabled and live_approved
         )
         calendar_ready = bool(
             settings is not None
-            and (not settings.copy_news_filter or calendar_state != "CALENDAR_STALE_OR_UNAVAILABLE")
+            and (not settings.copy_news_filter or calendar_state in {
+                "NO_BLOCKING_WINDOW", "NEWS_WINDOW_ACTIVE",
+                "CALENDAR_UNAVAILABLE_FAIL_OPEN",
+            })
         )
         readiness = "READY" if all((member.get("copy_actif"), consent_accepted, profile_ready,
                                       master_ready, master_worker_ready, copy_enabled,
@@ -239,7 +265,8 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                                       runtime_release_ready, demo_e2e_verified, not unsupported_guards,
                                       not unsupported_pending_settings,
                                       not settings_invalid, terminal_probe_ready, not reconciliation_required,
-                                      calendar_ready)) else "BLOCKED"
+                                      calendar_ready, not protection_suspended,
+                                      protection_sample_ready)) else "BLOCKED"
         job_counts = {str(status): int(count) for status, count in (jobs or [])}
         mapping_counts = {str(state): int(count) for state, count in (mapping or [])}
         return jsonify({
@@ -268,6 +295,31 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 str(follower_locks[0][1] or "POSITION_RECONCILIATION_REQUIRED")
                 if reconciliation_required else None
             ),
+            "protection": {
+                "enabled": bool(protection and protection[0]),
+                "period_key": protection[1] if protection else None,
+                "baseline_balance": str(protection[2]) if protection and protection[2] is not None else None,
+                "baseline_equity": str(protection[3]) if protection and protection[3] is not None else None,
+                "peak_equity": str(protection[4]) if protection and protection[4] is not None else None,
+                "last_balance": str(protection[5]) if protection and protection[5] is not None else None,
+                "last_equity": str(protection[6]) if protection and protection[6] is not None else None,
+                "loss_drawdown_pct": str(protection[7]) if protection and protection[7] is not None else None,
+                "gain_pct": str(protection[8]) if protection and protection[8] is not None else None,
+                "objective_pct": str(protection[9]) if protection and protection[9] is not None else None,
+                "suspended": protection_suspended,
+                "reason": protection[11] if protection else None,
+                "triggered_at": protection[12].isoformat() if protection and protection[12] else None,
+                "last_native_sample_at": protection[13].isoformat() if protection and protection[13] else None,
+                "resume_pending_native_sample": bool(protection and protection[14]),
+                "objective_resume_pending_reconciliation": bool(protection and protection[15])
+                    if protection and len(protection) > 15 else False,
+                "native_sample_fresh": protection_sample_ready,
+                "basis": {
+                    "drawdown": "equity native MT5, maximum depuis le plus haut observé (PnL latent inclus)",
+                    "drawdown_gain": "equity native MT5 par rapport au capital de référence de protection",
+                    "objectives": "balance native MT5 par rapport au début de période UTC (PnL réalisé)",
+                },
+            },
             "operational_readiness": readiness,
             "operational_blockers": [
                 label for condition, label in (
@@ -284,6 +336,8 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                      "DEMO_ACCOUNT_END_TO_END_UNVERIFIED" if mode == "demo" else "LIVE_ACCOUNT_END_TO_END_UNVERIFIED"),
                     (not terminal_probe_ready, terminal_probe_blocker),
                     (reconciliation_required, "POSITION_RECONCILIATION_REQUIRED"),
+                    (protection_suspended, "ACADEMY_PROTECTION_SUSPENDED"),
+                    (not protection_sample_ready, "ACADEMY_PROTECTION_SAMPLE_STALE"),
                     (bool(unsupported_guards), "ACADEMY_GUARD_NOT_SUPPORTED"),
                     (bool(unsupported_pending_settings), "PENDING_ORDER_COPY_NOT_SUPPORTED"),
                     (settings_invalid, "ACADEMY_SETTINGS_INVALID"),
@@ -304,6 +358,13 @@ def register_copy_trading(app, get_conn, get_member, login_required,
                 "enabled_unsupported_pending_settings": list(unsupported_pending_settings),
                 "calendar_filter_state": calendar_state,
                 "calendar_allows_dispatch": bool(calendar_allows),
+                "calendar_failure_policy": (os.environ.get("COPY_TRADING_CALENDAR_FAILURE_POLICY") or "BLOCK").strip().upper(),
+                "calendar_timezone": str(params.get("calendar_timezone") or "UTC"),
+                "calendar_active_window": calendar_active_window,
+                "calendar_currencies": params.get("calendar_currencies") or "",
+                "calendar_min_importance": params.get("calendar_min_importance", 2),
+                "calendar_minutes_before": params.get("calendar_minutes_before", 30),
+                "calendar_minutes_after": params.get("calendar_minutes_after", 30),
             },
             "jobs_last_7_days": job_counts,
             "symbol_mappings": mapping_counts,
@@ -370,6 +431,17 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         finally:
             conn.close()
         return jsonify({"ok": True, "accepted": False})
+
+    @app.post("/api/copy-trading/protection/resume")
+    @login_required
+    @academy_access_required
+    def copy_trading_protection_resume():
+        code = str(session.get("member_code") or "").strip().upper()
+        try:
+            result = service.request_protection_resume(code)
+            return jsonify({"ok": True, **result})
+        except Exception as error:
+            return api_error(error)
 
     @app.post("/admin/api/copy-trading/master")
     @admin_required
@@ -738,13 +810,16 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         payload = request.get_json(silent=True) or {}
         if (not isinstance(payload.get("positions"), list) or
                 not isinstance(payload.get("native_symbols"), dict) or
-                not isinstance(payload.get("close_deals", []), list)):
+                not isinstance(payload.get("close_deals", []), list) or
+                not isinstance(payload.get("pending_orders", []), list) or
+                not isinstance(payload.get("pending_order_history", []), list)):
             return jsonify({"ok": False, "error": "Snapshot MT5 incomplet."}), 400
         try:
             result = service.ingest_master_snapshot(
                 master_member_code, payload.get("account") or {},
                 payload["positions"], payload["native_symbols"],
                 payload.get("observed_at"), payload.get("close_deals", []),
+                payload.get("pending_orders", []), payload.get("pending_order_history", []),
             )
             return jsonify({"ok": True, **result})
         except Exception as error:
@@ -758,6 +833,42 @@ def register_copy_trading(app, get_conn, get_member, login_required,
         try:
             return jsonify({"ok": True, "position_ids":
                             service.master_positions_requiring_close_evidence(master_member_code)})
+        except Exception as error:
+            return api_error(error)
+
+    @app.post("/internal/copy-trading/master/order-close-candidates")
+    @internal_worker("MASTER")
+    def copy_master_order_close_candidates():
+        if not master_member_code:
+            return jsonify({"ok": False, "error": "Compte maître non configuré."}), 503
+        try:
+            return jsonify({"ok": True, "order_tickets":
+                            service.master_orders_requiring_close_evidence(master_member_code)})
+        except Exception as error:
+            return api_error(error)
+
+    @app.post("/internal/copy-trading/protections/claim")
+    @internal_worker("FOLLOWER")
+    def copy_protection_claim():
+        try:
+            target = service.claim_protection_monitor(request.environ["copy_worker_id"])
+            return jsonify({"ok": True, "target": target})
+        except Exception as error:
+            return api_error(error)
+
+    @app.post("/internal/copy-trading/protections/<member_code>/snapshot")
+    @internal_worker("FOLLOWER")
+    def copy_protection_snapshot(member_code):
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = service.record_protection_snapshot(
+                request.environ["copy_worker_id"], member_code,
+                str(payload.get("monitor_token") or ""), payload.get("account"),
+                payload.get("positions"), positions_complete=payload.get("positions_complete") is True,
+                pending_orders=payload.get("pending_orders"),
+                pending_orders_complete=payload.get("pending_orders_complete") is True,
+            )
+            return jsonify({"ok": True, **result})
         except Exception as error:
             return api_error(error)
 
@@ -884,6 +995,118 @@ def register_copy_trading(app, get_conn, get_member, login_required,
             "follower_initial_volume": str(row[6] or ""),
             "current_master_volume": str(row[7] or ""), "state": row[8] or "NONE",
         }})
+
+    @app.post("/internal/copy-trading/calendar/snapshot")
+    @internal_worker("CALENDAR")
+    def copy_calendar_snapshot():
+        payload = request.get_json(silent=True) or {}
+        source = str(payload.get("source") or "").strip().lower()
+        status = str(payload.get("status") or "").strip().upper()
+        configured = payload.get("configured") is True
+        failure_code = str(payload.get("failure_code") or "")[:80]
+        events = payload.get("events") or []
+        if source != "tradingeconomics" or status not in {"OK", "FAILED"}:
+            return jsonify({"ok": False, "code": "CALENDAR_SNAPSHOT_INVALID"}), 400
+        if not isinstance(events, list) or len(events) > 1000:
+            return jsonify({"ok": False, "code": "CALENDAR_SNAPSHOT_INVALID"}), 400
+        try:
+            coverage_start = datetime.fromisoformat(str(payload.get("coverage_start") or "").replace("Z", "+00:00"))
+            coverage_end = datetime.fromisoformat(str(payload.get("coverage_end") or "").replace("Z", "+00:00"))
+            if (coverage_start.tzinfo is None or coverage_end.tzinfo is None
+                    or coverage_end <= coverage_start):
+                raise ValueError("coverage")
+            coverage_start = coverage_start.astimezone(timezone.utc).isoformat()
+            coverage_end = coverage_end.astimezone(timezone.utc).isoformat()
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({"ok": False, "code": "CALENDAR_SNAPSHOT_INVALID"}), 400
+        normalized = []
+        if status == "OK":
+            if not configured or failure_code:
+                return jsonify({"ok": False, "code": "CALENDAR_SNAPSHOT_INVALID"}), 400
+            try:
+                for item in events:
+                    if not isinstance(item, dict):
+                        raise ValueError("event")
+                    external_id = str(item.get("external_id") or "").strip()
+                    currency = str(item.get("currency") or "").strip().upper()
+                    importance = int(item.get("importance"))
+                    title = str(item.get("event_title") or "").strip()
+                    starts_at = datetime.fromisoformat(str(item.get("starts_at") or "").replace("Z", "+00:00"))
+                    ends_at = datetime.fromisoformat(str(item.get("ends_at") or "").replace("Z", "+00:00"))
+                    if (not external_id or len(external_id) > 160 or
+                            (currency and (len(currency) > 8 or not currency.isalnum())) or
+                            importance not in (1, 2, 3) or not title or len(title) > 200 or
+                            starts_at.tzinfo is None or ends_at.tzinfo is None or ends_at <= starts_at):
+                        raise ValueError("event")
+                    normalized.append({
+                        "external_id": external_id,
+                        "region": str(item.get("region") or "ALL").strip()[:40] or "ALL",
+                        "starts_at": starts_at.astimezone(timezone.utc).isoformat(),
+                        "ends_at": ends_at.astimezone(timezone.utc).isoformat(),
+                        "currency": currency, "importance": importance,
+                        "event_title": title, "estimated_time": item.get("estimated_time") is True,
+                    })
+                if len({item["external_id"] for item in normalized}) != len(normalized):
+                    raise ValueError("duplicate")
+            except (TypeError, ValueError, OverflowError):
+                return jsonify({"ok": False, "code": "CALENDAR_SNAPSHOT_INVALID"}), 400
+        else:
+            if not failure_code or events:
+                return jsonify({"ok": False, "code": "CALENDAR_SNAPSHOT_INVALID"}), 400
+
+        conn = get_conn()
+        try:
+            conn.run("BEGIN")
+            if status == "OK":
+                conn.run("DELETE FROM copy_trading_calendar_events WHERE source=:source", source=source)
+                for item in normalized:
+                    conn.run(
+                        """INSERT INTO copy_trading_calendar_events
+                           (source,external_id,region,starts_at,ends_at,impact,currency,importance,
+                            event_title,estimated_time,fetched_at,payload_hash)
+                           VALUES (:source,:external_id,:region,:starts_at,:ends_at,:impact,:currency,
+                                   :importance,:title,:estimated,NOW(),:hash)""",
+                        source=source, external_id=item["external_id"], region=item["region"],
+                        starts_at=item["starts_at"], ends_at=item["ends_at"],
+                        impact=str(item["importance"]), currency=item["currency"],
+                        importance=item["importance"], title=item["event_title"],
+                        estimated=item["estimated_time"],
+                        hash=hashlib.sha256(json.dumps(item, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+                    )
+                conn.run(
+                    """INSERT INTO copy_trading_calendar_sources
+                       (source,configured,last_attempt_at,last_success_at,last_failure_code,
+                        event_count,coverage_start,coverage_end,updated_at)
+                       VALUES (:source,TRUE,NOW(),NOW(),'',
+                               :count,:coverage_start,:coverage_end,NOW())
+                       ON CONFLICT(source) DO UPDATE SET configured=TRUE,last_attempt_at=NOW(),
+                         last_success_at=NOW(),last_failure_code='',event_count=EXCLUDED.event_count,
+                         coverage_start=EXCLUDED.coverage_start,coverage_end=EXCLUDED.coverage_end,
+                         updated_at=NOW()""",
+                    source=source, count=len(normalized), coverage_start=coverage_start,
+                    coverage_end=coverage_end,
+                )
+            else:
+                conn.run(
+                    """INSERT INTO copy_trading_calendar_sources
+                       (source,configured,last_attempt_at,last_failure_code,updated_at)
+                       VALUES (:source,:configured,NOW(),:failure,NOW())
+                       ON CONFLICT(source) DO UPDATE SET configured=EXCLUDED.configured,
+                         last_attempt_at=NOW(),last_failure_code=EXCLUDED.last_failure_code,
+                         updated_at=NOW()""",
+                    source=source, configured=configured, failure=failure_code,
+                )
+            conn.run("COMMIT")
+        except Exception:
+            try:
+                conn.run("ROLLBACK")
+            except Exception:
+                pass
+            raise
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "source": source, "status": status,
+                        "event_count": len(normalized), "failure_code": failure_code})
 
     @app.post("/internal/copy-trading/calendar/windows")
     @internal_worker("CALENDAR")

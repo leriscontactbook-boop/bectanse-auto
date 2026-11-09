@@ -120,7 +120,7 @@ def test_robot_settings_save_keeps_the_member_trading_profile():
     assert revealed["lots"] == 0.02
 
 
-def test_robot_settings_cannot_enable_unimplemented_close_guards():
+def test_robot_settings_persist_enabled_close_guards_for_native_monitoring():
     app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
     client = app.app.test_client()
     member = _member(params={"mt_login": "445566", "serveur": "PUPrime-Live"})
@@ -130,15 +130,19 @@ def test_robot_settings_cannot_enable_unimplemented_close_guards():
 
     with patch.object(app, "enforce_member_access_state"), \
          patch.object(app, "get_member", return_value=member), \
-         patch.object(app, "get_conn", return_value=connection):
+         patch.object(app, "get_conn", return_value=connection), \
+         patch.object(app, "build_notif", return_value="test"), \
+         patch.object(app, "send_telegram"):
         response = client.post("/save", json={"drawdown_actif": True})
 
-    assert response.status_code == 409
-    assert response.get_json()["code"] == "ACADEMY_GUARD_NOT_SUPPORTED"
-    assert not any(query.startswith("update members set params=") for query, _ in connection.calls)
+    assert response.status_code == 200
+    assert response.get_json()["ok"] is True
+    saved = app._reveal_params(connection.params)
+    assert saved["drawdown_actif"] is True
+    assert saved["drawdown_pct"] == 5.0
 
 
-def test_robot_settings_do_not_enable_pending_copy_or_calendar_without_providers():
+def test_robot_settings_enable_pending_copy_but_keep_calendar_closed_without_provider():
     app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
     client = app.app.test_client()
     member = _member(params={"mt_login": "445566", "serveur": "PUPrime-Live"})
@@ -148,14 +152,60 @@ def test_robot_settings_do_not_enable_pending_copy_or_calendar_without_providers
 
     with patch.object(app, "enforce_member_access_state"), \
          patch.object(app, "get_member", return_value=member), \
-         patch.object(app, "get_conn", return_value=connection):
+         patch.object(app, "get_conn", return_value=connection), \
+         patch.object(app.copy_trading_service, "calendar_allows",
+                      return_value=(False, "CALENDAR_PROVIDER_NOT_CONFIGURED")):
         pending = client.post("/save", json={"copier_ordres_en_attente": True})
         calendar = client.post("/save", json={"filtre_news": True})
 
-    assert pending.status_code == 409
-    assert pending.get_json()["code"] == "PENDING_ORDER_COPY_NOT_SUPPORTED"
+    assert pending.status_code == 200
+    assert app._reveal_params(connection.params)["copier_ordres_en_attente"] is True
     assert calendar.status_code == 409
     assert calendar.get_json()["code"] == "CALENDAR_PROVIDER_NOT_CONFIGURED"
+    assert sum(query.startswith("update members set params=") for query, _ in connection.calls) == 1
+
+
+def test_calendar_profile_settings_are_persisted_after_a_fresh_provider_check():
+    app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
+    client = app.app.test_client()
+    member = _member(params={"mt_login": "445566", "serveur": "PUPrime-Live"})
+    connection = ProfileConnection(member["params"])
+    with client.session_transaction() as session:
+        session["member_code"] = member["code"]
+    with patch.object(app, "enforce_member_access_state"), \
+         patch.object(app, "get_member", return_value=member), \
+         patch.object(app, "get_conn", return_value=connection), \
+         patch.object(app.copy_trading_service, "calendar_allows",
+                      return_value=(True, "NO_BLOCKING_WINDOW")), \
+         patch.object(app, "build_notif", return_value="test"), \
+         patch.object(app, "send_telegram"):
+        response = client.post("/save", json={
+            "filtre_news": True, "calendar_currencies": "usd, EUR,USD",
+            "calendar_min_importance": 3, "calendar_minutes_before": 45,
+            "calendar_minutes_after": 60, "calendar_timezone": "Europe/Paris",
+        })
+    assert response.status_code == 200
+    saved = app._reveal_params(connection.params)
+    assert saved["calendar_currencies"] == "EUR,USD"
+    assert saved["calendar_min_importance"] == 3
+    assert saved["calendar_minutes_before"] == 45
+    assert saved["calendar_minutes_after"] == 60
+    assert saved["calendar_timezone"] == "Europe/Paris"
+
+
+def test_invalid_calendar_timezone_is_rejected_before_profile_write():
+    app.app.config.update(TESTING=True, SESSION_COOKIE_SECURE=False)
+    client = app.app.test_client()
+    member = _member(params={"mt_login": "445566", "serveur": "PUPrime-Live"})
+    connection = ProfileConnection(member["params"])
+    with client.session_transaction() as session:
+        session["member_code"] = member["code"]
+    with patch.object(app, "enforce_member_access_state"), \
+         patch.object(app, "get_member", return_value=member), \
+         patch.object(app, "get_conn", return_value=connection):
+        response = client.post("/save", json={"calendar_timezone": "not/a-timezone"})
+    assert response.status_code == 400
+    assert response.get_json()["code"] == "ACADEMY_SETTINGS_INVALID"
     assert not any(query.startswith("update members set params=") for query, _ in connection.calls)
 
 

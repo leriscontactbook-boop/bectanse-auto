@@ -16,7 +16,7 @@ from typing import Any, Mapping
 
 
 EVENT_TTL_SECONDS = 120
-SUPPORTED_ACTIONS = {"OPEN", "RECONCILE", "CLOSE"}
+SUPPORTED_ACTIONS = {"OPEN", "RECONCILE", "CLOSE", "PENDING_CREATE", "PENDING_MODIFY", "PENDING_CANCEL", "PENDING_EXPIRE"}
 SUPPORTED_SIDES = {"BUY", "SELL"}
 SUPPORTED_RISK_MODES = {
     "Lots fixes",
@@ -150,23 +150,18 @@ def academy_settings(params: Mapping[str, Any] | None) -> AcademyCopySettings:
 
 
 def enabled_unsupported_academy_guards(params: Mapping[str, Any] | None) -> tuple[str, ...]:
-    """List Academy loss/goal guards that this copy engine cannot enforce yet.
+    """Compatibility shim: these guards are evaluated by the durable engine."""
+    return ()
 
-    The existing profile stores these toggles, but this V1 engine has no
-    durable period baseline or close-all reconciliation. Silently ignoring
-    an enabled guard would be unsafe, so the caller must block the job.
-    """
+
+def academy_protection_enabled(params: Mapping[str, Any] | None) -> bool:
     p = dict(params or {})
-
     def enabled(value: Any) -> bool:
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "on"}
         return bool(value)
-
-    keys = (
-        "drawdown_actif", "drawdown_gain_actif", "objectif_actif",
-    )
-    return tuple(key for key in keys if enabled(p.get(key)))
+    return any(enabled(p.get(key)) for key in
+               ("drawdown_actif", "drawdown_gain_actif", "objectif_actif"))
 
 
 def enabled_unsupported_pending_order_settings(params: Mapping[str, Any] | None) -> tuple[str, ...]:
@@ -178,8 +173,102 @@ def enabled_unsupported_pending_order_settings(params: Mapping[str, Any] | None)
             return value.strip().lower() in {"1", "true", "yes", "on"}
         return bool(value)
 
-    keys = ("copier_ordres_en_attente", "convertir_pending_invalide")
+    keys = ("convertir_pending_invalide",)
     return tuple(key for key in keys if enabled(p.get(key)))
+
+
+def protection_period_key(period: str, now: datetime) -> str:
+    """Stable UTC period key; using calendar boundaries avoids DST ambiguity."""
+    current = _utc(now, "now")
+    normalized = str(period or "Mensuel").strip().casefold()
+    if normalized == "quotidien":
+        return current.strftime("%Y-%m-%d")
+    if normalized == "hebdomadaire":
+        year, week, _ = current.isocalendar()
+        return f"{year}-W{week:02d}"
+    if normalized == "mensuel":
+        return current.strftime("%Y-%m")
+    raise CopyDecisionError("INVALID_SETTINGS", "La période d’objectif doit être quotidienne, hebdomadaire ou mensuelle.")
+
+
+def evaluate_academy_protection(params: Mapping[str, Any] | None, account: Mapping[str, Any],
+                                state: Mapping[str, Any] | None, now: datetime) -> dict[str, Any]:
+    """Evaluate configured protection from native balance/equity and durable anchors.
+
+    Maximum-loss drawdown uses peak native equity (so floating PnL is included).
+    The gain cap uses equity versus its persistent activation baseline. Periodic
+    objectives use realized balance versus the period-start balance. A new
+    baseline is never inferred from a missing/invalid terminal sample.
+    """
+    settings = dict(params or {})
+    native_balance = _decimal(account.get("balance"), "balance", minimum=Decimal("0.00000001"))
+    native_equity = _decimal(account.get("equity"), "equity", minimum=Decimal("0.00000001"))
+    current = _utc(now, "now")
+    flags = {
+        key: str(settings.get(key, False)).strip().lower() in {"1", "true", "yes", "on"}
+        if isinstance(settings.get(key, False), str) else bool(settings.get(key, False))
+        for key in ("drawdown_actif", "drawdown_gain_actif", "objectif_actif")
+    }
+    old = dict(state or {})
+    period = str(settings.get("objectif_periode") or "Mensuel")
+    period_key = protection_period_key(period, current) if flags["objectif_actif"] else str(old.get("period_key") or "")
+    reset_for_activation = not bool(old.get("guard_enabled")) and any(flags.values())
+    period_changed = bool(flags["objectif_actif"] and old.get("period_key", "") != period_key
+                           and old.get("baseline_balance") is not None)
+    first_sample = old.get("baseline_balance") is None or reset_for_activation
+    baseline_balance = native_balance if first_sample or period_changed else _decimal(
+        old.get("baseline_balance"), "baseline_balance", minimum=Decimal("0.00000001"))
+    baseline_equity = native_equity if first_sample or period_changed else _decimal(
+        old.get("baseline_equity"), "baseline_equity", minimum=Decimal("0.00000001"))
+    risk_anchor = native_equity if first_sample else _decimal(
+        old.get("risk_anchor_equity", old.get("baseline_equity")), "risk_anchor_equity",
+        minimum=Decimal("0.00000001"))
+    peak_equity = max(native_equity, _decimal(
+        old.get("peak_equity", native_equity), "peak_equity", minimum=Decimal("0.00000001")))
+    if first_sample or (period_changed and not flags["drawdown_actif"] and not flags["drawdown_gain_actif"]):
+        peak_equity = native_equity
+    suspended = bool(old.get("suspended", False))
+    reason = str(old.get("suspension_reason") or "") if suspended else ""
+    resume_requested = bool(old.get("resume_requested", False))
+    if resume_requested:
+        baseline_balance = native_balance
+        baseline_equity = native_equity
+        risk_anchor = native_equity
+        peak_equity = native_equity
+        suspended, reason = False, ""
+        first_sample = True
+    loss_dd_pct = max(Decimal("0"), (peak_equity - native_equity) * 100 / peak_equity)
+    gain_pct = (native_equity - risk_anchor) * 100 / risk_anchor
+    objective_pct = (native_balance - baseline_balance) * 100 / baseline_balance
+    trigger = ""
+    if not suspended:
+        if flags["drawdown_actif"] and loss_dd_pct >= _decimal(
+                settings.get("drawdown_pct", 5), "drawdown_pct", minimum=Decimal("0.1")):
+            trigger = "DRAWDOWN_LOSS"
+        elif flags["drawdown_gain_actif"] and gain_pct >= _decimal(
+                settings.get("drawdown_gain_pct", 5), "drawdown_gain_pct", minimum=Decimal("0.1")):
+            trigger = "DRAWDOWN_GAIN"
+        elif flags["objectif_actif"] and objective_pct >= _decimal(
+                settings.get("objectif_gain_pct", 5), "objectif_gain_pct", minimum=Decimal("0.1")):
+            trigger = "OBJECTIVE_GAIN"
+        elif flags["objectif_actif"] and objective_pct <= -_decimal(
+                settings.get("objectif_perte_pct", 3), "objectif_perte_pct", minimum=Decimal("0.1")):
+            trigger = "OBJECTIVE_LOSS"
+        if trigger:
+            suspended, reason = True, trigger
+    return {
+        "balance": native_balance, "equity": native_equity,
+        "baseline_balance": baseline_balance, "baseline_equity": baseline_equity,
+        "risk_anchor_equity": risk_anchor, "peak_equity": peak_equity,
+        "period_key": period_key, "suspended": suspended,
+        "suspension_reason": reason, "trigger": trigger,
+        "period_changed": period_changed, "first_sample": first_sample,
+        "resume_requested": resume_requested,
+        "objective_resume_pending": bool(old.get("objective_resume_pending", False)),
+        "loss_drawdown_pct": loss_dd_pct,
+        "gain_pct": gain_pct, "objective_pct": objective_pct,
+        "guard_enabled": any(flags),
+    }
 
 
 def verify_native_symbol_mapping(

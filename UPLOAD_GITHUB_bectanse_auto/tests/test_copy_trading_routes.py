@@ -49,6 +49,8 @@ class _StatusConnection:
             return [(1,)]
         if "SELECT blocked,blocked_reason FROM copy_trading_follower_locks" in sql:
             return [(self.blocked, "MASTER_CLOSE_EVENT_EXPIRED" if self.blocked else "")]
+        if "FROM copy_trading_account_protections WHERE member_code" in sql:
+            return []
         raise AssertionError(f"Unexpected status query: {sql}")
 
     @staticmethod
@@ -96,6 +98,18 @@ def test_live_readiness_still_requires_recent_demo_e2e_evidence(monkeypatch):
     body = response.get_json()
     assert body["demo_account_end_to_end_verified"] is True
     assert body["operational_readiness"] == "READY"
+
+
+def test_calendar_filter_without_provider_is_an_operational_blocker(monkeypatch):
+    monkeypatch.delenv("COPY_TRADING_CALENDAR_PROVIDER", raising=False)
+    response = _status_client(monkeypatch, member_params={"filtre_news": True}).get(
+        "/api/copy-trading/status"
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["settings"]["calendar_filter_state"] == "CALENDAR_PROVIDER_NOT_CONFIGURED"
+    assert body["operational_readiness"] == "BLOCKED"
+    assert "CALENDAR_FEED_STALE_OR_UNAVAILABLE" in body["operational_blockers"]
     assert body["terminal_connection"]["state"] == "CONNECTED"
     assert body["terminal_connection"]["matches_account_profile"] is True
     assert body["terminal_connection"]["freshness_ttl_seconds"] == 90
@@ -138,14 +152,14 @@ def test_stale_native_connection_failure_keeps_its_mt5_error_visible(monkeypatch
     assert "TERMINAL_CONNECTION_FAILED_-10005" in body["operational_blockers"]
 
 
-def test_status_blocks_members_who_requested_unsupported_pending_orders(monkeypatch):
+def test_status_no_longer_blocks_supported_pending_order_preference(monkeypatch):
     response = _status_client(
         monkeypatch, member_params={"copier_ordres_en_attente": True}
     ).get("/api/copy-trading/status")
     body = response.get_json()
-    assert body["operational_readiness"] == "BLOCKED"
-    assert "PENDING_ORDER_COPY_NOT_SUPPORTED" in body["operational_blockers"]
-    assert body["settings"]["enabled_unsupported_pending_settings"] == ["copier_ordres_en_attente"]
+    assert body["operational_readiness"] == "READY"
+    assert "PENDING_ORDER_COPY_NOT_SUPPORTED" not in body["operational_blockers"]
+    assert body["settings"]["enabled_unsupported_pending_settings"] == []
 
 
 def test_reconciliation_lock_is_visible_and_prevents_ready_status(monkeypatch):

@@ -1493,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="toggle-grid">
 
             <div class="field-help" role="status" style="grid-column:1/-1;color:#fca5a5;">
-              Non disponible dans le moteur actuel : si un seuil drawdown ou objectif est activé, les événements de copie sont bloqués. Aucune clôture automatique ni remise à zéro de période n’est effectuée. Désactive ces options avant d’enregistrer.
+              Les protections sont évaluées sur des relevés natifs MT5 persistés : drawdown et plafond de gain sur l’equity (PnL latent inclus), objectifs périodiques sur la balance (PnL réalisé). Un seuil atteint suspend les nouvelles copies et lance la clôture des positions liées après vérification native. Une incertitude conserve la suspension.
             </div>
 
             <label class="toggle-row">
@@ -1528,8 +1528,8 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             </label>
 
-            <div class="field-help" role="status" style="grid-column:1/-1;color:#fca5a5;">
-              Non disponible : le moteur ne reçoit ni ne place les ordres en attente. Activer cette option sera refusé et n’entraînera jamais une conversion automatique en ordre marché.
+            <div class="field-help" role="status" style="grid-column:1/-1;">
+              Les créations, modifications, annulations et expirations sont suivies par ticket maître et confirmées par relecture native MT5. Une conversion en ordre au marché reste désactivée.
             </div>
             <label class="toggle-row">
               <div class="toggle-info">
@@ -1539,26 +1539,10 @@ document.addEventListener('DOMContentLoaded', function() {
                   <span class="tooltip-box">Copie aussi les ordres en attente (Limit, Stop) et pas seulement les ordres exécutés immédiatement. Recommandé : activé pour ne manquer aucun signal.</span>
                 </span>
               </div>
-                <div class="toggle-desc">Copie aussi les pending orders (stop, limit) pas seulement les trades au marché</div>
+                <div class="toggle-desc">Copie et réconcilie les ordres stop/limit selon les préférences de ce compte</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="copier_ordres_en_attente" id="copier_ordres_en_attente" {% if params.copier_ordres_en_attente %}checked{% endif %}>
-                <span class="toggle-track"></span>
-              </div>
-            </label>
-
-            <label class="toggle-row" id="row_convertir" style="{% if not params.copier_ordres_en_attente %}opacity:0.4;pointer-events:none{% endif %}">
-              <div class="toggle-info">
-                <div class="toggle-label" style="display:flex;align-items:center;">
-                Convertir en ordre au marché si le pending est invalide
-                <span class="info-btn" tabindex="0">i
-                  <span class="tooltip-box">Si un ordre en attente ne peut pas être placé (prix trop éloigné), le système le convertit automatiquement en ordre au marché. Évite les signaux manqués.</span>
-                </span>
-              </div>
-                <div class="toggle-desc">Si un pending order ne peut pas être placé, le convertit en ordre au marché</div>
-              </div>
-              <div class="toggle-switch">
-                <input type="checkbox" name="convertir_pending_invalide" id="convertir_pending_invalide" {% if params.convertir_pending_invalide %}checked{% endif %}>
                 <span class="toggle-track"></span>
               </div>
             </label>
@@ -1597,8 +1581,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Protection drawdown sur perte (indisponible)</div>
-                <div class="toggle-desc">L’activation bloque les opérations de copie; aucune fermeture de positions n’est exécutée.</div>
+                <div class="toggle-label">Protection drawdown sur perte</div>
+                <div class="toggle-desc">Compare l’equity au plus haut equity natif observé; ferme les positions copiées et suspend après confirmation du seuil.</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="drawdown_actif" id="drawdown_actif"
@@ -1613,14 +1597,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label>Seuil de drawdown perte (%)</label>
                 <input type="number" name="drawdown_pct" id="drawdown_pct"
                   value="{{ params.drawdown_pct }}" min="0.1" max="100" step="0.1">
-                <div class="field-help">Ex : 5 = ferme tout si tu perds 5% du solde</div>
+                <div class="field-help">Ex. 5 = seuil de baisse de 5 % depuis le plus haut equity observé (balance + résultat latent).</div>
               </div>
             </div>
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Protection drawdown sur gain (indisponible)</div>
-                <div class="toggle-desc">L’activation bloque les opérations de copie; aucune fermeture de positions n’est exécutée.</div>
+                <div class="toggle-label">Plafond de gain sur equity</div>
+                <div class="toggle-desc">Ferme les positions copiées et suspend lorsque le gain d’equity atteint le seuil.</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="drawdown_gain_actif" id="drawdown_gain_actif"
@@ -1635,7 +1619,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label>Seuil de gain maximum (%)</label>
                 <input type="number" name="drawdown_gain_pct" id="drawdown_gain_pct"
                   value="{{ params.drawdown_gain_pct }}" min="0.1" max="10000" step="0.1">
-                <div class="field-help">Ex : 5 = ferme tout si tu gagnes 5% du solde</div>
+                <div class="field-help">Comparé à l’equity native au premier relevé après activation; suspension persistante jusqu’à reprise explicite.</div>
               </div>
             </div>
 
@@ -1648,8 +1632,8 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="section-header">
           <div class="section-icon">🎯</div>
           <div>
-            <div class="section-title">Objectifs de gain/perte (indisponibles)</div>
-            <div class="section-desc">Ces seuils ne disposent pas de baseline durable; leur activation bloque actuellement le moteur.</div>
+            <div class="section-title">Objectifs de gain/perte</div>
+            <div class="section-desc">Évalués sur la balance native, par jour, semaine ou mois UTC; l’objectif atteint suspend jusqu’au début de la période suivante.</div>
           </div>
         </div>
         <div class="section-body">
@@ -1657,7 +1641,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <label class="toggle-row" style="margin-bottom:14px;">
             <div class="toggle-info">
               <div class="toggle-label">Arrêter le trading si l'objectif de gain/perte est atteint</div>
-              <div class="toggle-desc">Aucun arrêt ni redémarrage automatique n’est exécuté pour l’instant.</div>
+              <div class="toggle-desc">Les nouvelles copies sont suspendues et les positions liées sont clôturées après confirmation MT5.</div>
             </div>
             <div class="toggle-switch">
               <input type="checkbox" name="objectif_actif" id="objectif_actif"
@@ -1709,19 +1693,44 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <div class="section-body">
-          <div class="field-help" role="status" style="color:#fca5a5;margin-bottom:12px;">
-            Désactivé : aucun fournisseur de calendrier n’est intégré à ce service. La sélection sera refusée à l’enregistrement et le filtre restera inactif.
+          <div class="field-help" role="status" style="margin-bottom:12px;">
+            Le flux Trading Economics est synchronisé en UTC. Le filtre bloque par défaut si le fournisseur est absent, périmé ou indisponible; toute politique de panne permissive doit être explicitement configurée côté serveur.
           </div>
           <label class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Filtre du calendrier économique (indisponible)</div>
-              <div class="toggle-desc">Aucune source d’événements n’est actuellement configurée; ne compte pas sur ce filtre.</div>
+              <div class="toggle-label">Filtre du calendrier économique</div>
+              <div class="toggle-desc">Les événements configurés bloquent les nouvelles ouvertures et modifications pendant la fenêtre définie.</div>
             </div>
             <div class="toggle-switch">
               <input type="checkbox" name="filtre_news" id="filtre_news" {% if params.filtre_news %}checked{% endif %}>
               <span class="toggle-track"></span>
             </div>
           </label>
+            <div class="field-row cols-2" style="margin-top:12px;">
+              <div class="field">
+                <label>Devises à surveiller</label>
+                <input type="text" id="calendar_currencies" value="{{ params.calendar_currencies or '' }}"
+                       placeholder="USD,EUR — vide = toutes les devises">
+                <div class="field-help">Liste de devises séparées par des virgules. Une devise vide dans la source n’est pas considérée comme une correspondance ciblée.</div>
+              </div>
+              <div class="field">
+                <label>Importance minimale (1 faible, 3 élevée)</label>
+                <input type="number" id="calendar_min_importance" value="{{ params.calendar_min_importance|default(2) }}" min="1" max="3" step="1">
+              </div>
+              <div class="field">
+                <label>Marge avant l’événement (minutes)</label>
+                <input type="number" id="calendar_minutes_before" value="{{ params.calendar_minutes_before|default(30) }}" min="0" max="360" step="1">
+              </div>
+              <div class="field">
+                <label>Marge après l’événement (minutes)</label>
+                <input type="number" id="calendar_minutes_after" value="{{ params.calendar_minutes_after|default(30) }}" min="0" max="360" step="1">
+              </div>
+              <div class="field">
+                <label>Fuseau horaire d’affichage</label>
+                <input type="text" id="calendar_timezone" value="{{ params.calendar_timezone or 'Europe/Paris' }}" maxlength="64" placeholder="Europe/Paris">
+                <div class="field-help">L’instant de référence reste UTC; les règles IANA appliquent les changements d’heure été/hiver à l’affichage.</div>
+              </div>
+            </div>
         </div>
       </div>
 
@@ -1770,6 +1779,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <button type="button" onclick="revokeCopyTradingConsent()" style="margin:12px 0 0 8px;padding:10px 14px;border:1px solid rgba(255,255,255,.25);border-radius:9px;background:transparent;color:#fff;cursor:pointer;">Retirer mon autorisation</button>
         <div id="copyConsentStatus" role="status" aria-live="polite" style="margin-top:10px;color:rgba(255,255,255,.7);"></div>
         <div id="copyRuntimeStatus" role="status" aria-live="polite" style="margin-top:8px;color:rgba(255,255,255,.7);"></div>
+        <button id="copyProtectionResume" type="button" style="display:none;margin-top:10px;" onclick="requestCopyProtectionResume()">Demander la reprise après réconciliation MT5</button>
       </section>
 
 
@@ -2120,6 +2130,7 @@ async function revokeCopyTradingConsent() {
 async function refreshCopyTradingStatus() {
   const target = document.getElementById('copyRuntimeStatus');
   if (!target) return;
+  const resume = document.getElementById('copyProtectionResume');
   try {
     const response = await fetch('/api/copy-trading/status', {credentials: 'same-origin'});
     const data = await response.json();
@@ -2135,6 +2146,9 @@ async function refreshCopyTradingStatus() {
       FOLLOWER_WORKER_OFFLINE: 'worker suiveur hors ligne',
       POSITION_RECONCILIATION_REQUIRED: 'position dupliquée à rapprocher avant reprise',
       ACADEMY_GUARD_NOT_SUPPORTED: 'seuil drawdown/objectif Académie non pris en charge',
+      ACADEMY_PROTECTION_SUSPENDED: 'protection de capital déclenchée — compte suspendu',
+      ACADEMY_PROTECTION_ACTIVE: 'protection de capital active',
+      ACADEMY_PROTECTION_SAMPLE_STALE: 'relevé MT5 de protection manquant ou périmé',
       PENDING_ORDER_COPY_NOT_SUPPORTED: 'copie des ordres en attente non disponible',
       TERMINAL_PROBE_STALE: 'preuve de connexion MT5 périmée — nouvelle vérification native requise',
       TERMINAL_IDENTITY_MISMATCH: 'preuve MT5 différente du compte configuré',
@@ -2144,14 +2158,39 @@ async function refreshCopyTradingStatus() {
       CALENDAR_PROVIDER_NOT_CONFIGURED: 'fournisseur de calendrier non configuré'
     };
     const blockers = (data.operational_blockers || []).map(code => names[code] || code);
+    if (resume) resume.style.display = data.protection && data.protection.suspended ? 'inline-flex' : 'none';
     target.textContent = data.operational_readiness === 'READY'
       ? 'État opérationnel : prêt selon les contrôles actuels.'
       : 'État opérationnel : non prêt — ' + blockers.join(', ') + '.';
+    if (data.protection && data.protection.suspended) {
+      target.textContent += ' Motif : ' + (data.protection.reason || 'seuil atteint') +
+        '. Dernier relevé natif : ' + (data.protection.last_native_sample_at || 'en attente') + '.';
+    }
   } catch (_error) {
+    if (resume) resume.style.display = 'none';
     target.textContent = 'État opérationnel indisponible ; aucune exécution ne doit être présumée.';
   }
 }
 refreshCopyTradingStatus();
+
+async function requestCopyProtectionResume() {
+  const target = document.getElementById('copyRuntimeStatus');
+  try {
+    const response = await fetch('/api/copy-trading/protection/resume', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+      body: '{}'
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Reprise non enregistrée.');
+    if (target) target.textContent = data.status === 'WAITING_FOR_NATIVE_SAMPLE'
+      ? 'Demande enregistrée. La reprise sera appliquée après un nouveau relevé natif MT5.'
+      : 'Aucune suspension de protection active.';
+    await refreshCopyTradingStatus();
+  } catch (error) {
+    if (target) target.textContent = error.message;
+  }
+}
 
 // ── Fermer alerte renouvellement
 async function fermerAlerte() {
@@ -2167,14 +2206,6 @@ function togglePanel(id, show) {
   if (show) el.classList.add('visible');
   else el.classList.remove('visible');
 }
-
-// ── Lier copier_ordres → convertir
-document.getElementById('copier_ordres_en_attente').addEventListener('change', function() {
-  const row = document.getElementById('row_convertir');
-  row.style.opacity = this.checked ? '1' : '0.4';
-  row.style.pointerEvents = this.checked ? 'auto' : 'none';
-  if (!this.checked) document.getElementById('convertir_pending_invalide').checked = false;
-});
 
 // ── Période pills
 function setPeriode(val) {
@@ -2271,7 +2302,7 @@ async function saveParams() {
     forcer_lot_minimum:       chk('forcer_lot_minimum'),
     inverser_trades:          chk('inverser_trades'),
     copier_ordres_en_attente: chk('copier_ordres_en_attente'),
-    convertir_pending_invalide: chk('convertir_pending_invalide'),
+    convertir_pending_invalide: false,
     copier_sl:                chk('copier_sl'),
     drawdown_actif:           chk('drawdown_actif'),
     drawdown_pct:             flt('drawdown_pct', 5),
@@ -2282,6 +2313,11 @@ async function saveParams() {
     objectif_perte_pct:       flt('objectif_perte_pct', 3),
     objectif_periode:         str_('objectif_periode', 'Mensuel'),
     filtre_news:              chk('filtre_news'),
+    calendar_currencies:      str_('calendar_currencies', ''),
+    calendar_min_importance:  int_('calendar_min_importance', 2),
+    calendar_minutes_before:  int_('calendar_minutes_before', 30),
+    calendar_minutes_after:   int_('calendar_minutes_after', 30),
+    calendar_timezone:        str_('calendar_timezone', 'Europe/Paris'),
     risque_pct:               flt('risque_pct', 1),
     multiplicateur:           flt('multiplicateur', 1),
     risque_balance_pct:       flt('risque_balance_pct', 1),

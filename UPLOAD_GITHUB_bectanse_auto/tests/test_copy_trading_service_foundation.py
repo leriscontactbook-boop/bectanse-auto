@@ -9,6 +9,7 @@ from copy_trading.domain import (
     academy_settings,
     enabled_unsupported_academy_guards,
     enabled_unsupported_pending_order_settings,
+    evaluate_academy_protection,
     ensure_event_fresh,
     event_expiry,
     event_idempotency_key,
@@ -25,7 +26,10 @@ from copy_trading.security import (
     terminal_account_fingerprint,
     verify_copy_worker_request,
 )
-from copy_trading.service import CopyTradingService, _native_update_datetime, _native_update_msc
+from copy_trading.service import (
+    CopyTradingService, _native_update_datetime, _native_update_msc,
+    _pending_event_source_time, _pending_terminal_event,
+)
 from trading_journal.providers.base import ProviderError
 
 
@@ -46,6 +50,81 @@ def test_native_mt5_epoch_milliseconds_are_the_event_source_time():
     assert _native_update_datetime(stamp) == source
     assert _native_update_msc(0) is None
     assert _native_update_datetime("invalid") is None
+
+
+def test_pending_order_first_seen_uses_only_fresh_native_setup_time():
+    now = datetime(2026, 11, 8, 10, 0, tzinfo=timezone.utc)
+    fresh = now - timedelta(seconds=30)
+    stale = now - timedelta(seconds=121)
+    assert _pending_event_source_time(
+        {"time_setup_msc": int(fresh.timestamp() * 1000)}, None, now,
+    ) == fresh
+    assert _pending_event_source_time(
+        {"time_setup_msc": int(stale.timestamp() * 1000)}, None, now,
+    ) is None
+    assert _pending_event_source_time({"time_setup_msc": 0}, None, now) is None
+
+
+def test_pending_order_modification_is_anchored_to_last_complete_snapshot():
+    now = datetime(2026, 11, 8, 10, 0, tzinfo=timezone.utc)
+    previous_seen = now - timedelta(seconds=90)
+    old = ["9", "EURUSD", "BUY", "BUY_LIMIT", Decimal("0.1"), Decimal("1.0"),
+           Decimal("0"), Decimal("0"), Decimal("0"), None, 0, "v1", True, 0,
+           previous_seen]
+    # A fresh-looking setup timestamp cannot extend a modification's TTL.
+    assert _pending_event_source_time(
+        {"time_setup_msc": int(now.timestamp() * 1000)}, old, now,
+    ) == previous_seen
+    old[14] = now - timedelta(seconds=121)
+    assert _pending_event_source_time(
+        {"time_setup_msc": int(now.timestamp() * 1000)}, old, now,
+    ) is None
+
+
+@pytest.mark.parametrize("state, expected", [
+    ("CANCELED", "PENDING_CANCEL"), ("REJECTED", "PENDING_CANCEL"),
+    ("EXPIRED", "PENDING_EXPIRE"), ("FILLED", "QUARANTINE"),
+])
+def test_pending_terminal_order_state_requires_fresh_native_done_time(state, expected):
+    now = datetime(2026, 11, 8, 10, 0, tzinfo=timezone.utc)
+    fresh = now - timedelta(seconds=30)
+    stale = now - timedelta(seconds=121)
+    action, source_time = _pending_terminal_event(
+        {"state": state, "time_done_msc": int(fresh.timestamp() * 1000)}, now,
+    )
+    assert action == expected
+    assert source_time == (None if expected == "QUARANTINE" else fresh)
+    if state != "FILLED":
+        assert _pending_terminal_event(
+            {"state": state, "time_done_msc": int(stale.timestamp() * 1000)}, now,
+        ) == ("QUARANTINE", None)
+    assert _pending_terminal_event({"state": state, "time_done_msc": 0}, now) == ("QUARANTINE", None)
+
+
+def test_pending_quarantine_blocks_linked_accounts_and_unfinished_create_jobs():
+    class Connection:
+        def __init__(self):
+            self.calls = []
+
+        def run(self, sql, **params):
+            self.calls.append((sql, params))
+            if "SELECT follower_member_code FROM copy_trading_pending_order_links" in sql:
+                return [("FOLLOWER-LINKED",)]
+            if "SELECT j.job_id::text,j.follower_member_code" in sql:
+                return [("job-1", "FOLLOWER-CREATING")]
+            return []
+
+    connection = Connection()
+    CopyTradingService._require_pending_order_reconciliation(
+        connection, "MASTER", "123", "MASTER_PENDING_ORDER_FILLED_RECONCILIATION_REQUIRED",
+    )
+    sql = [call[0] for call in connection.calls]
+    assert any("UPDATE copy_trading_jobs SET status='VERIFY_REQUIRED'" in statement for statement in sql)
+    assert sum("INSERT INTO copy_trading_follower_locks" in statement for statement in sql) == 2
+    assert sum("UPDATE copy_trading_pending_order_links SET state='VERIFY_REQUIRED'" in statement
+               for statement in sql) == 2
+    assert sum(call[1].get("event") == "PENDING_ORDER_RECONCILIATION_REQUIRED"
+               for call in connection.calls) == 2
 
 
 def test_idempotency_key_tracks_account_position_action_and_source_version():
@@ -99,22 +178,196 @@ def test_academy_risk_sizing_needs_native_stop_loss_calculation():
                          balance=Decimal("1000"), equity=Decimal("1500"))
 
 
-def test_enabled_academy_drawdown_and_objective_guards_are_explicitly_unsupported():
+def test_academy_drawdown_and_objective_settings_are_supported():
     assert enabled_unsupported_academy_guards({
         "drawdown_actif": "false", "drawdown_gain_actif": 0, "objectif_actif": False,
     }) == ()
     assert enabled_unsupported_academy_guards({
         "drawdown_actif": "on", "drawdown_gain_actif": True, "objectif_actif": "1",
-    }) == ("drawdown_actif", "drawdown_gain_actif", "objectif_actif")
+    }) == ()
 
 
-def test_pending_order_preferences_are_detected_as_unsupported():
+def test_drawdown_uses_durable_high_water_equity_and_includes_floating_pnl():
+    settings = {"drawdown_actif": True, "drawdown_pct": 5}
+    start = datetime(2026, 11, 8, 10, tzinfo=timezone.utc)
+    state = None
+    state = evaluate_academy_protection(settings, {"balance": "1000", "equity": "1000"}, state, start)
+    assert not state["suspended"]
+    state = evaluate_academy_protection(settings, {"balance": "1000", "equity": "1100"}, state,
+                                        start + timedelta(seconds=10))
+    assert not state["suspended"]
+    state = evaluate_academy_protection(settings, {"balance": "1050", "equity": "1045"}, state,
+                                        start + timedelta(seconds=20))
+    assert state["suspended"]
+    assert state["trigger"] == "DRAWDOWN_LOSS"
+    assert state["loss_drawdown_pct"] == Decimal("5")
+    assert state["baseline_balance"] == Decimal("1000")
+    # A process restart uses the persisted state and does not reset the high-water mark.
+    restarted = evaluate_academy_protection(settings, {"balance": "1070", "equity": "1070"}, state,
+                                            start + timedelta(seconds=40))
+    assert restarted["suspended"]
+    assert restarted["suspension_reason"] == "DRAWDOWN_LOSS"
+
+
+def test_profit_cap_and_period_objectives_use_documented_bases():
+    start = datetime(2026, 11, 8, 10, tzinfo=timezone.utc)
+    profit_settings = {"drawdown_gain_actif": True, "drawdown_gain_pct": 5}
+    state = evaluate_academy_protection(profit_settings, {"balance": 1000, "equity": 1000}, None, start)
+    state = evaluate_academy_protection(profit_settings, {"balance": 1000, "equity": 1050}, state,
+                                        start + timedelta(seconds=1))
+    assert state["trigger"] == "DRAWDOWN_GAIN"
+    objective_settings = {"objectif_actif": True, "objectif_gain_pct": 5,
+                          "objectif_perte_pct": 3, "objectif_periode": "Quotidien"}
+    state = evaluate_academy_protection(objective_settings, {"balance": 1000, "equity": 1200}, None, start)
+    assert not state["suspended"]
+    state = evaluate_academy_protection(objective_settings, {"balance": 1050, "equity": 1200}, state,
+                                        start + timedelta(seconds=1))
+    assert state["trigger"] == "OBJECTIVE_GAIN"
+    assert state["objective_pct"] == Decimal("5")
+    next_day = evaluate_academy_protection(objective_settings, {"balance": 1050, "equity": 1050}, state,
+                                           start + timedelta(days=1))
+    assert next_day["suspended"]  # rollover is applied by the service only after close links reconcile
+    assert next_day["period_changed"] is True
+    requested = evaluate_academy_protection(objective_settings,
+        {"balance": 1050, "equity": 1050}, {**next_day, "resume_requested": True},
+        start + timedelta(days=1))
+    assert not requested["suspended"]
+    assert requested["baseline_balance"] == Decimal("1050")
+
+
+def test_objective_loss_and_invalid_native_samples_fail_closed():
+    start = datetime(2026, 11, 8, 10, tzinfo=timezone.utc)
+    settings = {"objectif_actif": True, "objectif_gain_pct": 5,
+                "objectif_perte_pct": 3, "objectif_periode": "Mensuel"}
+    state = evaluate_academy_protection(settings, {"balance": 1000, "equity": 1000}, None, start)
+    state = evaluate_academy_protection(settings, {"balance": 970, "equity": 900}, state,
+                                        start + timedelta(seconds=1))
+    assert state["trigger"] == "OBJECTIVE_LOSS"
+    with pytest.raises(CopyDecisionError, match="balance"):
+        evaluate_academy_protection(settings, {"balance": "NaN", "equity": "1000"}, state, start)
+
+
+def _protection_pending_link_row():
+    return ("MASTER", "9", "88", "EURUSD", "EURUSD", "BUY_LIMIT", "BUY_LIMIT",
+            Decimal("0.2"), Decimal("1.08"), Decimal("1.07"), Decimal("1.10"),
+            Decimal("0"), None, 0)
+
+
+class _ProtectionPendingConnection:
+    def __init__(self):
+        self.now = datetime(2026, 11, 9, 10, 0, tzinfo=timezone.utc)
+        self.calls = []
+
+    def run(self, sql, **params):
+        self.calls.append((sql, params))
+        if "FROM copy_trading_pending_order_links" in sql and "SELECT master_member_code" in sql:
+            return [_protection_pending_link_row()]
+        if "SELECT j.status" in sql:
+            return []
+        if "SELECT COUNT(*)" in sql:
+            return [(0,)]
+        if sql.strip() == "SELECT NOW()":
+            return [(self.now,)]
+        if "INSERT INTO copy_trading_events" in sql:
+            return [("event-pending-protection",)]
+        return []
+
+
+def _protection_follower_order(**overrides):
+    order = {
+        "order_ticket": "88", "symbol": "EURUSD", "pending_type": "BUY_LIMIT",
+        "side": "BUY", "volume": "0.2", "price_open": "1.08",
+        "stop_loss": "1.07", "take_profit": "1.10", "stop_limit": "0",
+        "time_type": 0, "expiration_at": None,
+    }
+    return {**order, **overrides}
+
+
+def test_academy_protection_queues_cancel_for_exact_linked_pending_order_when_copy_disabled():
+    conn = _ProtectionPendingConnection()
+    service = CopyTradingService(
+        lambda: conn,
+        lambda code: {"params": {"mt_login": "123", "mt_server": "Demo-1"}}
+        if code == "MASTER" else {"params": {"copier_ordres_en_attente": False}},
+        lambda _member: True,
+        consent_version="v1",
+    )
+    service._queue_protection_pending_cancels(
+        conn, "FOLLOWER", {"params": {"copier_ordres_en_attente": False}},
+        [_protection_follower_order()], trigger="DRAWDOWN_LOSS", triggered_at=conn.now,
+    )
+    job_inserts = [(sql, params) for sql, params in conn.calls if "INSERT INTO copy_trading_jobs" in sql]
+    assert len(job_inserts) == 1
+    sql, params = job_inserts[0]
+    assert "protection_close" in sql and "TRUE" in sql
+    assert params["follower"] == "FOLLOWER"
+    assert params["event"] == "event-pending-protection"
+    event = next(params for sql, params in conn.calls if "INSERT INTO copy_trading_events" in sql)
+    assert event["action"] == "PENDING_CANCEL"
+    assert event["position"] == "9"
+
+
+def test_academy_protection_quarantines_missing_pending_order_instead_of_canceling_blindly():
+    conn = _ProtectionPendingConnection()
+    service = CopyTradingService(lambda: conn, lambda _code: {}, lambda _member: True,
+                                 consent_version="v1")
+    service._queue_protection_pending_cancels(
+        conn, "FOLLOWER", {"params": {}}, [],
+        trigger="DRAWDOWN_LOSS", triggered_at=conn.now,
+    )
+    statements = [sql for sql, _params in conn.calls]
+    assert any("SET state='VERIFY_REQUIRED'" in sql and "copy_trading_pending_order_links" in sql
+               for sql in statements)
+    lock = next(params for sql, params in conn.calls if "INSERT INTO copy_trading_follower_locks" in sql)
+    assert lock["reason"] == "ACADEMY_PROTECTION:PENDING_ORDER_RECONCILIATION_REQUIRED"
+    assert not any("INSERT INTO copy_trading_events" in sql for sql in statements)
+
+
+@pytest.mark.parametrize("terminal_state", ["CANCELED", "REJECTED", "EXPIRED"])
+def test_missing_follower_pending_order_closes_link_only_with_terminal_native_history(terminal_state):
+    conn = _ProtectionPendingConnection()
+    service = CopyTradingService(lambda: conn, lambda _code: {}, lambda _member: True,
+                                 consent_version="v1")
+    result = service._resolve_missing_pending_order(
+        conn, job_id="job-1", follower_code="FOLLOWER", master_code="MASTER",
+        order_ticket="9", market={
+            "follower_pending_order_ticket": "88", "pending_order_history_complete": True,
+            "pending_order_history": [{"order_ticket": "88", "state": terminal_state}],
+        },
+    )
+    assert result == {"status": "COMPLETE", "execution_action": "NOOP"}
+    assert any("SET state='CLOSED'" in sql for sql, _params in conn.calls)
+
+
+@pytest.mark.parametrize("history, expected_reason", [
+    ([{"order_ticket": "88", "state": "FILLED"}],
+     "PENDING_ORDER_FILLED_REQUIRES_POSITION_RECONCILIATION"),
+    ([], "PENDING_ORDER_HISTORY_UNVERIFIED"),
+])
+def test_missing_follower_pending_order_is_quarantined_if_filled_or_history_unknown(history, expected_reason):
+    conn = _ProtectionPendingConnection()
+    service = CopyTradingService(lambda: conn, lambda _code: {}, lambda _member: True,
+                                 consent_version="v1")
+    result = service._resolve_missing_pending_order(
+        conn, job_id="job-1", follower_code="FOLLOWER", master_code="MASTER",
+        order_ticket="9", market={
+            "follower_pending_order_ticket": "88", "pending_order_history_complete": True,
+            "pending_order_history": history,
+        },
+    )
+    assert result == {"status": "VERIFY_REQUIRED", "execution_action": "NOOP"}
+    lock = next(params for sql, params in conn.calls if "INSERT INTO copy_trading_follower_locks" in sql)
+    assert lock["reason"] == expected_reason
+    assert any("SET state='VERIFY_REQUIRED'" in sql for sql, _params in conn.calls)
+
+
+def test_pending_order_copy_is_supported_but_conversion_remains_disabled():
     assert enabled_unsupported_pending_order_settings({
         "copier_ordres_en_attente": "false", "convertir_pending_invalide": False,
     }) == ()
     assert enabled_unsupported_pending_order_settings({
         "copier_ordres_en_attente": "on", "convertir_pending_invalide": True,
-    }) == ("copier_ordres_en_attente", "convertir_pending_invalide")
+    }) == ("convertir_pending_invalide",)
 
 
 def test_calendar_state_is_ignored_when_academy_filter_is_off():
@@ -129,7 +382,9 @@ def test_calendar_state_is_ignored_when_academy_filter_is_off():
     assert reason == "FILTER_DISABLED"
 
 
-def test_calendar_filter_fails_closed_when_durable_feed_is_stale():
+def test_calendar_filter_fails_closed_when_durable_feed_is_stale(monkeypatch):
+    monkeypatch.setenv("COPY_TRADING_CALENDAR_PROVIDER", "tradingeconomics")
+    monkeypatch.setenv("COPY_TRADING_CALENDAR_FAILURE_POLICY", "BLOCK")
     class EmptyCalendar:
         columns = []
 
@@ -149,7 +404,7 @@ def test_calendar_filter_fails_closed_when_durable_feed_is_stale():
     allowed, reason = service.calendar_allows(academy_settings({"filtre_news": True}))
     assert allowed is False
     assert reason == "CALENDAR_STALE_OR_UNAVAILABLE"
-    assert conn.calls == 2
+    assert conn.calls == 1
 
 
 @pytest.mark.parametrize(
@@ -464,6 +719,60 @@ def test_native_postcondition_is_recomputed_from_terminal_evidence():
     )
 
 
+def test_pending_order_postcondition_requires_complete_exact_native_order():
+    evidence = {"market": {"login": "123", "server": "Demo-1"},
+                "follower": {"name": "EURUSD"},
+                "plan": {"action": "PENDING_CREATE", "master_order_ticket": "9",
+                         "follower_order_ticket": "88", "pending_type": "BUY_LIMIT",
+                         "side": "BUY", "volume": "0.2", "price": "1.08",
+                         "stop_loss": "1.07", "take_profit": "1.10", "stop_limit": "0",
+                         "time_type": 0, "expiration_at": None}}
+    result = {"order_ticket": "88", "native_postcondition": {
+        "terminal_connected": True, "terminal_path_verified": True,
+        "orders_complete": True, "login": "123", "server": "Demo-1", "matches": [{
+            "order_ticket": "88", "symbol": "EURUSD", "pending_type": "BUY_LIMIT",
+            "side": "BUY", "volume": "0.2", "price_open": "1.08", "stop_loss": "1.07",
+            "take_profit": "1.10", "stop_limit": "0", "time_type": "0",
+            "expiration_at": "", "comment": "BCT-job",
+        }]}}
+    assert CopyTradingService._verify_native_postcondition(
+        execution_action="PENDING_CREATE", evidence=evidence,
+        request_comment="BCT-job", result=result,
+    )
+    result["native_postcondition"]["orders_complete"] = False
+    assert not CopyTradingService._verify_native_postcondition(
+        execution_action="PENDING_CREATE", evidence=evidence,
+        request_comment="BCT-job", result=result,
+    )
+    modify_evidence = {
+        **evidence,
+        "plan": {**evidence["plan"], "action": "PENDING_MODIFY",
+                 "follower_before": {"comment": "BCT-original"}},
+    }
+    result["native_postcondition"] = {**result["native_postcondition"],
+        "orders_complete": True, "matches": [{
+            "order_ticket": "88", "symbol": "EURUSD", "pending_type": "BUY_LIMIT",
+            "side": "BUY", "volume": "0.2", "price_open": "1.08", "stop_loss": "1.07",
+            "take_profit": "1.10", "stop_limit": "0", "time_type": "0",
+            "expiration_at": "", "comment": "BCT-original",
+        }]}
+    assert CopyTradingService._verify_native_postcondition(
+        execution_action="PENDING_MODIFY", evidence=modify_evidence,
+        request_comment="BCT-new-job", result=result,
+    )
+    result["native_postcondition"]["matches"][0]["comment"] = "BCT-new-job"
+    assert not CopyTradingService._verify_native_postcondition(
+        execution_action="PENDING_MODIFY", evidence=modify_evidence,
+        request_comment="BCT-new-job", result=result,
+    )
+    result["native_postcondition"] = {**result["native_postcondition"],
+        "orders_complete": True, "matches": []}
+    assert not CopyTradingService._verify_native_postcondition(
+        execution_action="PENDING_CREATE", evidence=evidence,
+        request_comment="BCT-job", result=result,
+    )
+
+
 class _FakeMT5:
     TRADE_RETCODE_DONE = 10009
     TRADE_RETCODE_DONE_PARTIAL = 10010
@@ -503,3 +812,66 @@ def test_mt5_order_check_failure_never_calls_order_send():
     with pytest.raises(ProviderError, match="précontrôle"):
         provider.check_request({"action": "FAKE"})
     assert fake.order_send_calls == 0
+
+
+def test_pending_request_uses_native_create_modify_and_remove_actions():
+    class Fake:
+        TRADE_ACTION_PENDING = 5
+        TRADE_ACTION_MODIFY = 6
+        TRADE_ACTION_REMOVE = 8
+        ORDER_TYPE_BUY_LIMIT = 2
+        ORDER_TYPE_SELL_LIMIT = 3
+        ORDER_TYPE_BUY_STOP = 4
+        ORDER_TYPE_SELL_STOP = 5
+        ORDER_TYPE_BUY_STOP_LIMIT = 6
+        ORDER_TYPE_SELL_STOP_LIMIT = 7
+        ORDER_FILLING_RETURN = 2
+
+    provider = MetaTrader5ExecutionProvider("fake")
+    provider._mt5 = Fake()
+    common = {"symbol": "EURUSD", "pending_type": "BUY_LIMIT", "volume": Decimal("0.2"),
+              "price": Decimal("1.08"), "stop_loss": Decimal("1.07"),
+              "take_profit": Decimal("1.10"), "stop_limit": Decimal("0"),
+              "time_type": 0, "expiration_at": None, "comment": "BCT-test"}
+    created = provider.pending_request(action="PENDING_CREATE", **common)
+    assert created["action"] == Fake.TRADE_ACTION_PENDING
+    assert created["volume"] == 0.2
+    modified = provider.pending_request(action="PENDING_MODIFY", **common, order_ticket="88")
+    assert modified["action"] == Fake.TRADE_ACTION_MODIFY
+    assert modified["order"] == 88
+    assert "volume" not in modified and "type" not in modified
+    canceled = provider.pending_request(action="PENDING_CANCEL", **common, order_ticket="88")
+    assert canceled == {"action": Fake.TRADE_ACTION_REMOVE, "order": 88}
+    expired = provider.pending_request(action="PENDING_EXPIRE", **common, order_ticket="88")
+    assert expired == {"action": Fake.TRADE_ACTION_REMOVE, "order": 88}
+
+
+def test_pending_order_history_distinguishes_native_terminal_states_and_fails_on_missing_history():
+    class Fake:
+        ORDER_STATE_CANCELED = 2
+        ORDER_STATE_FILLED = 4
+        ORDER_STATE_REJECTED = 5
+        ORDER_STATE_EXPIRED = 6
+
+        def history_orders_get(self, *, ticket):
+            states = {"1": self.ORDER_STATE_CANCELED, "2": self.ORDER_STATE_FILLED,
+                      "3": self.ORDER_STATE_REJECTED, "4": self.ORDER_STATE_EXPIRED}
+            return [SimpleNamespace(ticket=ticket, state=states[str(ticket)], time_done_msc=1234567890000)]
+
+        def last_error(self):
+            return (10004, "history unavailable")
+
+    provider = MetaTrader5ExecutionProvider("fake")
+    provider._mt5 = Fake()
+    history = provider.pending_order_history(["1", "2", "3", "4", "invalid"])
+    assert [row["state"] for row in history] == ["CANCELED", "FILLED", "REJECTED", "EXPIRED"]
+    assert all(row["time_done_msc"] == 1234567890000 for row in history)
+
+    class Failed(Fake):
+        def history_orders_get(self, *, ticket):
+            return None
+
+    provider._mt5 = Failed()
+    with pytest.raises(ProviderError) as error:
+        provider.pending_order_history(["1"])
+    assert error.value.code == "TERMINAL_CONNECTION_FAILED"
