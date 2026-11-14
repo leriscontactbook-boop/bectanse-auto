@@ -73,6 +73,7 @@ def test_windows_installer_runtime_probe_avoids_nested_native_argument_quotes():
     assert "chr(124)" in installer
     assert "-split '\\|'" in installer
     assert "json.dumps" not in installer
+    assert "Push-Location -LiteralPath $releaseRoot" in installer
 
 
 def test_single_command_windows_validator_is_read_only_and_demo_scoped():

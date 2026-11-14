@@ -121,8 +121,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Installation vérifiée des dépendances Copy 
   (Join-Path $releaseRoot 'copy_trading\worker.py') `
   (Join-Path $releaseRoot 'tools\probe_mt5_terminal_demo.py')
 if ($LASTEXITCODE -ne 0) { throw 'La compilation du worker ou du diagnostic MT5 a échoué.' }
-& $venvPython -c 'from copy_trading.config import CopyTradingConfigurationError; from copy_trading.providers.mt5 import MetaTrader5ExecutionProvider; from trading_journal.providers.base import ProviderError'
-if ($LASTEXITCODE -ne 0) { throw 'Les imports du worker Windows ont échoué.' }
+Push-Location -LiteralPath $releaseRoot
+try {
+  & $venvPython -c 'from copy_trading.config import CopyTradingConfigurationError; from copy_trading.providers.mt5 import MetaTrader5ExecutionProvider; from trading_journal.providers.base import ProviderError'
+  if ($LASTEXITCODE -ne 0) { throw 'Les imports du worker Windows ont échoué.' }
+}
+finally {
+  Pop-Location
+}
 
 Write-Host "Release local installée: $releaseRoot"
 Write-Host 'Le worker n’a pas été démarré et aucun terminal ni compte MT5 n’a été connecté.'
