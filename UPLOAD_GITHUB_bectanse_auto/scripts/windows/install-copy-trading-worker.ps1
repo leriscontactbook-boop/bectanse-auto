@@ -99,12 +99,13 @@ if ($pythonSignature.Status -ne 'Valid' -or
     $pythonSignature.SignerCertificate.Subject -notmatch 'Python Software Foundation') {
   throw "L’interpréteur Python n’est pas signé par Python Software Foundation: $PythonExe"
 }
-$runtime = & $PythonExe -c 'import json,platform,struct,sys; print(json.dumps({"version":sys.version.split()[0],"bits":struct.calcsize("P")*8,"machine":platform.machine()}))'
+$runtime = & $PythonExe -c 'import platform,struct,sys; print(sys.version.split()[0] + chr(124) + str(struct.calcsize(chr(80))*8) + chr(124) + platform.machine())'
 if ($LASTEXITCODE -ne 0) { throw 'Impossible de démarrer Python.' }
-$runtimeInfo = $runtime | ConvertFrom-Json
-if ($runtimeInfo.version -ne $pythonVersion -or $runtimeInfo.bits -ne 64 -or
-    $runtimeInfo.machine -notmatch 'AMD64|x86_64') {
-  throw "Runtime requis: Python $pythonVersion x64 AMD64; trouvé: $($runtimeInfo.version), $($runtimeInfo.bits)-bit, $($runtimeInfo.machine)."
+$runtimeParts = ([string]$runtime).Trim() -split '\|', 3
+if ($runtimeParts.Count -ne 3 -or $runtimeParts[0] -ne $pythonVersion -or
+    $runtimeParts[1] -ne '64' -or $runtimeParts[2] -notmatch 'AMD64|x86_64') {
+  $foundRuntime = ([string]$runtime).Trim()
+  throw "Runtime requis: Python $pythonVersion x64 AMD64; trouvé: $foundRuntime."
 }
 
 $venvPython = Join-Path $releaseRoot 'venv\Scripts\python.exe'
@@ -120,7 +121,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Installation vérifiée des dépendances Copy 
   (Join-Path $releaseRoot 'copy_trading\worker.py') `
   (Join-Path $releaseRoot 'tools\probe_mt5_terminal_demo.py')
 if ($LASTEXITCODE -ne 0) { throw 'La compilation du worker ou du diagnostic MT5 a échoué.' }
-& $venvPython -c 'from copy_trading.config import CopyTradingConfigurationError; from copy_trading.providers.mt5 import MetaTrader5ExecutionProvider; from trading_journal.providers.base import ProviderError; print("copy-trading imports: OK")'
+& $venvPython -c 'from copy_trading.config import CopyTradingConfigurationError; from copy_trading.providers.mt5 import MetaTrader5ExecutionProvider; from trading_journal.providers.base import ProviderError'
 if ($LASTEXITCODE -ne 0) { throw 'Les imports du worker Windows ont échoué.' }
 
 Write-Host "Release local installée: $releaseRoot"

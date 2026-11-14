@@ -65,6 +65,16 @@ def test_windows_install_and_probe_scripts_do_not_kill_mt5_or_pass_password_as_a
     assert "--prompt-demo-credentials" in smoke
 
 
+def test_windows_installer_runtime_probe_avoids_nested_native_argument_quotes():
+    installer = (
+        release.ROOT / "scripts/windows/install-copy-trading-worker.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "chr(124)" in installer
+    assert "-split '\\|'" in installer
+    assert "json.dumps" not in installer
+
+
 def test_single_command_windows_validator_is_read_only_and_demo_scoped():
     validator = (release.ROOT / "scripts/windows/copy-trading-validate.ps1").read_text(encoding="utf-8")
     probe = (release.ROOT / "tools/probe_mt5_terminal_demo.py").read_text(encoding="utf-8")
