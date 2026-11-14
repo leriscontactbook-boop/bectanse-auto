@@ -305,6 +305,8 @@ ACADEMY_SUBSCRIPTION_PLANS = {
         "payment_link": "https://buy.stripe.com/8x23cv4mAdxO7xN0S0gfu0F",
     },
 }
+ACADEMY_FLASH_PROMO_END = 1794745292  # 2026-11-15 13:21:32 Europe/Paris
+ACADEMY_FLASH_PROMO_COUPON = "BECTANSE_FLASH_50_NOV2026"
 ACADEMY_PLAN_BY_PAYMENT_LINK = {
     plan["payment_link_id"]: (price_id, plan)
     for price_id, plan in ACADEMY_SUBSCRIPTION_PLANS.items()
@@ -1337,8 +1339,12 @@ def vip_landing():
             'Ils te parlent<br><em>directement</em>', 'Parole de<br><em>membre</em>', 1
         )
 
+    promo_active = time.time() < ACADEMY_FLASH_PROMO_END
     offers = testimonial_section + (render_template("vip_black_friday.html") if 1793232000 <= time.time() < 1793401200 else render_template("academy_offers_section.html",
-        plans=list(ACADEMY_SUBSCRIPTION_PLANS.values())))
+        plans=list(ACADEMY_SUBSCRIPTION_PLANS.values()),
+        promo_active=promo_active,
+        promo_end_timestamp=ACADEMY_FLASH_PROMO_END,
+        promo_deadline_label=datetime.fromtimestamp(ACADEMY_FLASH_PROMO_END, PARIS_TZ).strftime("%d/%m à %H:%M")))
     marker = '<section class="section explorer-entry" id="capture">'
     if marker in html:
         html = html.replace(marker, offers + marker, 1)
@@ -5168,6 +5174,8 @@ def academy_subscription_checkout(plan_id):
         "line_items[0][quantity]": "1",
         "billing_address_collection": "auto",
     }
+    if time.time() < ACADEMY_FLASH_PROMO_END:
+        form["discounts[0][coupon]"] = ACADEMY_FLASH_PROMO_COUPON
     try:
         stripe_response = requests.post(
             "https://api.stripe.com/v1/checkout/sessions",
@@ -5945,6 +5953,9 @@ def abonnement():
         member=member,
         current_plan=plan,
         plans=list(ACADEMY_SUBSCRIPTION_PLANS.values()),
+        promo_active=time.time() < ACADEMY_FLASH_PROMO_END,
+        promo_end_timestamp=ACADEMY_FLASH_PROMO_END,
+        promo_deadline_label=datetime.fromtimestamp(ACADEMY_FLASH_PROMO_END, PARIS_TZ).strftime("%d/%m à %H:%M"),
         billing_status=billing_status,
         has_academy_access=has_academy_access,
         renewal_date=renewal_date,
