@@ -44,13 +44,35 @@ def test_release_builder_rejects_hidden_and_parent_paths():
 
 
 def test_distribution_build_requires_clean_committed_sources(monkeypatch):
-    monkeypatch.setattr(release.subprocess, "check_output", lambda *args, **kwargs: " M copy_trading/worker.py\n")
+    def dirty_status(args, **kwargs):
+        if args[-1] == "--show-prefix":
+            return ""
+        return " M copy_trading/worker.py\n"
+
+    monkeypatch.setattr(release.subprocess, "check_output", dirty_status)
     try:
         release.ensure_clean_source(release.ROOT)
     except RuntimeError as error:
         assert "copy_trading/worker.py" in str(error)
     else:
         raise AssertionError("dirty source was accepted")
+
+
+def test_distribution_build_allows_generated_outputs_in_nested_worktree(monkeypatch):
+    responses = {
+        "--show-prefix": "UPLOAD_GITHUB_bectanse_auto/\n",
+        "--untracked-files=all": (
+            " M UPLOAD_GITHUB_bectanse_auto/dist/bectanse-copy-trading-release.zip\n"
+            " M UPLOAD_GITHUB_bectanse_auto/dist/bectanse-copy-trading-release.zip.sha256\n"
+        ),
+    }
+    monkeypatch.setattr(
+        release.subprocess,
+        "check_output",
+        lambda args, **kwargs: responses[args[-1]],
+    )
+
+    release.ensure_clean_source(release.ROOT)
 
 
 def test_windows_install_and_probe_scripts_do_not_kill_mt5_or_pass_password_as_argument():

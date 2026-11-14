@@ -131,13 +131,18 @@ def current_commit(root: Path) -> str:
 
 
 def ensure_clean_source(root: Path) -> None:
+    prefix = subprocess.check_output(
+        ["git", "rev-parse", "--show-prefix"], cwd=root, text=True
+    ).strip().replace("\\", "/")
     status = subprocess.check_output(
         ["git", "status", "--porcelain", "--untracked-files=all"], cwd=root, text=True
     )
     unexpected = []
     for line in status.splitlines():
-        name = line[3:].strip().strip('"')
-        if name.replace("\\", "/") not in OUTPUT_NAMES:
+        name = line[3:].strip().strip('"').replace("\\", "/")
+        if prefix and name.startswith(prefix):
+            name = name[len(prefix):]
+        if name not in OUTPUT_NAMES:
             unexpected.append(line)
     if unexpected:
         raise RuntimeError(
