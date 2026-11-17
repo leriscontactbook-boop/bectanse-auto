@@ -33,18 +33,26 @@
     .trust{margin-bottom:90px;padding:35px;border:1px solid rgba(101,220,130,.2);border-radius:26px;background:linear-gradient(135deg,rgba(101,220,130,.07),rgba(13,16,14,.95));display:grid;grid-template-columns:1fr auto;gap:30px;align-items:center}.trust h2{margin:0 0 10px;font-size:29px}.trust p{max-width:720px;margin:0;color:var(--muted);line-height:1.65}.footer{border-top:1px solid var(--line);padding:28px 0 40px;color:#737972;font-size:10px}.footer-in{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}.footer a{color:inherit}
     @media(max-width:720px){.wrap{width:min(var(--max),calc(100% - 24px))}.nav-in{height:64px}.brand{font-size:12px}.brand img{width:34px;height:34px}.nav-links>a:not(.cta){display:none}.cta{padding:11px 12px}.hero{padding:70px 0 45px}.hero h1{font-size:49px}.guides{grid-template-columns:1fr;padding-bottom:58px}.card{min-height:285px;padding:23px}.card h2{margin-top:58px;font-size:31px}.trust{grid-template-columns:1fr;padding:25px;margin-bottom:60px}.trust .cta{width:100%}}
   </style>
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
-  <header class="nav"><div class="wrap nav-in"><a class="brand" href="/vip"><img src="/static/icons/bectanse-app-icon-master.png" alt="Logo Bectanse Académie"><span>BECTANSE <em>ACADÉMIE</em></span></a><nav class="nav-links" aria-label="Navigation principale"><a href="/vip">Découvrir l’académie</a><a class="cta" href="/vip#capture">Explorer gratuitement</a></nav></div></header>
+<body data-ui-screen="seo_guides" class="academy-universe">
+{% include "partials/academy_ambient.html" %}
+
+  <header class="nav"><div class="wrap nav-in"><a class="brand" href="/vip"><img src="/static/icons/bectanse-app-icon-master.png" alt="Logo Bectanse Académie"><span>Bectanse <em>Académie</em></span></a><nav class="nav-links" aria-label="Navigation principale"><a href="/vip">Découvrir l’académie</a><a class="cta" href="/vip#capture">Explorer gratuitement</a></nav></div></header>
   <main>
     <section class="hero"><div class="wrap"><div class="eyebrow">Ressources gratuites · Bectanse Académie</div><h1>Comprendre avant<br><span>de prendre position</span></h1><p>Des guides accessibles et structurés pour travailler le XAU/USD, la gestion du risque, le journal de trading, la psychologie et l’utilisation responsable des outils d’analyse</p><div class="hero-stats"><span>{{ guides|length }} guides disponibles</span><span>Lecture gratuite</span><span>Contenu pédagogique</span><span>Aucune promesse de rendement</span></div></div></section>
     <section class="wrap guides" aria-label="Guides trading Bectanse">
       {% for slug, guide in guides.items() %}
-      <a class="card" href="/guides/{{ slug }}"><div class="card-num">GUIDE {{ "%02d"|format(loop.index) }}</div><h2>{{ guide.title }}</h2><p>{{ guide.description }}</p><div class="card-foot"><span>{{ guide.reading_minutes }} minutes de lecture</span><span class="arrow">→</span></div></a>
+      <a class="card" href="/guides/{{ slug }}"><div class="card-num">GUIDE {{ "%02d"|format(loop.index) }}</div><h2>{{ guide.title }}</h2><p>{{ guide.description }}</p><div class="card-foot"><span>{{ guide.reading_minutes }} minutes de lecture</span><span class="arrow"></span></div></a>
       {% endfor %}
     </section>
     <section class="wrap trust"><div><h2>Tu veux voir la méthode dans un espace complet ?</h2><p>Découvre gratuitement l’application Bectanse Académie en mode Explorer. Tu peux observer le parcours, les outils et l’organisation avant de choisir un accompagnement.</p></div><a class="cta" href="/vip#capture">Créer mon accès Explorer</a></section>
   </main>
-  <footer class="footer"><div class="wrap footer-in"><strong>BECTANSE ACADÉMIE</strong><span>Contenu éducatif · Le trading comporte un risque de perte</span><span><a href="/legal/mentions-legales">Mentions légales</a> · <a href="/legal/confidentialite">Confidentialité</a></span></div></footer>
+  <footer class="footer"><div class="wrap footer-in"><strong>Bectanse Académie</strong><span>Contenu éducatif · Le trading comporte un risque de perte</span><span> · </span></div></footer>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

@@ -361,7 +361,7 @@ body.future-preview{
 .future-preview .quick-item:nth-child(1) .quick-icon::before{content:'◎'}
 .future-preview .quick-item:nth-child(2) .quick-icon::before{content:'▤'}
 .future-preview .quick-item:nth-child(3) .quick-icon::before{content:'◇'}
-.future-preview .quick-item:nth-child(4) .quick-icon::before{content:'→'}
+.future-preview .quick-item:nth-child(4) .quick-icon::before{content:''}
 .future-preview .quick-item:nth-child(5) .quick-icon::before{content:'?'}
 .future-preview .canal-voir-tout{color:rgba(255,106,0,.75)}
 .future-preview .m-topbar,.future-preview .m-univ-nav{background:rgba(5,7,9,.96);border-color:rgba(255,106,0,.18)}
@@ -389,14 +389,22 @@ body.future-preview{
 </style>
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260907-mobile2">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body class="member-fintech {% if modern_preview %}future-preview{% endif %}">
+<body data-ui-screen="accueil" class="product-workspace academy-universe member-fintech {% if modern_preview %}future-preview{% endif %}">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "accueil" %}{% include "partials/workspace_rail.html" %}
+
 {% if modern_preview %}
 <div class="os-app">
   <aside class="os-sidebar">
     <a class="os-brand" href="/accueil" aria-label="Bectanse Académie — Accueil">
       <span class="os-brand-mark" aria-hidden="true"></span>
-      <span>BECTANSE <strong>ACADÉMIE</strong></span>
+      <span>Bectanse <strong>Académie</strong></span>
     </a>
 
     <div class="os-nav-group">
@@ -406,7 +414,7 @@ body.future-preview{
         <a class="os-nav-item" href="/dashboard"><span>02</span>Mes paramètres</a>
         <a class="os-nav-item" href="/canal"><span>03</span>Canal VIP</a>
         <a class="os-nav-item" href="/vip"><span>04</span>Renouveler / Upgrader</a>
-        {%- if not demo_mode %}<a class="os-nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span>05</span>Discuter avec un agent</a>{%- endif %}
+        {%- if vip_support_href(member) %}<a class="os-nav-item" href="{{ vip_support_href(member) }}"><span>05</span>Support VIP</a>{%- endif %}
       </nav>
     </div>
 
@@ -435,21 +443,21 @@ body.future-preview{
     {% if explorer_account|default(false) %}
     <section class="os-explorer-banner" aria-labelledby="os-explorer-banner-title">
       <div class="os-explorer-banner-copy">
-        <span>MODE EXPLORER · APPLICATION RÉELLE</span>
+        <span>Mode explorer · application réelle</span>
         <h1 id="os-explorer-banner-title">Tu es bien dans l’application Bectanse</h1>
         <p>Explore l’interface et le graphique en direct avec un compte fictif. Les outils réservés restent verrouillés jusqu’à l’activation de ton accès.</p>
       </div>
       <div class="os-explorer-banner-actions">
         <a href="/explorer">Continuer mon parcours</a>
-        <a class="primary" href="/vip#offres">Débloquer l’accès</a>
+        <a class="primary" href="/offres">Débloquer l’accès</a>
       </div>
     </section>
     {% endif %}
     <section class="os-mobile-cockpit" aria-labelledby="os-mobile-title">
       <header class="os-mobile-header">
         <div>
-          <div class="os-mobile-eyebrow">Bectanse Command Center</div>
-          <h1 id="os-mobile-title"><span id="os-mobile-greeting">Bonjour</span>, {{ member.nom.split()[0] }}.</h1>
+          <div class="os-mobile-eyebrow">Ton espace Bectanse</div>
+          <h1 id="os-mobile-title"><span id="os-mobile-greeting">Bonjour</span>, {{ member.nom.split()[0] }}</h1>
           <p id="os-mobile-date">{{ 'Ton application Explorer est prête' if explorer_account|default(false) else 'Ton espace est synchronisé' }}</p>
         </div>
         <a class="os-mobile-avatar" href="/dashboard#section-profil" aria-label="Ouvrir mon profil">{{ member.nom[0] }}</a>
@@ -457,8 +465,8 @@ body.future-preview{
 
       <article class="os-mobile-summary">
         <div class="os-mobile-summary-top">
-          <span>{{ 'Capital de démonstration' if explorer_account|default(false) else 'Capital synchronisé' }}</span>
-          <span class="os-mobile-live"><i></i> {{ 'Aperçu' if explorer_account|default(false) else 'Temps réel' }}</span>
+          <span>{{ 'Capital de démonstration' if explorer_account|default(false) else 'Capital configuré' }}</span>
+          <span class="os-mobile-live"><i></i> {{ 'Aperçu' if explorer_account|default(false) else 'Mon compte' }}</span>
         </div>
         <div class="os-mobile-balance-row">
           <strong class="os-mobile-balance" data-capital="{{ member.capital }}">{{ member.capital }} €</strong>
@@ -479,22 +487,22 @@ body.future-preview{
         </div>
 
         <div class="os-mobile-summary-actions">
-          <a class="primary" href="{{ '/explorer' if explorer_account|default(false) else '/dashboard#section-parametres' }}">{{ 'Continuer le parcours' if explorer_account|default(false) else 'Piloter le robot' }} <span>→</span></a>
+          <a class="primary" href="{{ '/explorer' if explorer_account|default(false) else '/dashboard#section-parametres' }}">{{ 'Continuer le parcours' if explorer_account|default(false) else 'Piloter le robot' }} <span></span></a>
           <a href="/analyse-ia">Analyse IA</a>
         </div>
       </article>
 
       {% if not demo_mode|default(false) %}
       <a href="/demarrage" style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:16px 17px;border:1px solid rgba(255,100,30,.26);border-radius:16px;color:#fff;background:linear-gradient(110deg,rgba(255,100,30,.13),rgba(14,17,14,.98));text-decoration:none;box-shadow:0 16px 40px rgba(0,0,0,.22)">
-        <span><small style="display:block;color:#ff7b3a;font-size:8px;font-weight:800;letter-spacing:.14em">CONFIGURATION INTERACTIVE</small><strong style="display:block;margin-top:5px;font-size:13px">Finaliser mon démarrage</strong></span><b style="width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#f45a14;font-size:18px">→</b>
+        <span><small style="display:block;color:#ff7b3a;font-size:8px;font-weight:800;letter-spacing:.14em">Configuration interactive</small><strong style="display:block;margin-top:5px;font-size:13px">Finaliser mon démarrage</strong></span><b style="width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#f45a14;font-size:18px"></b>
       </a>
       {% endif %}
 
       <nav class="os-mobile-launchers" aria-label="Accès rapides">
-        <a href="/academie"><span>PRG</span><strong>Académie</strong><small>Continuer</small></a>
-        <a href="/trader-lab"><span>LAB</span><strong>Trader Lab</strong><small>Analyser</small></a>
-        <a href="/canal"><span class="live">VIP</span><strong>Canal Live</strong><small>Consulter</small></a>
-        <a href="/journal"><span>JRN</span><strong>Journal</strong><small>Progresser</small></a>
+        <a href="/academie"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h7l2 2 2-2h7v15h-7l-2 2-2-2H3zM12 7v15"/></svg></span><strong>Académie</strong><small>Continuer</small></a>
+        <a href="/trader-lab"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v17h17M7 15l4-5 4 3 6-8"/></svg></span><strong>Trader Lab</strong><small>Analyser</small></a>
+        <a href="/canal"><span class="live"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M7 6a8 8 0 0 0 0 12M17 6a8 8 0 0 1 0 12"/></svg></span><strong>Canal Live</strong><small>Consulter</small></a>
+        <a href="/journal"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><strong>Journal</strong><small>Progresser</small></a>
       </nav>
     </section>
 
@@ -504,7 +512,7 @@ body.future-preview{
         <div class="os-overview-actions">
           <a class="os-overview-action" href="/academie">Académie</a>
           {% if not demo_mode|default(false) %}<a class="os-overview-action" href="/demarrage">Démarrage guidé</a>{% endif %}
-          <a class="os-overview-action primary" href="{{ '/vip#offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon accès' if explorer_account|default(false) else 'Gérer Bectanse Auto' }}</a>
+          <a class="os-overview-action primary" href="{{ '/offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon accès' if explorer_account|default(false) else 'Gérer Bectanse Auto' }}</a>
           <span class="os-overview-avatar" aria-label="Profil de {{ member.nom }}">{{ member.nom[0] }}</span>
         </div>
       </div>
@@ -542,7 +550,7 @@ body.future-preview{
     <section class="os-market-panel" id="market-card">
       <div class="os-market-heading">
         <div>
-          <div class="os-kicker">État du marché</div>
+          <div class="os-kicker">Or / dollar · XAUUSD</div>
           <div class="os-market-state"><span class="market-dot" id="market-dot"></span><strong id="market-text">Chargement...</strong></div>
           <div class="market-detail" id="market-detail"></div>
           <div class="market-countdown" id="market-countdown"></div>
@@ -552,6 +560,7 @@ body.future-preview{
       <div class="os-chart-shell">
         <div id="tradingview_gold"></div>
       </div>
+      <div class="academy-chart-help"><span>Graphique TradingView</span><a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener">Ouvrir en grand </a></div>
       <button class="os-chart-toggle" type="button" aria-expanded="false" onclick="toggleMobileChart(this)">
         <span>Développer le graphique</span>
         <b aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="M4 12 12 4M6 4h6v6"/></svg></b>
@@ -561,35 +570,35 @@ body.future-preview{
     <div class="os-lower-grid">
       <section class="os-panel os-account-panel">
         <div class="os-panel-heading">
-          <div class="os-engine-mark">AUTO</div>
-          <div><h2>{{ 'Compte Explorer' if explorer_account|default(false) else 'Mon compte' }}</h2><p><span>●</span> SYSTÈME {% if explorer_account|default(false) %}VERROUILLÉ · APERÇU FICTIF{% elif copy_actif %}ACTIF{% else %}INACTIF{% endif %}{% if not explorer_account|default(false) %} · synchronisation en temps réel{% endif %}</p></div>
+          <div class="os-engine-mark">Auto</div>
+          <div><h2>{{ 'Compte Explorer' if explorer_account|default(false) else 'Mon compte' }}</h2><p><span>●</span> Système {% if explorer_account|default(false) %}verrouillé · aperçu fictif{% elif copy_actif %}actif{% else %}inactif{% endif %}{% if not explorer_account|default(false) %} · synchronisation en temps réel{% endif %}</p></div>
         </div>
         <div class="os-account-row"><span>Bectanse Auto</span><strong class="{% if copy_actif and not explorer_account|default(false) %}os-good{% endif %}">{% if explorer_account|default(false) %}Verrouillé{% elif copy_actif %}Actif{% else %}Inactif{% endif %}</strong></div>
         <div class="os-account-row"><span>Capital</span><strong>{{ member.capital }} €{% if explorer_account|default(false) %} · démo{% endif %}</strong></div>
         {% if date_fin %}<div class="os-account-row"><span>Expiration</span><strong>{{ date_fin.strftime('%d/%m/%Y') }}</strong></div>{% endif %}
         <div class="os-account-row"><span>Accès</span><strong class="{% if not explorer_account|default(false) %}os-good{% endif %}">{% if explorer_account|default(false) %}Lecture seule{% elif statut_abo == 'expiré' %}Expiré{% else %}{{ jours_restants }} jours{% endif %}</strong></div>
         {% if afficher_notif or notif_message %}<div class="os-personal-message" id="notif-inline"><b>Message personnel</b>{{ notif_message }}<button onclick="dismissNotif()">Marquer comme lu</button></div>{% endif %}
-        <a class="os-action" href="{{ '/vip#offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon compte' if explorer_account|default(false) else 'Configurer mes paramètres' }} →</a>
+        <a class="os-action" href="{{ '/offres' if explorer_account|default(false) else '/dashboard' }}">{{ 'Débloquer mon compte' if explorer_account|default(false) else 'Configurer mes paramètres' }} </a>
       </section>
 
       <section class="os-panel os-channel-panel">
-        <div class="os-panel-title-row"><div><h2>Canal VIP</h2><p>{{ 'Section visible, contenu réservé aux membres' if explorer_account|default(false) else 'Aperçu des derniers messages' }}</p></div><strong>{{ 'VERROUILLÉ' if explorer_account|default(false) else 'LIVE' }}</strong></div>
+        <div class="os-panel-title-row"><div><h2>Canal VIP</h2><p>{{ 'Section visible, contenu réservé aux membres' if explorer_account|default(false) else 'Aperçu des derniers messages' }}</p></div><strong>{{ 'Verrouillé' if explorer_account|default(false) else 'Publications' }}</strong></div>
         {% if explorer_account|default(false) %}
         <div class="os-explorer-lock-panel">
-          <span>CANAL PRIVÉ</span>
+          <span>Canal privé</span>
           <h3>Les alertes restent protégées</h3>
           <p>Tu peux découvrir l’organisation de l’application. L’historique et les nouvelles publications se débloquent avec ton accès membre.</p>
         </div>
-        <a class="os-feed-link" href="/vip#offres">Découvrir les accès →</a>
+        <a class="os-feed-link" href="/offres">Découvrir les accès </a>
         {% else %}
         <div id="canal-preview-list"><div class="os-loading">Chargement...</div></div>
-        <a class="os-feed-link" href="/canal">Voir tout le canal →</a>
+        <a class="os-feed-link" href="/canal">Voir tout le canal </a>
         {% endif %}
       </section>
     </div>
 
     <section class="os-panel os-eco-panel">
-      <div class="os-panel-title-row"><div><h2>Actualité économique du jour</h2><p>Événements importants susceptibles d'influencer le marché</p></div><a href="/faq">Voir le guide →</a></div>
+      <div class="os-panel-title-row"><div><h2>Actualité économique du jour</h2><p>Événements importants susceptibles d'influencer le marché</p></div><a href="/faq">Voir le guide </a></div>
       <div class="eco-list" id="eco-list"><div class="eco-loading">Chargement des annonces...</div></div>
     </section>
   </main>
@@ -598,8 +607,8 @@ body.future-preview{
 {% else %}
 {% if demo_mode and not modern_preview %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
-  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
-  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
+  <span style="color:#fff;font-size:13px;font-weight:700;"> Mode Essai Gratuit — Tu observes en lecture seule.</span>
+  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO </a>
 </div>
 <div style="height:44px;"></div>
 {% endif %}
@@ -607,7 +616,7 @@ body.future-preview{
 
 <!-- MOBILE TOP BAR -->
 <div class="m-topbar">
-  <div class="m-logo">BECTANSE ACADÉMIE</div>
+  <div class="m-logo">Bectanse Académie</div>
   <div class="m-member">{{ member.nom.split()[0] }}</div>
 </div>
 
@@ -615,32 +624,32 @@ body.future-preview{
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-logo">BECTANSE ACADÉMIE</div>
+      <div class="sidebar-logo">Bectanse Académie</div>
       <div class="sidebar-tagline">Espace Membre</div>
     </div>
     <div class="member-card">
       <div class="member-top">
         <div class="member-name">{{ member.nom }}</div>
-        <div style="font-size:12px;color:var(--gold);font-weight:600;margin-top:3px;">💰 {{ member.capital }}</div>
+        <div style="font-size:12px;color:var(--gold);font-weight:600;margin-top:3px;"> {{ member.capital }}</div>
       </div>
     </div>
     <nav class="nav">
       <div class="nav-section">Navigation</div>
-      <a class="nav-item active" href="/accueil"><span style="font-size:15px">🏠</span> Accueil</a>
+      <a class="nav-item active" href="/accueil"><span style="font-size:15px"></span> Accueil</a>
       {% if not demo_mode|default(false) %}<a class="nav-item" href="/demarrage"><span style="font-size:15px">◇</span> Démarrage guidé</a>{% endif %}
-      <a class="nav-item" href="/dashboard"><span style="font-size:15px">⚙️</span> Mes paramètres</a>
-      <a class="nav-item" href="/canal" style="color:#A78BFA;"><span style="font-size:15px">📡</span> Canal VIP</a>
-      <a class="nav-item" href="/vip" style="color:#F59E0B;"><span style="font-size:15px">🚀</span> Renouveler / Upgrader</a>
-      {%- if not demo_mode %}<a class="nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span style="font-size:15px">💬</span> Discuter avec un agent</a>{%- endif %}
-      <a class="nav-item" href="/calculateur"><span style="font-size:15px">📐</span> Calculateur</a>
-      <a class="nav-item" href="/analyse-ia" style="color:#FF7A3D"><span style="font-size:15px">{% if demo_mode %}🔒{% else %}◈{% endif %}</span> Analyse IA — Bêta{% if demo_mode %} · Aperçu{% endif %}</a>
-        <a class="nav-item" href="/academie" style="color:#C4B5FD;"><span style="font-size:15px">🎓</span> Bectanse Progress</a>
+      <a class="nav-item" href="/dashboard"><span style="font-size:15px"></span> Mes paramètres</a>
+      <a class="nav-item" href="/canal" style="color:#A78BFA;"><span style="font-size:15px"></span> Canal VIP</a>
+      <a class="nav-item" href="/vip" style="color:#F59E0B;"><span style="font-size:15px"></span> Renouveler / Upgrader</a>
+      {%- if vip_support_href(member) %}<a class="nav-item" href="{{ vip_support_href(member) }}"><span style="font-size:15px"></span> Support VIP</a>{%- endif %}
+      <a class="nav-item" href="/calculateur"><span style="font-size:15px"></span> Calculateur</a>
+      <a class="nav-item" href="/analyse-ia" style="color:#FF7A3D"><span style="font-size:15px">{% if demo_mode %}{% else %}◈{% endif %}</span> Analyse IA — Bêta{% if demo_mode %} · Aperçu{% endif %}</a>
+        <a class="nav-item" href="/academie" style="color:#C4B5FD;"><span style="font-size:15px"></span> Bectanse Progress</a>
         <a class="nav-item" href="/trader-lab" style="color:#FF8B58;"><span style="font-size:15px">◈</span> Trader Lab</a>
-      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span style="font-size:15px">🎁</span> Parrainage VIP</a>
-      <a class="nav-item" href="/faq"><span style="font-size:15px">❓</span> FAQ & Guide</a>
+      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span style="font-size:15px"></span> Parrainage VIP</a>
+      <a class="nav-item" href="/faq"><span style="font-size:15px"></span> FAQ & Guide</a>
     </nav>
     <div class="sidebar-bottom">
-      <a class="logout-btn" href="/logout"><span>🚪</span> Déconnexion</a>
+      <a class="logout-btn" href="/logout"><span></span> Déconnexion</a>
     </div>
   </aside>
 
@@ -732,8 +741,8 @@ body.future-preview{
       <div class="card purple">
         {% if modern_preview %}
         <div class="future-robot-core">
-          <div class="future-chip"><span class="future-chip-mark">AUTO</span></div>
-          <div><div class="future-core-title">Bectanse Auto Engine</div><div class="future-core-meta"><span class="future-core-live">● EN LIGNE</span> · exécution synchronisée</div></div>
+          <div class="future-chip"><span class="future-chip-mark">Auto</span></div>
+          <div><div class="future-core-title">Bectanse Auto Engine</div><div class="future-core-meta"><span class="future-core-live">● en ligne</span> · exécution synchronisée</div></div>
         </div>
         {% endif %}
         <div class="card-label">Mon compte</div>
@@ -764,14 +773,14 @@ body.future-preview{
         {% endif %}
         {% if afficher_notif or notif_message %}
         <div class="notif-inline" id="notif-inline">
-          <div class="notif-inline-badge">📨 Message personnel</div>
+          <div class="notif-inline-badge"> Message personnel</div>
           <div class="notif-inline-msg">{{ notif_message }}</div>
-          <button class="notif-inline-dismiss" onclick="dismissNotif()">✕ Marquer comme lu</button>
+          <button class="notif-inline-dismiss" onclick="dismissNotif()"> Marquer comme lu</button>
         </div>
         {% endif %}
         <div style="margin-top:14px;">
           <a href="/dashboard" class="params-btn" style="font-size:11px;padding:8px 14px;width:100%;text-align:center;display:block;">
-            Configurer mes paramètres →
+            Configurer mes paramètres 
           </a>
         </div>
       </div>
@@ -783,7 +792,7 @@ body.future-preview{
       <!-- APERÇU CANAL VIP -->
       <div class="card" style="background:linear-gradient(135deg,rgba(91,33,182,0.1),rgba(59,7,100,0.06));border:1px solid rgba(91,33,182,0.25);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <div class="card-label" style="margin-bottom:0">📡 Canal VIP</div>
+          <div class="card-label" style="margin-bottom:0"> Canal VIP</div>
           <div style="display:flex;align-items:center;gap:5px;">
             <div class="live-dot"></div>
             <span style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#6EE7B7">Live</span>
@@ -793,7 +802,7 @@ body.future-preview{
           <div style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;padding:12px 0">Chargement...</div>
         </div>
         <div class="canal-preview-footer">
-          <a href="/canal" class="canal-voir-tout">Voir tout le canal →</a>
+          <a href="/canal" class="canal-voir-tout">Voir tout le canal </a>
         </div>
       </div>
 
@@ -804,7 +813,7 @@ body.future-preview{
           <div class="eco-loading">Chargement des annonces...</div>
         </div>
         <div style="margin-top:12px;">
-          <a href="/faq" style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(8,145,178,0.7);text-decoration:none;">Voir la FAQ & Guide →</a>
+          <a href="/faq" style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(8,145,178,0.7);text-decoration:none;">Voir la FAQ & Guide </a>
         </div>
       </div>
     </div>
@@ -835,7 +844,7 @@ body.future-preview{
             <div class="title">Paramétrer Bectanse AUTO</div>
             <div class="desc">Ajuste tes lots, ton drawdown et tes options de copy trading selon ton profil.</div>
           </div>
-          <a href="/dashboard" class="params-btn">Configurer →</a>
+          <a href="/dashboard" class="params-btn">Configurer </a>
         </div>
       </div>
     </div>
@@ -845,23 +854,23 @@ body.future-preview{
       <div class="card-label" style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px;">Accès rapide</div>
       <div class="quick-grid">
         <a href="/dashboard" class="quick-item">
-          <div class="quick-icon">⚙️</div>
+          <div class="quick-icon"></div>
           <div class="quick-label">Paramètres</div>
         </a>
         <a href="/formation" class="quick-item">
-          <div class="quick-icon">🎓</div>
+          <div class="quick-icon"></div>
           <div class="quick-label">Formation</div>
         </a>
         <a href="/parrainage" class="quick-item">
-          <div class="quick-icon">🎁</div>
+          <div class="quick-icon"></div>
           <div class="quick-label">Parrainage</div>
         </a>
         <a href="/vip" class="quick-item">
-          <div class="quick-icon">🚀</div>
+          <div class="quick-icon"></div>
           <div class="quick-label">Upgrader</div>
         </a>
         <a href="/faq" class="quick-item">
-          <div class="quick-icon">❓</div>
+          <div class="quick-icon"></div>
           <div class="quick-label">FAQ</div>
         </a>
       </div>
@@ -871,7 +880,7 @@ body.future-preview{
 </div>
 
 <!-- WA FLOAT -->
-{%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
+{%- if vip_support_href(member) %}<a href="{{ vip_support_href(member) }}" class="wa-float" aria-label="Ouvrir le support VIP">
   <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
 </a>{%- endif %}
 {% endif %}
@@ -891,9 +900,9 @@ function formatDate(d) {
 }
 
 // ── MARCHÉ XAUUSD — horaires réels heure Paris
-// Ouvert : lundi 00h00 → vendredi 23h59
-// Fermé  : vendredi 23h59 → lundi 00h00 (week-end)
-// Pause nuit : chaque jour 23h00 → 00h00 (sauf vendredi)
+// Ouvert : lundi 00h00  vendredi 23h59
+// Fermé  : vendredi 23h59  lundi 00h00 (week-end)
+// Pause nuit : chaque jour 23h00  00h00 (sauf vendredi)
 function getMarketStatus() {
   const now = getNowParis();
   const day = now.getDay(); // 0=dim 1=lun 2=mar 3=mer 4=jeu 5=ven 6=sam
@@ -909,11 +918,11 @@ function getMarketStatus() {
   if (day === 0) {
     return {open: false, reason: 'Week-end', type: 'weekend'};
   }
-  // VENDREDI après 23h00 → week-end
+  // VENDREDI après 23h00  week-end
   if (day === 5 && t >= 23*60) {
     return {open: false, reason: 'Week-end', type: 'weekend'};
   }
-  // PAUSE NUIT : 23h00 → 00h00 (lun-jeu)
+  // PAUSE NUIT : 23h00  00h00 (lun-jeu)
   if (t >= 23*60) {
     return {open: false, reason: 'Pause technique (23h-00h)', type: 'pause'};
   }
@@ -933,7 +942,7 @@ function getMinsUntilMonday() {
   return Math.max(0, Math.floor((next - now) / 60000));
 }
 
-// Formate une durée en minutes → "Xh YYmin" ou "Xj Xh"
+// Formate une durée en minutes  "Xh YYmin" ou "Xj Xh"
 function formatDuration(mins) {
   if (mins >= 24*60) {
     const j = Math.floor(mins / (24*60));
@@ -968,7 +977,7 @@ function updateMarket() {
   if (status.open) {
     dot.className   = 'market-dot open';
     text.className  = 'market-text open';
-    text.textContent = 'MARCHÉ OUVERT';
+    text.textContent = 'Marché ouvert';
     card.classList.remove('red');
     card.classList.add('green');
 
@@ -977,8 +986,8 @@ function updateMarket() {
     const t   = now.getHours()*60 + now.getMinutes();
     const day = now.getDay();
     let closeMin;
-    if (day === 5) closeMin = 23*60; // vendredi → ferme à 23h
-    else closeMin = 23*60;           // autres jours → pause à 23h
+    if (day === 5) closeMin = 23*60; // vendredi  ferme à 23h
+    else closeMin = 23*60;           // autres jours  pause à 23h
     const diff = closeMin - t;
     if (diff > 0 && diff < 8*60) {
       const hh = Math.floor(diff/60);
@@ -1000,7 +1009,7 @@ function updateMarket() {
   } else {
     dot.className   = 'market-dot closed';
     text.className  = 'market-text closed';
-    text.textContent = 'MARCHÉ FERMÉ';
+    text.textContent = 'Marché fermé';
     card.classList.remove('green');
     card.classList.add('red');
 
@@ -1009,7 +1018,7 @@ function updateMarket() {
       detail.textContent = 'Week-end';
       cdEl.textContent = `Réouverture lundi dans ${formatDuration(mins)}`;
     } else {
-      // Pause nuit → réouvre à 00h00
+      // Pause nuit  réouvre à 00h00
       const now = getNowParis();
       const minsLeft = (24*60) - (now.getHours()*60 + now.getMinutes());
       detail.textContent = status.reason;
@@ -1065,16 +1074,18 @@ function toggleMobileChart(button) {
 }
 
 // ── GRAPHIQUE TRADINGVIEW — aperçu moderne intégré
+let tradingViewAttempts = 0;
 function initModernTradingView() {
   if (!document.body.classList.contains('future-preview')) return;
   const holder = document.getElementById('tradingview_gold');
   if (!holder || holder.dataset.initialized === '1') return;
   if (!window.TradingView) {
-    window.setTimeout(initModernTradingView, 120);
+    if (++tradingViewAttempts < 40) { window.setTimeout(initModernTradingView, 250); return; }
+    holder.innerHTML = '<p class="academy-chart-status" role="status">Le graphique est indisponible pour le moment. Réessaie en rechargeant la page.</p>';
     return;
   }
   holder.dataset.initialized = '1';
-  new TradingView.widget({
+  try { new TradingView.widget({
     autosize: true,
     symbol: 'OANDA:XAUUSD',
     interval: '15',
@@ -1088,12 +1099,15 @@ function initModernTradingView() {
     hide_side_toolbar: true,
     hide_legend: false,
     allow_symbol_change: false,
-    withdateranges: true,
+    withdateranges: window.innerWidth > 768,
     save_image: false,
     container_id: 'tradingview_gold',
     backgroundColor: '#050706',
     gridColor: 'rgba(255,255,255,0.035)'
-  });
+  }); } catch (error) {
+    holder.dataset.initialized = '';
+    holder.innerHTML = '<p class="academy-chart-status" role="status">Connexion au graphique impossible. Réessaie en rechargeant la page.</p>';
+  }
 }
 
 // ── APERÇU CANAL VIP
@@ -1142,7 +1156,7 @@ async function loadCanalPreview() {
 async function loadEcoActu() {
   const ecoList = document.getElementById('eco-list');
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Paris'});
     const r = await fetch('/api/eco');
     if (!r.ok) throw new Error('API indisponible');
     const data = await r.json();
@@ -1151,7 +1165,7 @@ async function loadEcoActu() {
       return d === today && ['High','Medium'].includes(e.impact);
     }).slice(0, 5);
     if (events.length === 0) {
-      ecoList.innerHTML = '<div class="eco-loading">Aucune annonce majeure aujourd\'hui ✓</div>';
+      ecoList.innerHTML = '<div class="eco-loading">Aucune annonce majeure aujourd\'hui </div>';
       return;
     }
     ecoList.innerHTML = events.map(e => {
@@ -1285,7 +1299,7 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
         </div>
         <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 14px;">
           <div style="width:28px;height:28px;background:rgba(91,33,182,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">3</div>
-          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Ouvre l'app depuis l'écran d'accueil et <strong style="color:#F59E0B;">accepte les notifications</strong> 🔔</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Ouvre l'app depuis l'écran d'accueil et <strong style="color:#F59E0B;">accepte les notifications</strong> </div>
         </div>
       </div>
     </div>
@@ -1299,14 +1313,14 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
         </div>
         <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 14px;">
           <div style="width:28px;height:28px;background:rgba(91,33,182,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">2</div>
-          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Ouvre l'app et <strong style="color:#F59E0B;">accepte les notifications</strong> quand demandé 🔔</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Ouvre l'app et <strong style="color:#F59E0B;">accepte les notifications</strong> quand demandé </div>
         </div>
       </div>
     </div>
 
     <div id="pwa-step-notif" style="display:none;">
       <div style="background:rgba(5,150,105,0.1);border:1px solid rgba(5,150,105,0.3);border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:center;">
-        <span style="font-size:24px;">✅</span>
+        <span style="font-size:24px;"></span>
         <div>
           <div style="font-size:13px;font-weight:600;color:#6EE7B7;">App déjà installée !</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;">Il te reste juste à activer les notifications.</div>
@@ -1314,7 +1328,7 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
       </div>
       <div style="margin-bottom:20px;">
         <button onclick="requestNotifPermission()" style="width:100%;background:linear-gradient(135deg,#5B21B6,#4C1D95);color:#fff;border:none;border-radius:12px;padding:14px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
-          🔔 Activer les notifications
+           Activer les notifications
         </button>
       </div>
     </div>
@@ -1329,7 +1343,7 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
 <!-- BOUTON FLOTTANT NOTIFICATIONS (visible si pas encore activé) -->
 <div id="notif-fab" style="display:none;position:fixed;bottom:88px;left:16px;z-index:800;">
   <button onclick="showPwaPopup()" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#5B21B6,#4C1D95);color:#fff;border:none;border-radius:20px;padding:9px 16px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 16px rgba(91,33,182,0.4);">
-    🔔 Activer les notifications
+     Activer les notifications
   </button>
 </div>
 
@@ -1370,7 +1384,7 @@ async function requestNotifPermission() {
   if (result.ok) {
     document.getElementById('pwa-popup').style.display = 'none';
     document.getElementById('notif-fab').style.display = 'none';
-    showToast(result.testSent ? '✅ Notification test envoyée !' : '✅ Notifications activées !');
+    showToast(result.testSent ? ' Notification test envoyée !' : ' Notifications activées !');
   } else if (result.reason === 'denied') {
     showToast('Notifications bloquées dans les réglages iPhone.');
   } else if (result.reason === 'install-required') {
@@ -1425,11 +1439,12 @@ checkPwaPrompt();
 
 {% if demo_mode and not modern_preview %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
-  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
-  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
+  <span style="color:#fff;font-size:13px;font-weight:700;"> Mode Essai Gratuit — Tu observes en lecture seule.</span>
+  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO </a>
 </div>
 <div style="height:44px;"></div>
 {% endif %}
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

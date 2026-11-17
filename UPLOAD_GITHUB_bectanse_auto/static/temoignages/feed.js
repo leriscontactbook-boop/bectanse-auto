@@ -8,11 +8,12 @@
   const audioOnly = !visualMount && Boolean(audioMount);
   const localTestimonials = '/static/temoignages';
   const publishedTestimonials = 'https://raw.githubusercontent.com/leriscontactbook-boop/bectanse-auto/codex/mt5-journal-production/UPLOAD_GITHUB_bectanse_auto/static/temoignages';
-  const testimonialBase = location.hostname === 'acces.bectanse-academie.com' ? publishedTestimonials : localTestimonials;
+  const restrictedBase = section.dataset.testimonialBase || localTestimonials;
+  const testimonialBase = section.dataset.testimonialLocal === 'true' ? restrictedBase : (location.hostname === 'acces.bectanse-academie.com' ? publishedTestimonials : localTestimonials);
   let catalog = window.__BECTANSE_TESTIMONIALS__ || null;
   if (!catalog) {
     try {
-      const response = await fetch(`${testimonialBase}/temoignages.json?v=97b3374a9dc4`);
+      const response = await fetch(testimonialBase + '/' + (section.dataset.testimonialBase ? 'catalog.json' : 'temoignages.json') + '?v=20261104-20');
       if (!response.ok) return;
       catalog = await response.json();
     } catch (_) { return; }
@@ -21,14 +22,18 @@
     catalog = JSON.parse(JSON.stringify(catalog).replaceAll(localTestimonials, testimonialBase));
   }
   if (!catalog.items?.length) return;
+  // Source messages can contain reaction emoji. They are not part of the visual
+  // system of the public page, so retain the testimony wording while omitting them.
+  const withoutEmoji = value => String(value ?? '').replace(/\p{Extended_Pictographic}|\uFE0F|\u20E3/gu, '').replace(/[ \t]+\n/g, '\n').replace(/ {2,}/g, ' ').trim();
   const make = (tag, cls, text) => {
     const el = document.createElement(tag);
     if (cls) el.className = cls;
-    if (text !== undefined) el.textContent = text;
+    if (text !== undefined) el.textContent = withoutEmoji(text);
     return el;
   };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const items = catalog.items;
+  const memberLimit = Math.max(0, Number.parseInt(section.dataset.testimonialLimit || '0', 10) || 0);
   const byId = new Map(items.map(item => [item.id, item]));
   let modalTrigger;
   let previousBodyOverflow = '';
@@ -256,30 +261,42 @@
     controls.append(count, motion, previous, next); toolbar.append(title, controls);
     const track = make('div', `member-feed-track ${cinema ? 'member-feed-visuals' : 'member-feed-audios'}`);
     track.id = id; track.tabIndex = 0; track.setAttribute('role', 'list'); track.setAttribute('aria-label', label);
-    // Only mount the first cards. Subsequent records are appended as the visitor reaches
-    // the end of the rail, so the full evidence catalogue remains available without
-    // placing more than a thousand media controls in the initial page render.
-    const batchSize = cinema ? 12 : 10;
+    // Keep a bounded sliding window: the catalogue can be large, but the DOM and media
+    // controls must stay small on mobile Safari. New records are mounted as the visitor
+    // advances; old off-screen cards are released from memory.
+    const batchSize = 5;
+    const maxMounted = 20;
+    let windowStart = 0;
     let rendered = 0;
     let observeCard = () => {};
-    function appendBatch(target = rendered + batchSize) {
-      const stop = Math.min(records.length, target);
-      while (rendered < stop) {
-        const card = createCard(records[rendered]);
-        card.dataset.feedIndex = String(rendered);
+    function appendBatch(target = windowStart + rendered + batchSize) {
+      const stop = Math.min(records.length, target, windowStart + maxMounted);
+      while (windowStart + rendered < stop) {
+        const absoluteIndex = windowStart + rendered;
+        const card = createCard(records[absoluteIndex]);
+        card.dataset.feedIndex = String(absoluteIndex);
         track.append(card);
         observeCard(card);
         rendered += 1;
       }
     }
     function ensureIndex(index) {
-      if (index >= rendered) appendBatch(index + 1);
+      if (!track.querySelector(`[data-feed-index="${index}"]`)) {
+        windowStart = Math.max(0, Math.min(index - 3, records.length - maxMounted));
+        [...track.children].forEach(card => cardObserver.unobserve(card));
+        track.replaceChildren();
+        rendered = 0;
+        nearCards.clear();
+        track.scrollLeft = 0;
+        appendBatch(windowStart + maxMounted);
+      }
+      if (index >= windowStart + rendered) appendBatch(index + 1);
       return track.querySelector(`[data-feed-index="${index}"]`);
     }
-    appendBatch();
     shell.append(toolbar, track);
     let paused = reduced.matches, hovering = false, inView = false, focusInside = false;
     let userUntil = performance.now() + 10000, previousTime = 0, fraction = 0;
+    let animationFrame = 0, restartTimer = 0;
     function motionLabel() {
       motion.classList.toggle('is-paused', paused);
       motion.setAttribute('aria-pressed', String(paused));
@@ -287,22 +304,43 @@
       motion.hidden = reduced.matches;
     }
     motionLabel();
-    motion.addEventListener('click', () => { paused = !paused; motionLabel(); });
-    reduced.addEventListener('change', () => { paused = reduced.matches; motionLabel(); });
-    const interrupt = () => { userUntil = performance.now() + 12000; };
-    shell.addEventListener('pointerenter', () => { hovering = true; });
-    shell.addEventListener('pointerleave', () => { hovering = false; });
-    shell.addEventListener('focusin', () => { focusInside = true; });
-    shell.addEventListener('focusout', event => { focusInside = shell.contains(event.relatedTarget); });
+    const shouldRun = () => inView && !paused && !hovering && !focusInside &&
+      !(activePlayer && !activePlayer.paused && !activePlayer.ended) && !dialog.open &&
+      !document.hidden && performance.now() > userUntil && !reduced.matches;
+    function stopMotion() {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      track.classList.remove('member-feed-moving');
+    }
+    function startMotion() {
+      if (shouldRun() && !animationFrame) animationFrame = requestAnimationFrame(animate);
+    }
+    function refreshMotion() {
+      if (shouldRun()) startMotion(); else stopMotion();
+      clearTimeout(restartTimer);
+      if (inView && !paused && !reduced.matches && performance.now() < userUntil) {
+        restartTimer = setTimeout(startMotion, Math.max(40, userUntil - performance.now() + 10));
+      }
+    }
+    motion.addEventListener('click', () => { paused = !paused; motionLabel(); refreshMotion(); });
+    reduced.addEventListener('change', () => { paused = reduced.matches; motionLabel(); refreshMotion(); });
+    const interrupt = () => { userUntil = performance.now() + 12000; refreshMotion(); };
+    shell.addEventListener('pointerenter', () => { hovering = true; refreshMotion(); });
+    shell.addEventListener('pointerleave', () => { hovering = false; refreshMotion(); });
+    shell.addEventListener('focusin', () => { focusInside = true; refreshMotion(); });
+    shell.addEventListener('focusout', event => { focusInside = shell.contains(event.relatedTarget); refreshMotion(); });
+    ['play','pause','ended'].forEach(type => shell.addEventListener(type, refreshMotion, true));
+    document.addEventListener('visibilitychange', refreshMotion);
     track.addEventListener('pointerdown', interrupt, {passive:true});
     track.addEventListener('wheel', interrupt, {passive:true});
-    new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; }, {threshold:0.12}).observe(shell);
     const nearCards = new Set();
+    new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; refreshMotion(); }, {threshold:0.12}).observe(shell);
     const cardObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => entry.isIntersecting ? nearCards.add(entry.target) : nearCards.delete(entry.target));
       if (!scheduled) { scheduled = true; requestAnimationFrame(update); }
     }, {root:track,rootMargin:'0px 400px'});
     observeCard = card => cardObserver.observe(card);
+    appendBatch(windowStart + maxMounted);
     [...track.children].forEach(observeCard);
     const leftOf = child => child.offsetLeft;
     function nearest() {
@@ -311,12 +349,10 @@
     }
     function navigateTo(target, immediate = false) {
       if (!target) return;
-      // Keep enough cards after the target to align it, even after a full loop.
-      while (leftOf(target) > track.scrollWidth - track.clientWidth && track.firstElementChild !== target) {
-        track.append(track.firstElementChild);
-      }
       const distance = Math.abs(leftOf(target) - track.scrollLeft);
-      track.scrollTo({left:leftOf(target), behavior:immediate || reduced.matches || distance > track.clientWidth * 2 ? 'instant' : 'smooth'});
+      // `instant` is not a standard ScrollTo behavior and is ignored by some Safari
+      // versions. `auto` gives the intended immediate movement consistently.
+      track.scrollTo({left:leftOf(target), behavior:immediate || reduced.matches || distance > track.clientWidth * 2 ? 'auto' : 'smooth'});
     }
     function go(direction) {
       interrupt(); const current = nearest(); const index = Number(current.dataset.feedIndex);
@@ -340,7 +376,25 @@
       scheduled = false;
       const current = nearest(); if (!current) return;
       const currentIndex = Number(current.dataset.feedIndex);
-      if (currentIndex >= rendered - 4 && rendered < records.length) appendBatch();
+      if (currentIndex >= windowStart + rendered - 4 && windowStart + rendered < records.length) {
+        // The current card is already near the rail's right edge. Release up to five
+        // cards behind it, preserve the visible position, then mount the next five.
+        if (track.children.length >= maxMounted && currentIndex >= windowStart + 12) {
+          const release = Math.min(batchSize, track.children.length - (maxMounted - batchSize));
+          let removedWidth = 0;
+          for (let i = 0; i < release; i += 1) {
+            const first = track.firstElementChild;
+            if (!first || first === current) break;
+            removedWidth += first.getBoundingClientRect().width;
+            const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 0;
+            removedWidth += gap;
+            cardObserver.unobserve(first); nearCards.delete(first); first.remove();
+            windowStart += 1; rendered -= 1;
+          }
+          track.scrollLeft = Math.max(0, track.scrollLeft - removedWidth);
+        }
+        appendBatch();
+      }
       const nextText = `${currentIndex + 1} / ${records.length}`;
       if (count.textContent !== nextText) count.textContent = nextText;
       const viewportCenter = track.scrollLeft + track.clientWidth / 2;
@@ -356,38 +410,54 @@
     track.addEventListener('scroll', () => { if (!scheduled) { scheduled = true; requestAnimationFrame(update); } }, {passive:true});
     new ResizeObserver(update).observe(track); requestAnimationFrame(update);
     function animate(now) {
+      animationFrame = 0;
+      if (!shouldRun()) { track.classList.remove('member-feed-moving'); return; }
       const elapsed = previousTime ? Math.min(45, now - previousTime) : 0; previousTime = now;
-      const playing = activePlayer && !activePlayer.paused && !activePlayer.ended;
-      const run = inView && !paused && !hovering && !focusInside && !playing && !dialog.open && !document.hidden && now > userUntil && !reduced.matches;
-      track.classList.toggle('member-feed-moving', run);
-      if (run && records.length > 1) {
+      track.classList.add('member-feed-moving');
+      if (records.length > 1) {
         fraction += elapsed * (cinema ? .018 : .014);
         if (fraction >= 1) {
-          const first = track.firstElementChild;
-          if (track.scrollLeft > first.offsetWidth + 60) {
-            // Recycle only a fully off-screen card; the opening sequence stays intact.
-            const anchor = first.nextElementSibling;
-            const before = leftOf(anchor); const position = track.scrollLeft;
-            track.append(first);
-            track.scrollLeft = position + leftOf(anchor) - before;
-          }
           track.scrollLeft += Math.floor(fraction); fraction %= 1;
         }
       }
-      requestAnimationFrame(animate);
+      animationFrame = requestAnimationFrame(animate);
     }
-    requestAnimationFrame(animate); return shell;
+    refreshMotion(); return shell;
   }
-  const visuals = (catalog.visualOrder || items.map(i => i.id)).map(id => byId.get(id)).filter(Boolean);
+  const sourceVisuals = (catalog.visualOrder || items.map(i => i.id)).map(id => byId.get(id)).filter(Boolean);
+  const featuredIds = ['bectanse-870', 'bectanse-308', 'moneyclub-1136', 'bectanse-841', 'legacy-wendy', 'bectanse-551'];
+  const featured = featuredIds.map(id => byId.get(id)).filter(item => item && sourceVisuals.includes(item));
+  const featuredSet = new Set(featured.map(item => item.id));
+  const amountOf = item => {
+    if (Number.isFinite(item.result?.amount)) return item.result.amount;
+    const raw = String(item.result?.value || '').replace(/[^\d,.-]/g, '');
+    if (!raw) return -1;
+    const comma = raw.lastIndexOf(','), dot = raw.lastIndexOf('.');
+    const decimal = comma > dot ? ',' : dot > comma ? '.' : '';
+    const normalized = decimal ? raw.replace(/[,.]/g, (mark, index) => mark === decimal && index === Math.max(comma, dot) ? '.' : '') : raw;
+    const value = Number(normalized);
+    return Number.isFinite(value) ? value : -1;
+  };
+  const resultCards = sourceVisuals.filter(item => !featuredSet.has(item.id) && amountOf(item) >= 0)
+    .sort((a, b) => amountOf(b) - amountOf(a));
+  const resultIds = new Set(resultCards.map(item => item.id));
+  const visuals = [...featured, ...resultCards, ...sourceVisuals.filter(item => !featuredSet.has(item.id) && !resultIds.has(item.id))];
+  const selectedVisuals = memberLimit ? visuals.slice(0, memberLimit) : visuals;
   const audios = items.filter(item => item.audios?.length);
+  const selectedAudios = memberLimit ? audios.filter(item => selectedVisuals.includes(item)) : audios;
   section.dataset.horizontalFeed = 'true';
-  if (visualMount) visualMount.replaceWith(rail(visuals, 'member-visual-feed', 'Témoignages visuels', visualCard, true));
-  if (audioMount) audioMount.replaceWith(rail(audios, 'member-audio-feed', 'Témoignages audio', audioCard, false));
+  if (visualMount) visualMount.replaceWith(rail(selectedVisuals, 'member-visual-feed', 'Témoignages visuels', visualCard, true));
+  if (audioMount && selectedAudios.length) audioMount.replaceWith(rail(selectedAudios, 'member-audio-feed', 'Témoignages audio', audioCard, false));
+  else if (audioMount) audioMount.remove();
   const intro = section.querySelector('.proof-intro p');
   if (intro) intro.textContent = 'Des captures, des voix et des visages. Découvre les expériences partagées par les membres.';
+  if (section.dataset.testimonialLocal !== 'true') {
   const counts = make('p', 'member-feed-summary');
-  counts.textContent = audioOnly
-    ? `${audios.length.toLocaleString('fr-FR')} témoignages audio disponibles`
-    : `${catalog.totals.testimonials.toLocaleString('fr-FR')} témoignages · ${catalog.totals.images} captures · ${catalog.totals.audios} audios · ${catalog.totals.videos} vidéos`;
+  counts.textContent = memberLimit
+    ? `${selectedVisuals.length.toLocaleString('fr-FR')} témoignages sélectionnés${selectedAudios.length ? ` · ${selectedAudios.length} vocaux` : ''}`
+    : (audioOnly
+      ? `${audios.length.toLocaleString('fr-FR')} témoignages audio disponibles`
+      : `${catalog.totals.testimonials.toLocaleString('fr-FR')} témoignages · ${catalog.totals.images} captures · ${catalog.totals.audios} audios · ${catalog.totals.videos} vidéos`);
   section.querySelector('.proof-intro')?.append(counts);
+  }
 })();

@@ -27,17 +27,26 @@
     }
     @media(max-width:340px){.guide-close-mark{margin-right:4px}.guide-close,.guide-download{font-size:8px;padding-left:7px;padding-right:7px}}
   </style>
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
+<body data-ui-screen="guide_robot" class="product-workspace academy-universe">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "guide_robot" %}{% include "partials/workspace_rail.html" %}
+
   <header class="guide-bar">
     <a class="guide-close" href="/dashboard#section-parametres" aria-label="Fermer le guide et revenir au pilotage du robot"><span class="guide-close-mark" aria-hidden="true">×</span>Fermer le guide</a>
     <div class="guide-title"><small>Guide officiel</small><strong>Bectanse AUTO</strong></div>
     <a class="guide-download" href="/guide-robot/telecharger">Télécharger le PDF</a>
   </header>
-  <main class="guide-stage">
+  <main class="guide-stage"><section class="document-intro"><img src="/static/guides/bectanse-auto-guide-cover.png" alt="Couverture du document"><div><h1>Le guide Bectanse Auto</h1><p>Connexion, réglages et fonctionnement de ton robot, réunis dans un seul document</p><button type="button" class="gs-button document-read">Lire le document</button></div></section>
     <iframe class="guide-frame" title="Guide officiel Bectanse AUTO" src="/static/guides/bectanse-auto-guide-membre.pdf#view=FitH&toolbar=1&navpanes=0"></iframe>
     <div class="guide-fallback">Si le document ne s’affiche pas, <a href="/guide-robot/telecharger">télécharge le guide ici</a>.</div>
   </main>
   {% include "_mobile_nav.html" %}
+<script>document.querySelector(".document-read").addEventListener("click",function(){document.body.classList.add("document-reading");document.querySelector("iframe").focus();});</script><script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

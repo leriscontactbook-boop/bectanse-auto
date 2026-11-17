@@ -1,0 +1,38 @@
+/* Account connection: readable mobile controls and safe-area aware header. */
+@media(max-width:932px){
+ body[data-ui-screen=dashboard]{--settings-header:76px}
+ body[data-ui-screen=dashboard] .m-topbar{display:flex!important;box-sizing:border-box;height:calc(var(--settings-header) + env(safe-area-inset-top,0px))!important;padding:calc(10px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right)) 10px max(12px,env(safe-area-inset-left))!important;z-index:55}
+ body[data-ui-screen=dashboard] .m-topbar-left{min-width:0;width:100%;gap:5px}
+ body[data-ui-screen=dashboard] .m-topbar-name{font:600 15px/1.3 Inter,sans-serif!important;white-space:normal;overflow-wrap:anywhere}
+ body[data-ui-screen=dashboard] .m-topbar-dates{font:400 12px/1.45 Inter,sans-serif!important;white-space:normal;overflow-wrap:anywhere}
+ body[data-ui-screen=dashboard] .main{padding-top:calc(var(--settings-header) + env(safe-area-inset-top,0px))!important;width:100%;min-width:0}
+ body[data-ui-screen=dashboard] .settings-index{position:sticky;top:calc(var(--settings-header) + env(safe-area-inset-top,0px))!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px!important;padding:8px 12px!important;overflow:visible;z-index:50}
+ body[data-ui-screen=dashboard] .settings-index a{min-width:0;white-space:normal!important;text-align:center;padding:9px 5px!important;min-height:40px;font-size:12px!important;line-height:1.3;display:flex;align-items:center;justify-content:center;background:#ffffff05;border-radius:10px}
+ body[data-ui-screen=dashboard] .content{padding:16px 12px 24px!important;width:100%;min-width:0;box-sizing:border-box}
+ body[data-ui-screen=dashboard] :is(.section-card,.param-section,.product-settings-section){min-width:0;max-width:100%;box-sizing:border-box;margin-bottom:14px!important;padding:0!important}
+ body[data-ui-screen=dashboard] .product-settings-section>summary{padding:18px 16px!important;font-size:16px!important;line-height:1.45;gap:14px;overflow-wrap:anywhere;min-height:60px;border-bottom:0}
+ body[data-ui-screen=dashboard] .product-settings-section>summary:after{flex:0 0 20px;text-align:center}
+ body[data-ui-screen=dashboard] .product-settings-section[open]>summary{border-bottom:1px solid #ffffff16}
+ body[data-ui-screen=dashboard] :is(.section-body,.section-header,.section-header-row){padding:16px!important;min-width:0;gap:10px}
+ body[data-ui-screen=dashboard] :is(.section-title,.section-desc,.field label,.field-label,.field-hint,.toggle-label,.toggle-desc){white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere;max-width:100%;line-height:1.5}
+ body[data-ui-screen=dashboard] .section-title{font-size:18px!important}
+ body[data-ui-screen=dashboard] .section-desc{font-size:13px!important}
+ body[data-ui-screen=dashboard] :is(.field-row,.toggle-grid){grid-template-columns:minmax(0,1fr)!important;gap:16px;min-width:0}
+ body[data-ui-screen=dashboard] :is(.field,.toggle-info,.section-header>div,.section-header-row>div){min-width:0}
+ body[data-ui-screen=dashboard] :is(input:not([type=checkbox]):not([type=radio]),select,textarea){box-sizing:border-box;max-width:100%;min-width:0;font-size:16px!important}
+ body[data-ui-screen=dashboard] .toggle-row{gap:12px;padding:14px!important;align-items:flex-start}
+ body[data-ui-screen=dashboard] .toggle-switch{margin:4px 0 0;flex-shrink:0}
+ body[data-ui-screen=dashboard] .copy-status-panel{display:grid!important;grid-template-columns:minmax(0,1fr);gap:14px;margin:0 16px 16px!important}
+ body[data-ui-screen=dashboard] :is(.copy-content-btn,.mobile-envoyer-btn,.btn-envoyer,.save-btn){width:100%;max-width:100%;min-height:48px;height:auto;white-space:normal!important;overflow-wrap:anywhere;font-size:14px!important;line-height:1.4;padding:14px!important;box-sizing:border-box}
+ body[data-ui-screen=dashboard] :is(.copy-content-btn,.copy-status-label){min-width:0;justify-content:center}
+ body[data-ui-screen=dashboard] .mobile-envoyer-wrap{margin:16px 0!important}
+ body[data-ui-screen=dashboard] .wa-float{display:none!important}
+ body[data-ui-screen=dashboard] :is(.product-settings-section,[id^=section-],#risk-settings,#drawdown-settings,#request-history){scroll-margin-top:calc(var(--settings-header) + env(safe-area-inset-top,0px) + 110px)}
+ body[data-ui-screen=dashboard] .section-body:has(.hist-table){overflow-x:auto;overscroll-behavior-x:contain}
+ body[data-ui-screen=dashboard] .hist-table{min-width:0;width:100%;table-layout:fixed}
+ body[data-ui-screen=dashboard] .hist-table :is(th,td){white-space:normal;overflow-wrap:anywhere;font-size:12px;padding:10px 6px}
+ body[data-ui-screen=dashboard] .lot-symbole-row{grid-template-columns:minmax(56px,.7fr) repeat(3,minmax(0,1fr));gap:4px}
+ body[data-ui-screen=dashboard] .lot-symbole-header{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:10px 6px}
+ body[data-ui-screen=dashboard] .lot-symbole-header span{font-size:10px;letter-spacing:0;overflow-wrap:anywhere}
+ body[data-ui-screen=dashboard] .lot-symbole-apply{grid-column:1/-1;white-space:normal;min-height:40px}
+}

@@ -2,6 +2,25 @@
   "use strict";
   const toast = document.getElementById("journeyToast");
   const mtServers = window.BECTANSE_MT_SERVERS || {};
+  const mtBrokers = window.BECTANSE_MT_BROKERS || [];
+  // Enrich suggestions from the existing server catalog without changing typed input.
+  fetch("/api/trading/brokers", { credentials: "same-origin" })
+    .then((response) => response.ok ? response.json() : null)
+    .then((data) => {
+      if (!data?.ok || !Array.isArray(data.brokers)) return;
+      data.brokers.forEach((broker) => {
+        const current = mtBrokers.find((item) => item.name === broker.name);
+        if (current && Array.isArray(broker.servers)) current.servers = broker.servers;
+      });
+      const selected = document.getElementById("mtServer");
+      const custom = document.getElementById("mtServerCustom");
+      if (selected && !custom?.value && (!selected.value || selected.value === "__other__"))
+        populateServerList(document.getElementById("mtPlatform")?.value || "MT5");
+    }).catch(() => {}); // Manual entry remains available if the catalog is unavailable.
+  function selectedServer() {
+    const selected = document.getElementById("mtServer")?.value || "";
+    return (selected === "__other__" ? document.getElementById("mtServerCustom")?.value || "" : selected).trim();
+  }
   let busy = false,
     installPrompt = null;
   const nextAnchor = {
@@ -96,7 +115,7 @@
         return postAction(action, {
           platform: document.getElementById("mtPlatform")?.value || "MT5",
           mt_login: (document.getElementById("mtLogin")?.value || "").trim(),
-          mt_server: (document.getElementById("mtServer")?.value || "").trim(),
+          mt_server: selectedServer(),
           mt_password: document.getElementById("mtPassword")?.value || "",
         });
       return postAction(action);
@@ -141,7 +160,8 @@
     const select = document.getElementById("mtServer");
     if (!select) return;
     const previous = select.value;
-    const servers = mtServers[platform] || [];
+    const broker = document.getElementById("mtBroker")?.value || "PU Prime";
+    const servers = broker === "PU Prime" ? mtServers[platform] || [] : platform === "MT5" ? (mtBrokers.find((item) => item.name === broker)?.servers || []) : [];
     select.innerHTML = "";
     const placeholder = document.createElement("option");
     placeholder.value = "";
@@ -153,7 +173,13 @@
       option.textContent = server;
       select.appendChild(option);
     });
-    select.value = servers.includes(previous) ? previous : "";
+    const other = document.createElement("option");
+    other.value = "__other__";
+    other.textContent = "Autre serveur — saisir le nom exact";
+    select.appendChild(other);
+    select.value = servers.includes(previous) ? previous : servers.length ? "" : "__other__";
+    const custom = document.getElementById("mtServerCustom");
+    if (custom) { custom.value = ""; custom.hidden = select.value !== "__other__"; }
     const phoneServer = document.getElementById("phoneServer");
     if (phoneServer && !select.value)
       phoneServer.textContent = "Sélectionne ton serveur";
@@ -167,7 +193,13 @@
       if (phonePlatform) phonePlatform.textContent = this.value;
     });
 
-  ["mtPlatform", "mtLogin", "mtServer"].forEach((id) =>
+  document.getElementById("mtBroker")?.addEventListener("change", () => populateServerList(document.getElementById("mtPlatform")?.value || "MT5"));
+  document.getElementById("mtServer")?.addEventListener("change", () => {
+    const custom = document.getElementById("mtServerCustom");
+    if (custom) custom.hidden = document.getElementById("mtServer").value !== "__other__";
+  });
+
+  ["mtPlatform", "mtLogin", "mtServer", "mtServerCustom"].forEach((id) =>
     document.getElementById(id)?.addEventListener("input", function () {
       const target = document.getElementById(
         id === "mtPlatform"
@@ -178,7 +210,7 @@
       );
       if (target)
         target.textContent =
-          this.value || target.dataset.placeholder || this.placeholder;
+          (id === "mtServer" || id === "mtServerCustom" ? selectedServer() : this.value) || target.dataset.placeholder || this.placeholder;
     }),
   );
 

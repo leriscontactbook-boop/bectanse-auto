@@ -1099,15 +1099,24 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260803">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
+<link rel="stylesheet" href="/static/css/settings-mobile.css?v=20261011-1">
 </head>
-<body class="member-fintech">
+<body data-ui-screen="dashboard" class="product-workspace academy-universe member-fintech">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "dashboard" %}{% include "partials/workspace_rail.html" %}
+
 <script>
-  document.body.classList.add(location.hash === '#section-parametres' ? 'dashboard-view-robot' : 'dashboard-view-profile');
+  document.body.classList.add(['#section-parametres','#risk-settings','#drawdown-settings','#request-history'].includes(location.hash) ? 'dashboard-view-robot' : 'dashboard-view-profile');
 </script>
 {% if demo_mode %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
-  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
-  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
+  <span style="color:#fff;font-size:13px;font-weight:700;"> Mode Essai Gratuit — Tu observes en lecture seule.</span>
+  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO </a>
 </div>
 <div style="height:44px;"></div>
 {% endif %}
@@ -1116,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <!-- ── SIDEBAR ── -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-logo">BECTANSE ACADÉMIE</div>
+      <div class="sidebar-logo">Bectanse Académie</div>
       <div class="sidebar-tagline">Espace Membre</div>
     </div>
 
@@ -1154,58 +1163,60 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <nav class="nav">
       <div class="nav-section">Navigation</div>
-      <a class="nav-item" href="/accueil"><span class="icon">🏠</span> Accueil</a>
+      <a class="nav-item" href="/accueil"><span class="icon"></span> Accueil</a>
       {% if not demo_mode %}<a class="nav-item" href="/demarrage"><span class="icon">◇</span> Démarrage guidé</a>{% endif %}
-      <a class="nav-item" href="#section-profil"><span class="icon">👤</span> Profil</a>
-      <a class="nav-item active" href="#section-parametres"><span class="icon">⚙️</span> Paramètres robot</a>
+      <a class="nav-item" href="#section-profil"><span class="icon"></span> Profil</a>
+      <a class="nav-item active" href="#section-parametres"><span class="icon"></span> Paramètres robot</a>
       <a class="nav-item" href="/vip" style="color:#F59E0B;">
-        <span class="icon">🚀</span> Renouveler / Upgrader
+        <span class="icon"></span> Renouveler / Upgrader
       </a>
       <a class="nav-item" href="/abonnement"><span class="icon">◫</span> Mon abonnement</a>
-      {%- if not demo_mode %}<a class="nav-item" href="https://wa.me/436785328698?text=Bonjour,%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j'ai%20besoin%20d'assistance." target="_blank">
-        <span class="icon">💬</span> Discuter avec un agent
+      {%- if vip_support_href(member) %}<a class="nav-item" href="{{ vip_support_href(member) }}">
+        <span class="icon"></span> Support VIP
       </a>{%- endif %}
-      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span class="icon">🎁</span> Parrainage VIP</a>
-      <a class="nav-item" href="/academie" style="color:#C4B5FD;"><span class="icon">🎓</span> Bectanse Progress</a>
-      <a class="nav-item" href="/trader-lab" style="color:#FF8B58;"><span class="icon">📊</span> Trader Lab</a>
-      <a class="nav-item" href="/calculateur"><span style="font-size:15px">📐</span> Calculateur</a>
+      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span class="icon"></span> Parrainage VIP</a>
+      <a class="nav-item" href="/academie" style="color:#C4B5FD;"><span class="icon"></span> Bectanse Progress</a>
+      <a class="nav-item" href="/trader-lab" style="color:#FF8B58;"><span class="icon"></span> Trader Lab</a>
+      <a class="nav-item" href="/calculateur"><span style="font-size:15px"></span> Calculateur</a>
       <a class="nav-item" href="/faq">
-        <span class="icon">❓</span> FAQ &amp; Guide
+        <span class="icon"></span> FAQ &amp; Guide
       </a>
       <a class="nav-item" href="#historique">
-        <span class="icon">📜</span> Historique
+        <span class="icon"></span> Historique
       </a>
 
       <div class="nav-section">Informations</div>
       <div class="nav-item">
-        <span class="icon">📊</span> Mode actuel :
+        <span class="icon"></span> Mode actuel :
         <strong style="color:var(--gold);font-size:11px;margin-left:4px;">{{ params.mode_risque }}</strong>
       </div>
       <div class="nav-item">
-        <span class="icon">📈</span> Lots : <strong style="color:var(--white);margin-left:4px;">{{ params.lots }}</strong>
+        <span class="icon"></span> Lots : <strong style="color:var(--white);margin-left:4px;">{{ params.lots }}</strong>
       </div>
     </nav>
 
     <div class="sidebar-bottom">
       <div class="status-indicator">
         <span class="status-dot"></span>
-        {% if demo_mode %}Mode observation{% else %}Système actif{% endif %}
+        {% if demo_mode %}Mode observation{% elif copy_pilot_enabled %}Pilote MT5 démo{% elif copy_config_enabled %}Configuration en simulation{% else %}Système actif{% endif %}
       </div>
 
       <div class="copy-toggle-wrap">
-      {% if demo_mode %}<button onclick="window.location='/vip'" style="background:#555;opacity:0.9;cursor:pointer;border:none;padding:10px 20px;border-radius:20px;color:#fff;font-weight:700;">🔒 Débloquer l’accès</button>{% else %}<button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
+      {% if demo_mode %}<button onclick="window.location='/vip'" style="background:#555;opacity:0.9;cursor:pointer;border:none;padding:10px 20px;border-radius:20px;color:#fff;font-weight:700;"> Débloquer l’accès</button>{% else %}<button class="copy-toggle-btn {% if copy_actif %}actif{% else %}inactif{% endif %}"
               id="copyToggleBtn" onclick="showCopyConfirm()">
         <div class="copy-dot {% if copy_actif %}actif{% else %}inactif{% endif %}"></div>
         <span class="copy-status-label">
-          {% if copy_actif %}Copy Trading Actif{% else %}Copy Trading Inactif{% endif %}
+          {% if copy_pilot_enabled %}Demander activation / pause démo{% elif copy_config_enabled %}Tester activation / pause{% elif copy_actif %}Copy Trading Actif{% else %}Copy Trading Inactif{% endif %}
         </span>
-        <span class="copy-arrow">⏯</span>
+        <span class="copy-arrow"></span>
       </button>{% endif %}
       <div class="copy-confirm" id="copyConfirm">
-        {% if copy_actif %}
-          ⚠️ Désactiver le copy trading ?<br>Les trades auto s'arrêteront.
+        {% if copy_config_enabled %}
+          {% if copy_pilot_enabled %}Modifier la copie sur le compte démo ? La pause conserve la gestion des positions déjà copiées.{% else %}Modifier la demande d’activation en simulation ? Aucun ordre ne sera envoyé.{% endif %}
+        {% elif copy_actif %}
+           Désactiver le copy trading ?<br>Les trades auto s'arrêteront.
         {% else %}
-          ▶️ Réactiver le copy trading ?
+           Réactiver le copy trading ?
         {% endif %}
         <div class="copy-confirm-btns">
           <button class="copy-confirm-yes" onclick="toggleCopy()">Confirmer</button>
@@ -1215,26 +1226,27 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
       <a class="logout-btn" href="/logout">
-        <span>🚪</span> Déconnexion
+        <span></span> Déconnexion
       </a>
     </div>
   </aside>
 
   <!-- ── MAIN ── -->
   <main class="main">
+<nav class="settings-index" aria-label="Sections des paramètres"><a href="#section-profil">Mon profil</a><a href="#section-parametres">Bectanse Auto</a><a class="robot-section" href="#risk-settings">Risque</a><a class="robot-section" href="#drawdown-settings">Protections</a><a class="robot-section" href="#request-history">Historique</a></nav>
 
     <div class="topbar robot-section" id="section-parametres">
       <div>
         <div class="topbar-title">Paramètres de risque</div>
-        <div class="topbar-sub">Toutes les modifications seront envoyées à l'équipe Bectanse pour application.</div>
+        <div class="topbar-sub">{% if copy_pilot_enabled %}Pilote sur compte MT5 démo uniquement. La pause bloque les nouvelles entrées.{% elif copy_config_enabled %}Tes réglages sont transmis au validateur en simulation. Aucun ordre envoyé.{% else %}Toutes les modifications seront envoyées à l'équipe Bectanse pour application.{% endif %}</div>
       </div>
       {% if demo_mode %}
 <button class="save-btn" onclick="window.location='/vip'" style="opacity:0.7;background:#555;cursor:pointer;">
-  🔒 Découvrir l’accès membre →
+   Découvrir l’accès membre 
 </button>
 {% else %}
 <button class="save-btn" onclick="saveParams()" id="saveBtn">
-        Envoyer la demande →
+        {% if copy_pilot_enabled %}Enregistrer pour le compte démo {% elif copy_config_enabled %}Enregistrer en simulation {% else %}Envoyer la demande {% endif %}
       </button>
 {% endif %}
     </div>
@@ -1243,10 +1255,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
       {% if afficher_notif %}
-      {% set notif_icons = {'alerte': '🚨', 'message': '📢', 'resultat': '📈', 'maintenance': '🔧', 'individuelle': '💬'} %}
+      {% set notif_icons = {'alerte': '', 'message': '', 'resultat': '', 'maintenance': '', 'individuelle': ''} %}
       {% set notif_labels = {'alerte': 'Alerte Trading', 'message': 'Message Équipe', 'resultat': 'Performance', 'maintenance': 'Maintenance', 'individuelle': 'Message Personnel'} %}
       <div class="notif-banner notif-{{ notif_type }}" id="notif-banner">
-        <div class="notif-icon">{{ notif_icons.get(notif_type, '📢') }}</div>
+        <div class="notif-icon">{{ notif_icons.get(notif_type, '') }}</div>
         <div class="notif-body">
           <div class="notif-label">{{ notif_labels.get(notif_type, 'Notification') }}</div>
           <div class="notif-text">{{ notif_message }}</div>
@@ -1259,21 +1271,21 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="alerte-banner" id="alerte-banner">
         <div class="alerte-text" style="flex:1">
           <div class="alerte-title">
-            {% if jours_restants == 0 %}🚨 Ton abonnement expire aujourd'hui !
-            {% elif jours_restants == 1 %}🔴 Ton abonnement expire demain !
-            {% elif jours_restants <= 3 %}⚠️ Ton abonnement expire dans {{ jours_restants }} jours
-            {% else %}⚠️ Ton abonnement expire dans {{ jours_restants }} jours
+            {% if jours_restants == 0 %} Ton abonnement expire aujourd'hui !
+            {% elif jours_restants == 1 %} Ton abonnement expire demain !
+            {% elif jours_restants <= 3 %} Ton abonnement expire dans {{ jours_restants }} jours
+            {% else %} Ton abonnement expire dans {{ jours_restants }} jours
             {% endif %}
           </div>
           <div class="alerte-desc" style="margin-bottom:12px">
             Renouvelle maintenant pour continuer à bénéficier du copy trading automatique.
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <a href="/vip" class="alerte-btn" style="font-size:11px;padding:7px 14px">Découvrir les offres et le système →</a>
+            <a href="/vip" class="alerte-btn" style="font-size:11px;padding:7px 14px">Découvrir les offres et le système </a>
           </div>
         </div>
         {% if jours_restants > 3 %}
-        <button class="alerte-close" onclick="fermerAlerte()" title="Fermer">✕</button>
+        <button class="alerte-close" onclick="fermerAlerte()" title="Fermer"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M6 18L18 6"/></svg></button>
         {% endif %}
       </div>
       {% endif %}
@@ -1287,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <div class="robot-guide-content">
           <span class="robot-guide-kicker">Guide officiel Bectanse AUTO</span>
-          <h2 id="robot-guide-title">Lis le guide avant de modifier tes réglages.</h2>
+          <h2 id="robot-guide-title">Lis le guide avant de modifier tes réglages</h2>
           <p>En cinq minutes, comprends les modes de risque, les lots, le drawdown, les objectifs, le filtre économique et le suivi des demandes.</p>
           <div class="robot-guide-points" aria-label="Sujets abordés"><span>Modes de risque</span><span>Protections</span><span>Copy ON / OFF</span><span>Historique</span></div>
           <div class="robot-guide-actions">
@@ -1302,39 +1314,39 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- ── PROFIL & COMPTE MT ── -->
       <div class="section-card profile-section" id="section-profil">
         <div class="section-header">
-          <div class="section-icon">👤</div>
+          <div class="section-icon"></div>
           <div>
-            <div class="section-title">Profil & paramètres compte</div>
+            <div class="section-title">Ton profil</div>
             <div class="section-desc">Garde tes informations à jour pour que tout le système reste synchronisé</div>
           </div>
         </div>
         <div class="section-body">
           <div class="field-row cols-2">
             <div class="field">
-              <label>Nom</label>
+              <label for="profil_nom">Nom</label>
               <input type="text" id="profil_nom" value="{{ member.nom or '' }}">
             </div>
             <div class="field">
-              <label>Email</label>
+              <label for="profil_email">Email</label>
               <input type="email" id="profil_email" value="{{ member.email or '' }}">
             </div>
             <div class="field">
-              <label>Téléphone</label>
+              <label for="profil_telephone">Téléphone</label>
               <input type="text" id="profil_telephone" value="{{ member.telephone or '' }}">
             </div>
             <div class="field">
-              <label>Telegram</label>
+              <label for="profil_telegram">Telegram</label>
               <input type="text" id="profil_telegram" value="{{ member.telegram or '' }}">
             </div>
             <div class="field">
-              <label>Capital déclaré</label>
+              <label for="profil_capital">Capital déclaré</label>
               <input type="text" id="profil_capital" value="{{ member.capital or '' }}">
             </div>
           </div>
 
           <div class="field-row cols-2" style="margin-top:10px">
             <div class="field">
-              <label>Plateforme</label>
+              <label for="profil_plateforme">Plateforme</label>
               <select id="profil_plateforme">
                 {% set plateforme = (params.plateforme or 'MT4') %}
                 <option value="MT4" {% if plateforme == 'MT4' %}selected{% endif %}>MT4</option>
@@ -1343,39 +1355,56 @@ document.addEventListener('DOMContentLoaded', function() {
               </select>
             </div>
             <div class="field">
-              <label>Login MT</label>
+              <label for="profil_mt_login">Login MT</label>
               <input type="text" id="profil_mt_login" value="{{ params.get('mt_login', '') }}">
             </div>
             <div class="field">
-              <label>Serveur MT</label>
+              <label for="profil_mt_server">Serveur MT</label>
               <input type="text" id="profil_mt_server" value="{{ params.get('serveur', '') }}">
             </div>
             <div class="field">
-              <label>Nouveau mot de passe MT</label>
-              <input type="password" id="profil_mt_password" autocomplete="new-password" placeholder="Laisser vide pour ne pas changer">
+              <label for="profil_mt_password">Nouveau mot de passe MT</label>
+              <input type="password" id="profil_mt_password" autocomplete="new-password" placeholder="Facultatif" aria-describedby="mt-password-help"><p id="mt-password-help" class="field-hint">Laisse ce champ vide pour conserver ton mot de passe actuel</p>
             </div>
           </div>
 
           <button class="save-btn" onclick="saveProfil()" id="saveProfilBtn" style="margin-top:14px">
-            💾 Enregistrer le profil
+             Enregistrer le profil
           </button>
         </div>
       </div>
 
 
       <!-- ── MODE DE RISQUE ── -->
+      {% if copy_config_enabled and not demo_mode %}
+      <script src="{{ url_for('static', filename='copy-configuration.js', v='member-privacy-20261019') }}" defer></script>
+      <div class="section-card robot-section">
+        <div class="section-body">
+          <div class="section-title">Compte destinataire · {% if copy_pilot_enabled %}Pilote démo{% else %}Simulation{% endif %}</div>
+          <p class="section-desc" style="margin:10px 0 16px;line-height:1.5;">{% if copy_pilot_enabled %}Les paramètres sont destinés au compte démo autorisé pour ce pilote. Les comptes réels sont refusés.{% else %}Choisis un compte connecté au journal. Cette étape valide tes réglages ; elle n’active pas la copie de trades.{% endif %}</p>
+          {% if copy_pilot_enabled %}<p class="section-desc" style="margin-bottom:16px;line-height:1.5;">Ce pilote accepte les lots fixes ou par symbole, avec copie du SL obligatoire. Désactive les ordres en attente, l’inversion, le forçage du lot minimum, les objectifs, le drawdown et le filtre news : ces options bloquent les nouvelles copies.</p>{% endif %}
+          <div class="field">
+            <label for="copy-account-id">Compte MT5 destinataire</label>
+            <select id="copy-account-id" disabled><option value="">Chargement…</option></select>
+          </div>
+          <p id="copy-configuration-status" role="status" aria-live="polite" style="margin:12px 0;line-height:1.5;">Chargement du statut…</p>
+          <div id="copy-pilot-runtime" role="status" style="margin:12px 0;line-height:1.5;"></div>
+          <a href="/journal" style="color:#fb923c;">Connecter un compte au journal</a>
+        </div>
+      </div>
+      {% endif %}
       <div class="section-card robot-section">
         <div class="section-header">
-          <div class="section-icon">⚙️</div>
+          <div class="section-icon"></div>
           <div>
-            <div class="section-title">Mode de risque</div>
+            <h2 class="section-title" id="risk-settings">Mode de risque</h2>
             <div class="section-desc">Comment le système calcule la taille de tes positions</div>
           </div>
         </div>
         <div class="section-body">
           <div class="field-row cols-1">
             <div class="field">
-              <label>Mode de calcul du risque</label>
+              <label for="mode_risque">Mode de calcul du risque</label>
               <select name="mode_risque" id="mode_risque">
                 {% set modes = ["Lots fixes","Lot par symbole","Copier les lots de l'envoyeur","Risque par solde (Balance)","Risque par capitaux (Equity)","Risque en %"] %}
                 {% for m in modes %}
@@ -1386,15 +1415,15 @@ document.addEventListener('DOMContentLoaded', function() {
           <!-- PANNEAUX CONTEXTUELS SELON MODE -->
           <div id="panel-risque-pct" style="display:none;margin-top:14px;">
             <div class="field">
-              <label>Risque en %</label>
+              <label for="risque_pct">Risque en %</label>
               <input type="number" name="risque_pct" id="risque_pct" value="{{ params.get('risque_pct', 1) }}" min="0.01" max="100" step="0.01">
-              <div class="field-help">Risquez un pourcentage fixe de votre solde sur chaque trade</div>
+              <div class="field-help">Calcule le volume depuis le solde et la perte au Stop Loss ; un SL valide est nécessaire</div>
             </div>
           </div>
 
           <div id="panel-multiplicateur" style="display:none;margin-top:14px;">
             <div class="field">
-              <label>Multiplicateur</label>
+              <label for="multiplicateur">Multiplicateur</label>
               <input type="number" name="multiplicateur" id="multiplicateur" value="{{ params.get('multiplicateur', 1) }}" min="0.01" step="0.01">
               <div class="field-help">Copie exactement la même taille de lot que l'émetteur, multipliée par ce facteur</div>
             </div>
@@ -1402,17 +1431,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
           <div id="panel-risque-balance" style="display:none;margin-top:14px;">
             <div class="field">
-              <label>Risque par Balance (%)</label>
+              <label for="risque_balance_pct">Risque par Balance (%)</label>
               <input type="number" name="risque_balance_pct" id="risque_balance_pct" value="{{ params.get('risque_balance_pct', 1) }}" min="0.01" max="100" step="0.01">
-              <div class="field-help">Calcule le lot en % du solde de votre compte à chaque trade</div>
+              <div class="field-help">Calcule le volume depuis le solde et la perte au Stop Loss ; un SL valide est nécessaire</div>
             </div>
           </div>
 
           <div id="panel-risque-equity" style="display:none;margin-top:14px;">
             <div class="field">
-              <label>Risque par Equity (%)</label>
+              <label for="risque_equity_pct">Risque par Equity (%)</label>
               <input type="number" name="risque_equity_pct" id="risque_equity_pct" value="{{ params.get('risque_equity_pct', 1) }}" min="0.01" max="100" step="0.01">
-              <div class="field-help">Calcule le lot en % des capitaux propres à chaque trade</div>
+              <div class="field-help">Calcule le volume depuis les capitaux propres et la perte au Stop Loss ; un SL valide est nécessaire</div>
             </div>
           </div>
 
@@ -1422,25 +1451,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
           <div id="panel-lot-symbole" style="display:none; margin-top:14px;">
             <div class="field">
-              <label>Symboles (séparés par des virgules)</label>
+              <label for="lot_symbole_liste">Symboles (séparés par des virgules)</label>
               <input type="text" name="lot_symbole_liste" id="lot_symbole_liste" placeholder="Ex: XAUUSD, EURUSD, GBPUSD" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.25);border-radius:8px;padding:10px 12px;font-size:14px;color:#fff;width:100%;outline:none;">
               <div class="field-help">Indique les symboles sur lesquels appliquer ce lot</div>
-            </div
+            </div>
             </div>
           </div>
           <div class="field-row cols-3" id="lots-section">
             <div class="field">
-              <label>Lots</label>
+              <label for="lots">Lots</label>
               <input type="number" name="lots" id="lots" value="{{ params.lots }}" min="0.01" max="100" step="0.01">
               <div class="field-help">Taille de lot par trade</div>
             </div>
             <div class="field">
-              <label>Lots maximaux</label>
+              <label for="lots_max">Lots maximaux</label>
               <input type="number" name="lots_max" id="lots_max" value="{{ params.lots_max }}" min="1" max="1000" step="1">
               <div class="field-help">Plafond absolu</div>
             </div>
             <div class="field">
-              <label>Slippage</label>
+              <label for="slippage">Slippage</label>
               <input type="number" name="slippage" id="slippage" value="{{ params.slippage }}" min="0" max="1000" step="1">
               <div class="field-help">Standard : 100</div>
             </div>
@@ -1450,23 +1479,23 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="lot-symbole-panel" id="lot-symbole-panel">
             <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
               <div style="flex:1;min-width:200px;">
-                <input type="text" class="lot-symbole-search" id="sym-search" placeholder="🔍 Rechercher un symbole..." oninput="filterSymbols(this.value)">
+                <input type="text" class="lot-symbole-search" id="sym-search" placeholder=" Rechercher un symbole..." oninput="filterSymbols(this.value)">
               </div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <div class="field" style="margin:0;min-width:100px;">
-                  <label style="font-size:9px;">FOREX LOTS</label>
+                  <label style="font-size:9px;">Forex lots</label>
                   <input type="number" id="bulk-forex" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
                 </div>
                 <div class="field" style="margin:0;min-width:100px;">
-                  <label style="font-size:9px;">MATIÈRES PREMIÈRES</label>
+                  <label style="font-size:9px;">Matières premières</label>
                   <input type="number" id="bulk-commo" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
                 </div>
                 <div class="field" style="margin:0;min-width:100px;">
-                  <label style="font-size:9px;">INDICES</label>
+                  <label style="font-size:9px;">Indices</label>
                   <input type="number" id="bulk-index" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
                 </div>
                 <div class="field" style="margin:0;min-width:100px;">
-                  <label style="font-size:9px;">CRYPTO LOTS</label>
+                  <label style="font-size:9px;">Crypto lots</label>
                   <input type="number" id="bulk-crypto" value="0.01" min="0.01" step="0.01" style="background:rgba(255,255,255,0.04);border:1px solid rgba(91,33,182,0.2);border-radius:6px;padding:6px 8px;color:#fff;font-size:12px;width:80px;outline:none;text-align:center;">
                 </div>
                 <button class="lot-symbole-apply" onclick="applyBulk()">Appliquer</button>
@@ -1483,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- ── OPTIONS ── -->
       <div class="section-card robot-section">
         <div class="section-header">
-          <div class="section-icon">🔧</div>
+          <div class="section-icon"></div>
           <div>
             <div class="section-title">Options</div>
             <div class="section-desc">Comportement du copy trading</div>
@@ -1492,16 +1521,12 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="section-body">
           <div class="toggle-grid">
 
-            <div class="field-help" role="status" style="grid-column:1/-1;color:#fca5a5;">
-              Les protections sont évaluées sur des relevés natifs MT5 persistés : drawdown et plafond de gain sur l’equity (PnL latent inclus), objectifs périodiques sur la balance (PnL réalisé). Un seuil atteint suspend les nouvelles copies et lance la clôture des positions liées après vérification native. Une incertitude conserve la suspension.
-            </div>
-
             <label class="toggle-row">
               <div class="toggle-info">
                 <div class="toggle-label" style="display:flex;align-items:center;">
                 Forcer le lot minimum si applicable
                 <span class="info-btn" tabindex="0">i
-                  <span class="tooltip-box">Si le lot calculé par le système est inférieur au lot minimum autorisé par ton broker, cette option force l'utilisation du lot minimum. Utile pour les petits capitaux.</span>
+                  <span class="tooltip-box">Si le lot calculé par le système est inférieur au lot minimum autorisé par ton broker, cette option force l'utilisation du lot minimum. Utile pour les petits capitaux</span>
                 </span>
               </div>
                 <div class="toggle-desc">Utilise le lot minimum du broker si le lot calculé est inférieur</div>
@@ -1517,10 +1542,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="toggle-label" style="display:flex;align-items:center;">
                 Inverser les trades
                 <span class="info-btn" tabindex="0">i
-                  <span class="tooltip-box">Au lieu de copier le trade dans le même sens que l'émetteur, le système fait l'inverse. Ex : si l'émetteur achète, toi tu vends. Réservé aux traders expérimentés.</span>
+                  <span class="tooltip-box">Au lieu de copier le trade dans le même sens que l'émetteur, le système fait l'inverse. Ex : si l'émetteur achète, toi tu vends. Réservé aux traders expérimentés</span>
                 </span>
               </div>
-                <div class="toggle-desc">Ouvre la position opposée à celle de l'émetteur</div>
+                <div class="toggle-desc">Ouvre la position opposée ; les niveaux SL et TP échangent leur rôle</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="inverser_trades" id="inverser_trades" {% if params.inverser_trades %}checked{% endif %}>
@@ -1528,21 +1553,34 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             </label>
 
-            <div class="field-help" role="status" style="grid-column:1/-1;">
-              Les créations, modifications, annulations et expirations sont suivies par ticket maître et confirmées par relecture native MT5. Une conversion en ordre au marché reste désactivée.
-            </div>
             <label class="toggle-row">
               <div class="toggle-info">
                 <div class="toggle-label" style="display:flex;align-items:center;">
                 Copier les ordres en attente
                 <span class="info-btn" tabindex="0">i
-                  <span class="tooltip-box">Copie aussi les ordres en attente (Limit, Stop) et pas seulement les ordres exécutés immédiatement. Recommandé : activé pour ne manquer aucun signal.</span>
+                  <span class="tooltip-box">Copie aussi les ordres en attente (Limit, Stop) et pas seulement les ordres exécutés immédiatement. Recommandé : activé pour ne manquer aucun signal</span>
                 </span>
               </div>
-                <div class="toggle-desc">Copie et réconcilie les ordres stop/limit selon les préférences de ce compte</div>
+                <div class="toggle-desc">Copie aussi les pending orders (stop, limit) pas seulement les trades au marché</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="copier_ordres_en_attente" id="copier_ordres_en_attente" {% if params.copier_ordres_en_attente %}checked{% endif %}>
+                <span class="toggle-track"></span>
+              </div>
+            </label>
+
+            <label class="toggle-row" id="row_convertir" style="{% if not params.copier_ordres_en_attente %}opacity:0.4;pointer-events:none{% endif %}">
+              <div class="toggle-info">
+                <div class="toggle-label" style="display:flex;align-items:center;">
+                Convertir en ordre au marché si le pending est invalide
+                <span class="info-btn" tabindex="0">i
+                  <span class="tooltip-box">Convertit avant envoi un ordre en attente dont le prix ou les stops sont refusés. Aucune conversion après un envoi au résultat incertain.</span>
+                </span>
+              </div>
+                <div class="toggle-desc">Si un pending order ne peut pas être placé, le convertit en ordre au marché</div>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" name="convertir_pending_invalide" id="convertir_pending_invalide" {% if params.convertir_pending_invalide %}checked{% endif %}>
                 <span class="toggle-track"></span>
               </div>
             </label>
@@ -1552,7 +1590,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="toggle-label" style="display:flex;align-items:center;">
                 Copier le Stop Loss (SL)
                 <span class="info-btn" tabindex="0">i
-                  <span class="tooltip-box">Reproduit exactement le Stop Loss de l'émetteur sur ton compte. Fortement recommandé pour protéger ton capital en cas de mauvais trade.</span>
+                  <span class="tooltip-box">Reproduit exactement le Stop Loss de l'émetteur sur ton compte. Fortement recommandé pour protéger ton capital en cas de mauvais trade</span>
                 </span>
               </div>
                 <div class="toggle-desc">Reproduit exactement le stop loss de l'émetteur sur ton compte</div>
@@ -1570,10 +1608,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- ── DRAWDOWN ── -->
       <div class="section-card robot-section">
         <div class="section-header">
-          <div class="section-icon">🛡️</div>
+          <div class="section-icon"></div>
           <div>
-            <div class="section-title">Protection du drawdown de la balance</div>
-            <div class="section-desc">Fermeture automatique de tous les trades si un seuil est dépassé</div>
+            <h2 class="section-title" id="drawdown-settings">Protection du drawdown de la balance</h2>
+            <div class="section-desc">Ferme les positions copiées par Bectanse au seuil de gain ou de perte flottante du compte</div>
           </div>
         </div>
         <div class="section-body">
@@ -1581,8 +1619,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Protection drawdown sur perte</div>
-                <div class="toggle-desc">Compare l’equity au plus haut equity natif observé; ferme les positions copiées et suspend après confirmation du seuil.</div>
+                <div class="toggle-label">Fermer les copies Bectanse si la perte flottante atteint</div>
+                <div class="toggle-desc">Protection automatique en cas de perte excessive</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="drawdown_actif" id="drawdown_actif"
@@ -1594,17 +1632,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <div class="dd-panel {% if params.drawdown_actif %}visible{% endif %}" id="dd_perte_panel">
               <div class="field">
-                <label>Seuil de drawdown perte (%)</label>
+                <label for="drawdown_pct">Seuil de drawdown perte (%)</label>
                 <input type="number" name="drawdown_pct" id="drawdown_pct"
                   value="{{ params.drawdown_pct }}" min="0.1" max="100" step="0.1">
-                <div class="field-help">Ex. 5 = seuil de baisse de 5 % depuis le plus haut equity observé (balance + résultat latent).</div>
+                <div class="field-help">Ex : 5 = ferme les copies Bectanse à 5 % de perte flottante du solde</div>
               </div>
             </div>
 
             <label class="toggle-row">
               <div class="toggle-info">
-                <div class="toggle-label">Plafond de gain sur equity</div>
-                <div class="toggle-desc">Ferme les positions copiées et suspend lorsque le gain d’equity atteint le seuil.</div>
+                <div class="toggle-label">Fermer les copies Bectanse si le gain flottant atteint</div>
+                <div class="toggle-desc">Sécurise automatiquement les gains atteints</div>
               </div>
               <div class="toggle-switch">
                 <input type="checkbox" name="drawdown_gain_actif" id="drawdown_gain_actif"
@@ -1616,10 +1654,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <div class="dd-panel {% if params.drawdown_gain_actif %}visible{% endif %}" id="dd_gain_panel">
               <div class="field">
-                <label>Seuil de gain maximum (%)</label>
+                <label for="drawdown_gain_pct">Seuil de gain maximum (%)</label>
                 <input type="number" name="drawdown_gain_pct" id="drawdown_gain_pct"
                   value="{{ params.drawdown_gain_pct }}" min="0.1" max="10000" step="0.1">
-                <div class="field-help">Comparé à l’equity native au premier relevé après activation; suspension persistante jusqu’à reprise explicite.</div>
+                <div class="field-help">Ex : 5 = ferme les copies Bectanse à 5 % de gain flottant du solde</div>
               </div>
             </div>
 
@@ -1630,10 +1668,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- ── OBJECTIF ARRÊT ── -->
       <div class="section-card robot-section">
         <div class="section-header">
-          <div class="section-icon">🎯</div>
+          <div class="section-icon"></div>
           <div>
-            <div class="section-title">Objectifs de gain/perte</div>
-            <div class="section-desc">Évalués sur la balance native, par jour, semaine ou mois UTC; l’objectif atteint suspend jusqu’au début de la période suivante.</div>
+            <div class="section-title">Objectif d'arrêt de trading</div>
+            <div class="section-desc">Suspend les nouvelles entrées au seuil de gain ou de perte de la période ; les positions restent gérées</div>
           </div>
         </div>
         <div class="section-body">
@@ -1641,7 +1679,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <label class="toggle-row" style="margin-bottom:14px;">
             <div class="toggle-info">
               <div class="toggle-label">Arrêter le trading si l'objectif de gain/perte est atteint</div>
-              <div class="toggle-desc">Les nouvelles copies sont suspendues et les positions liées sont clôturées après confirmation MT5.</div>
+              <div class="toggle-desc">Se réinitialise automatiquement au début de chaque nouvelle période</div>
             </div>
             <div class="toggle-switch">
               <input type="checkbox" name="objectif_actif" id="objectif_actif"
@@ -1666,13 +1704,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <div class="field-row cols-2">
               <div class="field">
-                <label>Objectif de gain (%)</label>
+                <label for="objectif_gain_pct">Objectif de gain (%)</label>
                 <input type="number" name="objectif_gain_pct" id="objectif_gain_pct"
                   value="{{ params.objectif_gain_pct }}" min="0.1" max="10000" step="0.1">
                 <div class="field-help">Le robot s'arrête quand ce gain est atteint</div>
               </div>
               <div class="field">
-                <label>Seuil de perte (%)</label>
+                <label for="objectif_perte_pct">Seuil de perte (%)</label>
                 <input type="number" name="objectif_perte_pct" id="objectif_perte_pct"
                   value="{{ params.objectif_perte_pct }}" min="0.1" max="100" step="0.1">
                 <div class="field-help">Le robot s'arrête si cette perte est atteinte</div>
@@ -1686,51 +1724,23 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- ── FILTRE NEWS ── -->
       <div class="section-card robot-section">
         <div class="section-header">
-          <div class="section-icon">📅</div>
+          <div class="section-icon"></div>
           <div>
             <div class="section-title">Filtre du calendrier économique</div>
             <div class="section-desc">Pause automatique pendant les annonces macro à fort impact</div>
           </div>
         </div>
         <div class="section-body">
-          <div class="field-help" role="status" style="margin-bottom:12px;">
-            Le flux Trading Economics est synchronisé en UTC. Le filtre bloque par défaut si le fournisseur est absent, périmé ou indisponible; toute politique de panne permissive doit être explicitement configurée côté serveur.
-          </div>
           <label class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Filtre du calendrier économique</div>
-              <div class="toggle-desc">Les événements configurés bloquent les nouvelles ouvertures et modifications pendant la fenêtre définie.</div>
+              <div class="toggle-label">Utiliser le filtre du calendrier économique</div>
+              <div class="toggle-desc">Suspend les nouvelles entrées 15 minutes avant et après chaque annonce à fort impact ; les positions restent gérées</div>
             </div>
             <div class="toggle-switch">
               <input type="checkbox" name="filtre_news" id="filtre_news" {% if params.filtre_news %}checked{% endif %}>
               <span class="toggle-track"></span>
             </div>
           </label>
-            <div class="field-row cols-2" style="margin-top:12px;">
-              <div class="field">
-                <label>Devises à surveiller</label>
-                <input type="text" id="calendar_currencies" value="{{ params.calendar_currencies or '' }}"
-                       placeholder="USD,EUR — vide = toutes les devises">
-                <div class="field-help">Liste de devises séparées par des virgules. Une devise vide dans la source n’est pas considérée comme une correspondance ciblée.</div>
-              </div>
-              <div class="field">
-                <label>Importance minimale (1 faible, 3 élevée)</label>
-                <input type="number" id="calendar_min_importance" value="{{ params.calendar_min_importance|default(2) }}" min="1" max="3" step="1">
-              </div>
-              <div class="field">
-                <label>Marge avant l’événement (minutes)</label>
-                <input type="number" id="calendar_minutes_before" value="{{ params.calendar_minutes_before|default(30) }}" min="0" max="360" step="1">
-              </div>
-              <div class="field">
-                <label>Marge après l’événement (minutes)</label>
-                <input type="number" id="calendar_minutes_after" value="{{ params.calendar_minutes_after|default(30) }}" min="0" max="360" step="1">
-              </div>
-              <div class="field">
-                <label>Fuseau horaire d’affichage</label>
-                <input type="text" id="calendar_timezone" value="{{ params.calendar_timezone or 'Europe/Paris' }}" maxlength="64" placeholder="Europe/Paris">
-                <div class="field-help">L’instant de référence reste UTC; les règles IANA appliquent les changements d’heure été/hiver à l’affichage.</div>
-              </div>
-            </div>
         </div>
       </div>
 
@@ -1738,64 +1748,41 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- ── COPY TRADING MOBILE ── -->
       <div class="param-section robot-section" id="copy-section" style="margin-bottom:16px;">
         <div class="section-header-row">
-          <div class="section-icon-wrap" style="background:rgba(91,33,182,0.15);">⏯️</div>
+          <div class="section-icon-wrap" style="background:rgba(91,33,182,0.15);"></div>
           <div>
-            <div class="section-title">COPY TRADING</div>
-            <div class="section-desc">Active ou désactive le copy trading sur ton compte</div>
+            <div class="section-title">Copy trading</div>
+            <div class="section-desc">{% if copy_pilot_enabled %}Demande une activation ou une pause sur le compte démo{% elif copy_config_enabled %}Teste la demande d’activation ou de pause{% else %}Active ou désactive le copy trading sur ton compte{% endif %}</div>
           </div>
         </div>
-        <div style="padding:16px;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.02);border-radius:12px;margin-top:12px;border:1px solid rgba(255,255,255,0.06);">
+        <div class="copy-status-panel" style="padding:16px;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.02);border-radius:12px;margin-top:12px;border:1px solid rgba(255,255,255,0.06);">
           <div>
             <div style="font-size:14px;font-weight:600;color:#fff;">Statut actuel</div>
             <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">
-              {% if copy_actif %}Tes trades sont copiés automatiquement{% else %}Le copy trading est en pause{% endif %}
+              {% if copy_pilot_enabled %}Pilote démo · voir le statut confirmé du moteur ci-dessus{% elif copy_config_enabled %}Simulation uniquement · aucun ordre envoyé{% elif copy_actif %}Tes trades sont copiés automatiquement{% else %}Le copy trading est en pause{% endif %}
             </div>
           </div>
           <button onclick="{% if demo_mode %}window.location='/vip'{% else %}showCopyConfirm(){% endif %}"
             class="copy-content-btn {% if copy_actif and not demo_mode %}copy-on{% else %}copy-off{% endif %}">
             <span class="copy-content-dot"></span>
-            {% if demo_mode %}🔒 Débloquer{% elif copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
+            {% if demo_mode %} Débloquer{% elif copy_pilot_enabled %}Activation / pause démo{% elif copy_config_enabled %}Tester activation / pause{% elif copy_actif %}Copy ON{% else %}Copy OFF{% endif %}
           </button>
         </div>
       </div>
 
-      <section class="param-section robot-section" id="copy-consent-panel" style="margin-bottom:16px;padding:18px;border:1px solid rgba(155,220,245,.22);border-radius:14px;">
-        <div class="section-title">Autorisation du copy trading</div>
-        <p style="color:rgba(255,255,255,.72);line-height:1.6;margin:10px 0;">
-          La copie automatique peut transmettre des ordres d’ouverture, d’ajustement de protection et de clôture du compte maître au compte MT5 associé à ce profil. Le volume suit le mode de risque et les limites enregistrés dans tes paramètres Académie. Les ordres restent soumis à l’état du terminal, au courtier, au contrôle MT5 et au délai de fraîcheur de 120 secondes. Une incertitude après envoi bloque les nouvelles opérations de ce compte jusqu’à vérification.
-        </p>
-        <p style="color:rgba(255,255,255,.58);line-height:1.5;margin:8px 0 14px;">
-          Le trading comporte un risque de perte. Tu peux mettre la copie en pause depuis le bouton Copy ON/OFF ou retirer cette autorisation à tout moment. L’activation ne garantit ni disponibilité du VPS ni exécution par le courtier.
-        </p>
-        {% if copy_trading_consent_version %}
-          <label style="display:flex;gap:10px;align-items:flex-start;color:#fff;line-height:1.5;">
-            <input id="copyConsentCheckbox" type="checkbox" style="margin-top:4px;">
-            <span>J’ai lu ces informations et j’accepte la version <strong>{{ copy_trading_consent_version }}</strong>. Je demande l’activation de la copie pour mon compte configuré.</span>
-          </label>
-          <button id="copyConsentAcceptButton" type="button" onclick="acceptCopyTradingConsent()" style="margin-top:12px;padding:11px 16px;border:0;border-radius:9px;background:#9bdcf5;color:#061018;font-weight:700;cursor:pointer;">Accepter et autoriser</button>
-        {% else %}
-          <p style="color:#fbbf24;margin:0;">Les conditions de consentement ne sont pas encore publiées. L’activation reste indisponible.</p>
-        {% endif %}
-        <button type="button" onclick="revokeCopyTradingConsent()" style="margin:12px 0 0 8px;padding:10px 14px;border:1px solid rgba(255,255,255,.25);border-radius:9px;background:transparent;color:#fff;cursor:pointer;">Retirer mon autorisation</button>
-        <div id="copyConsentStatus" role="status" aria-live="polite" style="margin-top:10px;color:rgba(255,255,255,.7);"></div>
-        <div id="copyRuntimeStatus" role="status" aria-live="polite" style="margin-top:8px;color:rgba(255,255,255,.7);"></div>
-        <button id="copyProtectionResume" type="button" style="display:none;margin-top:10px;" onclick="requestCopyProtectionResume()">Demander la reprise après réconciliation MT5</button>
-      </section>
-
 
       <!-- BOUTON ENVOYER MOBILE DANS LE CONTENT -->
       <div class="mobile-envoyer-wrap robot-section">
-        {% if demo_mode %}<button onclick="window.location='/vip'" style="width:100%;padding:18px;background:#1a1a1a;border:2px solid #555;border-radius:14px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">🔒 Découvrir l’accès membre →</button>{% else %}<button class="mobile-envoyer-btn" onclick="saveParams()">
-          ENVOYER LA DEMANDE →
+        {% if demo_mode %}<button onclick="window.location='/vip'" style="width:100%;padding:18px;background:#1a1a1a;border:2px solid #555;border-radius:14px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;"> Découvrir l’accès membre </button>{% else %}<button class="mobile-envoyer-btn" onclick="saveParams()">
+          {% if copy_pilot_enabled %}ENREGISTRER POUR LE COMPTE DÉMO {% elif copy_config_enabled %}ENREGISTRER EN SIMULATION {% else %}ENVOYER LA DEMANDE {% endif %}
         </button>{% endif %}
       </div>
 
 <!-- ── HISTORIQUE ── -->
       <div class="section-card robot-section" id="historique">
         <div class="section-header">
-          <div class="section-icon">📜</div>
+          <div class="section-icon"></div>
           <div>
-            <div class="section-title">Historique des demandes</div>
+            <h2 class="section-title" id="request-history">Historique des demandes</h2>
             <div class="section-desc">Tes 10 dernières modifications</div>
           </div>
         </div>
@@ -1819,10 +1806,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>{{ h.params.lots if h.params else '—' }}</td>
                 <td>{% if h.params and h.params.drawdown_actif %}{{ h.params.drawdown_pct }}%{% else %}OFF{% endif %}</td>
                 <td>
-                  {% if h.statut == 'applique' %}
-                    <span class="badge badge-ok">✓ Appliqué</span>
+                  {% if h.copy_version %}
+                    <span class="badge badge-wait">Simulation · v{{ h.copy_version }}</span>
+                  {% elif h.statut == 'applique' %}
+                    <span class="badge badge-ok"> Appliqué</span>
                   {% else %}
-                    <span class="badge badge-wait">⏳ En attente</span>
+                    <span class="badge badge-wait"> En attente</span>
                   {% endif %}
                 </td>
               </tr>
@@ -1847,13 +1836,13 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
   (function () {
     function syncDashboardView() {
-      var robotView = location.hash === '#section-parametres';
+      var robotView = ['#section-parametres','#risk-settings','#drawdown-settings','#request-history'].includes(location.hash);
       document.body.classList.toggle('dashboard-view-robot', robotView);
       document.body.classList.toggle('dashboard-view-profile', !robotView);
       document.querySelectorAll('.sidebar a[href="#section-parametres"],.sidebar a[href="#section-profil"]').forEach(function (link) {
         link.classList.toggle('active', link.getAttribute('href') === (robotView ? '#section-parametres' : '#section-profil'));
       });
-      window.requestAnimationFrame(function () { window.scrollTo({top:0,behavior:'auto'}); });
+      window.requestAnimationFrame(function () { var target=document.getElementById(location.hash.slice(1)); if(target && ['#risk-settings','#drawdown-settings','#request-history'].includes(location.hash))target.scrollIntoView({block:'start'});else window.scrollTo({top:0,behavior:'auto'}); });
     }
     window.addEventListener('hashchange', syncDashboardView);
     document.addEventListener('DOMContentLoaded', syncDashboardView);
@@ -1862,7 +1851,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- TOAST -->
 <div class="toast" id="toast">
-  <span id="toast-icon">✅</span>
+  <span id="toast-icon"></span>
   <span id="toast-msg">Demande envoyée avec succès !</span>
 </div>
 
@@ -1964,14 +1953,14 @@ function applyBulk() {
   renderSymbols(document.getElementById('sym-search')?.value || '');
 }
 
-// ── Mode risque → panneaux contextuels
+// ── Mode risque  panneaux contextuels
 const modeHelps = {
   'Lots fixes': "Taille de lot fixe quelle que soit la position de l'émetteur",
   'Lot par symbole': "Définissez un lot différent pour chaque symbole",
   "Copier les lots de l'envoyeur": "Copie exactement la même taille de lot, multipliée par un facteur",
   'Risque par solde (Balance)': "Calcule le lot en % du solde de votre compte",
   'Risque par capitaux (Equity)': "Calcule le lot en % des capitaux propres",
-  'Risque en %': "Risquez un pourcentage fixe de votre solde sur chaque trade"
+  'Risque en %': "Calcule le volume depuis le solde et la perte au Stop Loss ; un SL valide est nécessaire"
 };
 
 function updateModePanel(mode) {
@@ -2022,6 +2011,11 @@ updateModePanel(document.getElementById('mode_risque').value);
 
 // ── COPY TRADING TOGGLE ──
 function showCopyConfirm() {
+  {% if copy_config_enabled %}
+  if (window.requestMemberCopyToggle) window.requestMemberCopyToggle();
+  else showToast('Le statut du compte est en cours de chargement.', 'error');
+  return;
+  {% endif %}
   // Mobile : ouvrir le modal global
   if (window.innerWidth <= 768) {
     document.getElementById('copyModalOverlay').classList.add('open');
@@ -2063,132 +2057,23 @@ async function toggleCopy() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (data.ok) {
-      confirmBox.classList.remove('show');
+      if (confirmBox) confirmBox.classList.remove('show');
       showToast(
-        data.copy_actif
-          ? '✅ Préférence Copy ON enregistrée.'
-          : '⏸️ Préférence Copy OFF enregistrée.',
-        data.copy_actif ? 'success' : 'error'
+        data.configuration ? data.message : data.copy_actif
+          ? ' Copy trading activé ! Notification envoyée.'
+          : ' Copy trading désactivé. Notification envoyée.',
+        data.configuration || data.copy_actif ? 'success' : 'error'
       );
       setTimeout(() => location.reload(), 2000);
     } else {
       showToast('Erreur : ' + (data.error || 'Réessaie.'), 'error');
-      btn.style.opacity = '1';
-      btn.disabled = false;
+      if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+      if (mBtn) mBtn.style.opacity = '1';
     }
   } catch(e) {
     showToast('Erreur de connexion : ' + e.message, 'error');
-    btn.style.opacity = '1';
-    btn.disabled = false;
-  }
-}
-
-async function acceptCopyTradingConsent() {
-  const checkbox = document.getElementById('copyConsentCheckbox');
-  const button = document.getElementById('copyConsentAcceptButton');
-  const status = document.getElementById('copyConsentStatus');
-  if (!checkbox || !checkbox.checked) {
-    if (status) status.textContent = 'Coche la case après avoir lu les informations.';
-    return;
-  }
-  button.disabled = true;
-  try {
-    const response = await fetch('/api/copy-trading/consent', {
-      method: 'POST', credentials: 'same-origin',
-      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
-      body: JSON.stringify({accepted: true, version: {{ copy_trading_consent_version|tojson }}})
-    });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Autorisation non enregistrée.');
-    if (status) status.textContent = 'Autorisation enregistrée. Le compte reste soumis aux contrôles opérationnels.';
-    checkbox.checked = false;
-    await refreshCopyTradingStatus();
-  } catch (error) {
-    if (status) status.textContent = error.message;
-  } finally {
-    button.disabled = false;
-  }
-}
-
-async function revokeCopyTradingConsent() {
-  const status = document.getElementById('copyConsentStatus');
-  try {
-    const response = await fetch('/api/copy-trading/revoke-consent', {
-      method: 'POST', credentials: 'same-origin',
-      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
-      body: '{}'
-    });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Retrait non enregistré.');
-    if (status) status.textContent = 'Autorisation retirée. Aucune nouvelle opération ne sera admise.';
-    await refreshCopyTradingStatus();
-  } catch (error) {
-    if (status) status.textContent = error.message;
-  }
-}
-
-async function refreshCopyTradingStatus() {
-  const target = document.getElementById('copyRuntimeStatus');
-  if (!target) return;
-  const resume = document.getElementById('copyProtectionResume');
-  try {
-    const response = await fetch('/api/copy-trading/status', {credentials: 'same-origin'});
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || 'État indisponible.');
-    const names = {
-      CLIENT_PAUSED: 'préférence client en pause', CONSENT_REQUIRED: 'autorisation client manquante',
-      MEMBERSHIP_NOT_ELIGIBLE: 'abonnement non éligible',
-      MT5_PROFILE_INCOMPLETE: 'profil MT5 incomplet', MASTER_NOT_RELEASED: 'compte maître non libéré',
-      MASTER_WORKER_OFFLINE: 'worker maître hors ligne',
-      EXECUTION_NOT_RELEASED: 'exécution non libérée', LIVE_RELEASE_REQUIRED: 'validation de mise en service réelle requise',
-      DEMO_ACCOUNT_END_TO_END_UNVERIFIED: 'parcours démo complet non vérifié',
-      LIVE_ACCOUNT_END_TO_END_UNVERIFIED: 'parcours réel non vérifié',
-      FOLLOWER_WORKER_OFFLINE: 'worker suiveur hors ligne',
-      POSITION_RECONCILIATION_REQUIRED: 'position dupliquée à rapprocher avant reprise',
-      ACADEMY_GUARD_NOT_SUPPORTED: 'seuil drawdown/objectif Académie non pris en charge',
-      ACADEMY_PROTECTION_SUSPENDED: 'protection de capital déclenchée — compte suspendu',
-      ACADEMY_PROTECTION_ACTIVE: 'protection de capital active',
-      ACADEMY_PROTECTION_SAMPLE_STALE: 'relevé MT5 de protection manquant ou périmé',
-      PENDING_ORDER_COPY_NOT_SUPPORTED: 'copie des ordres en attente non disponible',
-      TERMINAL_PROBE_STALE: 'preuve de connexion MT5 périmée — nouvelle vérification native requise',
-      TERMINAL_IDENTITY_MISMATCH: 'preuve MT5 différente du compte configuré',
-      ACADEMY_SETTINGS_INVALID: 'paramètres Académie invalides',
-      CALENDAR_FEED_STALE_OR_UNAVAILABLE: 'flux calendrier activé mais indisponible ou périmé',
-      PENDING_ORDER_COPY_NOT_SUPPORTED: 'copie des ordres en attente non disponible',
-      CALENDAR_PROVIDER_NOT_CONFIGURED: 'fournisseur de calendrier non configuré'
-    };
-    const blockers = (data.operational_blockers || []).map(code => names[code] || code);
-    if (resume) resume.style.display = data.protection && data.protection.suspended ? 'inline-flex' : 'none';
-    target.textContent = data.operational_readiness === 'READY'
-      ? 'État opérationnel : prêt selon les contrôles actuels.'
-      : 'État opérationnel : non prêt — ' + blockers.join(', ') + '.';
-    if (data.protection && data.protection.suspended) {
-      target.textContent += ' Motif : ' + (data.protection.reason || 'seuil atteint') +
-        '. Dernier relevé natif : ' + (data.protection.last_native_sample_at || 'en attente') + '.';
-    }
-  } catch (_error) {
-    if (resume) resume.style.display = 'none';
-    target.textContent = 'État opérationnel indisponible ; aucune exécution ne doit être présumée.';
-  }
-}
-refreshCopyTradingStatus();
-
-async function requestCopyProtectionResume() {
-  const target = document.getElementById('copyRuntimeStatus');
-  try {
-    const response = await fetch('/api/copy-trading/protection/resume', {
-      method: 'POST', credentials: 'same-origin',
-      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
-      body: '{}'
-    });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Reprise non enregistrée.');
-    if (target) target.textContent = data.status === 'WAITING_FOR_NATIVE_SAMPLE'
-      ? 'Demande enregistrée. La reprise sera appliquée après un nouveau relevé natif MT5.'
-      : 'Aucune suspension de protection active.';
-    await refreshCopyTradingStatus();
-  } catch (error) {
-    if (target) target.textContent = error.message;
+    if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
+    if (mBtn) mBtn.style.opacity = '1';
   }
 }
 
@@ -2207,6 +2092,14 @@ function togglePanel(id, show) {
   else el.classList.remove('visible');
 }
 
+// ── Lier copier_ordres  convertir
+document.getElementById('copier_ordres_en_attente').addEventListener('change', function() {
+  const row = document.getElementById('row_convertir');
+  row.style.opacity = this.checked ? '1' : '0.4';
+  row.style.pointerEvents = this.checked ? 'auto' : 'none';
+  if (!this.checked) document.getElementById('convertir_pending_invalide').checked = false;
+});
+
 // ── Période pills
 function setPeriode(val) {
   document.getElementById('objectif_periode').value = val;
@@ -2219,7 +2112,7 @@ function setPeriode(val) {
 function showToast(msg, type='success') {
   const t = document.getElementById('toast');
   document.getElementById('toast-msg').textContent = msg;
-  document.getElementById('toast-icon').textContent = type === 'success' ? '✅' : '❌';
+  document.getElementById('toast-icon').textContent = type === 'success' ? '' : '';
   t.className = `toast ${type} show`;
   setTimeout(() => { t.classList.remove('show'); }, 4000);
 }
@@ -2272,7 +2165,7 @@ async function saveProfil() {
     if (btn) {
       btn.disabled = false;
       btn.classList.remove('loading');
-      btn.textContent = '💾 Enregistrer le profil';
+      btn.textContent = ' Enregistrer le profil';
     }
   }
 }
@@ -2289,12 +2182,15 @@ async function saveParams() {
   const bool = id => { const el = document.getElementById(id); return el ? el.checked : false; };
   const val  = id => { const el = document.getElementById(id); return el ? el.value : ''; };
 
-  const flt = (id, def_=0) => { const el = document.getElementById(id); return el && el.value !== '' ? parseFloat(el.value) || def_ : def_; };
-  const int_ = (id, def_=0) => { const el = document.getElementById(id); return el && el.value !== '' ? parseInt(el.value) || def_ : def_; };
+  const flt = (id, def_=0) => { const el = document.getElementById(id); return el && el.value !== '' ? Number(el.value) : def_; };
+  const int_ = flt;
   const str_ = (id, def_='') => { const el = document.getElementById(id); return el ? el.value : def_; };
   const chk  = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
 
   const payload = {
+    {% if copy_config_enabled %}
+    account_id: Number(document.getElementById('copy-account-id')?.value || 0),
+    {% endif %}
     mode_risque:              str_('mode_risque', 'Lots fixes'),
     lots:                     flt('lots', 0.01),
     lots_max:                 flt('lots_max', 5),
@@ -2302,7 +2198,7 @@ async function saveParams() {
     forcer_lot_minimum:       chk('forcer_lot_minimum'),
     inverser_trades:          chk('inverser_trades'),
     copier_ordres_en_attente: chk('copier_ordres_en_attente'),
-    convertir_pending_invalide: false,
+    convertir_pending_invalide: chk('convertir_pending_invalide'),
     copier_sl:                chk('copier_sl'),
     drawdown_actif:           chk('drawdown_actif'),
     drawdown_pct:             flt('drawdown_pct', 5),
@@ -2313,11 +2209,6 @@ async function saveParams() {
     objectif_perte_pct:       flt('objectif_perte_pct', 3),
     objectif_periode:         str_('objectif_periode', 'Mensuel'),
     filtre_news:              chk('filtre_news'),
-    calendar_currencies:      str_('calendar_currencies', ''),
-    calendar_min_importance:  int_('calendar_min_importance', 2),
-    calendar_minutes_before:  int_('calendar_minutes_before', 30),
-    calendar_minutes_after:   int_('calendar_minutes_after', 30),
-    calendar_timezone:        str_('calendar_timezone', 'Europe/Paris'),
     risque_pct:               flt('risque_pct', 1),
     multiplicateur:           flt('multiplicateur', 1),
     risque_balance_pct:       flt('risque_balance_pct', 1),
@@ -2335,22 +2226,23 @@ async function saveParams() {
     const data = await res.json();
 
     if (data.ok) {
-      showToast('✅ Demande envoyée ! Notre équipe va appliquer tes paramètres sous 2h.', 'success');
+      showToast(data.configuration ? data.message : ' Demande envoyée ! Notre équipe va appliquer tes paramètres sous 2h.', 'success');
+      if (data.configuration && window.refreshCopyConfiguration) window.refreshCopyConfiguration();
     } else {
       showToast('Erreur : ' + (data.error || 'Réessaie.'), 'error');
     }
-    if (btn) { btn.classList.remove('loading'); btn.textContent = 'Envoyer la demande →'; }
-    if (mBtn) { mBtn.disabled = false; mBtn.textContent = 'ENVOYER LA DEMANDE →'; }
+    if (btn) { btn.classList.remove('loading'); btn.textContent = '{{ "Enregistrer pour le compte démo " if copy_pilot_enabled else "Enregistrer en simulation " if copy_config_enabled else "Envoyer la demande " }}'; }
+    if (mBtn) { mBtn.disabled = false; mBtn.textContent = '{{ "ENREGISTRER POUR LE COMPTE DÉMO " if copy_pilot_enabled else "ENREGISTRER EN SIMULATION " if copy_config_enabled else "ENVOYER LA DEMANDE " }}'; }
   } catch (e) {
-    if (btn) { btn.classList.remove('loading'); btn.textContent = 'Envoyer la demande →'; }
-    if (mBtn) { mBtn.disabled = false; mBtn.textContent = 'ENVOYER LA DEMANDE →'; }
+    if (btn) { btn.classList.remove('loading'); btn.textContent = '{{ "Enregistrer pour le compte démo " if copy_pilot_enabled else "Enregistrer en simulation " if copy_config_enabled else "Envoyer la demande " }}'; }
+    if (mBtn) { mBtn.disabled = false; mBtn.textContent = '{{ "ENREGISTRER POUR LE COMPTE DÉMO " if copy_pilot_enabled else "ENREGISTRER EN SIMULATION " if copy_config_enabled else "ENVOYER LA DEMANDE " }}'; }
     showToast('Erreur de connexion. Réessaie.', 'error');
   }
 }
 </script>
 
 <!-- WHATSAPP FLOATING BUTTON -->
-{%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour,%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j'ai%20besoin%20d'assistance." target="_blank" class="wa-float" title="Contacter le support WhatsApp">
+{%- if vip_support_href(member) %}<a href="{{ vip_support_href(member) }}" class="wa-float" title="Ouvrir le support VIP">
   <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
@@ -2517,12 +2409,12 @@ async function fermerNotif() {
     <div class="m-topbar-name">{{ member.nom }}</div>
     {% if date_fin %}
     <div class="m-topbar-dates">
-      📅 {{ date_souscription.strftime('%d/%m/%y') if date_souscription else '—' }} → {{ date_fin.strftime('%d/%m/%y') }}
+       {{ date_souscription.strftime('%d/%m/%y') if date_souscription else '—' }}  {{ date_fin.strftime('%d/%m/%y') }}
       &nbsp;·&nbsp;
       {% if statut_abo == 'expiré' %}
         <span style="color:#FCA5A5;">Expiré</span>
       {% elif statut_abo == 'expire_bientot' %}
-        <span style="color:#FCD34D;">{{ jours_restants }}j ⚠️</span>
+        <span style="color:#FCD34D;">{{ jours_restants }}j </span>
       {% else %}
         <span style="color:#6EE7B7;">{{ jours_restants }}j restants</span>
       {% endif %}
@@ -2538,10 +2430,10 @@ async function fermerNotif() {
 <div class="copy-modal-overlay" id="copyModalOverlay" onclick="closeCopyModal(event)">
   <div class="copy-modal-box">
     <div class="copy-modal-title" id="copyModalTitle">
-      {% if copy_actif %}⚠️ Désactiver le copy trading ?{% else %}▶️ Activer le copy trading ?{% endif %}
+      {% if copy_pilot_enabled %}Modifier la copie sur le compte démo ?{% elif copy_config_enabled %}Modifier la demande en simulation ?{% elif copy_actif %} Désactiver le copy trading ?{% else %} Activer le copy trading ?{% endif %}
     </div>
     <div class="copy-modal-desc" id="copyModalDesc">
-      {% if copy_actif %}Les trades automatiques s'arrêteront sur ton compte.{% else %}Les trades automatiques reprendront sur ton compte.{% endif %}
+      {% if copy_pilot_enabled %}La pause bloque les nouvelles entrées. Le moteur continue de suivre les positions déjà copiées.{% elif copy_config_enabled %}Ce test n’envoie aucun ordre et ne commande pas le robot actuel.{% elif copy_actif %}Les trades automatiques s'arrêteront sur ton compte.{% else %}Les trades automatiques reprendront sur ton compte.{% endif %}
     </div>
     <div class="copy-modal-btns">
       <button class="copy-modal-yes" onclick="toggleCopy()">Confirmer</button>
@@ -2632,5 +2524,6 @@ document.addEventListener('DOMContentLoaded', function(){
 {% endif %}
 
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

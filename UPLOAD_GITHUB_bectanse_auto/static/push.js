@@ -151,8 +151,8 @@
     prompt.style.cssText = 'position:fixed;left:14px;right:14px;bottom:82px;z-index:9900;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:520px;margin:auto;padding:13px 14px;border:1px solid rgba(255,100,30,.46);border-radius:16px;background:rgba(12,13,12,.97);box-shadow:0 18px 55px rgba(0,0,0,.55);color:#fff;font-family:Inter,Arial,sans-serif;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)';
     const message = document.createElement('div');
     message.innerHTML = reason === 'denied'
-      ? '<b style="font-size:12px">🔕 Alertes VIP bloquées</b><small style="display:block;margin-top:4px;color:#a7aaa5;font-size:10px;line-height:1.35">Réactive Bectanse dans Réglages › Notifications.</small>'
-      : '<b style="font-size:12px">🔔 Ne manque aucun signal VIP</b><small style="display:block;margin-top:4px;color:#a7aaa5;font-size:10px;line-height:1.35">Active les alertes sur cet appareil.</small>';
+      ? '<b style="font-size:12px"> Alertes VIP bloquées</b><small style="display:block;margin-top:4px;color:#a7aaa5;font-size:10px;line-height:1.35">Réactive Bectanse dans Réglages › Notifications.</small>'
+      : '<b style="font-size:12px"> Ne manque aucun signal VIP</b><small style="display:block;margin-top:4px;color:#a7aaa5;font-size:10px;line-height:1.35">Active les alertes sur cet appareil.</small>';
     prompt.appendChild(message);
     if (reason !== 'denied') {
       const button = document.createElement('button');

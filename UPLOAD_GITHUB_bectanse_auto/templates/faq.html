@@ -136,17 +136,25 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   <link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
   <link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260803">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body class="member-fintech">
+<body data-ui-screen="faq" class="product-workspace academy-universe member-fintech">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "faq" %}{% include "partials/workspace_rail.html" %}
+
 {%- if demo_mode %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
-  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
-  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
+  <span style="color:#fff;font-size:13px;font-weight:700;"> Mode Essai Gratuit — Tu observes en lecture seule.</span>
+  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO </a>
 </div>
 <div style="height:44px;"></div>
 {%- endif %}
 <a href="/dashboard" class="back-mobile">
-  <span class="arrow">←</span>
+  <span class="arrow"></span>
   <div>
     <div style="font-size:15px;font-weight:700;color:#fff;">FAQ & Guide</div>
     <div class="page-name">Bectanse Académie</div>
@@ -158,101 +166,99 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-logo">BECTANSE ACADÉMIE</div>
+      <div class="sidebar-logo">Bectanse Académie</div>
       <div class="sidebar-tagline">Espace Membre</div>
     </div>
     <div class="member-card">
       <div class="member-top">
         <div class="member-name">{{ member.nom }}</div>
-        <div class="member-capital">💰 {{ member.capital }}</div>
+        <div class="member-capital"> {{ member.capital }}</div>
       </div>
     </div>
     <nav class="nav">
       <div class="nav-section">Navigation</div>
-      <a class="nav-item" href="/dashboard"><span class="icon">⚙️</span> Mes paramètres</a>
-      <a class="nav-item" href="/vip" style="color:#F59E0B;"><span class="icon">🚀</span> Renouveler / Upgrader</a>
-      {%- if not demo_mode %}<a class="nav-item" href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20besoin%20d%27assistance." target="_blank"><span class="icon">💬</span> Discuter avec un agent</a>{%- endif %}
-      <a class="nav-item" href="/dashboard#historique"><span class="icon">📜</span> Historique</a>
-      <a class="nav-item active" href="/faq"><span class="icon">❓</span> FAQ & Guide</a>
+      <a class="nav-item" href="/dashboard"><span class="icon"></span> Mes paramètres</a>
+      <a class="nav-item" href="/vip" style="color:#F59E0B;"><span class="icon"></span> Renouveler / Upgrader</a>
+      {%- if vip_support_href(member) %}<a class="nav-item" href="{{ vip_support_href(member) }}"><span class="icon"></span> Support VIP</a>{%- endif %}
+      <a class="nav-item" href="/dashboard#historique"><span class="icon"></span> Historique</a>
+      <a class="nav-item active" href="/faq"><span class="icon"></span> FAQ & Guide</a>
     </nav>
     <div class="sidebar-bottom">
-      <a class="logout-btn" href="/logout"><span>🚪</span> Déconnexion</a>
+      <a class="logout-btn" href="/logout"><span></span> Déconnexion</a>
     </div>
   </aside>
 
   <!-- CONTENT -->
   <div class="content" style="padding-top:68px;">
     <div class="page-header">
-      <div class="page-title">❓ FAQ & Guide débutant</div>
+      <h1 class="page-title">Comment peut-on t’aider ?</h1>
       <div class="page-desc">Toutes les réponses aux questions les plus fréquentes. Trouve la tienne en quelques secondes.</div>
     </div>
 
     <!-- SEARCH -->
     <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input type="text" class="search-input" id="faq-search" placeholder="Recherche une question..." oninput="searchFAQ(this.value)">
+      <span class="search-icon"></span>
+      <input type="text" class="search-input" id="faq-search" placeholder="Rechercher dans les questions" aria-label="Rechercher une question" oninput="searchFAQ(this.value)">
     </div>
 
-    <!-- FILTRES -->
-    <div class="filters">
+<div class="help-workspace">    <!-- FILTRES -->
+    <nav class="filters" aria-label="Thèmes de l’aide">
       <button class="filter-btn active" onclick="filterCat('all', this)">Tout</button>
       <button class="filter-btn" onclick="filterCat('fonctionnement', this)">Comment ça marche</button>
       <button class="filter-btn" onclick="filterCat('compte', this)">Mon compte</button>
       <button class="filter-btn" onclick="filterCat('resultats', this)">Résultats</button>
       <button class="filter-btn" onclick="filterCat('abonnement', this)">Abonnement</button>
       <button class="filter-btn" onclick="filterCat('technique', this)">Technique</button>
-    </div>
+    </nav>
 
-    <div id="no-result" class="no-result">
-      <div class="emoji">🔍</div>
-      <div>Aucune question trouvée.<br>Contacte-nous directement sur WhatsApp.</div>
+<div class="help-answers">    <div id="no-result" class="no-result">
+      <div class="emoji"></div>
+      <div>Aucune question trouvée.<br><a href="/support">Contacte l’équipe depuis ton espace</a></div>
     </div>
 
     <!-- ── SECTION 1 ── -->
     <div class="faq-section" data-cat="fonctionnement">
-      <div class="faq-section-title">🚀 Comment ça marche ?</div>
+      <div class="faq-section-title">Comment ça marche ?</div>
 
       <div class="faq-item" data-cat="fonctionnement">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">C'est quoi Bectanse AUTO exactement ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
           <div class="faq-answer-inner">
-            Bectanse AUTO est un service de <strong>copy trading automatique sur l'or (XAUUSD)</strong>. Notre équipe gère un compte maître professionnel — et tous tes trades sont copiés automatiquement sur ton compte MetaTrader en temps réel.<br><br>
-            <span class="highlight">Tu n'as rien à faire.</span> Le système tourne 24h/24, 5j/7, pendant que tu dors, travailles ou profites de ta vie.
+            Bectanse AUTO est un service de <strong>copy trading automatique sur l'or (XAUUSD)</strong>. Une source de trading fournit les opérations à copier vers ton compte MetaTrader, selon le mode et les paramètres applicables. Le client choisit le suivi proposé ; une copie peut intervenir sans confirmation manuelle de chaque transaction.<br><br>
+            <span class="highlight">L’automatisation ne supprime ni le risque ni la nécessité de surveiller ton compte.</span> Un signal peut être erroné et une copie retardée ou non exécutée. La pause n’entraîne pas la clôture des positions ouvertes. .
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="fonctionnement">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Comment mes trades sont-ils copiés sur mon compte ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
           <div class="faq-answer-inner">
-            Via la technologie <strong>l'infrastructure Bectanse</strong> — une plateforme professionnelle de copy trading. Dès qu'un trade est ouvert sur notre compte maître, il est répliqué instantanément sur ton compte MetaTrader avec les paramètres que tu as définis (lot, drawdown, etc.).<br><br>
-            La connexion se fait via ton <strong>mot de passe investisseur</strong> — en lecture seule. Personne ne peut toucher à tes fonds.
+            <strong>Bectanse Auto transmet les positions vers ton compte MetaTrader</strong>, selon le mode et les paramètres validés pour ton compte. Consulte leur état dans <a href='/dashboard#section-parametres'>les réglages du robot</a>.<br><br>Le mot de passe investisseur permet uniquement la lecture des données : il ne permet pas d’exécuter des ordres. Le parcours de démarrage précise la connexion nécessaire à chaque outil.
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="fonctionnement">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Est-ce que je dois faire quelque chose au quotidien ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
           <div class="faq-answer-inner">
-            <span class="highlight">Non, absolument rien.</span> C'est la force du copy trading automatique. Une fois ton compte connecté et tes paramètres définis, le système tourne seul.<br><br>
-            La seule chose à faire : vérifier de temps en temps que ton terminal MetaTrader est bien ouvert et connecté à internet. C'est tout.
+            Les positions peuvent être transmises automatiquement après activation. Vérifie régulièrement l’état de ta connexion, tes paramètres et tes positions ouvertes dans MetaTrader. Retrouve les étapes de configuration dans le <a href='/guide-robot'>guide Bectanse Auto</a>.
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="fonctionnement">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Que se passe-t-il quand le marché est fermé ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -267,29 +273,29 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 
     <!-- ── SECTION 2 ── -->
     <div class="faq-section" data-cat="compte">
-      <div class="faq-section-title">⚙️ Mon compte & mes paramètres</div>
+      <div class="faq-section-title">Mon compte & mes paramètres</div>
 
       <div class="faq-item" data-cat="compte">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Comment modifier mes paramètres de risque ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
           <div class="faq-answer-inner">
-            Depuis ton espace membre → <strong>Mes paramètres</strong>. Tu peux modifier :
+            Depuis ton espace membre  <strong>Mes paramètres</strong>. Tu peux modifier :
             <ul>
               <li>Le mode de risque (Lots fixes, Risque en %, etc.)</li>
               <li>La taille de tes lots</li>
               <li>La protection drawdown</li>
               <li>Le filtre calendrier économique</li>
             </ul>
-            Une fois validé, tu cliques sur <strong>"Envoyer la demande"</strong> → notre équipe reçoit une notification et applique les changements sur l'infrastructure Bectanse sous 2h.
+            Une fois validé, tu cliques sur <strong>"Envoyer la demande"</strong>  notre équipe reçoit une notification et traite ta demande. Son état apparaît dans l’historique de tes réglages.
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="compte">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">C'est quoi la différence entre les modes de risque ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -308,7 +314,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       </div>
 
       <div class="faq-item" data-cat="compte">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">C'est quoi le mot de passe investisseur ? Est-ce dangereux ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -321,13 +327,13 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       </div>
 
       <div class="faq-item" data-cat="compte">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Comment activer ou désactiver le copy trading ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
           <div class="faq-answer-inner">
-            Dans la sidebar gauche → bouton <strong>"Copy Trading Actif / Inactif"</strong>. Un clic, une confirmation, et notre équipe reçoit une notification immédiate pour activer ou désactiver sur l'infrastructure Bectanse.<br><br>
+            Dans <a href='/dashboard#section-parametres'>Bectanse Auto</a>, utilise le bouton d’activation ou de pause puis confirme ta demande. Vérifie son état dans l’historique avant de considérer le changement comme appliqué.<br><br>
             Utile si tu veux faire du trading manuel pendant un moment sans que le copy trading interfère.
           </div>
         </div>
@@ -336,11 +342,11 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 
     <!-- ── SECTION 3 ── -->
     <div class="faq-section" data-cat="resultats">
-      <div class="faq-section-title">📈 Résultats & performance</div>
+      <div class="faq-section-title">Résultats & performance</div>
 
       <div class="faq-item" data-cat="resultats">
-        <div class="faq-question" onclick="toggle(this)">
-          <div class="faq-q-text">Pourquoi je ne vois pas encore de résultats ?</div>
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
+          <div class="faq-q-text">Pourquoi aucune opération n’apparaît-elle ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
@@ -351,19 +357,19 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
               <li><strong>Aucune opportunité</strong> — Le marché n'offrait pas de setup valide. On ne trade pas pour trader.</li>
               <li><strong>Problème de connexion MT4</strong> — Ton terminal MetaTrader doit être ouvert et connecté</li>
             </ul>
-            Si tu n'as toujours rien après 48h → contacte le support.
+            Si tu n'as toujours rien après 48h  contacte le support.
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="resultats">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Comment lire mon historique de trades ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
           <div class="faq-answer-inner">
-            Sur MetaTrader → onglet <strong>"Historique du compte"</strong> en bas. Tu vois tous les trades fermés avec :<br><br>
+            Sur MetaTrader  onglet <strong>"Historique du compte"</strong> en bas. Tu vois tous les trades fermés avec :<br><br>
             <ul>
               <li><strong>Profit</strong> — le gain ou la perte en devise</li>
               <li><strong>Lots</strong> — la taille de la position copiée</li>
@@ -375,7 +381,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       </div>
 
       <div class="faq-item" data-cat="resultats">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Les performances passées garantissent-elles les résultats futurs ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -390,23 +396,23 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 
     <!-- ── SECTION 4 ── -->
     <div class="faq-section" data-cat="abonnement">
-      <div class="faq-section-title">💳 Abonnement & paiement</div>
+      <div class="faq-section-title">Abonnement & paiement</div>
 
       <div class="faq-item" data-cat="abonnement">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Comment renouveler mon abonnement ?</div>
           <div class="faq-toggle">+</div>
         </div>
         <div class="faq-answer">
           <div class="faq-answer-inner">
-            Dans la sidebar → <strong>🚀 Renouveler / Upgrader</strong>. Tu accèdes à la page des offres et tu choisis ta durée.<br><br>
-            <span class="highlight">Conseil : renouvelle avant l'expiration pour éviter toute interruption du copy trading.</span> Tu recevras des rappels automatiques 7 jours, 3 jours et 1 jour avant l'expiration.
+            Dans la sidebar  <strong> Renouveler / Upgrader</strong>. Tu accèdes à la page des offres et tu choisis ta durée.<br><br>
+            <span class="highlight">Un abonnement actif se renouvelle automatiquement jusqu’à résiliation.</span> Vérifie son statut dans <a href="/abonnement">Mon abonnement</a> avant toute nouvelle souscription.
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="abonnement">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Comment fonctionne le renouvellement de mon offre ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -420,7 +426,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
       </div>
 
       <div class="faq-item" data-cat="abonnement">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Que se passe-t-il si mon abonnement expire ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -440,10 +446,10 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 
     <!-- ── SECTION 5 ── -->
     <div class="faq-section" data-cat="technique">
-      <div class="faq-section-title">🔧 Problèmes techniques</div>
+      <div class="faq-section-title">Problèmes techniques</div>
 
       <div class="faq-item" data-cat="technique">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Je ne reçois plus de trades copiés — que faire ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -456,13 +462,13 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
               <li><strong>3.</strong> Ton abonnement est-il toujours valide ?</li>
               <li><strong>4.</strong> Y a-t-il eu des trades sur notre compte maître ? (il peut n'y avoir aucune opportunité)</li>
             </ul>
-            Si tout est OK et que ça ne fonctionne toujours pas → contacte le support.
+            Si tout est OK et que ça ne fonctionne toujours pas  contacte le support.
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="technique">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">Mon espace membre ne fonctionne pas / page blanche</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -473,14 +479,14 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
               <li>Vider le cache de ton navigateur (Ctrl+Shift+R ou Cmd+Shift+R)</li>
               <li>Essayer un autre navigateur (Chrome, Safari, Firefox)</li>
               <li>Essayer depuis un autre appareil ou en navigation privée</li>
-              <li>Si le problème persiste → contacte le support avec une capture d'écran</li>
+              <li>Si le problème persiste  contacte le support avec une capture d'écran</li>
             </ul>
           </div>
         </div>
       </div>
 
       <div class="faq-item" data-cat="technique">
-        <div class="faq-question" onclick="toggle(this)">
+        <div class="faq-question" role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="toggle(this)">
           <div class="faq-q-text">J'ai perdu mon code d'accès — comment le récupérer ?</div>
           <div class="faq-toggle">+</div>
         </div>
@@ -492,42 +498,34 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
               <li>L'email utilisé lors de ton inscription</li>
               <li>Ton numéro de compte MetaTrader</li>
             </ul>
-            Notre équipe retrouvera ton code et te le renverra dans les 2 heures.
+            L’équipe vérifiera ton identité et t’aidera à retrouver ton accès.
           </div>
         </div>
       </div>
     </div>
 
-    {%- if not demo_mode %}<!-- CTA WHATSAPP -->
-    <div class="faq-cta">
-      <h3>💬 Tu n'as pas trouvé ta réponse ?</h3>
-      <p>Notre équipe est disponible et répond généralement en moins de 2 heures.</p>
-      {%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20une%20question." target="_blank" class="wa-btn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
-        Contacter le support WhatsApp
-      </a>{%- endif %}
-    </div>
-  </div>
-</div>{% else %}<div class="faq-cta" style="text-align:center;padding:32px;background:rgba(255,255,255,0.04);border-radius:16px;margin-top:24px;"><p style="color:rgba(255,255,255,0.5);font-size:14px;">🔒 Support réservé aux membres Bectanse AUTO</p><a href="/vip" style="display:inline-block;background:#FF6A00;color:#fff;font-weight:800;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;margin-top:12px;">Rejoindre pour accéder au support →</a></div>{% endif %}
-
+</div></div><div class="faq-cta"><h3>Tu n’as pas trouvé ta réponse ?</h3><p>Retrouve l’équipe dans ton espace de support</p>{% if not demo_mode %}<a class="wa-btn" href="/support">Écrire à l’équipe</a>{% else %}<a class="wa-btn" href="/vip">Découvrir l’Académie</a>{% endif %}</div></div></div>
 <!-- WA FLOAT -->
-{%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20j%27ai%20besoin%20d%27assistance." target="_blank" class="wa-float">
+{%- if vip_support_href(member) %}<a href="{{ vip_support_href(member) }}" class="wa-float" aria-label="Ouvrir le support VIP">
   <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
 </a>{%- endif %}
 
 <script>
 // ── ACCORDÉON
 function toggle(questionEl) {
+  questionEl.setAttribute("aria-expanded",String(!questionEl.parentElement.classList.contains("open")));
   const item   = questionEl.parentElement;
   const answer = item.querySelector('.faq-answer');
   const isOpen = item.classList.contains('open');
   // Fermer tous
   document.querySelectorAll('.faq-item.open').forEach(i => {
     i.classList.remove('open');
+    i.querySelector('.faq-question').setAttribute('aria-expanded','false');
     i.querySelector('.faq-answer').classList.remove('open');
   });
   if (!isOpen) {
     item.classList.add('open');
+    questionEl.setAttribute('aria-expanded','true');
     answer.classList.add('open');
   }
 }
@@ -626,5 +624,6 @@ function checkNoResult() {
 {% include "_mobile_nav.html" %}
 
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

@@ -23,7 +23,7 @@ messaging.onBackgroundMessage(function(payload) {
   });
 });
 
-// Clic sur notification → ouvrir l'app
+// Clic sur notification  ouvrir l'app
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   const url = event.notification.data?.url || '/accueil';

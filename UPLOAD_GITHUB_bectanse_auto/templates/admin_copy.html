@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="{{ csrf }}"><title>Copy trading — Bectanse</title><link rel="stylesheet" href="/static/admin-copy.css?v=manual-account-20261030"><script src="/static/admin-copy.js?v=manual-account-20261030" defer></script><link rel="stylesheet" href="/static/admin-workspace.css?v=20261010-1"><link rel="stylesheet" href="/static/admin-modules.css?v=20261010-1"><script src="/static/admin-workspace.js?v=20261010-1" defer></script><link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
+<link rel="stylesheet" href="/static/client-journal.css?v=20261028"><script src="/static/client-journal.js?v=20261028" defer></script></head>
+<body data-ui-screen="admin_copy" class="admin-workspace admin-module admin-module-copy" data-preview="{{ 'true' if preview else 'false' }}">
+{% set admin_current = 'copy' %}{% set admin_title = 'Copy trading' %}{% include 'partials/admin_workspace.html' %}
+<aside class="copy-local-nav">
+<a class="brand" hidden href="/admin-panel"><span class="brand-mark">B.</span><span>Bectanse<small>Académie</small></span></a>
+<div class="nav-title" hidden>Administration</div>
+<nav aria-label="Administration copy trading">
+<button class="nav-item active" data-view="accounts"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Comptes de trading</button>
+<button class="nav-item" data-view="requests"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>Demandes<span id="request-count" class="nav-count" hidden></span></button>
+<button class="nav-item" data-view="activity"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Historique</button>
+</nav>
+<a class="back" hidden href="/admin-panel"> Retour à l’administration</a>
+<div class="sidebar-bottom" hidden><span class="avatar">A</span><div>Administrateur<small>Bectanse Académie</small></div></div>
+</aside>
+<div class="workspace">
+<main id="workspace-content" tabindex="-1"><div class="page-heading"><div><h1 id="page-title">Comptes de trading</h1><p id="page-description">Votre compte maître et les comptes qui le suivent.</p></div><div class="toolbar-right"><button id="safe-recovery" class="secondary" type="button">Diagnostiquer et relancer</button><button id="add-manual-account" class="primary" type="button">Connecter un compte de trading</button><button id="add-follower" class="primary" type="button">Rattacher un membre</button><button id="configure-master" class="primary">+ Ajouter le compte maître</button></div></div>
+<div id="message" role="status" aria-live="polite" hidden></div>
+<section id="accounts-view" class="panel">
+<div id="account-tabs" class="account-tabs" aria-label="État des comptes"></div><p id="scope-description" class="scope-description"></p>
+<div class="toolbar"><label class="search"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input id="search" type="search" placeholder="Rechercher un compte ou un membre" aria-label="Rechercher un compte ou un membre"></label><div class="toolbar-right"><select id="filter" aria-label="Filtrer les comptes"><option value="ALL">Tous les comptes</option><option value="PENDING">À examiner</option><option value="APPROVED">Approuvés</option><option value="PAUSED">En pause</option><option value="REJECTED">Refusés</option></select><details class="column-picker"><summary>Colonnes</summary><div id="column-options"></div></details><button id="export" class="secondary">Exporter</button><button id="refresh" class="icon-button" aria-label="Actualiser" title="Actualiser"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg></button></div></div>
+<div class="table-scroll"><table><thead><tr><th class="account-col">Compte</th><th>Connexion</th><th>Accès / abonnement</th><th>Copie ON/OFF</th><th>Préparation</th><th>Serveur</th><th>Login</th><th>Lots</th><th class="numeric">Solde</th><th class="numeric">Équité</th><th class="numeric">Positions</th><th>Jour</th><th>Semaine</th><th>Mois</th><th>Total importé</th><th>Données au</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="accounts"></tbody></table></div>
+<div id="empty" class="empty" hidden><div class="empty-icon"><svg viewBox="0 0 40 40"><rect x="13" y="5" width="14" height="10" rx="2"/><path d="M20 15v8M8 27v-4h24v4"/><rect x="3" y="27" width="10" height="8" rx="2"/><rect x="27" y="27" width="10" height="8" rx="2"/></svg></div><h2 id="empty-title">Ajoutez votre compte maître</h2><p id="empty-description">Les comptes suiveurs seront regroupés sous ce compte.</p><button id="empty-add" class="secondary">Ajouter un compte maître</button></div>
+<div class="table-footer"><span id="count">Chargement…</span><span id="updated"></span></div></section>
+<section id="activity-view" class="panel" hidden><div class="panel-heading"><h2>Dernières actions</h2><span>50 dernières actions</span></div><div id="events"></div></section>
+<p class="page-note" id="page-note">La copie sera testée sur des comptes démo avant le passage au réel.</p>
+</main></div>
+<dialog id="manual-account-dialog"><form id="manual-account-form">
+<h2>Connecter un compte de trading</h2>
+<p>Dossier réservé à l’administration, sans accès membre ni abonnement. Le compte sera vérifié et son historique synchronisé. La copie restera désactivée.</p>
+<label>Nom du dossier<input name="name" required maxlength="80" placeholder="Compte de test — serveur démo"></label>
+<label>Courtier<input name="broker" maxlength="80" list="assisted-brokers"></label>
+<label>Serveur MT5 exact<input name="server" required minlength="3" maxlength="120" placeholder="Nom exact fourni par le courtier"></label>
+<label>Numéro de compte MT5<input name="login" required inputmode="numeric" pattern="[0-9]{3,20}" autocomplete="off"></label>
+<label>Mot de passe MT5<input name="password" type="password" required minlength="4" maxlength="256" autocomplete="new-password"></label>
+<p>Mot de passe chiffré, jamais réaffiché. Après l’ajout, choisissez le maître et ajustez les lots et protections depuis la fiche du compte avant d’activer la copie.</p>
+<p id="manual-account-message" role="status"></p>
+<div class="actions"><button type="button" id="manual-account-cancel" class="secondary">Annuler</button><button type="submit" id="manual-account-submit" class="primary">Enregistrer le compte</button></div>
+</form></dialog>
+<dialog id="assignment-dialog" aria-labelledby="assignment-title"><form id="assignment-form">
+<div class="dialog-header"><div><h2 id="assignment-title">Choisir le maître</h2><p>Rattacher le compte MT5 d’un membre.</p></div><button type="button" class="close-button" data-close="assignment-dialog" aria-label="Fermer">×</button></div>
+<div class="dialog-body"><div class="form-grid">
+<label class="full">Rechercher un membre<input id="assignment-search" type="search" placeholder="Nom, e-mail ou code membre" autocomplete="off"></label>
+<div class="full" id="assignment-results"></div>
+<p class="full" id="assignment-member"></p>
+<label class="full">Compte du membre<select id="assignment-account" required></select></label>
+<fieldset id="assignment-credentials" class="full" hidden disabled>
+<legend>Enregistrer le compte MT5 pour ce membre</legend>
+<div class="form-grid">
+<label class="full">Broker<input id="assisted-broker" list="assisted-brokers" maxlength="80" required autocomplete="off"><datalist id="assisted-brokers"></datalist></label>
+<label class="full">Serveur MT5<input id="assisted-server" list="assisted-servers" maxlength="120" placeholder="Nom exact fourni par le broker" required autocomplete="off"><datalist id="assisted-servers"></datalist><small>Sélectionnez un serveur proposé ou saisissez son nom exact.</small></label>
+<label>Login MT5<input id="assisted-login" inputmode="numeric" pattern="[0-9]{3,20}" required autocomplete="off"></label>
+<label>Mot de passe MT5<input id="assisted-password" type="password" minlength="4" maxlength="256" required autocomplete="new-password"></label>
+</div><p class="form-note">Mot de passe chiffré, jamais réaffiché. L’enregistrement ne déclenche pas la copie.</p>
+</fieldset>
+<label class="full">Compte maître<select id="assignment-master"><option value="">Aucun</option></select></label>
+</div><p class="form-note">Le rattachement ne démarre pas la copie. Le compte reste en pause jusqu’à la vérification de sa connexion et à son autorisation. Retirer le maître ne clôture pas les positions ouvertes.</p><p id="assignment-message" role="status" hidden></p></div>
+<div class="dialog-footer"><button type="button" class="secondary" data-close="assignment-dialog">Annuler</button><button id="assignment-submit" type="submit" class="primary" disabled>Enregistrer</button></div>
+</form></dialog>
+<dialog id="master-dialog"><form id="master-form"><div class="dialog-header"><div><h2>Compte maître</h2><p>Le compte dont les positions seront copiées.</p></div><button type="button" class="close-button" data-close="master-dialog" aria-label="Fermer">×</button></div>
+<div class="dialog-body"><div class="form-grid"><label class="full">Nom du compte<input name="alias" maxlength="80" placeholder="Ex. Compte maître Académie" required></label><label>Login MT5<input name="login" inputmode="numeric" pattern="[0-9]{3,20}" placeholder="Numéro de compte" required></label><label>Type de compte<select name="environment"><option value="DEMO">Démo</option><option value="REAL">Réel</option></select></label><label class="full">Serveur<input name="server" maxlength="120" placeholder="Nom exact du serveur du broker" required></label><label class="full">Mot de passe MT5<input name="password" type="password" maxlength="256" autocomplete="new-password"><small id="password-help">Le mot de passe est chiffré et n’est jamais affiché</small></label></div><p class="form-note">Enregistrer le compte ne démarre pas la copie. La connexion MT5 sera vérifiée à l’étape suivante.</p><p id="form-message" role="alert" hidden></p></div>
+<div class="dialog-footer"><button type="button" class="secondary" data-close="master-dialog">Annuler</button><button type="submit" class="primary">Enregistrer</button></div></form></dialog>
+<dialog id="details"><div class="dialog-header"><div><h2 id="detail-name">Compte suiveur</h2><p id="detail-account"></p></div><button class="close-button" data-close="details" aria-label="Fermer">×</button></div><div class="dialog-body"><p id="detail-engine-state" role="status"></p><div id="detail-copy-switch" class="copy-switch"></div><p id="detail-message" role="status" aria-live="polite" hidden></p><form id="lots-form" class="settings-editor"><h3>Réglages de copie du client</h3><p class="form-note">Les mêmes réglages sont disponibles dans l’espace du client. Enregistrer synchronise ses paramètres avec le moteur. Le volume et le sens des positions déjà ouvertes restent inchangés.</p><div id="client-settings-fields"></div><div class="settings-save"><button type="submit" class="primary">Enregistrer tous les réglages</button><span id="settings-version"></span></div><p id="lots-message" role="status" aria-live="polite" hidden></p></form><h3>Résultats du compte</h3><dl id="detail-financials"></dl><p class="form-note">P&L nets des frais, hors dépôts et crédits. Les pourcentages sont définis dans les infobulles du tableau.</p><h3>Gestion de la copie</h3><dl id="detail-fields"></dl><button id="choose-master" class="secondary" type="button">Choisir le maître</button><div id="detail-incidents"></div><h3>Positions signalées</h3><div id="detail-positions"></div><p class="form-note">La pause bloque les nouvelles copies après réception de la consigne. Elle ne clôture pas les positions ouvertes.</p></div><div id="detail-actions" class="dialog-footer"></div></dialog>
+<script src="/static/admin-interactions.js?v=20261010-1" defer></script><script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
+</body></html>

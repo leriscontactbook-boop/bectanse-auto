@@ -8,9 +8,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/activation-journey.css') }}?v=20260906-3">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/activation-journey.css') }}?v=20261015-brokers">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body class="activation-app">
+<body data-ui-screen="activation_journey" class="product-workspace academy-universe activation-app">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "activation_journey" %}{% include "partials/workspace_rail.html" %}
+
   {% macro icon(name) -%}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     {% if name == 'home' %}<path d="m3 10 9-7 9 7"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9 21v-7h6v7"></path>
@@ -34,7 +42,7 @@
   <header class="aj-topbar">
     <a class="aj-brand" href="/accueil" aria-label="Retour à l'accueil">
       <img src="/static/icons/bectanse-app-icon-master.png?v=20260825" alt="">
-      <span>BECTANSE <b>ACADÉMIE</b><small>COMMAND CENTER</small></span>
+      <span>Bectanse <b>Académie</b><small>Démarrage guidé</small></span>
     </a>
     <div class="aj-top-actions">
       <span class="aj-live"><i></i> Accompagnement actif</span>
@@ -46,7 +54,7 @@
   <main class="aj-shell">
     <section class="aj-hero">
       <div class="aj-hero-copy">
-        <div class="aj-eyebrow"><span>PARCOURS PERSONNEL</span><b>{{ state.completed_count }}/6 étapes</b></div>
+        <div class="aj-eyebrow"><span>Parcours personnel</span><b>{{ state.completed_count }}/6 étapes</b></div>
         <h1>Ton compte prêt<br><em>sans te perdre</em></h1>
         <p>Tu avances une étape à la fois. Chaque action est contrôlée et ta progression reste enregistrée sur ton compte Bectanse</p>
         <div class="aj-progress" role="progressbar" aria-label="Progression du démarrage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ state.progress }}">
@@ -55,9 +63,9 @@
         </div>
       </div>
       <div class="aj-command-card" aria-label="État du parcours">
-        <div class="aj-radar"><span></span><i></i><b>{{ state.progress }}%</b></div>
+        <div class="activation-completion"><b>{{ state.completed_count }}<small>/6</small></b><span>étapes terminées</span></div>
         <div>
-          <small>ÉTAT DE LA CONFIGURATION</small>
+          <small>État de la configuration</small>
           <strong>{% if state.finished %}Tout est prêt{% elif state.broker_status == 'pending' %}Vérification en cours{% else %}Progression en direct{% endif %}</strong>
           <p>Code personnel {{ member.code }}</p>
         </div>
@@ -66,7 +74,7 @@
 
     <div class="aj-layout">
       <aside class="aj-rail" aria-label="Étapes du parcours">
-        <div class="aj-rail-head"><small>MISSION</small><strong>Activer mon espace</strong></div>
+        <div class="aj-rail-head"><small>Mission</small><strong>Activer mon espace</strong></div>
         <nav>
           {% for step in state.steps %}
           <a href="#{{ step.id }}" class="aj-rail-step{% if step.completed %} done{% elif step.current %} current{% elif step.locked %} locked{% endif %}" data-rail-step="{{ step.id }}">
@@ -82,7 +90,7 @@
         {% set steps = {} %}{% for item in state.steps %}{% set _ = steps.update({item.id:item}) %}{% endfor %}
 
         <section class="aj-stage{% if steps.broker.completed %} done{% elif steps.broker.current %} current{% endif %}" id="broker" data-step="broker">
-          <header class="aj-stage-head"><span class="aj-stage-number">01</span><div><small>OUVERTURE DU COMPTE</small><h2>Crée ton accès de trading</h2></div><span class="aj-stage-status">{% if steps.broker.completed %}Terminé{% else %}À faire{% endif %}</span></header>
+          <header class="aj-stage-head"><span class="aj-stage-number">01</span><div><small>Ouverture du compte</small><h2>Crée ton accès de trading</h2></div><span class="aj-stage-status">{% if steps.broker.completed %}Terminé{% else %}À faire{% endif %}</span></header>
           <div class="aj-stage-body aj-two-cols">
             <div>
               <p class="aj-lead">Le lien officiel ouvre le formulaire dans une nouvelle page. Tu restes connecté ici et ta progression ne se perd pas</p>
@@ -114,14 +122,14 @@
         </section>
 
         <section class="aj-stage{% if steps.verification.completed %} done{% elif steps.verification.current %} current{% elif steps.verification.locked %} locked{% endif %}" id="verification" data-step="verification">
-          <header class="aj-stage-head"><span class="aj-stage-number">02</span><div><small>CONTRÔLE PAR L’ÉQUIPE</small><h2>Fais vérifier ton inscription</h2></div><span class="aj-stage-status">{% if steps.verification.completed %}Validé{% elif state.broker_status == 'pending' %}En cours{% elif steps.verification.locked %}Verrouillé{% else %}À envoyer{% endif %}</span></header>
+          <header class="aj-stage-head"><span class="aj-stage-number">02</span><div><small>Contrôle par l’équipe</small><h2>Fais vérifier ton inscription</h2></div><span class="aj-stage-status">{% if steps.verification.completed %}Validé{% elif state.broker_status == 'pending' %}En cours{% elif steps.verification.locked %}Verrouillé{% else %}À envoyer{% endif %}</span></header>
           <div class="aj-stage-body">
             {% if steps.verification.locked %}
               <div class="aj-lock-message">{{ icon('lock') }} Termine l’ouverture du compte pour débloquer cette étape</div>
             {% elif state.broker_status == 'approved' %}
-              <div class="aj-approved"><span>{{ icon('shield') }}</span><div><small>VALIDATION TERMINÉE</small><h3>Ton compte a été vérifié</h3><p>La création du compte MT4 ou MT5 est maintenant débloquée</p></div><a href="#trading">Continuer {{ icon('arrow') }}</a></div>
+              <div class="aj-approved"><span>{{ icon('shield') }}</span><div><small>Validation terminée</small><h3>Ton compte a été vérifié</h3><p>La création du compte MT4 ou MT5 est maintenant débloquée</p></div><a href="#trading">Continuer {{ icon('arrow') }}</a></div>
             {% elif state.broker_status == 'pending' %}
-              <div class="aj-pending"><div class="aj-scan"><i></i><span>{{ icon('search') }}</span></div><div><small>DEMANDE BIEN REÇUE</small><h3>L’équipe effectue la vérification</h3><p>Tu recevras une notification dès que la suite est débloquée. Tu peux fermer cette page, ta progression est sauvegardée</p><button class="aj-button secondary" type="button" onclick="location.reload()">Actualiser le statut</button></div></div>
+              <div class="aj-pending"><div class="aj-scan"><i></i><span>{{ icon('search') }}</span></div><div><small>Demande bien reçue</small><h3>L’équipe effectue la vérification</h3><p>Tu recevras une notification dès que la suite est débloquée. Tu peux fermer cette page, ta progression est sauvegardée</p><button class="aj-button secondary" type="button" onclick="location.reload()">Actualiser le statut</button></div></div>
             {% else %}
               {% if state.broker_status == 'correction' %}<div class="aj-correction"><b>Une information doit être vérifiée</b><span>{{ state.broker_review_note }}</span></div>{% endif %}
               <div class="aj-form-grid">
@@ -135,7 +143,7 @@
         </section>
 
         <section class="aj-stage{% if steps.trading.completed %} done{% elif steps.trading.current %} current{% elif steps.trading.locked %} locked{% endif %}" id="trading" data-step="trading">
-          <header class="aj-stage-head"><span class="aj-stage-number">03</span><div><small>ESPACE PU PRIME</small><h2>Ouvre ton compte MetaTrader</h2></div><span class="aj-stage-status">{% if steps.trading.completed %}Terminé{% elif steps.trading.locked %}Verrouillé{% else %}À faire{% endif %}</span></header>
+          <header class="aj-stage-head"><span class="aj-stage-number">03</span><div><small>Espace PU PRIME</small><h2>Ouvre ton compte MetaTrader</h2></div><span class="aj-stage-status">{% if steps.trading.completed %}Terminé{% elif steps.trading.locked %}Verrouillé{% else %}À faire{% endif %}</span></header>
           <div class="aj-stage-body">
             {% if steps.trading.locked %}<div class="aj-lock-message">{{ icon('lock') }} Cette étape s’ouvre automatiquement après la validation de l’équipe</div>
             {% elif steps.trading.completed %}<div class="aj-success">{{ icon('check') }} Compte {{ state.platform }} prêt et informations reçues</div>
@@ -148,7 +156,7 @@
                 <div><span>4</span><p><b>Récupère tes accès</b><small>Numéro de compte, serveur et mot de passe</small></p></div>
               </div>
               <div class="aj-platform-card">
-                <small>CHOISIS TA PLATEFORME</small>
+                <small>Choisis ta plateforme</small>
                 <div class="aj-platform-switch" role="radiogroup" aria-label="Plateforme MetaTrader">
                   <button type="button" data-platform="MT4" class="{% if state.platform == 'MT4' %}active{% endif %}">MT4<span>Classique</span></button>
                   <button type="button" data-platform="MT5" class="{% if state.platform != 'MT4' %}active{% endif %}">MT5<span>Recommandé</span></button>
@@ -162,26 +170,27 @@
         </section>
 
         <section class="aj-stage{% if steps.credentials.completed %} done{% elif steps.credentials.current %} current{% elif steps.credentials.locked %} locked{% endif %}" id="credentials" data-step="credentials">
-          <header class="aj-stage-head"><span class="aj-stage-number">04</span><div><small>CONNEXION BECTANSE</small><h2>Relie ton compte à l’application</h2></div><span class="aj-stage-status">{% if steps.credentials.completed %}Protégé{% elif steps.credentials.locked %}Verrouillé{% else %}À connecter{% endif %}</span></header>
+          <header class="aj-stage-head"><span class="aj-stage-number">04</span><div><small>Connexion Bectanse</small><h2>Relie ton compte à l’application</h2></div><span class="aj-stage-status">{% if steps.credentials.completed %}Protégé{% elif steps.credentials.locked %}Verrouillé{% else %}À connecter{% endif %}</span></header>
           <div class="aj-stage-body">
             {% if steps.credentials.locked %}<div class="aj-lock-message">{{ icon('lock') }} Récupère d’abord tes identifiants MetaTrader</div>
-            {% elif steps.credentials.completed %}<div class="aj-approved"><span>{{ icon('server') }}</span><div><small>CONNEXION ENREGISTRÉE</small><h3>Ton profil {{ state.platform }} est sécurisé</h3><p>Les informations sont synchronisées avec l’administration et ton mot de passe reste chiffré</p></div><a href="/dashboard#section-profil">Voir mon profil {{ icon('arrow') }}</a></div>
+            {% elif steps.credentials.completed %}<div class="aj-approved"><span>{{ icon('server') }}</span><div><small>Connexion enregistrée</small><h3>Ton profil {{ state.platform }} est sécurisé</h3><p>Les informations sont synchronisées avec l’administration et ton mot de passe reste chiffré</p></div><a href="/dashboard#section-profil">Voir mon profil {{ icon('arrow') }}</a></div>
             {% else %}
             <div class="aj-connect-layout">
               <div class="aj-phone">
                 <div class="aj-phone-speaker"></div>
                 <div class="aj-phone-head"><img src="/static/icons/bectanse-app-icon-master.png" alt=""><span>Profil &amp; compte</span><i></i></div>
-                <div class="aj-phone-field"><small>PLATEFORME</small><strong id="phonePlatform">{{ state.platform }}</strong></div>
-                <div class="aj-phone-field pulse"><small>LOGIN MT</small><strong id="phoneLogin">Numéro de compte</strong></div>
-                <div class="aj-phone-field"><small>SERVEUR MT</small><strong id="phoneServer">Nom du serveur</strong></div>
-                <div class="aj-phone-field"><small>MOT DE PASSE MT</small><strong>••••••••</strong></div>
-                <div class="aj-phone-save">ENREGISTRER LE PROFIL</div>
+                <div class="aj-phone-field"><small>Plateforme</small><strong id="phonePlatform">{{ state.platform }}</strong></div>
+                <div class="aj-phone-field pulse"><small>Login mt</small><strong id="phoneLogin">Numéro de compte</strong></div>
+                <div class="aj-phone-field"><small>Serveur mt</small><strong id="phoneServer">Nom du serveur</strong></div>
+                <div class="aj-phone-field"><small>Mot de passe mt</small><strong>••••••••</strong></div>
+                <div class="aj-phone-save">Enregistrer le profil</div>
               </div>
               <form class="aj-credentials" id="credentialsForm" onsubmit="return false">
                 <div class="aj-form-grid">
                   <label><span>Plateforme</span><select id="mtPlatform"><option value="MT4" {% if state.platform == 'MT4' %}selected{% endif %}>MetaTrader 4</option><option value="MT5" {% if state.platform != 'MT4' %}selected{% endif %}>MetaTrader 5</option></select></label>
                   <label><span>Login MT</span><input id="mtLogin" inputmode="numeric" autocomplete="off" placeholder="Ex : 8484775595"></label>
-                  <label><span>Serveur MT</span><select id="mtServer" aria-describedby="mtServerHelp"><option value="">Sélectionne le serveur reçu par e-mail</option>{% for server in mt_servers[state.platform] %}<option value="{{ server }}">{{ server }}</option>{% endfor %}</select><small class="aj-field-help" id="mtServerHelp">Le nom doit correspondre exactement à l’e-mail PU Prime</small></label>
+                  <label><span>Courtier</span><select id="mtBroker">{% for broker in mt_brokers %}<option value="{{ broker.name }}" {% if broker.name == "PU Prime" %}selected{% endif %}>{{ broker.name }}</option>{% endfor %}<option value="__other__">Autre courtier</option></select></label>
+                  <label><span>Serveur MT</span><select id="mtServer" aria-describedby="mtServerHelp"><option value="">Sélectionne le serveur reçu par e-mail</option>{% for server in mt_servers[state.platform] %}<option value="{{ server }}">{{ server }}</option>{% endfor %}<option value="__other__">Autre serveur — saisir le nom exact</option></select><input id="mtServerCustom" type="text" maxlength="120" autocomplete="off" placeholder="Nom exact indiqué dans MetaTrader" aria-label="Nom exact du serveur" hidden><small class="aj-field-help" id="mtServerHelp">Choisis ton serveur ou saisis celui indiqué dans MetaTrader ou par ton courtier. La connexion sera vérifiée séparément.</small></label>
                   <label><span>Mot de passe MT</span><div class="aj-password"><input id="mtPassword" type="password" autocomplete="new-password" placeholder="Mot de passe de connexion"><button type="button" data-toggle-password aria-label="Afficher ou masquer">{{ icon('eye') }}</button></div></label>
                 </div>
                 <div class="aj-privacy-line">{{ icon('shield') }} Chiffrement avant stockage, aucune donnée sensible envoyée dans Telegram</div>
@@ -193,7 +202,7 @@
         </section>
 
         <section class="aj-stage{% if steps.installation.completed %} done{% elif steps.installation.current %} current{% elif steps.installation.locked %} locked{% endif %}" id="installation" data-step="installation">
-          <header class="aj-stage-head"><span class="aj-stage-number">05</span><div><small>EXPÉRIENCE MOBILE</small><h2>Installe Bectanse sur ton écran</h2></div><span class="aj-stage-status">{% if steps.installation.completed %}Installée{% elif steps.installation.locked %}Verrouillé{% else %}2 minutes{% endif %}</span></header>
+          <header class="aj-stage-head"><span class="aj-stage-number">05</span><div><small>Expérience mobile</small><h2>Installe Bectanse sur ton écran</h2></div><span class="aj-stage-status">{% if steps.installation.completed %}Installée{% elif steps.installation.locked %}Verrouillé{% else %}2 minutes{% endif %}</span></header>
           <div class="aj-stage-body">
             {% if steps.installation.locked %}<div class="aj-lock-message">{{ icon('lock') }} Connecte ton compte avant l’installation finale</div>
             {% elif steps.installation.completed %}<div class="aj-success">{{ icon('check') }} Application ajoutée à ton écran d’accueil</div>
@@ -212,10 +221,10 @@
         </section>
 
         <section class="aj-stage{% if steps.notifications.completed %} done{% elif steps.notifications.current %} current{% elif steps.notifications.locked %} locked{% endif %}" id="notifications" data-step="notifications">
-          <header class="aj-stage-head"><span class="aj-stage-number">06</span><div><small>ALERTES EN TEMPS RÉEL</small><h2>Active les notifications</h2></div><span class="aj-stage-status">{% if steps.notifications.completed %}Actives{% elif steps.notifications.locked %}Verrouillé{% else %}Dernière étape{% endif %}</span></header>
+          <header class="aj-stage-head"><span class="aj-stage-number">06</span><div><small>Alertes en temps réel</small><h2>Active les notifications</h2></div><span class="aj-stage-status">{% if steps.notifications.completed %}Actives{% elif steps.notifications.locked %}Verrouillé{% else %}Dernière étape{% endif %}</span></header>
           <div class="aj-stage-body">
             {% if steps.notifications.locked %}<div class="aj-lock-message">{{ icon('lock') }} Installe l’application avant d’activer les alertes</div>
-            {% elif steps.notifications.completed %}<div class="aj-finish-card"><div class="aj-finish-mark">{{ icon('check') }}</div><small>PARCOURS TERMINÉ</small><h3>Tout est prêt, {{ state.first_name }}</h3><p>Ton compte, l’application et les notifications sont correctement configurés</p><div><a class="aj-button primary" href="/accueil">Entrer dans l’application {{ icon('arrow') }}</a><a class="aj-button secondary" href="/dashboard#section-parametres">Configurer mes paramètres</a></div></div>
+            {% elif steps.notifications.completed %}<div class="aj-finish-card"><div class="aj-finish-mark">{{ icon('check') }}</div><small>Parcours terminé</small><h3>Tout est prêt, {{ state.first_name }}</h3><p>Ton compte, l’application et les notifications sont correctement configurés</p><div><a class="aj-button primary" href="/accueil">Entrer dans l’application {{ icon('arrow') }}</a><a class="aj-button secondary" href="/dashboard#section-parametres">Configurer mes paramètres</a></div></div>
             {% else %}
             <div class="aj-notification-grid">
               <div class="aj-notification-preview"><div class="aj-notification-phone"><span>maintenant</span><div><img src="/static/icons/bectanse-app-icon-master.png" alt=""><p><b>Bectanse Académie</b><small>Nouvelle information disponible dans ton espace</small></p></div></div><i></i></div>
@@ -226,16 +235,17 @@
         </section>
 
         <section class="aj-help">
-          <span>{{ icon('support') }}</span><div><small>BESOIN D’UN COUP DE MAIN</small><h2>L’équipe reprend exactement là où tu bloques</h2><p>Ta progression est enregistrée, tu n’as pas besoin de tout recommencer</p></div><a class="aj-button secondary" href="{{ support_url }}" target="_blank" rel="noopener">Contacter l’équipe</a>
+          <span>{{ icon('support') }}</span><div><small>Besoin d’un coup de main</small><h2>L’équipe reprend exactement là où tu bloques</h2><p>Ta progression est enregistrée, tu n’as pas besoin de tout recommencer</p></div><a class="aj-button secondary" href="{{ support_url }}" target="_blank" rel="noopener">Contacter l’équipe</a>
         </section>
       </div>
     </div>
   </main>
 
   <div class="aj-toast" id="journeyToast" role="status" aria-live="polite"></div>
-  <script>window.BECTANSE_PUSH_ELIGIBLE=true;window.BECTANSE_PUSH_GUIDED=true;window.BECTANSE_ACTIVATION_STATE={{ state|tojson }};window.BECTANSE_MT_SERVERS={{ mt_servers|tojson }};</script>
+  <script>window.BECTANSE_PUSH_ELIGIBLE=true;window.BECTANSE_PUSH_GUIDED=true;window.BECTANSE_ACTIVATION_STATE={{ state|tojson }};window.BECTANSE_MT_SERVERS={{ mt_servers|tojson }};window.BECTANSE_MT_BROKERS={{ mt_brokers|tojson }};</script>
   <script src="/static/push.js?v=20260906-2"></script>
-  <script src="{{ url_for('static', filename='activation-journey.js') }}?v=20260906-3"></script>
+  <script src="{{ url_for('static', filename='activation-journey.js') }}?v=20261015-brokers"></script>
   {% include "_mobile_nav.html" %}
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

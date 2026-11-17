@@ -2,14 +2,18 @@ const KEY = document.body.dataset.adminKey;
 const PREVIEW_MODE = document.body.dataset.previewMode === 'true';
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const TYPE_NAMES = {weekly:'Hebdomadaire', rotation:'Rotation 4 semaines', once:'Envoi unique'};
-const POST_TYPE_NAMES = {message:'Message / Photo', quiz:'Quiz', poll:'Sondage'};
+const POST_TYPE_NAMES = {message:'Message / Photo', sticker:'Sticker animé', quiz:'Quiz', poll:'Sondage'};
 const VISUAL_MANIFEST_URL = '/static/telegram-visuals/bectanse-market-signal-manifest-v2.json';
+const MOTION_MANIFEST_URL = '/static/telegram-assets/bectanse-motion-v1/manifest.json';
 
 let posts = [];
 let channels = [];
 let currentImageUrl = '';
 let visualTemplates = [];
 let visualLibraryFilter = 'all';
+let motionLibrary = {emoji:[], stickers:[], telegram:{}};
+let motionTab = 'emoji';
+let selectedStickerKey = '';
 let toastTimer = null;
 let selectedCsvFile = null;
 let previewHistory = [
@@ -47,7 +51,7 @@ function renderPollOptionEditor(options=['','','',''], correctIds=[]) {
       <input class="poll-option-input" maxlength="100" value="${escapeHtml(option)}" placeholder="Réponse ${index + 1}">
       <label class="poll-correct-label" title="Marquer comme bonne réponse">
         <input class="poll-correct" type="checkbox" ${correctIds.includes(index) ? 'checked' : ''}>
-        <i>✓</i><small>Bonne</small>
+        <i></i><small>Bonne</small>
       </label>
       <button class="remove-poll-option" type="button" aria-label="Supprimer cette réponse" ${normalized.length <= 2 ? 'disabled' : ''}>×</button>
     </div>`).join('');
@@ -83,7 +87,7 @@ function renderChannelTargets(selectedIds=null) {
     return;
   }
   $('channel-targets').innerHTML = activeChannels.map(channel => `
-    <label><input type="checkbox" value="${channel.id}" ${preserved.includes(Number(channel.id)) ? 'checked' : ''}><span>✓</span><div><strong>${escapeHtml(channel.name)}</strong><small>${escapeHtml(channel.chat_id)}</small></div></label>
+    <label><input type="checkbox" value="${channel.id}" ${preserved.includes(Number(channel.id)) ? 'checked' : ''}><span></span><div><strong>${escapeHtml(channel.name)}</strong><small>${channel.audience === 'vip' ? 'VIP privé · ' : 'Public · '}${escapeHtml(channel.chat_id)}</small></div></label>
   `).join('');
 }
 
@@ -101,14 +105,14 @@ function renderChannels() {
     const status = channel.last_check_status || 'unchecked';
     const statusLabel = status === 'ready' ? 'Robot prêt' : status === 'permission_missing' ? 'Permission manquante' : status === 'error' ? 'À vérifier' : 'Non testé';
     return `<article class="channel-row">
-      <span class="channel-avatar-small">✈</span>
-      <div class="channel-main"><strong>${escapeHtml(channel.name)}</strong><small>${escapeHtml(channel.chat_id)}</small></div>
+      <span class="channel-avatar-small"></span>
+      <div class="channel-main"><strong>${escapeHtml(channel.name)}</strong><small>${channel.audience === 'vip' ? 'VIP privé · ' : 'Public · '}${escapeHtml(channel.chat_id)}</small></div>
       <span class="channel-check-status ${escapeHtml(status)}">${escapeHtml(statusLabel)}</span>
       <span class="status-pill ${channel.active ? '' : 'draft'}">${channel.active ? 'Actif' : 'Suspendu'}</span>
       <div class="channel-actions">
-        <button class="mini-action" type="button" title="Tester le robot" onclick="testChannel(${channel.id})">✓</button>
-        <button class="mini-action" type="button" title="Modifier" onclick="editChannel(${channel.id})">✎</button>
-        <button class="mini-action" type="button" title="${channel.active ? 'Suspendre' : 'Activer'}" onclick="toggleChannel(${channel.id},${!channel.active})">${channel.active ? 'Ⅱ' : '▶'}</button>
+        <button class="mini-action" type="button" title="Tester le robot" onclick="testChannel(${channel.id})"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg></button>
+        <button class="mini-action" type="button" title="Modifier" onclick="editChannel(${channel.id})"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1L20 7l-3-3L5 16z"/></svg></button>
+        <button class="mini-action" type="button" title="${channel.active ? 'Suspendre' : 'Activer'}" onclick="toggleChannel(${channel.id},${!channel.active})">${channel.active ? 'Ⅱ' : ''}</button>
         <button class="mini-action delete" type="button" title="Retirer" onclick="deleteChannel(${channel.id})">×</button>
       </div>
     </article>`;
@@ -118,7 +122,7 @@ function renderChannels() {
 
 async function loadChannels() {
   if (PREVIEW_MODE) {
-    if (!channels.length) channels = [{id:1,name:'Bectanse Académie',chat_id:'@BECTANSE_ACADEMIE',active:true,last_check_status:'ready'}];
+    if (!channels.length) channels = [{id:1,name:'Bectanse Académie',chat_id:'@BECTANSE_ACADEMIE',audience:'public',active:true,last_check_status:'ready'}];
     renderChannels();
     return;
   }
@@ -136,6 +140,7 @@ async function loadChannels() {
 function resetChannelForm() {
   $('channel-form').reset();
   $('channel-id').value = '';
+  $('channel-audience').value = 'public';
   $('channel-active').checked = true;
   $('channel-form').hidden = true;
 }
@@ -146,6 +151,7 @@ function editChannel(id) {
   $('channel-id').value = channel.id;
   $('channel-name').value = channel.name;
   $('channel-chat-id').value = channel.chat_id;
+  $('channel-audience').value = channel.audience || 'public';
   $('channel-active').checked = Boolean(channel.active);
   $('channel-form').hidden = false;
   $('channel-name').focus();
@@ -154,7 +160,7 @@ function editChannel(id) {
 async function saveChannel(event) {
   event.preventDefault();
   const id = Number($('channel-id').value || 0);
-  const payload = {key:KEY,...(id ? {id} : {}),name:$('channel-name').value.trim(),chat_id:$('channel-chat-id').value.trim(),active:$('channel-active').checked};
+  const payload = {key:KEY,...(id ? {id} : {}),name:$('channel-name').value.trim(),chat_id:$('channel-chat-id').value.trim(),audience:$('channel-audience').value,active:$('channel-active').checked};
   if (!payload.name || !payload.chat_id) return showToast('Ajoute le nom et l’identifiant Telegram.', 'error');
   try {
     if (PREVIEW_MODE) {
@@ -218,11 +224,25 @@ async function readJson(response) {
   return data;
 }
 
+function motionItem(kind, key) {
+  const collection = kind === 'emoji' ? motionLibrary.emoji : motionLibrary.stickers;
+  return (collection || []).find(item => item.key === key);
+}
+
 function telegramMarkup(text) {
-  let safe = escapeHtml(text || 'Ton message apparaîtra ici…');
+  const motionParts = [];
+  const source = String(text || 'Ton message apparaîtra ici…').replace(/\{\{emoji:([a-z0-9_-]+)\}\}/gi, (_match, key) => {
+    const item = motionItem('emoji', key.toLowerCase());
+    if (!item) return '✨';
+    const marker = `MOTIONPREVIEW${motionParts.length}TOKEN`;
+    motionParts.push(`<video class="motion-inline-emoji" src="${escapeHtml(publicAssetUrl(item.file))}" autoplay muted loop playsinline title="${escapeHtml(item.name || item.key)}"></video>`);
+    return marker;
+  });
+  let safe = escapeHtml(source);
   safe = safe.replace(/`([^`\n]+)`/g, '<code>$1</code>');
   safe = safe.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
   safe = safe.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+  motionParts.forEach((part, index) => { safe = safe.replace(`MOTIONPREVIEW${index}TOKEN`, part); });
   return safe;
 }
 
@@ -248,6 +268,86 @@ function publicAssetUrl(path='') {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
   return `/${String(path).replace(/^\/+/, '')}`;
+}
+
+function motionLabel(item) {
+  return String(item.text || item.label || item.key || '').replace(/\n/g, ' ');
+}
+
+function renderMotionLibrary() {
+  const collection = motionTab === 'emoji' ? motionLibrary.emoji : motionLibrary.stickers;
+  const query = $('motion-search').value.trim().toLowerCase();
+  const filtered = (collection || []).filter(item => {
+    const searchable = [motionLabel(item), item.sub, item.key, ...(item.keywords || [])].join(' ').toLowerCase();
+    return !query || searchable.includes(query);
+  });
+  $('motion-grid').classList.toggle('stickers', motionTab === 'stickers');
+  $('motion-grid').innerHTML = filtered.length ? filtered.map(item => `
+    <button class="motion-item ${motionTab === 'stickers' && selectedStickerKey === item.key ? 'selected' : ''}" type="button" data-motion-kind="${motionTab}" data-motion-key="${escapeHtml(item.key)}">
+      <video src="${escapeHtml(publicAssetUrl(item.file))}" poster="${escapeHtml(publicAssetUrl(item.preview))}" muted loop playsinline preload="none"></video>
+      <strong>${escapeHtml(motionLabel(item))}</strong>
+      <small>${motionTab === 'emoji' ? 'Insérer dans le texte' : 'Utiliser ce sticker'}</small>
+    </button>`).join('') : '<div class="motion-loading">Aucune animation ne correspond à cette recherche.</div>';
+  $('motion-count').textContent = `${motionLibrary.emoji.length} emojis · ${motionLibrary.stickers.length} stickers`;
+}
+
+function insertMotionEmoji(key) {
+  const item = motionItem('emoji', key);
+  if (!item) return;
+  const messageRadio = document.querySelector('input[name="post-type"][value="message"]');
+  messageRadio.checked = true;
+  setPostTypeVisibility();
+  const input = $('post-message');
+  const token = `{{emoji:${key}}}`;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? start;
+  const prefix = start && !/\s$/.test(input.value.slice(0, start)) ? ' ' : '';
+  const suffix = end < input.value.length && !/^\s/.test(input.value.slice(end)) ? ' ' : '';
+  input.setRangeText(`${prefix}${token}${suffix}`, start, end, 'end');
+  input.focus();
+  updatePreview();
+  showToast(`${motionLabel(item)} ajouté au message.`);
+}
+
+function selectMotionSticker(key) {
+  const item = motionItem('stickers', key);
+  if (!item) return;
+  selectedStickerKey = key;
+  $('post-message').value = `{{sticker:${key}}}`;
+  document.querySelector('input[name="post-type"][value="sticker"]').checked = true;
+  setImage('');
+  $('selected-motion').hidden = false;
+  $('selected-motion-video').src = publicAssetUrl(item.file);
+  $('selected-motion-name').textContent = motionLabel(item);
+  setPostTypeVisibility();
+  renderMotionLibrary();
+  showToast(`${motionLabel(item)} sélectionné.`);
+}
+
+function clearMotionSticker() {
+  selectedStickerKey = '';
+  $('selected-motion').hidden = true;
+  $('selected-motion-video').removeAttribute('src');
+  if (currentPostType() === 'sticker') $('post-message').value = '';
+  renderMotionLibrary();
+  updatePreview();
+}
+
+async function loadMotionLibrary() {
+  try {
+    const response = await fetch(MOTION_MANIFEST_URL, {cache:'no-store'});
+    if (!response.ok) throw new Error('Bibliothèque Motion indisponible');
+    motionLibrary = await response.json();
+    motionLibrary.emoji ||= [];
+    motionLibrary.stickers ||= [];
+    const telegram = motionLibrary.telegram || {};
+    if (telegram.emoji_pack_url) $('motion-emoji-pack-link').href = telegram.emoji_pack_url;
+    if (telegram.sticker_pack_url) $('motion-sticker-pack-link').href = telegram.sticker_pack_url;
+    renderMotionLibrary();
+  } catch (error) {
+    $('motion-grid').innerHTML = `<div class="motion-loading">${escapeHtml(error.message)}</div>`;
+    $('motion-count').textContent = 'Indisponible';
+  }
 }
 
 function updateVisualLibraryState() {
@@ -278,7 +378,13 @@ function renderVisualLibrary() {
   }
   grid.innerHTML = filtered.map(template => {
     const previewUrl = publicAssetUrl(template.webp || template.png || template.image_url);
-    const sourceLabel = template.sourceType === 'custom' ? 'Mon visuel' : template.category === 'conversion' ? 'Conversion' : 'Bectanse';
+    const sourceLabel = template.sourceType === 'custom'
+      ? 'Mon visuel'
+      : template.category === 'conversion'
+        ? 'Conversion'
+        : template.category === 'vip'
+          ? 'VIP Desk'
+          : 'Bectanse';
     return `<article class="visual-template-card ${escapeHtml(template.category || 'market')}" data-template-id="${escapeHtml(template.id)}">
       <button class="visual-template-apply" type="button" aria-label="Utiliser ${escapeHtml(template.title)}">
         <img src="${escapeHtml(previewUrl)}" alt="" loading="lazy">
@@ -349,7 +455,7 @@ function resetLibraryUpload() {
   $('library-image-caption').value = '';
   $('visual-catalog-upload').hidden = true;
   $('save-library-upload').disabled = false;
-  $('save-library-upload').textContent = 'Enregistrer dans le catalogue →';
+  $('save-library-upload').textContent = 'Enregistrer dans le catalogue ';
 }
 
 async function saveLibraryUpload() {
@@ -390,7 +496,7 @@ async function saveLibraryUpload() {
   } catch (error) {
     showToast(error.message, 'error');
     button.disabled = false;
-    button.textContent = 'Enregistrer dans le catalogue →';
+    button.textContent = 'Enregistrer dans le catalogue ';
   }
 }
 
@@ -424,9 +530,17 @@ function setScheduleVisibility() {
 }
 
 function setPostTypeVisibility() {
-  const isMessage = currentPostType() === 'message';
+  const postType = currentPostType();
+  const isMessage = postType === 'message';
+  const isInteractive = postType === 'quiz' || postType === 'poll';
   $('message-fields').hidden = !isMessage;
-  $('poll-fields').hidden = isMessage;
+  $('poll-fields').hidden = !isInteractive;
+  $('selected-motion').hidden = postType !== 'sticker' || !selectedStickerKey;
+  if (postType === 'sticker') {
+    motionTab = 'stickers';
+    document.querySelectorAll('#motion-tabs button').forEach(button => button.classList.toggle('active', button.dataset.motionTab === 'stickers'));
+    renderMotionLibrary();
+  }
   updatePollEditorMode();
   updateVisualLibraryState();
   updatePreview();
@@ -435,19 +549,24 @@ function setPostTypeVisibility() {
 function updatePreview() {
   const postType = currentPostType();
   const message = $('post-message').value;
-  const max = currentImageUrl ? 1024 : 4096;
+  const isInteractive = postType === 'quiz' || postType === 'poll';
+  const max = currentImageUrl && postType === 'message' ? 1024 : 4096;
   $('char-count').textContent = `${message.length.toLocaleString('fr-FR')} / ${max.toLocaleString('fr-FR')}`;
   $('char-count').style.color = message.length > max ? '#fb7185' : '';
   $('telegram-preview-message').innerHTML = telegramMarkup(message);
-  $('telegram-preview-message').hidden = postType === 'message' && !message && Boolean(currentImageUrl);
+  $('telegram-preview-message').hidden = postType === 'sticker' || (postType === 'message' && !message && Boolean(currentImageUrl));
+  const sticker = motionItem('stickers', selectedStickerKey);
+  $('telegram-preview-sticker').hidden = postType !== 'sticker' || !sticker;
+  if (postType === 'sticker' && sticker) $('telegram-preview-sticker').src = publicAssetUrl(sticker.file);
+  else $('telegram-preview-sticker').removeAttribute('src');
 
   const question = $('poll-question').value.trim();
   const explanation = $('poll-explanation').value.trim();
   $('question-count').textContent = `${question.length.toLocaleString('fr-FR')} / 300`;
   $('explanation-count').textContent = `${explanation.length.toLocaleString('fr-FR')} / 200`;
-  $('telegram-preview-standard').hidden = postType !== 'message';
-  $('telegram-preview-poll').hidden = postType === 'message';
-  if (postType !== 'message') {
+  $('telegram-preview-standard').hidden = isInteractive;
+  $('telegram-preview-poll').hidden = !isInteractive;
+  if (isInteractive) {
     const options = pollOptions();
     $('telegram-poll-type').textContent = postType === 'quiz' ? 'QUIZ' : 'SONDAGE';
     $('telegram-poll-question').textContent = question || 'Ta question apparaîtra ici…';
@@ -484,7 +603,7 @@ function previewPollVote(index) {
       if (correctIds.includes(buttonIndex)) button.classList.add('correct');
     });
     selected.classList.add('selected', correctIds.includes(index) ? 'correct' : 'wrong');
-    selected.querySelector('b').textContent = correctIds.includes(index) ? '✓' : '×';
+    selected.querySelector('b').textContent = correctIds.includes(index) ? '' : '×';
     const explanation = $('poll-explanation').value.trim();
     $('telegram-poll-explanation').hidden = !explanation;
   } else if ($('poll-multiple').checked) {
@@ -505,6 +624,9 @@ function resetForm() {
   renderChannelTargets([]);
   setBroadcastVisibility();
   $('poll-anonymous').checked = true;
+  selectedStickerKey = '';
+  $('selected-motion').hidden = true;
+  $('selected-motion-video').removeAttribute('src');
   renderPollOptionEditor(['','','',''], []);
   document.querySelectorAll('#days-picker input').forEach((input, index) => { input.checked = index === 0; });
   setImage('');
@@ -523,7 +645,8 @@ function formPayload() {
     key: KEY,
     ...(id ? {id} : {}),
     name: $('post-name').value.trim(),
-    message: $('post-message').value.trim(),
+    message: postType === 'sticker' && selectedStickerKey ? `{{sticker:${selectedStickerKey}}}` : $('post-message').value.trim(),
+    sticker_key: selectedStickerKey,
     image_url: postType === 'message' ? currentImageUrl : '',
     post_type: postType,
     poll_question: $('poll-question').value.trim(),
@@ -554,8 +677,9 @@ async function savePost(event) {
   if (!payload.name) return showToast('Ajoute un nom interne.', 'error');
   if (payload.post_type === 'message' && !payload.message && !currentImageUrl) return showToast('Ajoute un message ou une image.', 'error');
   if (payload.post_type === 'message' && payload.message.length > max) return showToast(`Le message dépasse la limite de ${max} caractères.`, 'error');
-  if (payload.post_type !== 'message' && !payload.poll_question) return showToast('Ajoute la question.', 'error');
-  if (payload.post_type !== 'message' && (payload.poll_options.length < 2 || payload.poll_options.some(option => !option))) {
+  if (payload.post_type === 'sticker' && !payload.sticker_key) return showToast('Choisis un sticker animé Bectanse.', 'error');
+  if ((payload.post_type === 'quiz' || payload.post_type === 'poll') && !payload.poll_question) return showToast('Ajoute la question.', 'error');
+  if ((payload.post_type === 'quiz' || payload.post_type === 'poll') && (payload.poll_options.length < 2 || payload.poll_options.some(option => !option))) {
     return showToast('Renseigne au moins deux réponses sans laisser de ligne vide.', 'error');
   }
   if (payload.post_type === 'quiz' && !payload.poll_correct_option_ids.length) return showToast('Coche au moins une bonne réponse.', 'error');
@@ -603,8 +727,9 @@ function validateImmediatePayload(payload) {
   const max = currentImageUrl ? 1024 : 4096;
   if (payload.post_type === 'message' && !payload.message && !currentImageUrl) return 'Ajoute un message ou une image.';
   if (payload.post_type === 'message' && payload.message.length > max) return `Le message dépasse la limite de ${max} caractères.`;
-  if (payload.post_type !== 'message' && !payload.poll_question) return 'Ajoute la question.';
-  if (payload.post_type !== 'message' && (payload.poll_options.length < 2 || payload.poll_options.some(option => !option))) {
+  if (payload.post_type === 'sticker' && !payload.sticker_key) return 'Choisis un sticker animé Bectanse.';
+  if ((payload.post_type === 'quiz' || payload.post_type === 'poll') && !payload.poll_question) return 'Ajoute la question.';
+  if ((payload.post_type === 'quiz' || payload.post_type === 'poll') && (payload.poll_options.length < 2 || payload.poll_options.some(option => !option))) {
     return 'Renseigne au moins deux réponses sans laisser de ligne vide.';
   }
   if (payload.post_type === 'quiz' && !payload.poll_correct_option_ids.length) return 'Coche au moins une bonne réponse.';
@@ -686,7 +811,7 @@ async function uploadImage(file) {
 
 function scheduleLabel(post) {
   if (post.schedule_type === 'once') {
-    return post.scheduled_for ? new Intl.DateTimeFormat('fr-FR', {dateStyle:'medium',timeStyle:'short'}).format(new Date(post.scheduled_for)) : 'Date non définie';
+    return post.scheduled_for ? new Intl.DateTimeFormat('fr-FR', {timeZone:'Europe/Paris',dateStyle:'medium',timeStyle:'short'}).format(new Date(post.scheduled_for)) : 'Date non définie';
   }
   const days = (post.weekdays || []).map(day => DAY_NAMES[day]).join(', ');
   const rotation = post.schedule_type === 'rotation' ? ` · S${Number(post.rotation_week) + 1}/4` : '';
@@ -696,7 +821,13 @@ function scheduleLabel(post) {
 function nextRunLabel(post) {
   if (!post.enabled) return 'Robot en pause';
   if (!post.next_run) return post.schedule_type === 'once' ? 'Échéance passée' : 'Aucun prochain envoi';
-  return `Prochain : ${new Intl.DateTimeFormat('fr-FR', {weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(post.next_run))}`;
+  return `Prochain : ${new Intl.DateTimeFormat('fr-FR', {timeZone:'Europe/Paris',weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(post.next_run))}`;
+}
+
+function stickerForPost(post) {
+  if ((post.post_type || 'message') !== 'sticker') return null;
+  const match = String(post.message || '').match(/^\{\{sticker:([a-z0-9_-]+)\}\}$/i);
+  return match ? motionItem('stickers', match[1].toLowerCase()) : null;
 }
 
 function renderPosts() {
@@ -716,21 +847,30 @@ function renderPosts() {
     $('posts-list').innerHTML = '<div class="empty-state">Aucune publication ne correspond à ce filtre.</div>';
     return;
   }
-  $('posts-list').innerHTML = filtered.map(post => `
+  $('posts-list').innerHTML = filtered.map(post => {
+    const sticker = stickerForPost(post);
+    const thumb = post.image_url
+      ? `<img src="${escapeHtml(post.image_url)}" alt="">`
+      : sticker
+        ? `<video src="${escapeHtml(publicAssetUrl(sticker.file))}" autoplay muted loop playsinline></video>`
+        : post.post_type === 'quiz' ? '?' : post.post_type === 'poll' ? '◉' : '';
+    const excerpt = sticker ? motionLabel(sticker) : (post.post_type === 'message' ? post.message : post.poll_question || post.message);
+    return `
     <article class="post-row">
-      <div class="post-thumb ${escapeHtml(post.post_type || 'message')}">${post.image_url ? `<img src="${escapeHtml(post.image_url)}" alt="">` : post.post_type === 'quiz' ? '?' : post.post_type === 'poll' ? '◉' : '✈'}</div>
+      <div class="post-thumb ${escapeHtml(post.post_type || 'message')}">${thumb}</div>
       <div class="post-main">
         <div class="post-title"><strong>${escapeHtml(post.name)}</strong><span class="status-pill ${post.enabled ? '' : 'draft'}">${post.enabled ? 'Actif' : 'Brouillon'}</span></div>
-        <div class="post-excerpt"><b>${escapeHtml(POST_TYPE_NAMES[post.post_type || 'message'])}</b> · ${escapeHtml((post.post_type === 'message' ? post.message : post.poll_question || post.message).replace(/\n/g,' '))}</div>
+        <div class="post-excerpt"><b>${escapeHtml(POST_TYPE_NAMES[post.post_type || 'message'])}</b> · ${escapeHtml(String(excerpt || '').replace(/\n/g,' '))}</div>
       </div>
       <div class="post-schedule"><strong>${escapeHtml(TYPE_NAMES[post.schedule_type] || post.schedule_type)} · ${escapeHtml(scheduleLabel(post))}</strong><small>${escapeHtml(nextRunLabel(post))}</small></div>
       <div class="post-actions">
-        <button class="mini-action" type="button" title="Modifier" onclick="editPost(${post.id})">✎</button>
-        <button class="mini-action" type="button" title="${post.enabled ? 'Mettre en pause' : 'Activer'}" onclick="togglePost(${post.id},${!post.enabled})">${post.enabled ? 'Ⅱ' : '▶'}</button>
-        <button class="mini-action send" type="button" title="Envoyer maintenant" onclick="sendNow(${post.id})">➤</button>
+        <button class="mini-action" type="button" title="Modifier" onclick="editPost(${post.id})"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1L20 7l-3-3L5 16z"/></svg></button>
+        <button class="mini-action" type="button" title="${post.enabled ? 'Mettre en pause' : 'Activer'}" onclick="togglePost(${post.id},${!post.enabled})">${post.enabled ? 'Ⅱ' : ''}</button>
+        <button class="mini-action send" type="button" title="Envoyer maintenant" onclick="sendNow(${post.id})"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 8-16 8 4-8z"/></svg></button>
         <button class="mini-action delete" type="button" title="Supprimer" onclick="deletePost(${post.id})">×</button>
       </div>
-    </article>`).join('');
+    </article>`;
+  }).join('');
 }
 
 async function loadPosts() {
@@ -739,8 +879,8 @@ async function loadPosts() {
       const tomorrow = new Date(Date.now() + 86400000).toISOString();
       const inThreeDays = new Date(Date.now() + 3 * 86400000).toISOString();
       posts = [
-        {id:1,name:'Le rituel du lundi',post_type:'message',message:'🔥 *LE RITUEL DU LUNDI*\n\nPrépare ton risque avant d’ouvrir une position.',image_url:'',schedule_type:'weekly',weekdays:[0],rotation_week:null,publish_time:'18:30',scheduled_for:null,channel:'@BECTANSE_ACADEMIE',publish_all_channels:true,channel_ids:[],button_text:'',button_url:'',disable_notification:false,enabled:true,next_run:tomorrow,last_sent_at:null},
-        {id:2,name:'Débrief du vendredi',post_type:'message',message:'📊 *LE DÉBRIEF DU VENDREDI*\n\nNote ta meilleure décision et l’erreur à ne pas répéter.',image_url:'',schedule_type:'weekly',weekdays:[4],rotation_week:null,publish_time:'18:00',scheduled_for:null,channel:'@BECTANSE_ACADEMIE',button_text:'Ouvrir mon espace',button_url:'https://acces.bectanse-academie.com',disable_notification:false,enabled:true,next_run:inThreeDays,last_sent_at:null},
+        {id:1,name:'Le rituel du lundi',post_type:'message',message:' *LE RITUEL DU LUNDI*\n\nPrépare ton risque avant d’ouvrir une position.',image_url:'',schedule_type:'weekly',weekdays:[0],rotation_week:null,publish_time:'18:30',scheduled_for:null,channel:'@BECTANSE_ACADEMIE',publish_all_channels:true,channel_ids:[],button_text:'',button_url:'',disable_notification:false,enabled:true,next_run:tomorrow,last_sent_at:null},
+        {id:2,name:'Débrief du vendredi',post_type:'message',message:' *LE DÉBRIEF DU VENDREDI*\n\nNote ta meilleure décision et l’erreur à ne pas répéter.',image_url:'',schedule_type:'weekly',weekdays:[4],rotation_week:null,publish_time:'18:00',scheduled_for:null,channel:'@BECTANSE_ACADEMIE',button_text:'Ouvrir mon espace',button_url:'https://acces.bectanse-academie.com',disable_notification:false,enabled:true,next_run:inThreeDays,last_sent_at:null},
         {id:3,name:'Quiz gestion du risque',post_type:'quiz',message:'Quel ratio signifie que le gain potentiel est deux fois supérieur au risque ?',poll_question:'Quel ratio signifie que le gain potentiel est deux fois supérieur au risque ?',poll_options:['1:1','1:2','2:1','3:1'],poll_correct_option_ids:[1],poll_explanation:'Le ratio 1:2 vise deux unités de gain pour une unité risquée.',poll_anonymous:true,poll_multiple:false,image_url:'',schedule_type:'rotation',weekdays:[6],rotation_week:1,publish_time:'11:00',scheduled_for:null,channel:'@BECTANSE_ACADEMIE',button_text:'',button_url:'',disable_notification:true,enabled:true,next_run:inThreeDays,last_sent_at:null},
         {id:4,name:'Sondage de la communauté',post_type:'poll',message:'Quel sujet veux-tu travailler ?',poll_question:'Quel sujet veux-tu travailler cette semaine ?',poll_options:['Gestion du risque','Psychologie','Lecture du marché'],poll_correct_option_ids:[],poll_explanation:'',poll_anonymous:true,poll_multiple:false,image_url:'',schedule_type:'once',weekdays:[],rotation_week:null,publish_time:'18:30',scheduled_for:tomorrow.slice(0,16),channel:'@BECTANSE_ACADEMIE',button_text:'',button_url:'',disable_notification:false,enabled:false,next_run:null,last_sent_at:null}
       ];
@@ -776,7 +916,19 @@ function editPost(id) {
   if (!post) return;
   $('post-id').value = post.id;
   $('post-name').value = post.name;
-  $('post-message').value = (post.post_type || 'message') === 'message' ? post.message : '';
+  const editedPostType = post.post_type || 'message';
+  $('post-message').value = editedPostType === 'message' ? post.message : '';
+  const stickerMatch = editedPostType === 'sticker' ? String(post.message || '').match(/^\{\{sticker:([a-z0-9_-]+)\}\}$/i) : null;
+  selectedStickerKey = stickerMatch ? stickerMatch[1].toLowerCase() : '';
+  const editedSticker = motionItem('stickers', selectedStickerKey);
+  $('selected-motion').hidden = !editedSticker;
+  if (editedSticker) {
+    $('selected-motion-video').src = publicAssetUrl(editedSticker.file);
+    $('selected-motion-name').textContent = motionLabel(editedSticker);
+    $('post-message').value = `{{sticker:${selectedStickerKey}}}`;
+  } else {
+    $('selected-motion-video').removeAttribute('src');
+  }
   const postTypeInput = document.querySelector(`input[name="post-type"][value="${post.post_type || 'message'}"]`);
   if (postTypeInput) postTypeInput.checked = true;
   $('poll-question').value = post.poll_question || '';
@@ -873,7 +1025,7 @@ function renderHistory(history) {
     }
     $('history-list').innerHTML = history.map(item => {
       const date = item.sent_at || item.created_at;
-      const dateLabel = date ? new Intl.DateTimeFormat('fr-FR', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(date)) : '—';
+      const dateLabel = date ? new Intl.DateTimeFormat('fr-FR', {timeZone:'Europe/Paris',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(date)) : '—';
       return `<div class="history-row">
         <span class="history-date">${escapeHtml(dateLabel)}</span>
         <span class="history-name">${escapeHtml(item.name || item.content.slice(0,80) || item.slot_key)}</span>
@@ -956,7 +1108,7 @@ async function importCsv() {
     showToast(error.message, 'error');
     button.disabled = false;
   } finally {
-    button.textContent = 'Importer les publications →';
+    button.textContent = 'Importer les publications ';
   }
 }
 
@@ -967,17 +1119,17 @@ function csvEscape(value='') {
 
 function exportPreviewCsv() {
   const headers = ['nom','type','date','heure','rythme','jours','semaine_rotation','canal','message','image_url','texte_bouton','lien_bouton','question','reponses','bonnes_reponses','explication','anonyme','choix_multiples','silencieux','actif','tous_les_canaux','canaux'];
-  const typeLabels = {message:'message',quiz:'quiz',poll:'sondage'};
+  const typeLabels = {message:'message',sticker:'sticker',quiz:'quiz',poll:'sondage'};
   const rhythmLabels = {weekly:'hebdomadaire',rotation:'rotation',once:'unique'};
   const dayLabels = ['lun','mar','mer','jeu','ven','sam','dim'];
   const rows = posts.map(post => {
     const scheduled = post.scheduled_for ? new Date(post.scheduled_for) : null;
-    const date = scheduled && !Number.isNaN(scheduled.valueOf()) ? new Intl.DateTimeFormat('fr-FR').format(scheduled) : '';
-    const hour = scheduled && !Number.isNaN(scheduled.valueOf()) ? scheduled.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : post.publish_time || '';
+    const date = scheduled && !Number.isNaN(scheduled.valueOf()) ? new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris'}).format(scheduled) : '';
+    const hour = scheduled && !Number.isNaN(scheduled.valueOf()) ? scheduled.toLocaleTimeString('fr-FR',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit'}) : post.publish_time || '';
     return [
       post.name, typeLabels[post.post_type || 'message'], date, hour, rhythmLabels[post.schedule_type],
       (post.weekdays || []).map(day => dayLabels[day]).join('|'), post.rotation_week == null ? '' : Number(post.rotation_week) + 1,
-      post.channel, (post.post_type || 'message') === 'message' ? post.message : '', post.image_url || '', post.button_text || '', post.button_url || '',
+      post.channel, ['message','sticker'].includes(post.post_type || 'message') ? post.message : '', post.image_url || '', post.button_text || '', post.button_url || '',
       post.poll_question || '', (post.poll_options || []).join('|'), (post.poll_correct_option_ids || []).map(index => Number(index) + 1).join('|'),
       post.poll_explanation || '', post.poll_anonymous === false ? 'non' : 'oui', post.poll_multiple ? 'oui' : 'non',
       post.disable_notification ? 'oui' : 'non', post.enabled ? 'oui' : 'non',
@@ -1035,6 +1187,29 @@ $('publish-time').addEventListener('input', updatePreview);
 $('scheduled-for').addEventListener('input', updatePreview);
 $('post-image').addEventListener('change', event => uploadImage(event.target.files[0]));
 $('remove-image').addEventListener('click', () => setImage(''));
+$('motion-grid').addEventListener('click', event => {
+  const button = event.target.closest('[data-motion-kind][data-motion-key]');
+  if (!button) return;
+  if (button.dataset.motionKind === 'emoji') insertMotionEmoji(button.dataset.motionKey);
+  else selectMotionSticker(button.dataset.motionKey);
+});
+$('motion-grid').addEventListener('pointerover', event => {
+  const video = event.target.closest('.motion-item')?.querySelector('video');
+  if (video) video.play().catch(() => {});
+});
+$('motion-grid').addEventListener('pointerout', event => {
+  const video = event.target.closest('.motion-item')?.querySelector('video');
+  if (video) { video.pause(); video.currentTime = 0; }
+});
+$('motion-tabs').addEventListener('click', event => {
+  const button = event.target.closest('[data-motion-tab]');
+  if (!button) return;
+  motionTab = button.dataset.motionTab;
+  document.querySelectorAll('#motion-tabs button').forEach(item => item.classList.toggle('active', item === button));
+  renderMotionLibrary();
+});
+$('motion-search').addEventListener('input', renderMotionLibrary);
+$('clear-selected-motion').addEventListener('click', clearMotionSticker);
 $('visual-template-grid').addEventListener('click', event => {
   const deleteButton = event.target.closest('.visual-template-delete[data-custom-id]');
   if (deleteButton) return deleteLibraryVisual(Number(deleteButton.dataset.customId));
@@ -1087,7 +1262,7 @@ csvDropzone.addEventListener('drop', event => {
 
 async function initializeStudio() {
   resetForm();
-  await Promise.all([loadChannels(), loadVisualLibrary()]);
+  await Promise.all([loadChannels(), loadVisualLibrary(), loadMotionLibrary()]);
   await Promise.all([loadPosts(), loadHistory()]);
 }
 initializeStudio();

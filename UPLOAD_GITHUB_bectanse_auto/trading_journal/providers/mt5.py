@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from .base import AccountSnapshot, DealSnapshot, ProviderError, TradingProvider
+from ..brokers import server_connection_candidates
 
 
 def _decimal(value) -> Decimal:
@@ -47,8 +48,8 @@ class MetaTrader5Provider(TradingProvider):
         except Exception:
             return ()
 
-    def _connection_error(self) -> ProviderError:
-        code, message = (self._last_error() + (None, None))[:2]
+    def _connection_error(self, diagnostic: tuple | None = None) -> ProviderError:
+        code, message = ((diagnostic or self._last_error()) + (None, None))[:2]
         message_text = str(message or "").lower()
         if code == -6 or "auth" in message_text or "password" in message_text:
             return ProviderError(
@@ -74,21 +75,52 @@ class MetaTrader5Provider(TradingProvider):
         connection = {
             "login": int(login),
             "password": password,
-            "server": server,
             "timeout": self.timeout_ms,
             "portable": self.portable_mode,
         }
-        initialized = (
-            mt5.initialize(self.terminal_path, **connection)
-            if self.terminal_path
-            else mt5.initialize(**connection)
-        )
-        if not initialized:
-            raise self._connection_error()
-        self._connected = True
-        info = mt5.account_info()
+        candidates = server_connection_candidates(server) or (server,)
+        # The MetaTrader timeout applies to each initialize() call.  Reusing the
+        # full timeout for every cosmetic server alias could monopolize a worker
+        # for 9-12 minutes.  Keep the complete alias search inside one bounded
+        # connection budget while preserving the full timeout for exact names.
+        per_candidate_timeout = self.timeout_ms
+        if len(candidates) > 1:
+            per_candidate_timeout = max(
+                15_000,
+                min(60_000, self.timeout_ms // len(candidates)),
+            )
+        last_diagnostic = ()
+        exact_diagnostic = ()
+        info = None
+        for index, candidate in enumerate(candidates):
+            attempt = {
+                **connection,
+                "server": candidate,
+                "timeout": per_candidate_timeout,
+            }
+            initialized = (
+                mt5.initialize(self.terminal_path, **attempt)
+                if self.terminal_path
+                else mt5.initialize(**attempt)
+            )
+            if initialized:
+                self._connected = True
+                info = mt5.account_info()
+                if info is not None:
+                    break
+            last_diagnostic = self._last_error()
+            if index == 0:
+                exact_diagnostic = last_diagnostic
+            self._connected = False
+            if index < len(candidates) - 1:
+                try:
+                    mt5.shutdown()
+                except Exception:
+                    pass
         if info is None:
-            raise self._connection_error()
+            # A guessed spelling must never turn an exact-server timeout into a
+            # false credential failure. The supplied server is authoritative.
+            raise self._connection_error(exact_diagnostic or last_diagnostic)
 
         trade_allowed = getattr(info, "trade_allowed", None)
         access_mode = "READ_ONLY" if trade_allowed is False else "TRADING_ALLOWED"

@@ -1,4 +1,4 @@
-"""Idempotent Bectanse database migrations run before the web process starts."""
+"""Idempotent journal migration runner used during deployments."""
 
 from __future__ import annotations
 
@@ -7,9 +7,12 @@ from urllib.parse import urlparse
 
 import pg8000.native
 
-from copy_trading import ensure_copy_schema
-
+from broker_trial import ensure_trial_schema
+from member_evidence import ensure_evidence_schema
 from .schema import ensure_trading_schema
+from copy_trading.schema import ensure_copy_schema
+from stripe_reliability.schema import ensure_billing_schema
+from stripe_reliability.bootstrap import ensure_member_base
 
 
 def connection_from_environment():
@@ -27,11 +30,15 @@ def connection_from_environment():
 def main() -> None:
     conn = connection_from_environment()
     try:
+        ensure_member_base(conn)
+        ensure_trial_schema(conn)
         ensure_trading_schema(conn)
         ensure_copy_schema(conn)
+        ensure_billing_schema(conn)
+        ensure_evidence_schema(conn)
     finally:
         conn.close()
-    print("trading journal and copy trading migrations: OK")
+    print("trading journal migrations: OK")
 
 
 if __name__ == "__main__":

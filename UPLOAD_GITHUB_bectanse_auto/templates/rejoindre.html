@@ -139,10 +139,17 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   <meta name="apple-mobile-web-app-title" content="Bectanse Académie">
   <link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
   <link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
+<body data-ui-screen="rejoindre" class="academy-universe">
+{% include "partials/academy_ambient.html" %}
+
 <a href="/dashboard" class="back-mobile">
-  <span class="arrow">←</span>
+  <span class="arrow"></span>
   <div>
     <div style="font-size:15px;font-weight:700;color:#fff;">Rejoindre Bectanse AUTO</div>
     <div class="page-name">Bectanse Académie</div>
@@ -157,112 +164,103 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   <!-- HERO -->
   <div class="hero fade-up">
     <div class="parrain-badge">
-      🎁 Tu as été recommandé par <span class="parrain-name">{{ parrain_nom }}</span>
+      Sur invitation de <span class="parrain-name">{{ parrain_nom }}</span>
     </div>
     <h1 class="hero-title">
       <span class="t1">Tu fais confiance</span>
-      <span class="t2">à quelqu'un qui réussit.</span>
+      <span class="t2">à une recommandation</span>
     </h1>
-    <p class="hero-sub">
-      <strong>{{ parrain_nom }}</strong> utilise Bectanse AUTO et gagne en copy trading automatiquement.<br>
-      Il t'a choisi pour rejoindre l'élite. <strong>Le système trade à ta place. 24h/24. 0 action requise.</strong>
-    </p>
-  </div>
-
-  <!-- STATS -->
-  <div class="stats-bar fade-up delay-1">
-    <div class="stat"><div class="stat-num">5 270</div><div class="stat-lbl">Membres actifs</div></div>
-    <div class="stat"><div class="stat-num">+87,5%</div><div class="stat-lbl">Performance</div></div>
-    <div class="stat"><div class="stat-num">24h/24</div><div class="stat-lbl">Système actif</div></div>
-    <div class="stat"><div class="stat-num">0</div><div class="stat-lbl">Action requise</div></div>
+    <p class="hero-sub">{{ parrain_nom }} t’invite à découvrir Bectanse Académie : formation, outils et accompagnement. Les résultats d’un autre membre ne préjugent pas des tiens. Le trading peut entraîner une perte du capital.</p>
   </div>
 
   <!-- OFFRES -->
   <div class="offres-title fade-up">
     <h2>Choisis ton accès</h2>
-    <p>Plus longtemps tu t'engages, plus tu économises — et plus les résultats s'accumulent</p>
+    <p>Compare les durées et les tarifs. Aucun résultat financier n’est garanti.</p>
   </div>
 
   <div class="offres-grid fade-up delay-1">
     <a href="/abonnement/checkout/1_month" class="offre-card" onclick="selectOffre('1 mois — 500€',this)">
-      <div class="offre-dur">1 Mois</div>
-      <div class="offre-price"><span>€</span>500</div>
-      <div class="offre-day"><strong>16,67€</strong>/jour</div>
+      <div class="offre-dur">1 mois</div>
+      <div class="offre-price">500 <span>€</span></div>
+      <div class="offre-day">500 € par mois</div>
       <div class="billing-line">Abonnement renouvelé chaque mois</div>
-      <div class="offre-cta cta-default">Choisir →</div>
+      <div class="offre-cta cta-default">Choisir </div>
     </a>
     <a href="/abonnement/checkout/3_months" class="offre-card popular" onclick="selectOffre('3 mois — 1000€',this)">
-      <div class="offre-badge badge-gold">⭐ Populaire</div>
-      <div class="offre-dur">3 Mois</div>
-      <div class="offre-price"><span>€</span>1000</div>
-      <div class="offre-day"><strong>11,11€</strong>/jour</div>
+      <div class="offre-badge badge-gold">Trimestriel</div>
+      <div class="offre-dur">3 mois</div>
+      <div class="offre-price">1 000 <span>€</span></div>
+      <div class="offre-day">1 000 € par trimestre</div>
       <div class="billing-line">Abonnement renouvelé tous les 3 mois</div>
       <div class="offre-eco eco-gold">-33% · Tu économises 500€</div>
-      <div class="offre-cta cta-gold">Choisir →</div>
+      <div class="offre-cta cta-gold">Choisir </div>
     </a>
     <a href="/abonnement/checkout/1_year" class="offre-card best" onclick="selectOffre('1 an — 4000€',this)">
-      <div class="offre-badge badge-green">🏆 Meilleur ROI</div>
-      <div class="offre-dur">1 An</div>
-      <div class="offre-price"><span>€</span>4000</div>
-      <div class="offre-day"><strong>10,96€</strong>/jour</div>
+      <div class="offre-badge badge-green">Formule annuelle</div>
+      <div class="offre-dur">1 an</div>
+      <div class="offre-price">4 000 <span>€</span></div>
+      <div class="offre-day">4 000 € par an</div>
       <div class="billing-line">Abonnement renouvelé chaque année</div>
-      <div class="offre-eco eco-green">-34% · Tu économises 2000€</div>
-      <div class="offre-cta cta-green">Choisir →</div>
+      <div class="offre-eco eco-green">2 000 € économisés sur 12 mensualités</div>
+      <div class="offre-cta cta-green">Choisir </div>
     </a>
   </div>
+
+  <p class="hero-sub">Renouvellement automatique jusqu’à résiliation depuis <a href="/abonnement">Mon abonnement</a>..</p>
 
   <!-- FORMULAIRE -->
   <div class="form-section fade-up">
     <div id="form-content">
-      <div class="form-title">📋 Enregistre tes informations</div>
+      <div class="form-title">Après ton paiement</div>
       <div class="form-desc">Après avoir payé sur Stripe, remplis ce formulaire. Notre équipe activera ton accès sous 24h et t'enverra ton code de connexion.</div>
 
-      <div class="error-box" id="error-box"></div>
+      <div class="error-box" id="error-box" role="alert" tabindex="-1"></div>
 
       <div class="form-row">
         <div class="form-field">
-          <label>Prénom</label>
-          <input type="text" id="prenom" placeholder="Jean" required>
+          <label for="prenom">Prénom</label>
+          <input type="text" id="prenom" autocomplete="given-name" placeholder="Jean" required>
         </div>
         <div class="form-field">
-          <label>Nom</label>
-          <input type="text" id="nom" placeholder="Dupont" required>
+          <label for="nom">Nom</label>
+          <input type="text" id="nom" autocomplete="family-name" placeholder="Dupont" required>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label>Email</label>
-          <input type="email" id="email" placeholder="jean@gmail.com" required>
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" placeholder="jean@gmail.com" required>
         </div>
         <div class="form-field">
-          <label>Téléphone</label>
-          <input type="tel" id="telephone" placeholder="+33 6 00 00 00 00" required>
+          <label for="telephone">Téléphone</label>
+          <input type="tel" id="telephone" autocomplete="tel" placeholder="+33 6 00 00 00 00" required>
         </div>
       </div>
 
       <span class="offre-select-label">Offre choisie</span>
       <div class="offre-pills">
-        <div class="offre-pill" onclick="setPill('1 mois — 500€',this)"><div class="pill-dur">1 Mois</div><div class="pill-price">500€</div></div>
-        <div class="offre-pill selected" onclick="setPill('3 mois — 1000€',this)"><div class="pill-dur">3 Mois</div><div class="pill-price">1000€</div></div>
-        <div class="offre-pill" onclick="setPill('1 an — 4000€',this)"><div class="pill-dur">1 An</div><div class="pill-price">4000€</div></div>
+        <button type="button" class="offre-pill" aria-pressed="false" onclick="setPill('1 mois — 500€',this)"><div class="pill-dur">1 mois</div><div class="pill-price">500€</div></button>
+        <button type="button" class="offre-pill selected" aria-pressed="true" onclick="setPill('3 mois — 1000€',this)"><div class="pill-dur">3 mois</div><div class="pill-price">1000€</div></button>
+        <button type="button" class="offre-pill" aria-pressed="false" onclick="setPill('1 an — 4000€',this)"><div class="pill-dur">1 an</div><div class="pill-price">4000€</div></button>
       </div>
       <input type="hidden" id="offre-selected" value="3 mois — 1000€">
 
       <button class="btn-submit" id="btn-submit" onclick="submitForm()">
-        <span>✅</span> J'ai payé — Activer mon accès
+        Confirmer mes informations
       </button>
     </div>
 
     <div class="success-box" id="success-box">
-      <div class="success-icon">🎉</div>
+      <div class="success-icon"></div>
       <div class="success-title">Demande envoyée !</div>
-      <div class="success-desc">Notre équipe a reçu ta demande et vérifie ton paiement.<br>Tu recevras ton code d'accès dans les <strong>24 heures</strong> par email et SMS.<br><br>Bienvenue dans Bectanse AUTO 🚀</div>
+      <div class="success-desc">Notre équipe a reçu ta demande et vérifie ton paiement.<br>Tu recevras ton code d'accès dans les <strong>24 heures</strong> par email et SMS.<br><br>Bienvenue dans Bectanse AUTO </div>
     </div>
   </div>
 
   <!-- GARANTIE -->
   <div class="garantie fade-up">
-    <p>🔒 <strong>Paiement 100% sécurisé via Stripe</strong> — Standard mondial utilisé par Amazon, Apple, Google.<br>
+    <p> <strong>Paiement 100% sécurisé via Stripe</strong> — Standard mondial utilisé par Amazon, Apple, Google.<br>
     Tes données bancaires ne transitent jamais par nos serveurs.</p>
   </div>
 
@@ -275,14 +273,14 @@ let offreSelected = '3 mois — 1000€';
 function setPill(val, el) {
   offreSelected = val;
   document.getElementById('offre-selected').value = val;
-  document.querySelectorAll('.offre-pill').forEach(p => p.classList.remove('selected'));
-  el.classList.add('selected');
+  document.querySelectorAll('.offre-pill').forEach(p => {p.classList.remove('selected');p.setAttribute('aria-pressed','false')});
+  el.classList.add('selected');el.setAttribute('aria-pressed','true');
 }
 
 function selectOffre(val, card) {
   offreSelected = val;
   document.getElementById('offre-selected').value = val;
-  document.querySelectorAll('.offre-pill').forEach(p => p.classList.remove('selected'));
+  document.querySelectorAll('.offre-pill').forEach(p => {p.classList.remove('selected');p.setAttribute('aria-pressed','false')});
   document.querySelectorAll('.offre-card').forEach(c => c.style.opacity = c === card ? '1' : '0.6');
 }
 
@@ -297,14 +295,14 @@ async function submitForm() {
   const telephone = document.getElementById('telephone').value.trim();
   const offre     = document.getElementById('offre-selected').value;
 
-  if (!prenom || !nom || !email || !telephone) {
-    errorBox.textContent = 'Tous les champs sont obligatoires.';
-    errorBox.style.display = 'block';
+  if (!prenom || !nom || !email || !telephone || !document.getElementById('email').checkValidity()) {
+    errorBox.textContent = 'Renseigne tes coordonnées et une adresse e-mail valide';
+    errorBox.style.display = 'block';errorBox.focus();
     return;
   }
 
   btn.disabled = true;
-  btn.innerHTML = '<span>⏳</span> Envoi en cours...';
+  btn.innerHTML = '<span></span> Envoi en cours...';
 
   try {
     const res = await fetch('/rejoindre/{{ parrain_code }}/submit', {
@@ -318,15 +316,15 @@ async function submitForm() {
       document.getElementById('success-box').style.display = 'block';
     } else {
       errorBox.textContent = data.error || 'Erreur. Réessaie.';
-      errorBox.style.display = 'block';
+      errorBox.style.display = 'block';errorBox.focus();
       btn.disabled = false;
-      btn.innerHTML = '<span>✅</span> J\'ai payé — Activer mon accès';
+      btn.innerHTML = '<span></span> J\'ai payé — Activer mon accès';
     }
   } catch(e) {
     errorBox.textContent = 'Erreur de connexion.';
-    errorBox.style.display = 'block';
+    errorBox.style.display = 'block';errorBox.focus();
     btn.disabled = false;
-    btn.innerHTML = '<span>✅</span> J\'ai payé — Activer mon accès';
+    btn.innerHTML = '<span></span> J\'ai payé — Activer mon accès';
   }
 }
 
@@ -344,5 +342,6 @@ document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
   </script>
 <script src="/static/source-guard.js" defer></script>
 <script src="/static/analytics.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

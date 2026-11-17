@@ -1,0 +1,19 @@
+
+@media(max-width:932px){
+ html:has(body[data-ui-screen=trading_journal]),body[data-ui-screen=trading_journal]{height:var(--app-viewport-height,100dvh)!important;min-height:0!important;padding:0!important;overflow:hidden!important}
+ body[data-ui-screen=trading_journal] .tj-app{position:fixed!important;inset:0!important;width:100%;height:var(--app-viewport-height,100dvh)!important;min-height:0!important;display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;overflow:hidden}
+ body[data-ui-screen=trading_journal] .tj-sidebar{display:none!important}
+ body[data-ui-screen=trading_journal] .tj-mobile-header{display:grid;position:relative;inset:auto;grid-row:1;padding-top:env(safe-area-inset-top,0px);min-height:calc(60px + env(safe-area-inset-top,0px))}
+ body[data-ui-screen=trading_journal] .tj-main{grid-row:2;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;padding:12px 10px 14px!important;margin:0;width:100%;box-sizing:border-box}
+ body[data-ui-screen=trading_journal] .tj-mobile-nav{position:relative!important;inset:auto!important;grid-row:3;display:grid;width:100%;height:auto!important;min-height:58px;margin:0;padding:4px 4px max(4px,env(safe-area-inset-bottom,0px))!important;box-sizing:border-box}
+ body[data-ui-screen=trading_journal] .tj-mobile-nav button{height:50px;font-size:10px;line-height:1.3}
+ body[data-ui-screen=trading_journal] .tj-calendar-day{padding:7px 3px;min-height:76px;gap:8px}
+ body[data-ui-screen=trading_journal] .tj-calendar-day b{display:block!important;width:100%;font-family:Inter,Arial,sans-serif!important;font-size:clamp(9px,2.55vw,12px)!important;font-weight:600;line-height:1.35;letter-spacing:-.03em;margin-top:auto;white-space:normal!important;overflow:visible!important;overflow-wrap:anywhere;text-overflow:clip!important;font-variant-numeric:tabular-nums}
+ body[data-ui-screen=trading_journal] .tj-calendar-day b::after{content:none!important;display:none!important}
+ body[data-ui-screen=trading_journal] .tj-month-strip strong{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;font-family:Inter,Arial,sans-serif;font-size:16px}
+ body[data-ui-screen=trading_journal] .tj-calendar-head h2{font-size:28px}
+ body[data-ui-screen=trading_journal] .tj-view-heading{margin-top:8px}
+ body[data-ui-screen=trading_journal] .tj-calendar-currency{font-size:12px;color:#a5adb8;margin:0 0 10px}
+}
+
+@media(max-width:932px){body[data-ui-screen=trading_journal] .tj-weekdays span{font-size:10px!important;letter-spacing:0}body[data-ui-screen=trading_journal] .tj-calendar-day>span{font-size:12px!important}body[data-ui-screen=trading_journal] .tj-month-strip small{font-size:10px;letter-spacing:0;line-height:1.4}}

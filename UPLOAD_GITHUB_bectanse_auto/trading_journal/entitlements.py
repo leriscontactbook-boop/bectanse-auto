@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
@@ -89,14 +90,21 @@ def _as_utc(value) -> datetime | None:
         return None
     if isinstance(value, str):
         try:
+            value = re.sub(r"(?<=\d)\.(\d+)", lambda m: "." + m.group(1)[:6].ljust(6, "0"), value)
             value = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
             return None
     if not isinstance(value, datetime):
         return None
-    # Naive member dates come from a PostgreSQL TIMESTAMP column and follow the
-    # runtime's local clock; convert that clock explicitly before comparing it.
-    return value.astimezone(timezone.utc)
+    # Legacy PostgreSQL TIMESTAMP columns contain UTC; never interpret them
+    # according to the timezone of the worker running this code.
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+def admin_trading_enabled(member):
+    """Internal trading dossier, never an Academy membership or a portal login."""
+    return bool(member and member.get('access_level') == 'admin_trading'
+                and member.get('actif') and not member.get('admin_suspended'))
 
 
 def academy_membership_state(member: dict | None, *, now: datetime | None = None) -> tuple[bool, datetime | None]:
@@ -104,10 +112,26 @@ def academy_membership_state(member: dict | None, *, now: datetime | None = None
     if (not member or bool(member.get("admin_suspended")) or
             not bool(member.get("actif", False))):
         return False, None
-    if str(member.get("access_level") or "member").lower() in {"explorer", "demo"}:
+    if str(member.get("access_level") or "member").lower() in {"explorer", "demo", "admin_trading"}:
         return False, None
     now = now or datetime.now(timezone.utc)
-    period_end = _as_utc(member.get("billing_current_period_end") or member.get("date_fin"))
+    # An unpaid renewal revokes access, including a dated extension.
+    if str(member.get("billing_status") or "").lower() in {"past_due", "unpaid"}:
+        return False, None
+    # A broker invitation/declaration never grants access. Only the audited
+    # administrator transition writes these fields, with an exact 30-day bound.
+    if str(member.get("access_level") or "").lower() == "broker_trial":
+        start = _as_utc(member.get("broker_trial_approved_at"))
+        end = _as_utc(member.get("broker_trial_until"))
+        valid = bool(member.get("broker_trial_id") and member.get("broker_trial_status") == "active"
+                     and start and end and start <= now < end
+                     and 0 < (end-start).total_seconds() <= 30*24*3600)
+        return valid, end if valid else None
+    # Explicit administrator extensions survive Stripe cancellation and renewal.
+    manual_end = _as_utc(member.get("manual_access_until"))
+    if manual_end and manual_end > now:
+        return True, manual_end
+    period_end = _as_utc(member.get("date_fin"))
     billing_status = str(member.get("billing_status") or "legacy").lower()
     status_allows_access = billing_status in {"active", "trialing", "legacy"}
     # Fail closed: a paid access without a known future end date is not valid.
@@ -157,6 +181,10 @@ def resolve_entitlements(
 ) -> Entitlements:
     """Resolve one effective Journal access without duplicating authentication."""
     now = now or datetime.now(timezone.utc)
+    if (member or {}).get('admin_suspended'):
+        return PLAN_RULES['NONE']
+    if admin_trading_enabled(member):
+        return _with_source("JOURNAL_PRO", "ADMIN_TRADING")
     academy_active, grace_until = academy_membership_state(member, now=now)
     if academy_active:
         academy_plan = normalize_plan(os.environ.get("ACADEMY_JOURNAL_PLAN", "JOURNAL_ELITE"))
@@ -186,3 +214,13 @@ def can_export(entitlements: Entitlements) -> bool:
 
 def get_historical_limit(entitlements: Entitlements) -> int | None:
     return entitlements.historical_days
+
+
+def broker_trial_remaining_days(member, *, now=None):
+    """Show a partial final day as available until the exact UTC deadline."""
+    import math
+    end = _as_utc(member.get("broker_trial_until"))
+    current = _as_utc(now) if now is not None else datetime.now(timezone.utc)
+    if end is None or current is None:
+        return 0
+    return max(0, math.ceil((end-current).total_seconds()/86400))

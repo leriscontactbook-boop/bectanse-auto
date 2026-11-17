@@ -173,7 +173,7 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
   border-bottom:1px solid rgba(255,255,255,0.04);
 }
 .offre-features li:last-child { border-bottom:none; }
-.offre-features li::before { content:'✓'; color:var(--green); font-weight:700; flex-shrink:0; }
+.offre-features li::before { content:''; color:var(--green); font-weight:700; flex-shrink:0; }
 
 .offre-cta {
   display:block; width:100%; text-align:center;
@@ -280,10 +280,17 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
   <link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
   <link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260803">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body class="member-fintech">
+<body data-ui-screen="offres" class="academy-universe member-fintech">
+{% include "partials/academy_ambient.html" %}
+
 <a href="/dashboard" class="back-mobile">
-  <span class="arrow">←</span>
+  <span class="arrow"></span>
   <div>
     <div style="font-size:15px;font-weight:700;color:#fff;">Renouveler / Upgrader</div>
     <div class="page-name">Bectanse Académie</div>
@@ -296,109 +303,77 @@ html,body { min-height:100vh; font-family:'Barlow',sans-serif; background:var(--
 <div class="container">
 
   <!-- BACK -->
-  <a href="/dashboard" class="back-btn">← Retour à mon espace</a>
+  <a href="/dashboard" class="back-btn"> Retour à mon espace</a>
 
-  <!-- HERO -->
   <div class="hero fade-up">
-    <div class="hero-eyebrow">🚀 Espace membre exclusif</div>
-    <h1 class="hero-title">Plus longtemps tu trades,<br><span>plus tu gagnes.</span></h1>
-    <p class="hero-sub">Tu as déjà fait le plus dur — tu as rejoint Bectanse AUTO.<br>Maintenant laisse ton capital travailler <strong style="color:#fff">le plus longtemps possible.</strong></p>
+    <div class="hero-eyebrow">Bectanse Académie</div>
+    <h1 class="hero-title">Choisis la durée<br><span>de ton apprentissage</span></h1>
+    <p class="hero-sub">Formation, outils et accompagnement. Un abonnement ne garantit aucun gain et le trading peut entraîner une perte du capital.</p>
   </div>
 
-  <!-- STATS -->
-  <div class="stats-bar fade-up delay-1">
-    <div class="stat-item">
-      <div class="stat-num">+87,5%</div>
-      <div class="stat-label">Performance mois</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">5 270</div>
-      <div class="stat-label">Membres actifs</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">24h/24</div>
-      <div class="stat-label">Système actif</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">0</div>
-      <div class="stat-label">Action requise</div>
-    </div>
-  </div>
-
-  <!-- PSYCHO -->
-  <div class="psycho-block fade-up delay-1">
-    <p>📈 <strong>Le copy trading, c'est comme un investissement — le temps est ton meilleur allié.</strong></p>
-    <p>Les premiers mois, le système se calibre. Les signaux s'affinent. Les positions se consolident. <span class="highlight">C'est dans la durée que les vrais résultats apparaissent.</span></p>
-    <p>Un membre qui reste <strong>1 mois</strong> voit des résultats. Un membre qui reste <strong>1 an</strong> voit sa vie changer. Ce n'est pas une opinion — <span class="highlight">c'est ce que nos chiffres prouvent chaque mois.</span></p>
-    <p>Et en plus ? <strong>Plus tu t'engages longtemps, moins tu paies par jour.</strong> C'est mathématique. C'est logique. C'est maintenant.</p>
-  </div>
 
   <!-- OFFRES -->
   <div class="offres-grid">
 
     <!-- 1 MOIS -->
     <a href="/abonnement/checkout/1_month" class="offre-card fade-up delay-1">
-      <div class="offre-duration">1 Mois</div>
-      <div class="offre-price"><span>€</span>500</div>
-      <div class="offre-per-day"><strong>16,67€</strong>/jour · renouvelé chaque mois</div>
+      <div class="offre-duration">1 mois</div>
+      <div class="offre-price">500 <span>€</span></div>
+      <div class="offre-per-day">500 € prélevés chaque mois</div>
       <div class="offre-economy economy-none">—</div>
       <ul class="offre-features">
-        <li>Accès complet copy trading</li>
-        <li>Signaux XAUUSD 24h/24</li>
+        <li>Bectanse Auto : modes et restrictions applicables</li>
+        <li>Canal XAU/USD, sans fréquence garantie</li>
         <li>Espace membre</li>
         <li>Support équipe</li>
       </ul>
-      <span class="offre-cta cta-default">Choisir 1 mois →</span>
+      <span class="offre-cta cta-default">Choisir 1 mois </span>
     </a>
 
     <!-- 3 MOIS -->
     <a href="/abonnement/checkout/3_months" class="offre-card popular fade-up delay-2">
-      <div class="badge-wrap"><span class="badge gold">⭐ Populaire</span></div>
-      <div class="offre-duration">3 Mois</div>
-      <div class="offre-price"><span>€</span>1000</div>
-      <div class="offre-per-day"><strong>11,11€</strong>/jour · renouvelé tous les 3 mois</div>
+      <div class="badge-wrap"><span class="badge gold">Trimestriel</span></div>
+      <div class="offre-duration">3 mois</div>
+      <div class="offre-price">1 000 <span>€</span></div>
+      <div class="offre-per-day">1 000 € prélevés tous les 3 mois</div>
       <div class="offre-economy economy-gold">Tu économises 500€ — 33% moins cher</div>
       <ul class="offre-features">
-        <li>Accès complet copy trading</li>
-        <li>Signaux XAUUSD 24h/24</li>
+        <li>Bectanse Auto : modes et restrictions applicables</li>
+        <li>Canal XAU/USD, sans fréquence garantie</li>
         <li>Espace membre</li>
         <li>Support prioritaire</li>
       </ul>
-      <span class="offre-cta cta-gold">Choisir 3 mois →</span>
+      <span class="offre-cta cta-gold">Choisir 3 mois </span>
     </a>
 
     <!-- 1 AN -->
     <a href="/abonnement/checkout/1_year" class="offre-card best fade-up delay-3">
-      <div class="badge-wrap"><span class="badge green">🏆 Meilleur ROI</span></div>
-      <div class="offre-duration">1 An</div>
-      <div class="offre-price"><span>€</span>4000</div>
-      <div class="offre-per-day"><strong>10,96€</strong>/jour · renouvelé chaque année</div>
-      <div class="offre-economy economy-green">Tu économises 2000€ — 34% moins cher</div>
+      <div class="badge-wrap"><span class="badge green">Formule annuelle</span></div>
+      <div class="offre-duration">1 an</div>
+      <div class="offre-price">4 000 <span>€</span></div>
+      <div class="offre-per-day">4 000 € prélevés chaque année</div>
+      <div class="offre-economy economy-green">Tu économises 2000€ par rapport à 12 mensualités</div>
       <ul class="offre-features">
-        <li>Accès complet copy trading</li>
-        <li>Signaux XAUUSD 24h/24</li>
-        <li>Espace membre à vie</li>
+        <li>Bectanse Auto : modes et restrictions applicables</li>
+        <li>Canal XAU/USD, sans fréquence garantie</li>
+        <li>Espace membre pendant l’abonnement</li>
         <li>Support VIP + accès direct</li>
       </ul>
-      <span class="offre-cta cta-green">Choisir 1 an →</span>
+      <span class="offre-cta cta-green">Choisir 1 an </span>
     </a>
 
   </div>
 
-  <!-- URGENCE -->
-  <div class="urgence-block fade-up">
-    <div class="urgence-icon">⚠️</div>
-    <div class="urgence-text">
-      <h3>Les places sont limitées — et les prix peuvent évoluer</h3>
-      <p>Chaque membre occupe une capacité sur notre système de copy. Nous n'acceptons pas de nouveaux membres indéfiniment. Si tu renouvelles maintenant, tu garantis ta place au tarif actuel avant toute révision de nos conditions.</p>
-    </div>
+  <div class="psycho-block fade-up delay-1">
+    <p>Les tarifs correspondent à la durée d’accès aux services, pas à une performance financière. Les signaux peuvent être erronés ; l’automatisation peut transmettre des opérations sans confirmation de chaque transaction.</p>
+    <p>Consulte les , les  et le . Le renouvellement est automatique jusqu’à résiliation depuis <a href="/abonnement">Mon abonnement</a>.</p>
   </div>
 
   <!-- GARANTIE -->
   <div class="garantie fade-up">
-    <div class="garantie-icon">🔒</div>
-    <h3>Paiement 100% sécurisé via Stripe</h3>
-    <p>Tes données bancaires ne transitent jamais par nos serveurs.<br>Stripe est le standard mondial des paiements en ligne — utilisé par Amazon, Google, Apple.</p>
+    <div class="garantie-icon"></div>
+    <h3>Paiement traité par Stripe</h3>
+    <p>Les numéros complets de carte sont traités par Stripe. Le paiement ne constitue ni une approbation réglementaire du service ni une garantie de résultat.</p>
   </div>
 
 </div>
@@ -411,33 +386,6 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
-// Compteur animé
-function animateCounter(el, target, suffix='') {
-  let current = 0;
-  const step = target / 60;
-  const timer = setInterval(() => {
-    current = Math.min(current + step, target);
-    el.textContent = Math.floor(current).toLocaleString('fr') + suffix;
-    if (current >= target) clearInterval(timer);
-  }, 16);
-}
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    animateCounter(document.querySelectorAll('.stat-num')[1], 5270);
-  }, 400);
-});
-
-// Highlight carte au hover
-document.querySelectorAll('.offre-card').forEach(card => {
-  card.addEventListener('mouseenter', () => {
-    document.querySelectorAll('.offre-card').forEach(c => {
-      if (c !== card) c.style.opacity = '0.6';
-    });
-  });
-  card.addEventListener('mouseleave', () => {
-    document.querySelectorAll('.offre-card').forEach(c => c.style.opacity = '1');
-  });
-});
 </script>
 
   <script>
@@ -498,5 +446,6 @@ document.querySelectorAll('.offre-card').forEach(card => {
 {% include "_mobile_nav.html" %}
 
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

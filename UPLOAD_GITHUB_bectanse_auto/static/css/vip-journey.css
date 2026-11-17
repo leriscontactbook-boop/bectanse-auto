@@ -1,0 +1,62 @@
+.icon-defs {position:absolute;width:0;height:0;overflow:hidden}
+main>section {scroll-margin-top:100px}
+.founder-first {padding-top:clamp(42px,6vw,85px);padding-bottom:45px}
+.founder-first .story {grid-template-columns:.9fr 1.1fr;gap:clamp(32px,6vw,90px);align-items:center}
+.founder-first .story-photo {max-width:490px;width:100%}
+.founder-first .story-photo img {border-radius:12px;max-height:660px;object-position:center 30%}
+.founder-first .story-copy h1 {font-size:clamp(46px,5.9vw,84px);line-height:.97;letter-spacing:-.055em;margin:0 0 25px}
+.founder-first .story-copy h1 em {font-style:normal;color:var(--orange)}
+.founder-first .story-copy .founder-intro {color:#f4f1ed;font-size:17px}
+.founder-first .story-copy p {font-size:15px;line-height:1.75}
+.founder-first .founder-badge strong {font-size:23px;color:#fff}
+.founder-first .founder-badge span {text-transform:none;letter-spacing:0;font-size:12px}
+.founder-actions {display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:26px 0 10px}
+.founder-secondary {font-size:12px;color:#bbb6b1;text-decoration:underline;text-underline-offset:5px}
+.founder-first .story-signature strong {text-transform:none;letter-spacing:0;font-weight:500;color:#a49b93}
+.founder-gallery-head {display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:64px}
+.founder-gallery-head span {color:#aaa197;font-size:12px}
+.founder-gallery-head h2 {font-size:clamp(23px,3vw,35px);letter-spacing:-.035em;margin-top:8px}
+.gallery-motion {background:transparent;border:1px solid #ffffff25;color:#bcb6b0;border-radius:30px;padding:11px 17px;font:inherit;font-size:11px;cursor:pointer}
+.founder-first .life-strip {margin-top:22px;border:0;background:transparent}
+.founder-first .life-card {width:230px;border-radius:10px;aspect-ratio:4/5}
+.life-card a {display:block;height:100%}
+.life-track:focus-within,.life-track.is-paused {animation-play-state:paused}
+.founder-socials {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:26px 0}
+.founder-socials a {display:flex;align-items:center;gap:12px;padding:16px 12px;border-bottom:1px solid #ffffff20;border-radius:8px 8px 0 0;transition:background .2s,transform .2s;font-size:12px;color:#eee}
+.founder-socials a:hover {background:#ffffff07;transform:translateY(-3px)}
+.founder-socials svg {width:25px;height:25px;flex-shrink:0;color:#fa9771}
+.founder-socials a:nth-child(2) svg {color:#f7e574}.founder-socials a:nth-child(3) svg{color:#ff7268}.founder-socials a:nth-child(4) svg{color:#80c9e5}
+.founder-socials small {display:block;font-size:10px;color:#aba39d;margin-top:5px}
+.founder-video {border-bottom:1px solid #ffffff20;scroll-margin-top:110px}
+.founder-video summary {display:flex;justify-content:space-between;cursor:pointer;padding:18px 0;font-size:13px;color:#b8ada4;list-style:none}
+.founder-video summary::-webkit-details-marker{display:none}
+.founder-video[open] summary span {transform:rotate(45deg)}
+.founder-video-content {padding:30px 0}.founder-video-content>.wrap {width:100%}
+.journey-bridge {padding-block:80px}.journey-bridge .section-head {max-width:950px;margin-inline:auto;text-align:center}
+.journey-bridge .eyebrow {justify-content:center}.journey-bridge h2{font-size:clamp(36px,4.6vw,64px)}
+.journey-pillars {display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:40px}
+.journey-pillars article {border-top:1px solid #ff823b55;padding:24px 0}.journey-pillars article>span {color:#f59359;font-size:12px}.journey-pillars h3{font-size:23px;margin:20px 0 12px}.journey-pillars p{font-size:14px;color:#a9a69f;line-height:1.7}
+.journey-app .hero-grid {align-items:center}.journey-app h2 {font-size:clamp(44px,5vw,72px);line-height:1.02;letter-spacing:-.045em}.journey-app h2 em{color:var(--orange);font-style:normal}
+.app-use-cases {margin:26px 0}.app-use-cases p{padding:16px 0;border-bottom:1px solid #ffffff12}.app-use-cases strong{display:block;font-size:15px;color:#f1ebe6}.app-use-cases span{display:block;font-size:13px;color:#a9a49e;margin-top:6px}
+.offer-scope {text-align:center;color:#b8aaa0;font-size:12px;margin-bottom:30px}
+.btn {text-transform:none;letter-spacing:0}.eyebrow {text-transform:none;letter-spacing:.03em}
+.capture-shell {padding-block:50px}.capture h2{font-size:clamp(27px,3vw,40px)}
+@media(max-width:900px){.founder-first .story{grid-template-columns:1fr 1.15fr;gap:30px}.founder-first .story-copy h1{font-size:49px}.founder-socials{grid-template-columns:repeat(2,1fr)}.journey-app .hero-grid{grid-template-columns:1fr}.journey-app .product-stage{margin:35px auto 0;max-width:480px}}
+@media(max-width:650px){.founder-first{padding-top:25px}.founder-first .story{display:flex;flex-direction:column;gap:38px}.founder-first .story-photo{width:100%;max-width:none}.founder-first .story-photo img{aspect-ratio:1.16;max-height:420px;object-position:center 27%}.founder-first .founder-badge{right:14px;bottom:-14px}.founder-first .story-copy h1{font-size:clamp(43px,11vw,64px)}.founder-first .story-copy p{font-size:14px}.founder-gallery-head{margin-top:35px}.founder-first .life-card{width:175px}.founder-socials{gap:7px}.founder-socials a{font-size:11px;padding:14px 4px;gap:8px}.founder-socials svg{width:21px}.founder-socials small{font-size:9px}.journey-pillars{grid-template-columns:1fr;gap:5px}.journey-pillars h3{margin-top:12px}.journey-bridge{padding-block:45px}.founder-actions{gap:16px}.gallery-motion{padding:10px;font-size:10px}.founder-gallery-head h2{font-size:23px}.founder-video-content .video-wrap{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.life-track{animation:none!important}.life-strip{overflow-x:auto;mask-image:none}.founder-socials a{transition:none}}
+.journey-bridge .section-head {display:block}
+.journey-bridge .section-head h2 {max-width:none;margin:18px auto 24px}
+.journey-bridge .section-head>p {max-width:720px;margin-inline:auto}
+.founder-socials a {text-decoration:none}
+@media(max-width:650px){.founder-first .story-photo img{object-position:center 73%}}
+
+.app-model {margin:24px 0;padding:19px 22px;border-left:2px solid var(--orange);background:linear-gradient(110deg,#ff6a0010,transparent);border-radius:0 10px 10px 0}
+.app-model>strong {font-size:17px;color:#f3ebe5;font-weight:650}
+.app-model p {font-size:13px;line-height:1.7;color:#b5ada6;margin:9px 0 0}
+.app-model b {color:#f3ebe5;font-weight:600}
+.offer-model {max-width:700px;margin:0 auto 32px;text-align:center;font-size:14px;line-height:1.75;color:#aaa39b}
+.journey-app .hero-grid>div>h2 {font-size:clamp(38px,4.2vw,60px)}
+.journey-app .hero-copy {font-size:16px;line-height:1.7;margin-top:24px}
+.journey-app .app-use-cases {margin-block:20px}
+.journey-app .app-use-cases p {padding-block:12px}
+@media(max-width:650px){.app-model{padding:16px}.journey-app .hero-copy{font-size:14px}.offer-model{font-size:13px}}

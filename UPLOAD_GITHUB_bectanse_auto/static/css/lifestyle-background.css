@@ -1,0 +1,26 @@
+/* Identical animated atmosphere shared by the founder and VIP pages. */
+body.lifestyle-background { isolation:isolate; background:#080909; }
+body.lifestyle-background::before,body.lifestyle-background::after { content:none; }
+body.lifestyle-background .hero { background:transparent; }
+.ambient { overflow:hidden; pointer-events:none; }
+.ambient-light,.ambient-grid { position:absolute; }
+.ambient-grid { background-image:linear-gradient(#ffffff04 1px,transparent 1px),linear-gradient(90deg,#ffffff04 1px,transparent 1px); background-size:88px 88px; }
+.ambient { position: fixed; inset: 0; height: 100svh; z-index: -1; contain: strict; background: linear-gradient(145deg,#120e0c 0%,#090c0c 48%,#140e0c 100%); }
+.ambient-light { width: 100vmax; height: 100vmax; right: -46vmax; top: -50vmax; background: radial-gradient(ellipse,#c665253b,transparent 65%); animation: light-tide 23s ease-in-out infinite alternate; }
+.ambient-copper { position: absolute; width: 75vmax; height: 75vmax; left: -39vmax; bottom: -35vmax; border-radius: 50%; background: radial-gradient(ellipse,#aa501d40,transparent 65%); animation: copper-tide 29s ease-in-out infinite alternate; }
+.ambient-violet { position: absolute; width: 70vmax; height: 70vmax; right: -35vmax; top: 20%; background: radial-gradient(ellipse,#70557524,transparent 65%); animation: light-tide 31s ease-in-out -12s infinite alternate-reverse; }
+.ambient-beam { position: absolute; top: -40%; left: 23%; width: 28%; height: 170%; background: linear-gradient(90deg,transparent,#db975a07 40%,#ffbe8010 51%,transparent 65%); transform: rotate(27deg); animation: beam-drift 35s ease-in-out infinite alternate; }
+.ambient-dust { position: absolute; inset: -8%; opacity: .45; background-image: radial-gradient(circle at 12% 24%,#eab18099 0 1px,transparent 1.8px),radial-gradient(circle at 76% 65%,#eab18088 0 1px,transparent 1.7px),radial-gradient(circle at 36% 82%,#cfbaac77 0 .8px,transparent 1.6px),radial-gradient(circle at 86% 13%,#eab18099 0 .8px,transparent 1.5px),radial-gradient(circle at 50% 45%,#cfbaac77 0 .8px,transparent 1.6px); background-size: 530px 470px,710px 590px,870px 790px,610px 670px,970px 830px; animation: dust-drift 42s ease-in-out infinite alternate; }
+.ambient-grid { inset: 0; opacity: .45; mask-image: linear-gradient(180deg,transparent,black 25%,transparent 90%); }
+@keyframes light-tide { to { transform: translate(-12%,18%) scale(1.15); } }
+@keyframes copper-tide { to { transform: translate(22%,-18%) scale(.9); } }
+@keyframes beam-drift { to { transform: translateX(80px) rotate(18deg); opacity: .5; } }
+@keyframes dust-drift { to { transform: translate3d(20px,-55px,0); opacity: .22; } }
+
+@media(max-width:620px) {
+  .ambient-light { top:-25vmax; right:-57vmax; opacity:.85; }
+  .ambient-copper { left:-40vmax; bottom:-20vmax; }
+  .ambient-dust { opacity:.3; }
+  .ambient-beam { width:55%; left:12%; }
+}
+@media(prefers-reduced-motion:reduce) { .ambient>div { animation:none!important; } }

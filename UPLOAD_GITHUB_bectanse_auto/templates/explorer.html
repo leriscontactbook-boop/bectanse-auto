@@ -10,8 +10,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/explorer-journey.css?v=20260830-app1">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
+<body data-ui-screen="explorer" class="product-workspace academy-universe">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "explorer" %}{% include "partials/workspace_rail.html" %}
+
 {% macro explorer_icon(name) -%}
 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
   {% if name == 'academy' %}<path d="m3 9 9-5 9 5-9 5-9-5Z"></path><path d="M7 12.2V17c3 2.3 7 2.3 10 0v-4.8"></path><path d="M21 9v6"></path>
@@ -31,21 +39,22 @@
   <header class="ex-topbar">
     <a class="ex-brand" href="/explorer" aria-label="Bectanse Académie — Parcours Explorer">
       <img src="/static/icons/bectanse-app-icon-master.png?v=20260825" alt="Bectanse Académie">
-      <span>BECTANSE <b>ACADÉMIE</b></span>
+      <span>Bectanse <b>Académie</b></span>
     </a>
     <div class="ex-top-actions">
       <span class="ex-mode"><i></i> Mode Explorer</span>
       <a class="ex-top-app" href="{{ explorer_app_href }}">Ouvrir l’application</a>
-      <a class="ex-top-cta js-explorer-action" data-step="offer" href="/vip#offres">Débloquer</a>
+      <a class="ex-top-cta js-explorer-action" data-step="offer" href="/offres">Débloquer</a>
     </div>
   </header>
 
   <main class="ex-shell">
+
     <section class="ex-hero">
       <div class="ex-hero-grid" aria-hidden="true"></div>
       <div class="ex-hero-copy">
-        <span class="ex-overline">TON ESPACE DE DÉCOUVERTE PERSONNEL</span>
-        <h1>{{ first_name }}, ne regarde pas tout au hasard.<br><em>Découvre ce qui peut vraiment changer ta façon d’avancer.</em></h1>
+        <span class="ex-overline">Ton espace de découverte personnel</span>
+        <h1>{{ first_name }}, découvre<br><em>ton espace Bectanse</em></h1>
         <p>Je t’ai préparé un parcours court. Quatre étapes pour comprendre la méthode, tester la logique des outils et décider avec toutes les informations en main.</p>
         <div class="ex-hero-actions">
           <a class="ex-primary" href="{{ explorer_app_href }}">Entrer dans mon application {{ explorer_icon('arrow') }}</a>
@@ -57,30 +66,18 @@
           <span><b>0 €</b> pour découvrir</span>
         </div>
       </div>
-      <div class="ex-orbit" aria-hidden="true">
-        <div class="ex-orbit-ring ring-one"></div><div class="ex-orbit-ring ring-two"></div>
-        <div class="ex-orbit-core"><img src="/static/icons/bectanse-app-icon-master.png?v=20260825" alt=""></div>
-        <span class="ex-orbit-node node-one"></span><span class="ex-orbit-node node-two"></span><span class="ex-orbit-node node-three"></span>
-        <strong>{{ journey.progress }}%</strong><small>PARCOURS</small>
-      </div>
+      <div class="explorer-progress"><span>Ton parcours de découverte</span><strong>{{ journey.progress }}<small>%</small></strong><p>Quatre étapes pour trouver tes repères</p></div>
     </section>
 
     <section class="ex-app-access" aria-labelledby="ex-app-access-title">
-      <div class="ex-app-access-visual" aria-hidden="true">
-        <div class="ex-app-screen">
-          <div class="ex-app-screen-top"><i></i><i></i><i></i><span>XAU/USD · 15 min</span></div>
-          <div class="ex-app-chart"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="ex-app-lock">{{ explorer_icon('lock') }} FONCTIONS PREMIUM VERROUILLÉES</div>
-        </div>
-      </div>
       <div class="ex-app-access-copy">
-        <span class="ex-section-kicker">CE N’EST PAS UNE SIMPLE PAGE DE PRÉSENTATION</span>
-        <h2>Entre dans la vraie application.<br><em>Observe tout avant de choisir.</em></h2>
+        <span class="ex-section-kicker">Ce n’est pas une simple page de présentation</span>
+        <h2>Entre dans la vraie application<br><em>Observe tout avant de choisir</em></h2>
         <p>Tu peux parcourir l’accueil, consulter le graphique TradingView en direct et découvrir l’architecture des outils avec un compte de démonstration. Les données du compte sont fictives et chaque action réservée reste verrouillée jusqu’à l’activation d’un abonnement.</p>
         <div class="ex-app-access-tags"><span>Application réelle</span><span>Lecture seule</span><span>Compte fictif</span></div>
         <div class="ex-app-access-actions">
           <a class="ex-primary" href="{{ explorer_app_href }}">Ouvrir mon application {{ explorer_icon('arrow') }}</a>
-          <a class="ex-quiet-link js-explorer-action" data-step="offer" href="/vip#offres">Voir les accès</a>
+          <a class="ex-quiet-link js-explorer-action" data-step="offer" href="/offres">Voir les accès</a>
         </div>
       </div>
     </section>
@@ -97,11 +94,11 @@
     <section class="ex-dossier">
       <div class="ex-dossier-cover">
         <img src="/static/guides/bectanse-academie-presentation-cover.jpg?v=20260828" alt="Couverture de la présentation officielle Bectanse Académie">
-        <span>10 PAGES</span>
+        <span>10 pages</span>
       </div>
       <div class="ex-dossier-copy">
-        <span class="ex-section-kicker">COMMENCE PAR LA VISION D’ENSEMBLE</span>
-        <h2>Toute l’Académie.<br><em>Dans un dossier clair.</em></h2>
+        <span class="ex-section-kicker">Commence par la vision d’ensemble</span>
+        <h2>Toute l’Académie<br><em>Dans un dossier clair</em></h2>
         <p>Avant d’explorer chaque outil, découvre comment la formation, le Trader Lab, Bectanse Auto, le canal VIP et ton suivi personnel travaillent ensemble.</p>
         <div class="ex-dossier-points"><span>Académie</span><span>Analyse IA</span><span>Web App</span><span>Canal VIP</span></div>
         <div class="ex-dossier-actions">
@@ -130,7 +127,7 @@
 
     <section class="ex-journey">
       <div class="ex-section-title">
-        <div><span>LE FIL CONDUCTEUR</span><h2>Tu avances une étape à la fois</h2></div>
+        <div><span>Le fil conducteur</span><h2>Tu avances une étape à la fois</h2></div>
         <p>Chaque écran répond à une question précise. Aucun catalogue interminable.</p>
       </div>
       <div class="ex-step-list">
@@ -156,24 +153,24 @@
 
     <section class="ex-unlock">
       <div class="ex-unlock-copy">
-        <span class="ex-section-kicker">CE QUE TU OBSERVES AUJOURD’HUI</span>
-        <h2>Visible en Explorer.<br><em>Vivant avec ton accès.</em></h2>
+        <span class="ex-section-kicker">Ce que tu observes aujourd’hui</span>
+        <h2>Visible en Explorer<br><em>Vivant avec ton accès</em></h2>
         <p>Le compte Explorer te permet de comprendre le système. L’accès membre transforme chaque module en outil personnel lié à ton code BCT.</p>
-        <a class="ex-secondary js-explorer-action" data-step="offer" href="/vip#offres">Comparer les formules {{ explorer_icon('arrow') }}</a>
+        <a class="ex-secondary js-explorer-action" data-step="offer" href="/offres">Comparer les formules {{ explorer_icon('arrow') }}</a>
       </div>
       <div class="ex-unlock-grid">
-        <article><span>01</span><b>Académie structurée</b><p>500+ pages, parcours, exercices et validation de progression.</p><i>APERÇU ACTIF</i></article>
-        <article><span>02</span><b>Trader Lab personnel</b><p>Analyse IA, simulation, journal et Trade Score reliés à ton compte.</p><i>VERROUILLÉ</i></article>
-        <article><span>03</span><b>Canal VIP en direct</b><p>Alertes, contexte et historique depuis l’application installée.</p><i>VERROUILLÉ</i></article>
-        <article><span>04</span><b>Accompagnement continu</b><p>Un système pensé pour apprendre, appliquer et mesurer tes progrès.</p><i>VERROUILLÉ</i></article>
+        <article><span>01</span><b>Académie structurée</b><p>500+ pages, parcours, exercices et validation de progression.</p><i>Aperçu actif</i></article>
+        <article><span>02</span><b>Trader Lab personnel</b><p>Analyse IA, simulation, journal et Trade Score reliés à ton compte.</p><i>Verrouillé</i></article>
+        <article><span>03</span><b>Canal VIP en direct</b><p>Alertes, contexte et historique depuis l’application installée.</p><i>Verrouillé</i></article>
+        <article><span>04</span><b>Accompagnement continu</b><p>Un système pensé pour apprendre, appliquer et mesurer tes progrès.</p><i>Verrouillé</i></article>
       </div>
     </section>
 
     <section class="ex-final">
-      <span>PRÊT À PASSER DE L’OBSERVATION À L’ACTION</span>
-      <h2>Ton espace existe déjà.<br>Il ne reste qu’à le débloquer.</h2>
+      <span>Prêt à passer de l’observation à l’action</span>
+      <h2>Ton espace existe déjà<br>Il ne reste qu’à le débloquer</h2>
       <p>Tu conserves ton code BCT et ton parcours. Après confirmation du paiement, les fonctions réservées s’activent sur ton compte.</p>
-      <a class="ex-primary ex-primary-large js-explorer-action" data-step="offer" href="/vip#offres">Voir les accès Bectanse {{ explorer_icon('arrow') }}</a>
+      <a class="ex-primary ex-primary-large js-explorer-action" data-step="offer" href="/offres">Voir les accès Bectanse {{ explorer_icon('arrow') }}</a>
       <small>Le trading comporte un risque de perte. L’Académie fournit des outils éducatifs et ne garantit aucun résultat financier.</small>
     </section>
   </main>
@@ -199,5 +196,6 @@
   });
 })();
 </script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

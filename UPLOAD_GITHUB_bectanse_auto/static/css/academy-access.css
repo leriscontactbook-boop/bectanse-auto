@@ -1,0 +1,31 @@
+/* Entry to the member application: one clear primary action, no simulated service status. */
+body[data-ui-screen=login] .login-shell{max-width:1120px;gap:72px;grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);padding:60px 0;align-items:center;min-height:calc(100svh - 88px)}
+body[data-ui-screen=login] .member-intro{min-height:0;padding:0;overflow:visible}
+body[data-ui-screen=login] .member-intro::after{content:none}
+body[data-ui-screen=login] .member-intro h1{font:600 clamp(40px,5vw,62px)/1.08 Inter,system-ui,sans-serif;letter-spacing:-.05em;margin-top:24px}
+body[data-ui-screen=login] .intro-copy{max-width:410px;color:#b4bbc3;font-size:15px;line-height:1.7;margin-top:24px}
+.access-overview{list-style:none;margin:40px 0 0;padding:0}
+.access-overview li{display:flex;gap:20px;padding:20px 0;border-top:1px solid #ffffff16}
+.access-overview li>span{font-size:12px;color:#e9a684;padding-top:4px;font-variant-numeric:tabular-nums}
+.access-overview strong{font-size:15px;font-weight:500}.access-overview p{font-size:13px;color:#9ea7b3;line-height:1.65;margin-top:6px;max-width:340px}
+body[data-ui-screen=login] .access-panel{padding:36px;background:linear-gradient(150deg,#1a2027f5,#11161bf5);border-radius:16px;overflow:visible}
+body[data-ui-screen=login] .access-number{display:none}
+body[data-ui-screen=login] .access-panel h2{margin:0;font-size:28px;letter-spacing:-.035em}
+body[data-ui-screen=login] .login-desc{margin:12px 0 28px;color:#b1bac4;font-size:14px;line-height:1.65}
+body[data-ui-screen=login] :is(.field label,.demo-copy strong,.topbar-install,.join-link){letter-spacing:0;font-size:13px;font-weight:500}
+body[data-ui-screen=login] .input-shell{border-radius:8px;min-height:56px}
+body[data-ui-screen=login] #member-code{font:500 16px Inter,system-ui,sans-serif;letter-spacing:.04em;min-width:0}
+.access-help{font-size:12px;line-height:1.6;color:#a9b3bf;margin:10px 0 20px}
+body[data-ui-screen=login] .btn-login{font-size:14px;letter-spacing:0;min-height:54px;border-radius:8px;box-shadow:none;margin-top:0}
+body[data-ui-screen=login] .btn-login::after{content:none}
+body[data-ui-screen=login] .demo-access{margin-top:26px}
+body[data-ui-screen=login] .demo-divider{font-size:11px;letter-spacing:0;color:#a1aab5}
+body[data-ui-screen=login] .btn-demo{border-color:#ffffff25;background:transparent;border-radius:8px;min-height:60px}
+body[data-ui-screen=login] .demo-copy small{color:#a4aeba;font-size:11px}
+body[data-ui-screen=login] .support-row{margin-top:22px;padding-top:18px;font-size:12px;color:#a4aeba;align-items:center;flex-direction:row}
+body[data-ui-screen=login] .support-row a{display:inline-flex;align-items:center;min-height:44px}
+body[data-ui-screen=login] .join-panel{padding:20px 0 0;margin-top:4px;border:0;border-top:1px solid #ffffff16;background:none;border-radius:0}
+body[data-ui-screen=login] .join-copy span{font-size:11px;letter-spacing:0;color:#a9b3bf}
+body[data-ui-screen=login] .join-link{min-height:44px;padding:10px}
+@media(max-width:900px){body[data-ui-screen=login] .login-shell{grid-template-columns:1fr;max-width:500px;gap:28px;min-height:0;padding:32px 0 40px}body[data-ui-screen=login] .member-intro{padding:0}.access-overview{display:none}body[data-ui-screen=login] .member-intro h1{font-size:36px!important;margin-top:14px}body[data-ui-screen=login] .intro-copy{margin-top:14px;font-size:14px}body[data-ui-screen=login] .access-panel{padding:24px}body[data-ui-screen=login] .topbar{min-height:76px}.topbar-status{display:none}}
+@media(max-width:400px){body[data-ui-screen=login] .access-panel{padding:22px 18px}body[data-ui-screen=login] .brand{font-size:13px;gap:8px}body[data-ui-screen=login] .topbar-install{font-size:11px;padding:9px 8px}body[data-ui-screen=login] .member-intro h1{font-size:32px!important}body[data-ui-screen=login] .join-panel{gap:12px}}
