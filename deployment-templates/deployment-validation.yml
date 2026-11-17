@@ -1,0 +1,49 @@
+name: Deployment validation
+
+on:
+  push:
+    branches: [main, codex/railway-restructuration]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployment-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: UPLOAD_GITHUB_bectanse_auto
+    env:
+      BECTANSE_SKIP_STARTUP: '1'
+      SECRET_KEY: ci-only-not-a-production-secret
+      DATA_ENCRYPTION_KEY: MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
+      BOT_TOKEN: ci-disabled
+      ADMIN_ID: '0'
+      ADMIN_KEY: ci-disabled
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+      VAPID_PUBLIC_KEY: ci-disabled
+      VAPID_PRIVATE_KEY: ci-disabled
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: UPLOAD_GITHUB_bectanse_auto/requirements.lock
+      - run: python -m pip install -r requirements.lock pytest==9.2.0
+      - name: Validate deployment paths and application imports
+        run: python scripts/check_deployment.py
+      - name: Build web image from its actual root directory
+        run: docker build --tag bectanse-web:check .
+      - name: Build Telegram worker separately
+        run: docker build --tag bectanse-telegram:check deploy/telegram-scheduler
+      - name: Run regression tests
+        run: python -m pytest tests -q

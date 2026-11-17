@@ -372,6 +372,35 @@ STATEMENTS = (
     )""",
     """CREATE INDEX IF NOT EXISTS trading_worker_nonces_created_idx
         ON trading_worker_nonces (created_at)""",
+    """CREATE TABLE IF NOT EXISTS trading_reliability_checks (
+        id BIGSERIAL PRIMARY KEY,
+        status TEXT NOT NULL,
+        online_workers INTEGER NOT NULL DEFAULT 0,
+        queue_depth INTEGER NOT NULL DEFAULT 0,
+        stale_accounts INTEGER NOT NULL DEFAULT 0,
+        actions JSONB NOT NULL DEFAULT '{}'::jsonb,
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE INDEX IF NOT EXISTS trading_reliability_checks_created_idx
+        ON trading_reliability_checks (created_at DESC)""",
+    """CREATE TABLE IF NOT EXISTS trading_account_retry_state (
+        trading_account_id BIGINT PRIMARY KEY REFERENCES trading_accounts(id) ON DELETE CASCADE,
+        failures INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_error_code TEXT NOT NULL DEFAULT '',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """ALTER TABLE trading_sync_events ADD COLUMN IF NOT EXISTS native_error_code INTEGER""",
+    """ALTER TABLE trading_sync_events ADD COLUMN IF NOT EXISTS phase TEXT NOT NULL DEFAULT ''""",
+    """ALTER TABLE trading_reconciliation_reports ADD COLUMN IF NOT EXISTS repair_attempts INTEGER NOT NULL DEFAULT 0""",
+    """ALTER TABLE trading_reconciliation_reports ADD COLUMN IF NOT EXISTS last_repair_at TIMESTAMPTZ""",
+    """ALTER TABLE trading_reconciliation_reports ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ""",
+    """CREATE INDEX IF NOT EXISTS trading_reconciliation_unresolved_idx
+        ON trading_reconciliation_reports(trading_account_id,created_at)
+        WHERE status='MISMATCH' AND resolved_at IS NULL""",
+    """CREATE INDEX IF NOT EXISTS trading_reconciliation_coverage_idx
+        ON trading_reconciliation_reports(trading_account_id,status,created_at DESC)""",
 )
 
 

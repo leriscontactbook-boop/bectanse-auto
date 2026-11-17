@@ -1,0 +1,45 @@
+/* Shared finishing layer: rounded primary surfaces, continuous mobile canvas. */
+:root{--finish-radius:22px;--finish-inset:18px}
+body[data-ui-screen]:not([data-ui-screen=canal]) :is(.gs-card,.tj-panel,.support-card,.section-card,.result-box,.access-panel,.renewal-offer,.status-panel,.plan,.admin-card,.table-shell,.table-scroll,.metric-card,.guide-card,.doc-cover){border-radius:var(--finish-radius)!important}
+body[data-ui-screen]:not([data-ui-screen=canal]) :is(.lesson-preview,.video-preview,.pdf-preview){border-radius:12px!important;overflow:hidden}
+body[data-ui-screen] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){border-radius:12px}
+@media(max-width:932px){
+ :root{--finish-inset:12px}
+ html:has(body.academy-universe:not(.admin-workspace)),body.academy-universe:not(.admin-workspace){background-color:#080908!important;scrollbar-width:none;scrollbar-gutter:auto}
+ html:has(body[data-ui-screen]),body[data-ui-screen]{scrollbar-width:none;scrollbar-gutter:auto;max-width:100%;margin-inline:0}
+ html:has(body[data-ui-screen])::-webkit-scrollbar,body[data-ui-screen]::-webkit-scrollbar{width:0;height:0;display:none}
+ body.product-workspace :is(.gs-shell,.shell,.ex-shell,.aj-shell,.ref-main,.wrap#workspace-content){padding-inline:max(12px,env(safe-area-inset-left)) max(12px,env(safe-area-inset-right))!important;margin-inline:0!important;width:100%;box-sizing:border-box}
+ body[data-ui-screen]:not([data-ui-screen=canal]) :is(.lab-stage,.lab-reflection>a,.decision-reference,.result-box,.support-card,.section-card,.plan,.status-panel){border:1px solid #ffffff16!important;border-radius:22px!important;background:#0d0f0c!important;padding:18px!important;box-sizing:border-box;min-width:0}
+ .lab-directory{border-top:0;display:grid;gap:12px}.lab-reflection{gap:12px!important}.lab-stage:hover{padding-inline:18px}
+ body[data-ui-screen=academie] .phase{border:1px solid #ffffff16!important;border-radius:22px!important;background:#0d0f0c!important;padding:0 14px!important;margin-block:12px}
+ body[data-ui-screen=academie] .phase-head{padding-block:18px}
+ body[data-ui-screen=journal] .entry{border:1px solid #ffffff16;border-radius:22px;padding:18px;margin-block:12px;background:#0d0f0c}
+ body[data-ui-screen] :is(.tj-performance-hero,.tj-trades-shell,.tj-onboarding,.tj-calendar-summary){border-radius:22px!important}
+ body:is([data-ui-screen=offres],[data-ui-screen=rejoindre]) .offre-card{border:1px solid #ffffff16!important;border-radius:22px!important;padding:20px 16px!important;margin-bottom:12px;background:#0d0f0c!important}
+ body[data-ui-screen=faq] .faq-item{border:1px solid #ffffff16!important;border-radius:18px!important;padding-inline:14px;margin-bottom:10px}
+ body.admin-workspace :is(.admin-card,.card,.panel,.table-shell,.table-scroll,.stat-card){border-radius:16px!important}
+ body.admin-workspace :is(.content,.main){padding-inline:12px!important}
+ /* Public pages retain their own layouts and colors. */
+ body:not([data-ui-screen]):not(.member-fintech) :is(.feature-card,.pricing-card,.offre-card,.faq-item,.social-card,.ai-card){border-radius:22px!important}
+}
+@media(prefers-reduced-motion:reduce){:root{scroll-behavior:auto}}
+
+@media(max-width:932px){html:has(body.lifestyle-background),body.lifestyle-background{background-color:#080908!important;scrollbar-width:none;scrollbar-gutter:auto}html:has(body.lifestyle-background)::-webkit-scrollbar{display:none;width:0}body.lifestyle-background .wrap{width:min(var(--max,1240px),calc(100% - 24px))}body.lifestyle-background :is(.auto-shell,.journal-shell,.ai-workspace,.social-card){border-radius:22px!important}}
+
+/* The bottom bar ends at the real viewport, with only the device gesture inset. */
+@media(max-width:932px){
+ html:has(body[data-ui-screen]){min-height:var(--app-viewport-height,100dvh)!important}
+ body[data-ui-screen]{min-height:var(--app-viewport-height,100dvh)!important}
+ body[data-ui-screen] .m-univ-nav{top:calc(var(--app-viewport-height,100dvh) - var(--app-nav-rendered-height,72px))!important;bottom:auto!important}
+ body[data-ui-screen]:has(.m-univ-nav){--m-app-content-gap:0px}
+ body[data-ui-screen=trading_journal] .tj-app{top:0!important;bottom:auto!important;height:var(--app-viewport-height,100dvh)!important}
+ html:has(body[data-ui-screen=trading_journal]),body[data-ui-screen=trading_journal]{height:var(--app-viewport-height,100dvh)!important;min-height:0!important}
+}
+
+body[data-ui-screen] :is(a,button,summary,input,select,textarea){touch-action:manipulation}body[data-ui-screen] :is(button,.m-univ-nav,.tj-mobile-nav){user-select:none;-webkit-user-select:none}@media(max-width:932px){body[data-ui-screen] :is(input,select,textarea){font-size:16px!important}#chat-feed{overflow-anchor:none}}
+
+@media(max-width:768px),(max-width:932px) and (max-height:500px) and (orientation:landscape){
+ body[data-ui-screen]:not([data-ui-screen=dashboard]):not([data-ui-screen=canal]):not([data-ui-screen=trading_journal]):has(.m-topbar){padding-top:env(safe-area-inset-top,0px)!important}
+ body[data-ui-screen]:not([data-ui-screen=dashboard]) .m-topbar{height:calc(52px + env(safe-area-inset-top,0px))!important;padding-top:env(safe-area-inset-top,0px)!important;box-sizing:border-box!important;top:0!important}
+ .m-app-sheet{max-height:calc(var(--app-viewport-height,100dvh) - var(--m-app-nav-height,72px) - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 16px)!important}
+}

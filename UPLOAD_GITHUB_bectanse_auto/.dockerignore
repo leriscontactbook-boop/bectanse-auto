@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+!.env.example
+!production.env.example
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+persistent
+tests
+ios
+*.before-*

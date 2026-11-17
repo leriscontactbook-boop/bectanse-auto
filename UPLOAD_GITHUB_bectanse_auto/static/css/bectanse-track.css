@@ -1,0 +1,75 @@
+/* Shared visual language of the native Bectanse Track application */
+body[data-ui-screen=trading_journal]{--bg:#040405;--surface:#0b0b0c;--text:#f6f4f1;--muted:#96999e;background:#040405!important;color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif}
+body[data-ui-screen=trading_journal] .academy-ambient{display:none}
+body[data-ui-screen=trading_journal] :is(h1,h2,h3,strong,b,button){font-family:inherit!important;text-transform:none;letter-spacing:-.025em}
+body[data-ui-screen=trading_journal] :is(.tj-panel,.tj-chart-stage,.tj-statusbar,.tj-month-strip,.tj-calendar-shell,.tj-onboarding,.tj-trade-detail,.tj-dialog){background:linear-gradient(135deg,#101112,#090a0b)!important;border:1px solid #ffffff12!important;border-radius:20px!important;box-shadow:none!important}
+body[data-ui-screen=trading_journal] .tj-main{background:#040405!important}
+body[data-ui-screen=trading_journal] .tj-kicker{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:none;color:#96999e}
+body[data-ui-screen=trading_journal] .tj-view-heading h2{font-size:32px;line-height:1.16;font-weight:600}
+body[data-ui-screen=trading_journal] .tj-view-heading>p{font-size:11px;color:#ff5c0e}
+.tj-track-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0 18px}
+.tj-track-metrics article{display:flex;flex-direction:column;justify-content:center;gap:12px;min-width:0;min-height:124px;padding:20px 16px;border:1px solid #ffffff0c;border-radius:20px;background:linear-gradient(135deg,#101112,#090a0b)}
+.tj-track-metrics small{font-size:11px;color:#96999e;letter-spacing:.08em}
+.tj-track-metrics strong{font-size:clamp(20px,2.3vw,32px);font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tj-track-metrics span{font-size:11px;color:#777b82;line-height:1.45}
+body[data-ui-screen=trading_journal] .is-negative{color:#ef4d5c!important}
+body[data-ui-screen=trading_journal] .tj-chart-stage{padding:20px;margin-bottom:18px}
+body[data-ui-screen=trading_journal] .tj-chart-wrap{height:300px;margin-top:18px;background:#08090a;border-radius:12px}
+.tj-track-chart-summary{text-align:right;font-size:12px;color:#96999e;display:grid;gap:6px}
+.tj-track-chart-summary strong{color:#45c787;font-size:16px}
+body[data-ui-screen=trading_journal] .tj-panel-head h3{font-size:20px;font-weight:600}
+.tj-track-month{display:grid;grid-template-columns:1fr auto;gap:12px;padding:20px;margin:18px 0}
+.tj-track-month>strong{font-size:24px;color:#45c787;font-variant-numeric:tabular-nums}
+.tj-track-month>span{grid-column:1/-1;font-size:12px;color:#96999e}
+.tj-track-month .tj-preview-days{grid-column:1/-1}
+body[data-ui-screen=trading_journal] .tj-topbar h1{font-size:28px}
+.tj-track-add{border:1px solid #ff5c0e40;background:#0a0a0a;color:#ff5c0e;border-radius:14px;width:40px;height:40px;font-size:28px;cursor:pointer}
+body[data-ui-screen=trading_journal] .tj-mobile-home b{display:grid;gap:3px;font-size:12px;letter-spacing:.16em}
+body[data-ui-screen=trading_journal] .tj-mobile-home small{color:#ff5c0e;font-size:9px;letter-spacing:.25em}
+@media(min-width:933px){.tj-track-add{display:none}}
+@media(max-width:932px){
+ body[data-ui-screen=trading_journal] .tj-mobile-header{grid-template-columns:1fr 40px 40px;gap:10px;padding-inline:14px;background:#060607;border-bottom:1px solid #ffffff12}
+ body[data-ui-screen=trading_journal] .tj-mobile-home>span{display:none}
+ body[data-ui-screen=trading_journal] .tj-mobile-home img{width:32px;height:32px}
+ body[data-ui-screen=trading_journal] .tj-mobile-profile{width:40px;height:40px;background:#1b0e05;border:1px solid #ff5c0e40;color:#ff5c0e}
+ body[data-ui-screen=trading_journal] .tj-main{padding:18px 14px!important}
+ body[data-ui-screen=trading_journal] .tj-topbar{margin:0 0 16px;padding:0;border:0;display:grid;gap:12px}
+ body[data-ui-screen=trading_journal] .tj-topbar>div:first-child{display:none}
+ body[data-ui-screen=trading_journal] #connectTop{display:none}
+ body[data-ui-screen=trading_journal] .tj-top-actions{display:flex;width:100%;gap:8px}
+ body[data-ui-screen=trading_journal] .tj-account-select{width:100%;max-width:100%;font-size:12px}
+ body[data-ui-screen=trading_journal] .tj-statusbar{padding:12px;gap:10px;margin-bottom:24px}
+ body[data-ui-screen=trading_journal] .tj-status-actions{flex-wrap:wrap;gap:8px}
+ body[data-ui-screen=trading_journal] .tj-view-heading{gap:10px;align-items:flex-end}
+ body[data-ui-screen=trading_journal] .tj-view-heading h2{font-size:27px}
+ .tj-track-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:18px}
+ .tj-track-metrics article{min-height:108px;padding:18px 12px;gap:10px;border-radius:19px}
+ .tj-track-metrics strong{font-size:clamp(18px,5.1vw,27px);letter-spacing:-.045em}
+ .tj-track-metrics small{font-size:10px;letter-spacing:.07em}
+ body[data-ui-screen=trading_journal] .tj-chart-stage{padding:14px}
+ body[data-ui-screen=trading_journal] .tj-chart-wrap{height:260px}
+ body[data-ui-screen=trading_journal] .tj-panel-head{gap:8px;align-items:flex-start}
+ body[data-ui-screen=trading_journal] .tj-panel-head h3{font-size:18px}
+ .tj-track-chart-summary{font-size:10px;min-width:0;max-width:45%;overflow-wrap:anywhere}
+ .tj-track-chart-summary strong{font-size:13px}
+ body[data-ui-screen=trading_journal] .tj-mobile-nav{background:#111214;border-top:1px solid #ffffff16}
+ body[data-ui-screen=trading_journal] .tj-mobile-nav button{font-size:10px;border-radius:14px}
+ body[data-ui-screen=trading_journal] .tj-mobile-nav button.is-active{background:#ff5c0e12;color:#ff5c0e}
+ body[data-ui-screen=trading_journal] .tj-calendar-shell{border-radius:16px!important}
+ body[data-ui-screen=trading_journal] .tj-preview-day b{font-size:10px;overflow-wrap:anywhere;white-space:normal}
+ body[data-ui-screen=trading_journal] .tj-preview-days{gap:4px}
+ body[data-ui-screen=trading_journal] .tj-panel{padding:16px}
+}
+@media(max-width:932px){
+ body[data-ui-screen=trading_journal] .tj-topbar{min-height:0!important;gap:0!important;margin-bottom:12px!important}
+ body[data-ui-screen=trading_journal] .tj-top-actions{padding:0!important;min-height:0!important}
+ body[data-ui-screen=trading_journal] .tj-statusbar{margin-top:0!important;margin-bottom:20px!important}
+ body[data-ui-screen=trading_journal] .tj-view-heading{padding:0!important;margin:0 0 18px!important;min-height:0!important}
+ body[data-ui-screen=trading_journal] #syncNow{font-size:12px!important;width:auto!important;padding:9px!important}
+ body[data-ui-screen=trading_journal] .tj-timezone{flex:1;min-width:0}
+ body[data-ui-screen=trading_journal] .tj-status-actions{display:flex!important}
+ body[data-ui-screen=trading_journal] .tj-account-select{flex:1;max-width:none!important}
+}
+@media(max-width:932px){body[data-ui-screen=trading_journal] .tj-topbar{grid-template-columns:minmax(0,1fr)!important}body[data-ui-screen=trading_journal] .tj-mobile-home img{display:block}body[data-ui-screen=trading_journal] .tj-trades-table-row>strong{font-size:14px;white-space:normal;overflow:visible;overflow-wrap:anywhere;max-width:none}body[data-ui-screen=trading_journal] .tj-view-heading>p{display:block;max-width:90px;text-align:right;line-height:1.4}body[data-ui-screen=trading_journal] .tj-connection{min-height:0}}
+
+.tj-mobile-home{min-height:44px}.tj-mobile-home small{letter-spacing:0!important;font-size:10px!important}.tj-mobile-home::before{content:'‹';color:#ff5c0e;font-size:28px;margin-right:2px}

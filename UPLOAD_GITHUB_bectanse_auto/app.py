@@ -1,14 +1,18 @@
-import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re, html as html_lib, math
+from payment_support import PAYMENT_SUPPORT_MESSAGE
+from french_time import utc_iso, paris_time
+import os, json, secrets, string, requests, time, threading, csv, io, hashlib, hmac, unicodedata, base64, uuid, re, html as html_lib
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
-from flask import abort, send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from flask import make_response, abort, send_from_directory, Flask, render_template, request, redirect, url_for, session, jsonify, Response
 from werkzeug.utils import secure_filename
 import pg8000.native
 from cryptography.fernet import Fernet, InvalidToken
 from academy_features import ensure_growth_schema, register_growth_features
 from activation_journey import ensure_activation_schema, register_activation_journey
+from broker_trial import ensure_trial_schema, register_broker_trial
+from candidature import ensure_candidature_schema, register_candidature
 from marketing_automation import (
     ensure_marketing_schema,
     mark_checkout_expired,
@@ -21,9 +25,20 @@ from marketing_automation import (
 )
 from seo_features import register_seo_features, submit_indexnow_urls
 from trading_journal import ensure_trading_schema, register_trading_journal
-from copy_trading import ensure_copy_schema
-from copy_trading.domain import academy_settings
-from copy_trading.routes import register_copy_trading
+from copy_trading import enabled as copy_config_enabled
+from copy_trading.schema import ensure_copy_schema
+from copy_trading.service import CopyConfigurationService
+from copy_trading.admin import AdminCopyService, register_admin_copy
+from copy_trading.agent_backend import register_agent_routes
+from copy_trading.routes import register_copy_routes
+from copy_trading.demo_backend import pilot_authorized, register_demo_routes
+from market_agent import (
+    ensure_market_agent_schema,
+    market_agent_keyboard,
+    register_market_agent,
+)
+from canal_reliability import (VIP_ELIGIBLE, private_message, ensure_schema as ensure_canal_schema,
+    enqueue_push as enqueue_canal_push, drain_push as drain_canal_push)
 from trading_journal.config import validate_backend_config
 from trading_journal.billing import (
     is_journal_event,
@@ -32,6 +47,9 @@ from trading_journal.billing import (
     schedule_standalone_cancellation,
 )
 from trading_journal.entitlements import academy_membership_state
+from stripe_reliability import enabled as stripe_reliability_enabled
+from stripe_reliability.integration import current as billing_service
+from stripe_reliability.schema import ensure_billing_schema
 
 def _required_secret(name):
     value = os.environ.get(name, "").strip()
@@ -41,7 +59,12 @@ def _required_secret(name):
 
 
 app = Flask(__name__)
-_DATABASE_READY = threading.Event()
+
+@app.context_processor
+def admin_workspace_capabilities():
+    return {"admin_billing_available": "billing_admin" in app.view_functions,
+            "candidature_available": os.environ.get("CANDIDATURE_ENABLED") == "1"}
+
 app.secret_key = _required_secret("SECRET_KEY")
 DATA_CIPHER = Fernet(_required_secret("DATA_ENCRYPTION_KEY").encode("utf-8"))
 validate_backend_config()
@@ -189,7 +212,22 @@ PUBLIC_ORIGINS = {
     "https://acces.bectanse-academie.com",
     "https://bectanse-auto.up.railway.app",
 }
-WEBHOOK_PATHS = {"/bot-webhook", "/canal-webhook", "/api/stripe/analyse-credits"}
+BASE_URL = os.environ.get("PUBLIC_APP_URL", "https://acces.bectanse-academie.com").rstrip("/")
+# Keep both public production addresses. Recette remains isolated.
+PUBLIC_ORIGINS = {BASE_URL} if os.environ.get("APP_ENV") == "recette" else PUBLIC_ORIGINS | {BASE_URL}
+WEBHOOK_PATHS = {
+    "/bot-webhook",
+    "/canal-webhook",
+    "/api/stripe/analyse-credits",
+    "/api/market-agent/tradingview",
+    "/api/market-agent/mt5",
+    "/api/market-agent/reports",
+    "/api/market-agent/telegram",
+}
+
+
+from admin_session_security import expire_admin_session
+app.before_request(expire_admin_session)
 
 
 @app.before_request
@@ -214,6 +252,31 @@ def keep_installed_webapp_session_persistent():
         session.permanent = True
     return None
 
+
+app.jinja_env.globals["paris_time"] = paris_time
+
+@app.after_request
+def inject_text_only_interface(response):
+    """Apply the site's text/SVG-only interface to HTML, including dynamic content."""
+    if request.path.startswith(('/candidature', '/admin/candidatures')):
+        return response  # Preserve the isolated verification UI and no-store headers.
+    if response.status_code != 200 or not response.mimetype == "text/html":
+        return response
+    response.direct_passthrough = False
+    body = response.get_data(as_text=True)
+    marker = '<script src="/static/text-only-interface.js?v=20261011-channel" defer></script>'
+    if marker not in body:
+        if "</head>" in body:
+            body = body.replace("</head>", marker + "</head>", 1)
+        elif "</body>" in body:
+            body = body.replace("</body>", marker + "</body>", 1)
+        else:
+            body += marker
+        response.set_data(body)
+        response.headers.pop("ETag", None)
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 @app.after_request
 def inject_analytics_tracker(response):
     """Ajoute le suivi aux pages HTML rendues sans toucher aux API ni à l'administration."""
@@ -221,7 +284,7 @@ def inject_analytics_tracker(response):
     content_type = response.headers.get("Content-Type", "")
     if (response.status_code != 200 or not content_type.startswith("text/html")):
         return _secure_response(response)
-    if path.startswith(("/admin", "/analyse-ia", "/api/", "/static/")) or response.direct_passthrough:
+    if path.startswith(("/admin", "/analyse-ia", "/api/", "/static/", "/candidature")) or response.direct_passthrough:
         return _secure_response(response)
     try:
         body = response.get_data(as_text=True)
@@ -232,6 +295,63 @@ def inject_analytics_tracker(response):
     except Exception:
         pass
     return _secure_response(response)
+
+
+@app.route("/api/academy-campaign")
+def academy_campaign():
+    deadline = 1792188000  # 17 October 2026, 00:00 Europe/Paris
+    visible = time.time() < deadline
+    code = session.get("member_code")
+    if code and visible:
+        member = get_member(code)
+        # A failed lookup must not advertise acquisition pricing to a subscriber.
+        visible = bool(member) and not academy_membership_state(member)[0]
+    response = jsonify(active=visible, ends_at=deadline,
+                       server_now=time.time(), code="AUTOMNE200", discount_eur=200)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.vary.add("Cookie")
+    return response
+
+
+@app.after_request
+def inject_academy_campaign(response):
+    """One expiring campaign across public/member HTML, never API/admin assets."""
+    path = request.path
+    if (response.status_code != 200 or
+            not response.headers.get("Content-Type", "").startswith("text/html") or
+            path.rstrip("/") in {"/lerisluketo", "/vip"} or
+            path.startswith(("/admin", "/api/", "/static/", "/legal/", "/bectanse-track/legal/", "/candidature"))):
+        return response
+    response.direct_passthrough = False
+    body = response.get_data(as_text=True)
+    if 'data-billing-overdue="true"' in body:
+        return response
+    marker = '<script src="/static/academy-campaign.js?v=20261016soir4" defer></script>'
+    if "</body>" in body and marker not in body:
+        body = body.replace("</head>", '<link rel="stylesheet" href="/static/academy-campaign.css?v=20261016soir4">\n</head>', 1)
+        response.set_data(body.replace("</body>", marker + "\n</body>", 1))
+        response.headers.pop("ETag", None)
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.after_request
+def inject_payment_support(response):
+    """Offer sales support beside payment controls, independently of promotions."""
+    if (response.status_code != 200 or not response.headers.get("Content-Type", "").startswith("text/html")
+            or request.path == "/vip" or request.path.startswith(("/admin", "/api/", "/static/", "/legal/", "/bectanse-track/legal/", "/candidature"))):
+        return response
+    response.direct_passthrough = False
+    body = response.get_data(as_text=True)
+    marker = '<script src="/static/payment-support-20261029-agent.js" defer></script>'
+    body = body.replace('<script src="/static/payment-support.js?v=20261016-1" defer></script>', marker)
+    response.set_data(body)
+    if "</body>" in body and marker not in body:
+        body = body.replace("</head>", '<link rel="stylesheet" href="/static/payment-support.css?v=20261016-1">\n</head>', 1)
+        response.set_data(body.replace("</body>", marker + "\n</body>", 1))
+        response.headers.pop("ETag", None)
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 def _secure_response(response):
@@ -273,6 +393,11 @@ ANALYSIS_INITIAL_CREDITS = int(os.environ.get("ANALYSIS_INITIAL_CREDITS", "2"))
 ANALYSIS_MAX_IMAGE_BYTES = 6 * 1024 * 1024
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+from stripe_reliability.environment import expected_mode as _stripe_expected_mode, validate_key as _validate_stripe_key
+_stripe_expected_mode()
+for _stripe_configured_key in (STRIPE_SECRET_KEY, os.environ.get('STRIPE_RECONCILIATION_KEY', '')):
+    if _stripe_configured_key:
+        _validate_stripe_key(_stripe_configured_key)
 STRIPE_PAYMENT_SUCCESS_URL = os.environ.get(
     "STRIPE_PAYMENT_SUCCESS_URL",
     "https://t.me/m/Pnl8NciPZmZk",
@@ -305,19 +430,47 @@ ACADEMY_SUBSCRIPTION_PLANS = {
         "payment_link": "https://buy.stripe.com/8x23cv4mAdxO7xN0S0gfu0F",
     },
 }
-ACADEMY_FLASH_PROMO_END = 1794746920  # 2026-11-15 13:48:40 Europe/Paris
-ACADEMY_FLASH_PROMO_COUPON = "BECTANSE_FLASH_50_24H_20261114"
+PRIVATE_ACADEMY_SUBSCRIPTION_PLANS = {
+    "price_1U5uOADE6HxqPs7GYQINdGTe": {
+        "id": "private_monthly_3x",
+        "label": "Adhésion privée · mensualité",
+        "amount_cents": 33399,
+        "days": 30,
+        "payment_link_id": "plink_1U8LF9DE6HxqPs7Gtu5ZjdXF",
+        "payment_link": "https://buy.stripe.com/4gM9ATdXagK06tJ0S0gfu0E",
+        "private": True,
+    },
+}
+TRACKED_ACADEMY_SUBSCRIPTION_PLANS = {
+    **ACADEMY_SUBSCRIPTION_PLANS,
+    **PRIVATE_ACADEMY_SUBSCRIPTION_PLANS,
+}
 ACADEMY_PLAN_BY_PAYMENT_LINK = {
     plan["payment_link_id"]: (price_id, plan)
-    for price_id, plan in ACADEMY_SUBSCRIPTION_PLANS.items()
+    for price_id, plan in TRACKED_ACADEMY_SUBSCRIPTION_PLANS.items()
 }
 ACADEMY_PLAN_BY_ID = {
     plan["id"]: (price_id, plan)
     for price_id, plan in ACADEMY_SUBSCRIPTION_PLANS.items()
 }
+# Offre publique de lancement. La date est fixée en heure de Paris : vendredi
+# 6 novembre 2026 à 23 h 59. Le code Stripe est volontairement contrôlé côté
+# serveur à chaque création de Checkout, afin que le visuel ne puisse jamais
+# accorder une réduction après la date annoncée.
+BECTANSE100_ENDS_AT = 1794005999
+BECTANSE100_PROMOTION_CODE_ID = "promo_1UXnWpDE6HxqPs7G0qwklvGM"
+BECTANSE100_CODE = "BECTANSE100"
 ECO_BOT_TOKEN = os.environ.get("ECO_BOT_TOKEN", "")
 ECO_CANAL    = os.environ.get("ECO_CANAL", "@BECTANSE_ACADEMIE")
 GMAIL_PASS = os.environ.get("GMAIL_PASS", "")
+WHATSAPP_GRAPH_API_VERSION = os.environ.get("WHATSAPP_GRAPH_API_VERSION", "v26.0").strip()
+WHATSAPP_CLOUD_ACCESS_TOKEN = os.environ.get("WHATSAPP_CLOUD_ACCESS_TOKEN", "").strip()
+WHATSAPP_CLOUD_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "").strip()
+WHATSAPP_SUPPORT_RECIPIENT = os.environ.get("WHATSAPP_SUPPORT_RECIPIENT", "").strip()
+WHATSAPP_SUPPORT_TEMPLATE_NAME = os.environ.get("WHATSAPP_SUPPORT_TEMPLATE_NAME", "").strip()
+WHATSAPP_SUPPORT_TEMPLATE_LANGUAGE = os.environ.get(
+    "WHATSAPP_SUPPORT_TEMPLATE_LANGUAGE", "fr"
+).strip()
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 PARIS_TZ = ZoneInfo("Europe/Paris")
 TELEGRAM_EDITORIAL_PATH = os.environ.get(
@@ -326,6 +479,12 @@ TELEGRAM_EDITORIAL_PATH = os.environ.get(
 )
 TELEGRAM_CSV_TEMPLATE_PATH = os.path.join(
     APP_DIR, "content", "modele_planning_telegram_semaine.csv"
+)
+TELEGRAM_MOTION_MANIFEST_PATH = os.path.join(
+    APP_DIR, "static", "telegram-assets", "bectanse-motion-v1", "manifest.json"
+)
+TELEGRAM_MOTION_TOKEN_PATTERN = re.compile(
+    r"\{\{(?P<kind>emoji|sticker):(?P<key>[a-z0-9_\-]+)\}\}", re.IGNORECASE
 )
 
 
@@ -358,40 +517,19 @@ def get_conn():
         host=p["host"], port=p["port"], database=p["database"], ssl_context=True
     )
 
+def get_copy_conn():
+    """Exclusive reusable copy-control connection with bounded queries."""
+    from copy_trading.database_pool import connection
+    return connection(parse_db_url(DATABASE_URL))
+
+
 def init_db():
     for attempt in range(5):
         try:
             conn = get_conn()
-            conn.run("""
-                CREATE TABLE IF NOT EXISTS members (
-                    code              TEXT PRIMARY KEY,
-                    nom               TEXT NOT NULL,
-                    capital           TEXT NOT NULL,
-                    actif             BOOLEAN DEFAULT TRUE,
-                    created_at        TIMESTAMP DEFAULT NOW(),
-                    last_login        TIMESTAMP,
-                    params            TEXT DEFAULT '{}',
-                    copy_actif        BOOLEAN DEFAULT TRUE,
-                    date_souscription TIMESTAMP DEFAULT NOW(),
-                    date_fin          TIMESTAMP DEFAULT (NOW() + INTERVAL '30 days'),
-                    email             TEXT DEFAULT '',
-                    telephone         TEXT DEFAULT '',
-                    telegram          TEXT DEFAULT '',
-                    alerte_lue        BOOLEAN DEFAULT TRUE,
-                    parrain_code      TEXT DEFAULT '',
-                    filleuls_count    INTEGER DEFAULT 0,
-                    gains_parrainage  INTEGER DEFAULT 0,
-                    paiement_iban     TEXT DEFAULT '',
-                    paiement_bic      TEXT DEFAULT '',
-                    paiement_titulaire TEXT DEFAULT '',
-                    paiement_crypto_reseau TEXT DEFAULT '',
-                    paiement_crypto_adresse TEXT DEFAULT '',
-                    paiement_type     TEXT DEFAULT '',
-                    historique        TEXT DEFAULT '[]',
-                    access_level      TEXT NOT NULL DEFAULT 'member',
-                    email_verified_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
+            from stripe_reliability.bootstrap import ensure_member_base
+            ensure_member_base(conn)
+            ensure_canal_schema(conn)
             conn.run("""
                 CREATE TABLE IF NOT EXISTS push_subscriptions (
                     id          SERIAL PRIMARY KEY,
@@ -580,6 +718,7 @@ def init_db():
                 ("billing_current_period_end", "TIMESTAMP", "NULL"),
                 ("billing_cancel_at_period_end", "BOOLEAN", "FALSE"),
                 ("admin_suspended", "BOOLEAN", "FALSE"),
+                ("manual_access_until", "TIMESTAMP", "NULL"),
             ]:
                 try:
                     conn.run(f"ALTER TABLE members ADD COLUMN IF NOT EXISTS {col} {typ} DEFAULT {default}")
@@ -630,6 +769,25 @@ def init_db():
             """)
             conn.run("""CREATE INDEX IF NOT EXISTS admin_sensitive_access_member_idx
                          ON admin_sensitive_access_log (member_code, created_at DESC)""")
+            conn.run("""
+                CREATE TABLE IF NOT EXISTS support_requests (
+                    id                  BIGSERIAL PRIMARY KEY,
+                    member_code         TEXT NOT NULL,
+                    subject             TEXT NOT NULL,
+                    message             TEXT NOT NULL,
+                    status              TEXT NOT NULL DEFAULT 'pending',
+                    delivery_channel    TEXT NOT NULL DEFAULT '',
+                    provider_message_id TEXT NOT NULL DEFAULT '',
+                    delivery_error      TEXT NOT NULL DEFAULT '',
+                    created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+                    delivered_at        TIMESTAMP,
+                    resolved_at         TIMESTAMP
+                )
+            """)
+            conn.run("""CREATE INDEX IF NOT EXISTS support_requests_member_idx
+                         ON support_requests (member_code, created_at DESC)""")
+            conn.run("""CREATE INDEX IF NOT EXISTS support_requests_status_idx
+                         ON support_requests (status, created_at DESC)""")
             for stripe_col, stripe_type, stripe_default in [
                 ("stripe_object_id", "TEXT", "''"),
                 ("invoice_id", "TEXT", "''"),
@@ -649,8 +807,13 @@ def init_db():
             ensure_growth_schema(conn)
             ensure_marketing_schema(conn)
             ensure_activation_schema(conn)
+            ensure_trial_schema(conn)
+            if os.environ.get("CANDIDATURE_ENABLED") == "1":
+                ensure_candidature_schema(conn)
             ensure_trading_schema(conn)
             ensure_copy_schema(conn)
+            ensure_billing_schema(conn)
+            ensure_market_agent_schema(conn)
             # Migration colonnes canal_messages
             for ccol, ctyp, cdef in [
                 ("audio_url","TEXT","''"),
@@ -778,6 +941,7 @@ def init_db():
                 id                   SERIAL PRIMARY KEY,
                 name                 TEXT NOT NULL,
                 chat_id              TEXT UNIQUE NOT NULL,
+                audience             TEXT NOT NULL DEFAULT 'public',
                 active               BOOLEAN NOT NULL DEFAULT TRUE,
                 deleted              BOOLEAN NOT NULL DEFAULT FALSE,
                 last_check_status    TEXT NOT NULL DEFAULT '',
@@ -785,6 +949,7 @@ def init_db():
                 created_at           TIMESTAMP DEFAULT NOW(),
                 updated_at           TIMESTAMP DEFAULT NOW()
             )""")
+            conn.run("ALTER TABLE telegram_channels ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'public'")
             conn.run("""CREATE TABLE IF NOT EXISTS telegram_media_library (
                 id                   SERIAL PRIMARY KEY,
                 title                TEXT NOT NULL,
@@ -811,9 +976,9 @@ def init_db():
             )""")
             if ECO_CANAL:
                 conn.run(
-                    """INSERT INTO telegram_channels (name, chat_id, active, deleted)
-                       VALUES ('Bectanse Académie', :chat_id, TRUE, FALSE)
-                       ON CONFLICT (chat_id) DO UPDATE SET deleted=FALSE""",
+                    """INSERT INTO telegram_channels (name, chat_id, audience, active, deleted)
+                       VALUES ('Bectanse Académie', :chat_id, 'public', TRUE, FALSE)
+                       ON CONFLICT (chat_id) DO UPDATE SET audience='public', deleted=FALSE""",
                     chat_id=ECO_CANAL
                 )
 
@@ -930,6 +1095,7 @@ def _member_is_explorer(member):
     if not member:
         return False
     return (str(member.get("access_level") or "member").lower() in {"explorer", "demo"}
+            or (member.get('access_level') == 'broker_trial' and not _member_has_academy_access(member))
             or str(member.get("code") or "").upper() == "BCT-DEMO2026")
 
 
@@ -978,7 +1144,7 @@ EXPLORER_JOURNEY_STEPS = (
         "title": "Débloque ton parcours complet",
         "description": "Choisis la formule adaptée et transforme cet aperçu en véritable espace de progression personnel.",
         "duration": "1 min",
-        "href": "/vip#offres",
+        "href": "/offres",
         "cta": "Voir les formules",
         "icon": "unlock",
     },
@@ -1027,6 +1193,14 @@ def _explorer_journey_state(conn, member_code, mark_welcome=False):
 
 def _member_has_academy_access(member):
     return academy_membership_state(member)[0]
+
+
+@app.template_global()
+def vip_support_href(member):
+    """Expose le centre de support intégré uniquement aux abonnements valides."""
+    if not _member_has_academy_access(member):
+        return ""
+    return "/support"
 
 
 def _current_demo_mode(code=None, member=None):
@@ -1141,18 +1315,8 @@ def enforce_member_access_state():
     """Désactive définitivement les accès techniques des comptes expirés ou suspendus."""
     conn = get_conn()
     try:
-        changed = conn.run("""UPDATE members
-            SET actif=CASE
-                    WHEN date_fin IS NOT NULL AND date_fin <= NOW() THEN FALSE
-                    ELSE actif
-                END,
-                copy_actif=CASE
-                    WHEN actif=FALSE OR (date_fin IS NOT NULL AND date_fin <= NOW()) THEN FALSE
-                    ELSE copy_actif
-                END
-            WHERE COALESCE(access_level, 'member') NOT IN ('explorer', 'demo')
-              AND (actif=FALSE OR (date_fin IS NOT NULL AND date_fin <= NOW()))
-            RETURNING code""")
+        from billing_access import enforce_copy_access
+        changed = enforce_copy_access(conn)
         return len(changed or [])
     finally:
         conn.close()
@@ -1161,7 +1325,7 @@ def enforce_member_access_state():
 def default_params():
     return {"mode_risque":"Lots fixes","lots":0.01,"lots_max":5,"slippage":100,
             "forcer_lot_minimum":False,"inverser_trades":False,
-            "copier_ordres_en_attente":False,"convertir_pending_invalide":False,
+            "copier_ordres_en_attente":True,"convertir_pending_invalide":False,
             "copier_sl":True,"drawdown_actif":False,"drawdown_pct":5.0,
             "drawdown_gain_actif":False,"drawdown_gain_pct":5.0,
             "objectif_actif":False,"objectif_gain_pct":5.0,"objectif_perte_pct":3.0,
@@ -1290,10 +1454,93 @@ def send_telegram(text, reply_markup=None, chat_id=None):
     except: pass
     return False
 
+
+def _whatsapp_digits(value):
+    return "".join(character for character in str(value or "") if character.isdigit())
+
+
+def send_whatsapp_support_notification(member, subject, message):
+    """Transmet une demande VIP à l'équipe via l'API officielle WhatsApp Cloud."""
+    recipient = _whatsapp_digits(WHATSAPP_SUPPORT_RECIPIENT)
+    if not all((WHATSAPP_CLOUD_ACCESS_TOKEN, WHATSAPP_CLOUD_PHONE_NUMBER_ID, recipient)):
+        return {"ok": False, "configured": False, "error": "Configuration WhatsApp absente"}
+
+    member_code = str((member or {}).get("code") or "").strip().upper()
+    member_name = str((member or {}).get("nom") or "Membre VIP").strip()[:120]
+    member_phone = _whatsapp_digits((member or {}).get("telephone"))
+    member_email = str((member or {}).get("email") or "").strip()[:254]
+    subject = str(subject or "").strip()[:120]
+    message = str(message or "").strip()[:1000]
+    reply_line = f"\nRépondre au membre : https://wa.me/{member_phone}" if 8 <= len(member_phone) <= 15 else ""
+    body = (
+        "NOUVELLE DEMANDE SUPPORT VIP\n\n"
+        f"Membre : {member_name}\n"
+        f"Code : {member_code}\n"
+        f"E-mail : {member_email or 'Non renseigné'}\n"
+        f"Sujet : {subject}\n\n"
+        f"Message :\n{message}"
+        f"{reply_line}"
+    )
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": recipient,
+    }
+    if WHATSAPP_SUPPORT_TEMPLATE_NAME:
+        payload.update({
+            "type": "template",
+            "template": {
+                "name": WHATSAPP_SUPPORT_TEMPLATE_NAME,
+                "language": {"code": WHATSAPP_SUPPORT_TEMPLATE_LANGUAGE or "fr"},
+                "components": [{
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": member_name},
+                        {"type": "text", "text": member_code},
+                        {"type": "text", "text": subject},
+                        {"type": "text", "text": message},
+                    ],
+                }],
+            },
+        })
+    else:
+        payload.update({"type": "text", "text": {"preview_url": False, "body": body}})
+
+    try:
+        response = requests.post(
+            f"https://graph.facebook.com/{WHATSAPP_GRAPH_API_VERSION}/"
+            f"{WHATSAPP_CLOUD_PHONE_NUMBER_ID}/messages",
+            headers={
+                "Authorization": f"Bearer {WHATSAPP_CLOUD_ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=20,
+        )
+        response_data = response.json()
+        provider_message_id = str(
+            ((response_data.get("messages") or [{}])[0]).get("id") or ""
+        )
+        if response.status_code < 400 and provider_message_id:
+            return {"ok": True, "configured": True, "message_id": provider_message_id}
+        provider_error = response_data.get("error") or {}
+        error_code = str(provider_error.get("code") or response.status_code)
+        app.logger.error("WhatsApp support refusé par Meta (code %s)", error_code)
+        return {"ok": False, "configured": True, "error": f"Meta {error_code}"}
+    except Exception as error:
+        app.logger.error("WhatsApp support indisponible: %s", type(error).__name__)
+        return {"ok": False, "configured": True, "error": type(error).__name__}
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if "member_code" not in session:
+            if request.endpoint == "abonnement" and request.args.get("reprise") == "1":
+                session["pending_billing_return"] = True
+                session["login_notice"] = "Connecte-toi avec ton compte existant pour reprendre ton abonnement."
+            if request.endpoint == "offres":
+                session["pending_academy_offers"] = True
+                session["login_notice"] = "Connecte-toi ou crée ton accès Explorer pour découvrir les formules de l’Académie."
             return redirect(url_for("login"))
         if str(session.get("member_code", "")).upper() == "BCT-DEMO2026":
             # L'ancien compte partagé n'est plus une identité valide : chacun
@@ -1305,66 +1552,127 @@ def login_required(f):
         # academy_access_required afin qu'aucune requête directe ne les contourne.
         try:
             enforce_member_access_state()
-            if not get_member(session["member_code"]):
+            member = get_member(session["member_code"])
+            if not member:
                 session.clear()
                 return redirect(url_for("login"))
+            if (str(member.get("billing_status") or "").lower() in {"past_due", "unpaid"}
+                    and request.endpoint not in {"abonnement", "create_billing_portal_session", "logout"}
+                    and not (request.path == "/journal" or request.path.startswith(("/journal/", "/api/trading/", "/trading/")))):
+                if request.path.startswith("/api/"):
+                    return jsonify(ok=False, error="PAYMENT_REQUIRED", payment_url="/abonnement"), 402
+                return redirect(url_for("abonnement"))
         except Exception as error:
             app.logger.error("Validation session membre: %s", error)
             return "Service temporairement indisponible", 503
         return f(*args, **kwargs)
     return decorated
 
+@app.before_request
+def require_payment_before_member_sections():
+    """Apply the payment wall to all member routes, including undecorated APIs."""
+    code=session.get('member_code')
+    if str(code or '').upper().startswith('ADM-TRADING-'):
+        session.clear()
+        return jsonify(ok=False,error='ADMIN_ONLY_ACCOUNT'),403
+    if not code or request.path.startswith(('/static/','/admin')) or request.path in WEBHOOK_PATHS:
+        return None
+    if request.endpoint=='academy_subscription_checkout' and request.args.get('restart')=='1':
+        return None  # This endpoint rechecks Stripe and rejects non-terminated subscriptions.
+    if request.endpoint in {'abonnement','create_billing_portal_session','logout','static','healthz'}:
+        return None
+    member=get_member(code)
+    if member and str(member.get('billing_status') or '').lower() in {'past_due','unpaid'}:
+        if request.path.startswith('/api/'):
+            return jsonify(ok=False,error='PAYMENT_REQUIRED',payment_url='/abonnement'),402
+        return redirect(url_for('abonnement'))
+    return None
+
 # ── ROUTES ───────────────────────────────────────────────────────────────────
 
 
 @app.route("/vip")
 def vip_landing():
-    response = send_from_directory("static/vip", "index-20261029-compact.html", conditional=False)
+    response = send_from_directory("static/vip-modern", "index.html", conditional=False)
     response.direct_passthrough = False
-    # Show the same detailed plans as the member offers page on /vip only.
-    html = response.get_data(as_text=True)
-    html = html.replace('<div class="mobile-sticky"><a class="btn btn-primary" href="#capture">Créer mon compte gratuit</a></div>', '', 1)
-    # Move the real member voices immediately before the commercial offers.  The
-    # original feed remains the single source of truth; its visual rail is not
-    # duplicated in this audio-focused placement.
-    testimonial_match = re.search(
-        r'<section class="section social-proof" id="temoignages"[\s\S]*?</section>', html
-    )
-    testimonial_section = ''
-    if testimonial_match:
-        testimonial_section = testimonial_match.group(0)
-        html = html[:testimonial_match.start()] + html[testimonial_match.end():]
-        testimonial_section = testimonial_section.replace('Paroles de membres', 'Parole de membre', 1)
-        testimonial_section = testimonial_section.replace(
-            'Ils te parlent<br><em>directement</em>', 'Parole de<br><em>membre</em>', 1
-        )
-
-    promo_active = time.time() < ACADEMY_FLASH_PROMO_END
-    offers = testimonial_section + (render_template("vip_black_friday.html") if 1793232000 <= time.time() < 1793401200 else render_template("academy_offers_section.html",
-        plans=list(ACADEMY_SUBSCRIPTION_PLANS.values()),
-        promo_active=promo_active,
-        promo_end_timestamp=ACADEMY_FLASH_PROMO_END,
-        promo_deadline_label=datetime.fromtimestamp(ACADEMY_FLASH_PROMO_END, PARIS_TZ).strftime("%d/%m à %H:%M")))
-    marker = '<section class="section explorer-entry" id="capture">'
-    if marker in html:
-        html = html.replace(marker, offers + marker, 1)
-    else:
-        html = html.replace('</main>', offers + '</main>', 1)
-    # Restore the original 15-day selection offer, with its video and candidature route.
-    trial_offer = render_template("vip_trial_invite.html")
-    trial_marker = '<section class="section explorer-entry" id="capture">'
-    if trial_marker in html:
-        html = html.replace(trial_marker, trial_offer + trial_marker, 1)
-
-    html = html.replace('<div data-vip-copy-video></div>',
-        render_template("vip_copy_video.html"), 1)
-    # The CryptOwl-inspired direction is applied by CSS and progressive JS only.
-    html = html.replace('/static/js/vip-premium.js?v=20261015-repair1', '/static/js/vip-premium.js?v=20261101-scene54', 1)
-    html = html.replace('</head>', '<link rel="stylesheet" href="/static/css/vip-cryptowl-direction.css?v=20261101-scene54"></head>', 1)
-    response.set_data(html)
+    page = response.get_data(as_text=True)
+    # A direct visit without an anchor must always begin on the hero.  Hash
+    # links remain untouched so navigation to a named section still works.
+    arrival_guard = """<script>(function(){if(location.hash)return;try{history.scrollRestoration='manual'}catch(e){}var top=function(){window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0};top();addEventListener('load',function(){top();setTimeout(top,60);setTimeout(top,240)},{once:true});addEventListener('pageshow',function(){if(!location.hash)top()})})();</script>"""
+    candidature_cta = """<a data-candidature-cta=\"true\" href=\"/testgratuit\" style=\"display:inline-flex;min-height:56px;align-items:center;justify-content:center;margin-top:2rem;padding:0 1.5rem;border-radius:0.75rem;background:#ff5b1b;color:#fff;font-weight:800;text-decoration:none\">Déposer ma candidature</a>"""
+    candidature_notice = '<p class="mt-7 border-l-2 border-[#ff5b1b] pl-4 text-xs leading-5 text-slate-400">Accès attribué après étude de ton profil par l’équipe. Une candidature ne garantit pas l’obtention d’un accès.</p>'
+    page = page.replace(candidature_notice, candidature_cta + candidature_notice, 1)
+    # Les cartes de la landing passaient auparavant par des Payment Links
+    # statiques. Elles doivent emprunter le Checkout applicatif afin que le
+    # code promotionnel soit appliqué, tracé et rattaché au compte membre.
+    checkout_links = {
+        "https://buy.stripe.com/14A6oH5qE51iaJZ6ckgfu0H": "/abonnement/checkout/1_month?promo=BECTANSE100",
+        "https://buy.stripe.com/7sY8wP2esbpG6tJ0S0gfu0G": "/abonnement/checkout/3_months?promo=BECTANSE100",
+        "https://buy.stripe.com/8x23cv4mAdxO7GoQWMhER2": "/abonnement/checkout/1_year?promo=BECTANSE100",
+        "https://buy.stripe.com/8x23cv4mAdxO7xN0S0gfu0F": "/abonnement/checkout/1_year?promo=BECTANSE100",
+    }
+    for payment_link, checkout_link in checkout_links.items():
+        page = page.replace(payment_link, checkout_link)
+    candidature_guard = """<script>(function(){function add(){if(document.querySelector('[data-candidature-cta]'))return;var notice=[].find.call(document.querySelectorAll('#candidature p'),function(el){return el.textContent.indexOf('Accès attribué après étude de ton profil')===0});if(!notice)return;var c=document.createElement('a');c.dataset.candidatureCta='true';c.href='/testgratuit';c.textContent='Déposer ma candidature';c.style.cssText='display:inline-flex;min-height:56px;align-items:center;justify-content:center;margin-top:2rem;padding:0 1.5rem;border-radius:.75rem;background:#ff5b1b;color:#fff;font-weight:800;text-decoration:none';notice.parentNode.insertBefore(c,notice)}function boot(){add();var observer=new MutationObserver(add);observer.observe(document.body,{childList:true,subtree:true});setTimeout(function(){observer.disconnect();add()},10000)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()})();</script>"""
+    launch_offer = """<style id=\"bectanse100-style\">
+      .b100-ribbon{position:fixed;z-index:80;left:50%;top:14px;transform:translateX(-50%);width:min(680px,calc(100vw - 28px));display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 18px;border:1px solid rgba(255,151,58,.74);border-radius:999px;background:linear-gradient(100deg,#ff4e16,#ff7b1b 52%,#e94c12);box-shadow:0 14px 45px rgba(255,75,15,.42);color:#160b05;font:800 12px/1.2 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}.b100-ribbon strong{color:#fff;font-size:14px}.b100-ribbon button{border:0;background:#170c08;color:#fff;border-radius:999px;padding:7px 10px;font-weight:800;cursor:pointer}.b100-ribbon .b100-clock{font-variant-numeric:tabular-nums}.b100-pop{position:fixed;inset:0;z-index:150;display:grid;place-items:center;padding:20px;background:rgba(4,5,7,.7);backdrop-filter:blur(10px)}.b100-pop[hidden],.b100-ribbon[hidden]{display:none!important}.b100-card{position:relative;isolation:isolate;overflow:hidden;width:min(550px,100%);padding:46px 34px 34px;border:1px solid rgba(255,129,41,.75);border-radius:28px;background:radial-gradient(circle at 50% -10%,#643210,transparent 48%),#0d0e10;color:#fff;box-shadow:0 30px 100px rgba(0,0,0,.6);text-align:center}.b100-card:before,.b100-card:after{content:'';position:absolute;z-index:-1;width:240px;height:240px;border-radius:50%;filter:blur(18px);opacity:.4;background:#ff641d}.b100-card:before{left:-120px;bottom:-135px}.b100-card:after{right:-130px;top:-145px}.b100-close{position:absolute;right:15px;top:15px;width:35px;height:35px;border:1px solid #ffffff30;border-radius:50%;background:#ffffff0b;color:#fff;font-size:22px;cursor:pointer}.b100-gift{position:relative;width:86px;height:70px;margin:0 auto 22px;border-radius:10px;background:linear-gradient(145deg,#ffb44c,#ff4c16 60%,#b92a0c);box-shadow:0 13px 25px #ff5b1b55;animation:b100-float 1.8s ease-in-out infinite}.b100-gift:before{content:'';position:absolute;left:36px;top:0;width:13px;height:70px;background:#2a1006}.b100-gift:after{content:'';position:absolute;left:-5px;top:-15px;width:96px;height:22px;border-radius:8px;background:linear-gradient(90deg,#ff7b1b,#ffc05a,#ff5b1b);box-shadow:0 -3px 13px #ffad4b66}.b100-eyebrow{margin:0 0 10px;color:#ffbd71;font-size:11px;font-weight:900;letter-spacing:.2em;text-transform:uppercase}.b100-card h2{margin:0;font-size:clamp(30px,6vw,48px);line-height:.98}.b100-card h2 span{color:#ff6622}.b100-card p{margin:17px auto;max-width:420px;color:#d6d1cb;line-height:1.55}.b100-code{display:flex;align-items:center;justify-content:center;gap:10px;margin:22px auto;padding:13px;border:1px dashed #ff9a51;border-radius:13px;background:#ff5b1b18;font:900 18px/1 Arial,sans-serif;letter-spacing:.1em}.b100-copy{border:0;border-radius:8px;background:#fff;color:#231008;padding:8px 10px;font-size:12px;font-weight:900;cursor:pointer}.b100-cta{display:inline-flex;align-items:center;justify-content:center;min-height:54px;width:min(100%,360px);border-radius:12px;background:#ff5b1b;color:#fff!important;text-decoration:none!important;font-weight:900;box-shadow:0 12px 30px #ff5b1b4d}.b100-note{font-size:12px!important;color:#bdb8b1!important}.b100-plan-note{display:flex;align-items:center;gap:8px;margin:12px 0;color:#ffb276;font-size:12px;font-weight:800}.b100-plan-note:before{content:'−100 €';display:inline-grid;place-items:center;padding:5px 7px;border-radius:6px;background:#ff5b1b;color:white;font-size:11px}.b100-plan-price{font-size:12px;color:#a9a39d}.b100-plan-price b{color:#fff;font-size:17px}@keyframes b100-float{50%{transform:translateY(-8px) rotate(-2deg)}}@media(max-width:700px){.b100-ribbon{top:7px;padding:9px 11px;font-size:10px;gap:8px}.b100-ribbon strong{font-size:12px}.b100-card{padding:42px 20px 25px}.b100-card h2{font-size:33px}.b100-ribbon .b100-hide-mobile{display:none}}
+    </style><div id=\"b100-ribbon\" class=\"b100-ribbon\" hidden><span class=\"b100-hide-mobile\">offre de lancement</span><strong>−100 € immédiats</strong><span class=\"b100-clock\"></span><button type=\"button\" data-b100-open>voir le code</button></div><div id=\"b100-pop\" class=\"b100-pop\" hidden role=\"dialog\" aria-modal=\"true\" aria-label=\"Offre de lancement\"><section class=\"b100-card\"><button class=\"b100-close\" type=\"button\" aria-label=\"Fermer\">×</button><div class=\"b100-gift\" aria-hidden=\"true\"></div><p class=\"b100-eyebrow\">offre de lancement · jusqu’à vendredi</p><h2>Ton accès<br/><span>−100 €</span> maintenant</h2><p>Utilise ce code sur l’une des formules. La réduction est appliquée immédiatement sur ton premier paiement.</p><div class=\"b100-code\"><span>BECTANSE100</span><button class=\"b100-copy\" type=\"button\">Copier</button></div><a class=\"b100-cta\" href=\"#formules\">Choisir mon accès</a><p class=\"b100-note\"><span class=\"b100-clock\"></span> avant la fin de l’offre</p></section></div><script id=\"b100-launch\">(function(){var end=1794005999*1000,shownKey='bectanse100-popup-202611';function left(){return Math.max(0,end-Date.now())}function fmt(ms){var s=Math.floor(ms/1000),d=Math.floor(s/86400);s%=86400;var h=Math.floor(s/3600);s%=3600;var m=Math.floor(s/60),q=s%60;return(d?d+'j ':'')+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(q).padStart(2,'0')}function go(){var active=left()>0,bar=document.getElementById('b100-ribbon'),pop=document.getElementById('b100-pop');if(!active){bar&&bar.remove();pop&&pop.remove();return}document.querySelectorAll('.b100-clock').forEach(function(x){x.textContent=fmt(left())});bar.hidden=false;function close(){pop.hidden=true;try{sessionStorage.setItem(shownKey,'1')}catch(e){}}document.querySelectorAll('.b100-close,[data-b100-open]').forEach(function(x){x.onclick=x.hasAttribute('data-b100-open')?function(){pop.hidden=false}:close});var copy=document.querySelector('.b100-copy');if(copy)copy.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText('BECTANSE100');copy.textContent='Copié'};if(!sessionStorage.getItem(shownKey))setTimeout(function(){pop.hidden=false},700);var offers={"1_month":"400 € aujourd’hui, puis 500 €","3_months":"900 € aujourd’hui, puis 1 000 €","1_year":"3 900 € aujourd’hui, puis 4 000 €"};Object.keys(offers).forEach(function(id){document.querySelectorAll('a[href*="/abonnement/checkout/'+id+'"]').forEach(function(a){var host=a.closest('article,div');if(!host||host.querySelector('.b100-plan-note'))return;var note=document.createElement('div');note.className='b100-plan-note';note.textContent='code BECTANSE100 appliqué';var price=document.createElement('div');price.className='b100-plan-price';price.innerHTML='<b>'+offers[id]+'</b> · premier paiement';a.parentNode.insertBefore(note,a);a.parentNode.insertBefore(price,a)})});setInterval(function(){document.querySelectorAll('.b100-clock').forEach(function(x){x.textContent=fmt(left())})},1000)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go,{once:true});else go()})();</script>"""
+    # The checkout cards are hydrated by the Next bundle after the first HTML
+    # paint.  Keep the promotion links attached after that hydration as well,
+    # and point the modal to the real pricing anchor.
+    launch_offer = launch_offer.replace('href=\\"#formules\\"', 'href=\\"#abonnement\\"')
+    # The offer must never interrupt the visit. Remove the popup and its
+    # opening script completely. The reduction is shown inside each offer.
+    launch_offer = re.sub(r'<div id="b100-pop".*?</script>', '', launch_offer, flags=re.S)
+    launch_offer += """<script id="bectanse100-ribbon">(function(){document.getElementById('b100-ribbon')?.remove()})();</script>"""
+    launch_offer += """<script>(function(){
+      var links={
+        '1_month':'/abonnement/checkout/1_month?promo=BECTANSE100',
+        '3_months':'/abonnement/checkout/3_months?promo=BECTANSE100',
+        '1_year':'/abonnement/checkout/1_year?promo=BECTANSE100'
+      };
+      function planFromText(text){text=(text||'').toLowerCase();if(/3 mois|trimestre/.test(text))return'3_months';if(/1 an|annuel/.test(text))return'1_year';if(/1 mois|mensuel/.test(text))return'1_month';return null}
+      function apply(){document.querySelectorAll('a[href*=\\"buy.stripe.com\\"],a[href*=\\"/abonnement/checkout/\\"]').forEach(function(a){var plan=planFromText(a.textContent);if(plan)a.href=links[plan]})}
+      if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
+      setTimeout(apply,900);setTimeout(apply,2500);
+    })();</script>"""
+    launch_offer += """<style id="bectanse100-offer-cards">
+      .b100-inline-offer{display:grid;gap:8px;margin:14px 0 12px}.b100-inline-trigger{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 12px;border:1px solid rgba(255,107,32,.65);border-radius:10px;background:linear-gradient(100deg,rgba(255,83,21,.18),rgba(255,160,61,.08));color:#ffb06d;font:800 12px/1.25 Arial,sans-serif;letter-spacing:.03em;text-align:left;cursor:pointer}.b100-inline-trigger span:first-child{color:#fff;font-size:14px}.b100-inline-code{display:none;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px dashed rgba(255,166,81,.8);border-radius:10px;background:#ff5b1b12;color:#ffd0a7;font:800 13px/1.2 Arial,sans-serif}.b100-inline-code.is-visible{display:flex}.b100-inline-copy{border:0;border-radius:7px;padding:6px 8px;background:#fff;color:#281108;font-weight:900;cursor:pointer}@media(max-width:700px){.b100-inline-trigger{font-size:11px}.b100-inline-trigger span:first-child{font-size:13px}}</style>
+    <script id="bectanse100-offer-cards-script">(function(){var links={one:'1_month',three:'3_months',year:'1_year'};function addCard(a){var parent=a.parentNode;if(!parent||parent.querySelector('[data-b100-offer]'))return;var box=document.createElement('div');box.className='b100-inline-offer';box.dataset.b100Offer='true';box.innerHTML='<button type="button" class="b100-inline-trigger"><span>−100 € immédiats</span><span>voir le code</span></button><div class="b100-inline-code"><span>BECTANSE100</span><button type="button" class="b100-inline-copy">Copier</button></div>';var trigger=box.querySelector('.b100-inline-trigger'),code=box.querySelector('.b100-inline-code'),copy=box.querySelector('.b100-inline-copy');trigger.onclick=function(){var shown=code.classList.toggle('is-visible');trigger.lastElementChild.textContent=shown?'masquer le code':'voir le code'};copy.onclick=function(){navigator.clipboard?.writeText('BECTANSE100');copy.textContent='Copié'};parent.insertBefore(box,a)}function render(){document.getElementById('b100-ribbon')?.remove();Object.keys(links).forEach(function(key){document.querySelectorAll('a[href*="/abonnement/checkout/'+links[key]+'"]').forEach(addCard)})}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',render,{once:true});else render();[600,1600,3200].forEach(function(wait){setTimeout(render,wait)});var observer=new MutationObserver(render);observer.observe(document.body,{childList:true,subtree:true});setTimeout(function(){observer.disconnect()},8000)})();</script>"""
+    page = page.replace("</body>", launch_offer + arrival_guard + candidature_guard + "</body>", 1)
+    response.set_data(page)
     response.headers["Cache-Control"] = "no-store"
     response.headers.pop("ETag", None)
     return response
+
+
+# The VIP landing is a self-contained Next export.  Its client-side code keeps
+# the original absolute asset URLs after hydration, so expose those exact URLs
+# from the published bundle as well.  This makes the production page render
+# identically to the validated local preview on desktop and mobile.
+@app.route("/_next/<path:filename>")
+@app.route("/branding/<path:filename>")
+@app.route("/images/<path:filename>")
+@app.route("/media/<path:filename>")
+def vip_modern_runtime_asset(filename):
+    prefix = request.path.lstrip("/").split("/", 1)[0]
+    return send_from_directory(os.path.join("static", "vip-modern", prefix), filename, conditional=True)
+
+
+@app.route("/testimonials/<path:filename>")
+def vip_testimonial_media(filename):
+    """Serve the full verified testimonial catalogue from its persistent store."""
+    persistent_catalogue = "/app/persistent/static/temoignages"
+    persistent_file = os.path.join(persistent_catalogue, filename)
+    if os.path.isfile(persistent_file):
+        return send_from_directory(persistent_catalogue, filename, conditional=True)
+    # The small release fallback keeps first paint resilient during a restore.
+    return send_from_directory(os.path.join("static", "vip-modern", "static", "temoignages"), filename, conditional=True)
+
+
+@app.route("/smart-academy-hero-background.jpg")
+def vip_modern_hero_background():
+    return send_from_directory("static/vip-modern", "smart-academy-hero-background.jpg", conditional=True)
 
 
 @app.get("/vip/presentation-media/<kind>")
@@ -1395,15 +1703,40 @@ def support():
     member = get_member(code)
     if not member:
         return redirect(url_for("login"))
-    
+
     if request.method == "POST":
-        data = request.get_json()
-        sujet   = data.get("sujet", "").strip()
-        message = data.get("message", "").strip()
-        if not sujet or not message:
-            return jsonify({"ok": False, "error": "Champs manquants"})
-        
-        # Notif Telegram à l'équipe
+        data = request.get_json(silent=True) or {}
+        sujet = str(data.get("sujet") or "").strip()[:120]
+        message = str(data.get("message") or "").strip()[:1000]
+        if not sujet or len(message) < 10:
+            return jsonify({"ok": False, "error": "Sujet ou message invalide."}), 400
+
+        request_id = None
+        try:
+            conn = get_conn()
+            recent = conn.run("""SELECT COUNT(*) FROM support_requests
+                WHERE member_code=:code AND created_at > NOW() - INTERVAL '10 minutes'""",
+                code=code)
+            if recent and int(recent[0][0] or 0) >= 5:
+                conn.close()
+                return jsonify({
+                    "ok": False,
+                    "error": "Trop de demandes rapprochées. Réessaie dans quelques minutes.",
+                }), 429
+            inserted = conn.run("""INSERT INTO support_requests
+                (member_code,subject,message,status,created_at)
+                VALUES (:code,:subject,:message,'pending',NOW()) RETURNING id""",
+                code=code, subject=sujet, message=message)
+            request_id = int(inserted[0][0])
+            conn.close()
+        except Exception as error:
+            app.logger.error("Enregistrement support %s: %s", code, type(error).__name__)
+            return jsonify({
+                "ok": False,
+                "error": "Le support est momentanément indisponible.",
+            }), 503
+
+        whatsapp_delivery = send_whatsapp_support_notification(member, sujet, message)
         notif = (
             f"💬 *NOUVEAU MESSAGE SUPPORT*\n\n"
             f"👤 *{member['nom']}* | Code : `{code}`\n"
@@ -1412,29 +1745,66 @@ def support():
             f"📋 *Sujet :* {sujet}\n\n"
             f"💬 *Message :*\n{message}"
         )
-        send_telegram(notif)
-        
-        # Sauvegarder en DB
+        telegram_fallback = False
+        if not whatsapp_delivery.get("ok"):
+            telegram_fallback = send_telegram(notif)
+
+        delivered = bool(whatsapp_delivery.get("ok") or telegram_fallback)
+        delivery_channel = "whatsapp" if whatsapp_delivery.get("ok") else (
+            "telegram_fallback" if telegram_fallback else ""
+        )
+        provider_message_id = str(whatsapp_delivery.get("message_id") or "")
+        delivery_error = "" if delivered else str(
+            whatsapp_delivery.get("error") or "Échec de livraison"
+        )[:240]
         try:
             conn = get_conn()
+            conn.run("""UPDATE support_requests SET status=:status,
+                delivery_channel=:channel,provider_message_id=:provider_id,
+                delivery_error=:error,delivered_at=CASE WHEN :delivered THEN NOW() ELSE NULL END
+                WHERE id=:id AND member_code=:code""",
+                status="delivered" if delivered else "delivery_failed",
+                channel=delivery_channel, provider_id=provider_message_id,
+                error=delivery_error, delivered=delivered, id=request_id, code=code)
             rows = conn.run("SELECT historique FROM members WHERE code=:c", c=code)
             hist = json.loads(rows[0][0]) if rows and rows[0][0] else []
             hist.append({
-                "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "date": datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y %H:%M"),
                 "type": "support",
-                "statut": "en_attente",
+                "statut": "en_attente" if delivered else "enregistre",
                 "sujet": sujet,
                 "message": message
             })
-            conn.run("UPDATE members SET historique=:h WHERE code=:c", h=json.dumps(hist[-50:]), c=code)
+            conn.run("UPDATE members SET historique=:h WHERE code=:c",
+                     h=json.dumps(hist[-50:]), c=code)
             conn.close()
-        except: pass
-        
-        return jsonify({"ok": True})
-    
+        except Exception as error:
+            app.logger.error("Mise à jour support %s: %s", code, type(error).__name__)
+
+        if not delivered:
+            return jsonify({
+                "ok": False,
+                "saved": True,
+                "error": "La demande est enregistrée, mais la notification immédiate a échoué.",
+            }), 503
+        return jsonify({"ok": True, "delivery_channel": delivery_channel})
+
     # GET — afficher la page support
-    hist = member.get("historique") or []
-    messages_support = [h for h in reversed(hist) if h.get("type") == "support"][-10:]
+    messages_support = []
+    try:
+        conn = get_conn()
+        rows = conn.run("""SELECT subject,message,status,created_at FROM support_requests
+            WHERE member_code=:code ORDER BY created_at DESC LIMIT 10""", code=code)
+        conn.close()
+        messages_support = [{
+            "sujet": row[0],
+            "message": row[1],
+            "statut": "repondu" if row[2] == "resolved" else "en_attente",
+            "date": row[3].strftime("%d/%m/%Y %H:%M") if row[3] else "",
+        } for row in rows]
+    except Exception:
+        hist = member.get("historique") or []
+        messages_support = [h for h in reversed(hist) if h.get("type") == "support"][-10:]
     return render_template("support.html", member=member, messages=messages_support)
 
 @app.route("/faq")
@@ -1719,7 +2089,8 @@ def accueil_expire():
         if actif and date_fin and (date_fin - datetime.now()).days >= 0:
             return redirect(url_for("accueil"))
     except: pass
-    return render_template("expire.html", member=member)
+    from renewal_offer import renewal_offer
+    return render_template("expire.html", member=member, renewal_offer=renewal_offer(member))
 
 @app.route("/accueil")
 @login_required
@@ -1744,7 +2115,11 @@ def accueil():
         now = datetime.now()
         if hasattr(date_fin, 'year'):
             delta = date_fin - now
-            jours_restants = max(0, delta.days)
+            if str(member.get("access_level") or "").lower() == "broker_trial":
+                from trading_journal.entitlements import broker_trial_remaining_days
+                jours_restants = broker_trial_remaining_days(member)
+            else:
+                jours_restants = max(0, delta.days)
             if jours_restants == 0: statut_abo = "expiré"
             elif jours_restants <= 7: statut_abo = "expire_bientot"
     notif_type    = member.get("notif_type", "") or ""
@@ -2023,10 +2398,16 @@ def _safe_admin_next(candidate):
 @app.before_request
 def inject_server_side_admin_credential():
     """Compatibilité des anciennes routes sans jamais renvoyer la clé au navigateur."""
+    if request.path.startswith(('/admin/api/essais-broker', '/admin/api/candidatures')):
+        return None  # Trial mutations use their own session-bound CSRF token.
     # Check the path before touching the session. Besides avoiding needless work,
     # this keeps versioned static assets free of ``Vary: Cookie`` so the CDN can
     # cache them globally without ever caching a member page.
     if not request.path.startswith(("/admin", "/api/canal/", "/analyse-ia", "/api/analyse-ia")) or not _admin_session_valid():
+        return None
+    # Copy trading authenticates its own session and CSRF token. Its strict
+    # command schema must never receive the legacy admin credential.
+    if request.path == "/admin/api/copy-trading" or request.path.startswith("/admin/api/copy-trading/"):
         return None
     args = request.args.copy()
     args["key"] = ADMIN_KEY
@@ -2078,6 +2459,7 @@ def admin_panel_login():
     if hmac.compare_digest(str(key), str(ADMIN_KEY)):
         session.clear()
         session["admin_authenticated"] = True
+        session["admin_authenticated_at"] = time.time()
         session.permanent = True
         with _ADMIN_LOGIN_LOCK:
             _ADMIN_LOGIN_ATTEMPTS.pop(remote, None)
@@ -2124,6 +2506,16 @@ def admin_api_membres():
     try:
         enforce_member_access_state()
         conn = get_conn()
+        if request.args.get("paginated") == "1":
+            from admin_directory import directory_page
+            try:
+                result = directory_page(conn, request.args)
+            except Exception:
+                app.logger.warning("Administration member directory unavailable")
+                return jsonify(ok=False, error="Répertoire indisponible. Réessayez dans un instant."), 503
+            finally:
+                conn.close()
+            return jsonify(result)
         rows = conn.run("SELECT code,nom,capital,actif,copy_actif,date_fin,email,telephone,telegram,parrain_code,filleuls_count,gains_parrainage,created_at,COALESCE(access_level,'member') FROM members WHERE code <> 'BCT-DEMO2026' ORDER BY created_at DESC")
         cols = ["code","nom","capital","actif","copy_actif","date_fin","email","telephone","telegram","parrain_code","filleuls_count","gains_parrainage","created_at","access_level"]
         membres = []
@@ -2198,7 +2590,9 @@ def admin_api_membre_update():
                 nouvelle = date_fin + timedelta(days=jours)
             else:
                 nouvelle = datetime.now() + timedelta(days=jours)
-            conn.run("UPDATE members SET date_fin=:df WHERE code=:c", df=nouvelle, c=code)
+            from stripe_reliability.exceptions import extend as record_extension
+            record_extension(conn, code, nouvelle, 'admin-panel', 'admin_member_update',
+                             str(data.get('reason') or f'Ajustement administratif de {jours} jours')[:500])
         conn.close()
         enforce_member_access_state()
         return jsonify({"ok":True})
@@ -2498,6 +2892,82 @@ def _payload_list(value, separator="|"):
     return [item.strip() for item in text.split(separator) if item.strip()]
 
 
+def _telegram_motion_manifest():
+    try:
+        with open(TELEGRAM_MOTION_MANIFEST_PATH, "r", encoding="utf-8") as source:
+            manifest = json.load(source)
+        if not isinstance(manifest, dict):
+            raise ValueError("manifeste invalide")
+        return manifest
+    except (OSError, TypeError, ValueError) as error:
+        app.logger.error(f"Bectanse Motion manifest: {error}")
+        return {"emoji": [], "stickers": [], "telegram": {}}
+
+
+def _telegram_motion_item(kind, key):
+    collection = "emoji" if str(kind).lower() == "emoji" else "stickers"
+    normalized_key = str(key or "").strip().lower()
+    return next(
+        (item for item in _telegram_motion_manifest().get(collection, [])
+         if str(item.get("key") or "").lower() == normalized_key),
+        None,
+    )
+
+
+def _telegram_sticker_key_from_text(text):
+    match = TELEGRAM_MOTION_TOKEN_PATTERN.fullmatch(str(text or "").strip())
+    if not match or match.group("kind").lower() != "sticker":
+        return ""
+    return match.group("key").lower()
+
+
+def _telegram_motion_plain_text(text):
+    """Remplace les jetons Motion par leur emoji Unicode de secours."""
+    def replace(match):
+        item = _telegram_motion_item(match.group("kind"), match.group("key"))
+        return str((item or {}).get("alt") or (item or {}).get("emoji") or "✨")
+    return TELEGRAM_MOTION_TOKEN_PATTERN.sub(replace, str(text or ""))
+
+
+def _telegram_motion_html(text):
+    """Convertit le Markdown simple et les jetons custom emoji en HTML Telegram."""
+    raw = str(text or "")
+    custom_tags = []
+
+    def custom_replacement(match):
+        if match.group("kind").lower() != "emoji":
+            return "✨"
+        item = _telegram_motion_item("emoji", match.group("key"))
+        emoji_id = str((item or {}).get("custom_emoji_id") or "").strip()
+        alt = str((item or {}).get("alt") or "✨")
+        if not emoji_id:
+            return alt
+        marker = f"\x00MOTION{len(custom_tags)}\x00"
+        custom_tags.append(
+            f'<tg-emoji emoji-id="{html_lib.escape(emoji_id, quote=True)}">'
+            f'{html_lib.escape(alt)}</tg-emoji>'
+        )
+        return marker
+
+    raw = TELEGRAM_MOTION_TOKEN_PATTERN.sub(custom_replacement, raw)
+    rendered = html_lib.escape(raw)
+    code_parts = []
+
+    def code_replacement(match):
+        marker = f"\x00CODE{len(code_parts)}\x00"
+        code_parts.append(f"<code>{match.group(1)}</code>")
+        return marker
+
+    rendered = re.sub(r"`([^`\n]+)`", code_replacement, rendered)
+    rendered = re.sub(r"\*([^*\n]+)\*", r"<b>\1</b>", rendered)
+    rendered = re.sub(r"_([^_\n]+)_", r"<i>\1</i>", rendered)
+    for index, value in enumerate(code_parts):
+        rendered = rendered.replace(f"\x00CODE{index}\x00", value)
+    for index, value in enumerate(custom_tags):
+        rendered = rendered.replace(f"\x00MOTION{index}\x00", value)
+    return rendered, bool(custom_tags)
+
+
 def _validate_telegram_post_payload(data):
     name = str(data.get("name") or "").strip()
     message = str(data.get("message") or "").strip()
@@ -2527,8 +2997,8 @@ def _validate_telegram_post_payload(data):
 
     if not name or len(name) > 120:
         raise ValueError("Le nom interne est obligatoire et limité à 120 caractères")
-    if post_type not in {"message", "quiz", "poll"}:
-        raise ValueError("Le format doit être message, quiz ou sondage")
+    if post_type not in {"message", "sticker", "quiz", "poll"}:
+        raise ValueError("Le format doit être message, sticker, quiz ou sondage")
     if post_type == "message":
         if not message and not image_url:
             raise ValueError("Ajoute un message ou une image")
@@ -2537,6 +3007,19 @@ def _validate_telegram_post_payload(data):
         max_length = 1024 if image_url else 4096
         if len(message) > max_length:
             raise ValueError(f"Le message est limité à {max_length} caractères dans ce format")
+        poll_question, poll_options, poll_explanation = "", [], ""
+        poll_correct_option_ids = []
+        poll_anonymous = True
+        poll_multiple = False
+    elif post_type == "sticker":
+        sticker_key = str(data.get("sticker_key") or "").strip().lower()
+        if not sticker_key:
+            sticker_key = _telegram_sticker_key_from_text(message)
+        sticker = _telegram_motion_item("sticker", sticker_key)
+        if not sticker or not str(sticker.get("telegram_file_id") or "").strip():
+            raise ValueError("Choisis un sticker animé Bectanse déjà publié sur Telegram")
+        message = "{{sticker:%s}}" % sticker_key
+        image_url = ""
         poll_question, poll_options, poll_explanation = "", [], ""
         poll_correct_option_ids = []
         poll_anonymous = True
@@ -2804,7 +3287,7 @@ def _csv_download(rows, filename):
 def _telegram_post_to_csv_row(post):
     serialized = _serialize_telegram_post(post)
     scheduled_for = _parse_scheduled_datetime(post.get("scheduled_for"))
-    type_labels = {"message": "message", "quiz": "quiz", "poll": "sondage"}
+    type_labels = {"message": "message", "sticker": "sticker", "quiz": "quiz", "poll": "sondage"}
     rhythm_labels = {"weekly": "hebdomadaire", "rotation": "rotation", "once": "unique"}
     day_labels = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
     correct_ids = serialized.get("poll_correct_option_ids") or []
@@ -2817,7 +3300,7 @@ def _telegram_post_to_csv_row(post):
         "jours": "|".join(day_labels[day] for day in serialized.get("weekdays", [])),
         "semaine_rotation": (int(post.get("rotation_week")) + 1) if post.get("rotation_week") is not None else "",
         "canal": post.get("channel") or "",
-        "message": post.get("message") if (post.get("post_type") or "message") == "message" else "",
+        "message": post.get("message") if (post.get("post_type") or "message") in {"message", "sticker"} else "",
         "image_url": post.get("image_url") or "",
         "texte_bouton": post.get("button_text") or "",
         "lien_bouton": post.get("button_url") or "",
@@ -3020,6 +3503,7 @@ def admin_api_telegram_csv_import():
 def _validate_telegram_channel_payload(data):
     name = str(data.get("name") or "").strip()
     chat_id = str(data.get("chat_id") or "").strip()
+    audience = str(data.get("audience") or "public").strip().lower()
     if not name or len(name) > 80:
         raise ValueError("Le nom du canal est obligatoire et limité à 80 caractères")
     if not chat_id or any(char.isspace() for char in chat_id):
@@ -3029,7 +3513,14 @@ def _validate_telegram_channel_payload(data):
             int(chat_id)
         except ValueError:
             raise ValueError("Utilise @nom_du_canal ou son identifiant numérique")
-    return {"name": name, "chat_id": chat_id, "active": bool(data.get("active", True))}
+    if audience not in {"public", "vip"}:
+        raise ValueError("Audience Telegram invalide")
+    return {
+        "name": name,
+        "chat_id": chat_id,
+        "audience": audience,
+        "active": bool(data.get("active", True)),
+    }
 
 
 def _validate_telegram_media_payload(data):
@@ -3043,7 +3534,7 @@ def _validate_telegram_media_payload(data):
         raise ValueError("Le nom du visuel est obligatoire et limité à 100 caractères")
     if not image_url.startswith(("https://", "http://")):
         raise ValueError("L’adresse du visuel doit commencer par https:// ou http://")
-    if category not in {"personal", "conversion", "market", "community"}:
+    if category not in {"personal", "conversion", "market", "community", "vip"}:
         raise ValueError("Catégorie de visuel invalide")
     if len(caption) > 1024:
         raise ValueError("La légende du visuel est limitée à 1 024 caractères")
@@ -3162,7 +3653,7 @@ def admin_api_telegram_channels():
     try:
         conn = get_conn()
         rows = conn.run(
-            """SELECT id, name, chat_id, active, last_check_status,
+            """SELECT id, name, chat_id, audience, active, last_check_status,
                       last_check_at, created_at, updated_at
                FROM telegram_channels WHERE deleted=FALSE
                ORDER BY active DESC, id"""
@@ -3170,7 +3661,7 @@ def admin_api_telegram_channels():
         channels = []
         for row in rows:
             channel = dict(zip([
-                "id", "name", "chat_id", "active", "last_check_status",
+                "id", "name", "chat_id", "audience", "active", "last_check_status",
                 "last_check_at", "created_at", "updated_at"
             ], row))
             for field in ("last_check_at", "created_at", "updated_at"):
@@ -3199,16 +3690,17 @@ def admin_api_telegram_channel_save():
         if channel_id:
             conn.run(
                 """UPDATE telegram_channels SET name=:name, chat_id=:chat_id,
-                          active=:active, deleted=FALSE, updated_at=NOW()
+                          audience=:audience, active=:active, deleted=FALSE, updated_at=NOW()
                    WHERE id=:id AND deleted=FALSE""",
                 id=int(channel_id), **values
             )
         else:
             rows = conn.run(
-                """INSERT INTO telegram_channels (name, chat_id, active, deleted)
-                   VALUES (:name, :chat_id, :active, FALSE)
+                """INSERT INTO telegram_channels (name, chat_id, audience, active, deleted)
+                   VALUES (:name, :chat_id, :audience, :active, FALSE)
                    ON CONFLICT (chat_id) DO UPDATE SET
-                       name=:name, active=:active, deleted=FALSE, updated_at=NOW()
+                       name=:name, audience=:audience, active=:active,
+                       deleted=FALSE, updated_at=NOW()
                    RETURNING id""",
                 **values
             )
@@ -4259,7 +4751,8 @@ def push_register():
 
 @app.route("/testgratuit")
 def testgratuit():
-    return send_from_directory("static/essai-gratuit", "index.html")
+    """Legacy free-trial URL: keep old campaign links on the Bullwaves 15-day journey."""
+    return redirect("/accesgratuit", code=302)
 
 @app.route("/api/essai/register", methods=["POST"])
 def essai_register():
@@ -4272,7 +4765,7 @@ def essai_register():
     age      = data.get("age", "").strip()
     pays     = data.get("pays", "").strip()
     source   = data.get("source", "Landing Essai Gratuit")
-    date_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    date_str = datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y %H:%M")
 
     if not email:
         return jsonify({"ok": False, "error": "Email requis"}), 400
@@ -5132,18 +5625,66 @@ def academy_subscription_checkout(plan_id):
     """Crée un Checkout Stripe traçable pour récupérer les abandons identifiés."""
     plan_entry = ACADEMY_PLAN_BY_ID.get(str(plan_id))
     if not plan_entry:
-        return redirect("/vip#offres")
+        return redirect("/offres")
     if "member_code" not in session:
         session["pending_academy_plan"] = str(plan_id)
+        if request.args.get("promo") == BECTANSE100_CODE and time.time() < BECTANSE100_ENDS_AT:
+            session["pending_academy_promo"] = BECTANSE100_CODE
         session["login_notice"] = (
             "Crée ou connecte ton compte Explorer pour sécuriser le paiement "
             "et rattacher automatiquement l’abonnement."
         )
         return redirect(url_for("login", checkout="identification", plan=plan_id))
     if not STRIPE_SECRET_KEY or not STRIPE_WEBHOOK_SECRET:
-        return redirect("/vip?checkout=indisponible#offres")
+        return redirect("/offres?checkout=indisponible")
 
     code = str(session["member_code"])
+    if request.args.get('restart')=='1':
+        from stripe_reliability.restart import state as restart_state
+        from stripe_reliability.checkout import create_checkout
+        from stripe_reliability.policy import ReviewRequired
+        try:
+            service=billing_service()
+            if not restart_state(get_member(code),service.api)['allowed']:
+                session['billing_restart_notice']='La reprise nécessite un abonnement résilié et un compte sans suspension manuelle. Contacte l’équipe si nécessaire.'
+                return redirect(url_for('abonnement'))
+            target=create_checkout(service,code,'ACADEMY',str(plan_id),BASE_URL,
+                success_url=BASE_URL+'/abonnement?payment=confirmation',restart=True)
+            return redirect(target,code=303)
+        except ReviewRequired as error:
+            notices={'OPEN_CHECKOUT_DIFFERENT_PLAN':'Un paiement est déjà ouvert pour une autre formule. Reprends cette formule ou contacte l’équipe.',
+                     'ADMIN_SUSPENDED':'Une suspension manuelle nécessite une intervention de l’équipe avant de payer.',
+                     'EXISTING_SUBSCRIPTION_USE_PORTAL':'Un abonnement est déjà en cours : régularise-le sans en créer un second.',
+                     'PAYMENT_CONFIRMATION_PENDING':'Ton paiement est en cours de confirmation. Aucun autre paiement n’est nécessaire.'}
+            session['billing_restart_notice']=notices.get(str(error),'La reprise nécessite une vérification. Contacte l’équipe avant de payer.')
+            return redirect(url_for('abonnement'))
+        except Exception as error:
+            app.logger.error('Reprise abonnement : %s',type(error).__name__)
+            session['billing_restart_notice']='Le paiement est momentanément indisponible. Réessaie ou contacte l’équipe ; aucun accès n’a été modifié.'
+            return redirect(url_for('abonnement'))
+    renewal_requested = request.args.get("promo") == "RETOUR100"
+    launch_offer_requested = (
+        request.args.get("promo") == BECTANSE100_CODE
+        and time.time() < BECTANSE100_ENDS_AT
+    )
+    if renewal_requested:
+        from renewal_offer import renewal_offer
+        if not renewal_offer(get_member(code)):
+            return redirect("/expire?renewal=expired")
+    if stripe_reliability_enabled() or renewal_requested or launch_offer_requested:
+        from stripe_reliability.checkout import create_checkout
+        from stripe_reliability.policy import ReviewRequired
+        try:
+            url = create_checkout(billing_service(), code, 'ACADEMY', str(plan_id),
+                request.url_root.rstrip('/'), success_url=STRIPE_PAYMENT_SUCCESS_URL,
+                promotion=(BECTANSE100_PROMOTION_CODE_ID if launch_offer_requested
+                           else 'promo_1URC8rDE6HxqPs7Ggllnxtkg' if time.time()<1792188000 else None),
+                renewal=renewal_requested)
+            return redirect(url, code=303)
+        except ReviewRequired:
+            return redirect(url_for('abonnement'))
+        except Exception:
+            return jsonify(ok=False,error='Paiement temporairement indisponible. Réessaie depuis ton abonnement.'),503
     price_id, plan = plan_entry
     conn = get_conn()
     try:
@@ -5156,14 +5697,17 @@ def academy_subscription_checkout(plan_id):
         session["login_notice"] = "Confirme d’abord ton adresse e-mail pour continuer vers Stripe."
         return redirect(url_for("login"))
     email, member_name, subscription_id, billing_status, cancel_at_period_end = rows[0]
+    if billing_status in {"past_due", "unpaid"}:
+        return redirect(url_for("abonnement"))
     if subscription_id and billing_status in {"active", "trialing"} and not cancel_at_period_end:
         return redirect(url_for("abonnement"))
 
     root = request.url_root.rstrip("/")
     form = {
         "mode": "subscription",
+        "custom_text[submit][message]": PAYMENT_SUPPORT_MESSAGE,
         "success_url": STRIPE_PAYMENT_SUCCESS_URL,
-        "cancel_url": root + "/vip?checkout=cancelled#offres",
+        "cancel_url": root + "/offres?checkout=cancelled",
         "client_reference_id": code,
         "customer_email": str(email).strip().lower(),
         "metadata[member_code]": code,
@@ -5174,8 +5718,12 @@ def academy_subscription_checkout(plan_id):
         "line_items[0][quantity]": "1",
         "billing_address_collection": "auto",
     }
-    if time.time() < ACADEMY_FLASH_PROMO_END:
-        form["discounts[0][coupon]"] = ACADEMY_FLASH_PROMO_COUPON
+    if launch_offer_requested:
+        form["discounts[0][promotion_code]"] = BECTANSE100_PROMOTION_CODE_ID
+    elif time.time() < 1792188000:  # AUTOMNE200 ends Friday midnight, Paris.
+        form["discounts[0][promotion_code]"] = "promo_1URC8rDE6HxqPs7Ggllnxtkg"
+    else:
+        form["allow_promotion_codes"] = "true"
     try:
         stripe_response = requests.post(
             "https://api.stripe.com/v1/checkout/sessions",
@@ -5201,7 +5749,7 @@ def academy_subscription_checkout(plan_id):
         return redirect(checkout_url, code=303)
     except Exception as error:
         app.logger.error("Création abonnement Stripe %s %s: %s", code, plan_id, error)
-        return redirect("/vip?checkout=error#offres")
+        return redirect("/offres?checkout=error")
 
 
 @app.route("/api/analyse-ia/checkout", methods=["POST"])
@@ -5221,6 +5769,7 @@ def analyse_ia_checkout():
     root = request.url_root.rstrip("/")
     form = {
         "mode": "payment",
+        "custom_text[submit][message]": PAYMENT_SUPPORT_MESSAGE,
         "success_url": STRIPE_PAYMENT_SUCCESS_URL,
         "cancel_url": root + "/analyse-ia?checkout=cancelled",
         "client_reference_id": code,
@@ -5329,7 +5878,7 @@ def _stripe_subscription_context(event_type, stripe_object):
         pricing = row.get("pricing") or {}
         price_details = pricing.get("price_details") or {}
         candidate = _stripe_id(price) or _stripe_id(price_details.get("price"))
-        if candidate in ACADEMY_SUBSCRIPTION_PLANS:
+        if candidate in TRACKED_ACADEMY_SUBSCRIPTION_PLANS:
             price_id = candidate
             period_end = period_end or row.get("current_period_end") or (row.get("period") or {}).get("end")
             break
@@ -5340,7 +5889,7 @@ def _stripe_subscription_context(event_type, stripe_object):
     if not price_id:
         academy_plan_id = str((obj.get("metadata") or {}).get("academy_plan_id", ""))
         price_id = (ACADEMY_PLAN_BY_ID.get(academy_plan_id) or ("", {}))[0]
-    plan = ACADEMY_SUBSCRIPTION_PLANS.get(price_id)
+    plan = TRACKED_ACADEMY_SUBSCRIPTION_PLANS.get(price_id)
 
     customer_details = obj.get("customer_details") or {}
     email = str(customer_details.get("email") or obj.get("customer_email") or "").strip().lower()
@@ -5368,11 +5917,9 @@ def _stripe_subscription_context(event_type, stripe_object):
         status = "active"
 
     try:
-        period_end_dt = datetime.fromtimestamp(int(period_end)) if period_end else None
+        period_end_dt = datetime.fromtimestamp(int(period_end), ZoneInfo("UTC")) if period_end else None
     except (TypeError, ValueError, OSError):
         period_end_dt = None
-    if not period_end_dt and plan and status in {"active", "trialing"}:
-        period_end_dt = datetime.now() + timedelta(days=int(plan["days"]))
 
     return {
         "customer_id": customer_id,
@@ -5413,6 +5960,18 @@ def _payment_admin_notification_identity(event_type, context):
 def _telegram_safe(value):
     """Neutralise les caractères qui cassent le Markdown historique de Telegram."""
     return str(value or "—").replace("`", "'").replace("*", "").replace("_", " ")
+
+
+def _can_replace_stale_academy_subscription(stored_status, context):
+    """Autorise un paiement valide à remplacer une ancienne tentative terminée."""
+    terminal_statuses = {
+        "", "incomplete", "incomplete_expired", "canceled", "unpaid", "paused", "past_due",
+    }
+    return bool(
+        context.get("plan")
+        and str(context.get("status") or "").lower() in {"active", "trialing"}
+        and str(stored_status or "").lower() in terminal_statuses
+    )
 
 
 def _send_academy_payment_admin_notification(event_id, event_type, context, member_code):
@@ -5508,6 +6067,7 @@ def _process_academy_stripe_event(event):
     member_name = context["customer_name"] or "Nouveau membre"
     try:
         conn.run("BEGIN")
+        conn.run("SELECT pg_advisory_xact_lock(hashtextextended(:k,0))", k="billing:"+context["subscription_id"])
         inserted = conn.run("""INSERT INTO stripe_academy_events
             (event_id,event_type,status,stripe_object_id,invoice_id,subscription_id,
              payment_status,billing_reason,amount_paid_cents,currency)
@@ -5525,18 +6085,21 @@ def _process_academy_stripe_event(event):
 
         rows = []
         if context["subscription_id"]:
-            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id FROM members
+            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id,
+                COALESCE(billing_status,'legacy') FROM members
                 WHERE stripe_subscription_id=:subscription LIMIT 1""",
                 subscription=context["subscription_id"])
         if not rows and context["customer_id"]:
-            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id FROM members
+            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id,
+                COALESCE(billing_status,'legacy') FROM members
                 WHERE stripe_customer_id=:customer LIMIT 1""", customer=context["customer_id"])
         if not rows and context["email"]:
-            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id FROM members
+            rows = conn.run("""SELECT code,email,nom,stripe_subscription_id,
+                COALESCE(billing_status,'legacy') FROM members
                 WHERE LOWER(email)=LOWER(:email) ORDER BY created_at DESC LIMIT 1""",
                 email=context["email"])
         if rows:
-            member_code, stored_email, stored_name, stored_subscription = rows[0]
+            member_code, stored_email, stored_name, stored_subscription, stored_billing_status = rows[0]
             member_email = member_email or str(stored_email or "")
             member_name = str(stored_name or member_name)
             if (not context["plan"] and context["subscription_id"] and
@@ -5547,7 +6110,8 @@ def _process_academy_stripe_event(event):
                 conn.run("COMMIT")
                 return {"handled": True, "ignored": "unknown_subscription"}
             if (event_type != "checkout.session.completed" and context["subscription_id"] and
-                    stored_subscription and context["subscription_id"] != stored_subscription):
+                    stored_subscription and context["subscription_id"] != stored_subscription and
+                    not _can_replace_stale_academy_subscription(stored_billing_status, context)):
                 conn.run("""UPDATE stripe_academy_events SET status='ignored',member_code=:code,
                     error='stale_subscription',processed_at=NOW() WHERE event_id=:event_id""",
                     code=member_code, event_id=event_id)
@@ -5564,7 +6128,48 @@ def _process_academy_stripe_event(event):
             return {"handled": True, "ignored": "unmatched_customer"}
 
         status = context["status"]
-        if status in {"active", "trialing"} and context["plan"]:
+        from stripe_reliability.paid_periods import invoice_paid_end
+        paid_end = None
+        if event_type == "invoice.paid":
+            paid_end = invoice_paid_end(stripe_object, context["subscription_id"],
+                                        context["customer_id"], TRACKED_ACADEMY_SUBSCRIPTION_PLANS)
+            if not paid_end:
+                raise ValueError("Confirmed invoice has no verified Academy coverage period")
+            # A delayed paid event must not restore access over a newer unpaid renewal.
+            current, _ = billing_service()._current(context["subscription_id"])
+            if current["customer_id"] != context["customer_id"] or current["product"] != "ACADEMY":
+                raise ValueError("Current subscription identity mismatch")
+            if not current["allowed"]:
+                conn.run("""UPDATE stripe_academy_events SET status='ignored',member_code=:code,
+                    error='current_subscription_not_paid',processed_at=NOW() WHERE event_id=:event_id""",
+                    code=member_code,event_id=event_id)
+                conn.run("COMMIT")
+                return {"handled": True, "ignored": "current_subscription_not_paid"}
+            paid_end = current["paid_until"]
+            context["period_end"] = paid_end
+        if status == "past_due":
+            # Stripe can deliver an older failure after a successful recovery.
+            current, _ = billing_service()._current(context["subscription_id"])
+            if current["customer_id"] != context["customer_id"] or current["product"] != "ACADEMY":
+                raise ValueError("Current subscription identity mismatch")
+            if current.get("invoice_id"):
+                context["invoice_id"] = current["invoice_id"]
+            if current["allowed"] and current["payment_state"] == "paid":
+                conn.run("""UPDATE stripe_academy_events SET status='ignored',member_code=:code,
+                    error='payment_already_recovered',processed_at=NOW() WHERE event_id=:event_id""",
+                    code=member_code,event_id=event_id)
+                conn.run("COMMIT")
+                return {"handled": True, "ignored": "payment_already_recovered"}
+        confirmed_payment = paid_end is not None
+        if status in {"active", "trialing"} and context["plan"] and not confirmed_payment:
+            # Subscription/Checkout lifecycle updates do not prove a paid period.
+            # Do not replace a past_due status or extend access on these events.
+            conn.run("""UPDATE stripe_academy_events SET status='ignored',member_code=:code,
+                error='awaiting_paid_invoice',processed_at=NOW() WHERE event_id=:event_id""",
+                code=member_code,event_id=event_id)
+            conn.run("COMMIT")
+            return {"handled": True, "status": "awaiting_paid_invoice"}
+        if status == "active" and context["plan"] and confirmed_payment:
             conn.run("""UPDATE members SET
                 stripe_customer_id=CASE WHEN :customer<>'' THEN :customer ELSE stripe_customer_id END,
                 stripe_subscription_id=CASE WHEN :subscription<>'' THEN :subscription ELSE stripe_subscription_id END,
@@ -5573,16 +6178,21 @@ def _process_academy_stripe_event(event):
                 billing_cancel_at_period_end=:cancel_at_period_end,
                 access_level='member',actif=CASE WHEN admin_suspended THEN FALSE ELSE TRUE END,
                 copy_actif=CASE WHEN admin_suspended THEN FALSE ELSE copy_actif END,
-                date_souscription=COALESCE(date_souscription,NOW()),date_fin=:period_end,
+                date_souscription=COALESCE(date_souscription,NOW()),
+                date_fin=GREATEST(:period_end,manual_access_until),
                 email_verified_at=COALESCE(email_verified_at,NOW())
                 WHERE code=:code""",
                 customer=context["customer_id"], subscription=context["subscription_id"],
                 price_id=context["price_id"], status=status, period_end=context["period_end"],
                 cancel_at_period_end=context["cancel_at_period_end"], code=member_code)
+            from stripe_reliability.copy_incidents import resume
+            resume(conn, member_code)
             _grant_member_beta_credits(conn, member_code)
             mark_marketing_conversion(conn, member_code, member_email, event_id)
         elif status == "past_due":
-            conn.run("""UPDATE members SET billing_status='past_due',
+            from stripe_reliability.copy_incidents import suspend
+            suspend(conn, member_code, context["invoice_id"] or "subscription:" + context["subscription_id"], "Stripe webhook")
+            conn.run("""UPDATE members SET billing_status='past_due',copy_actif=FALSE,
                 stripe_customer_id=CASE WHEN :customer<>'' THEN :customer ELSE stripe_customer_id END,
                 stripe_subscription_id=CASE WHEN :subscription<>'' THEN :subscription ELSE stripe_subscription_id END
                 WHERE code=:code""", customer=context["customer_id"],
@@ -5590,7 +6200,8 @@ def _process_academy_stripe_event(event):
         elif status in {"canceled", "unpaid", "paused"}:
             conn.run("""UPDATE members SET billing_status=:status,
                 billing_cancel_at_period_end=FALSE,billing_current_period_end=COALESCE(:period_end,NOW()),
-                date_fin=LEAST(COALESCE(date_fin,NOW()),NOW()),access_level='explorer',
+                date_fin=GREATEST(LEAST(COALESCE(date_fin,NOW()),NOW()),manual_access_until),
+                access_level=CASE WHEN manual_access_until>NOW() THEN 'member' ELSE 'explorer' END,
                 actif=TRUE,copy_actif=FALSE WHERE code=:code""",
                 status=status, period_end=context["period_end"], code=member_code)
         else:
@@ -5614,6 +6225,14 @@ def _process_academy_stripe_event(event):
     finally:
         conn.close()
 
+    if context["status"] == "past_due":
+        try:
+            import sys
+            from stripe_reliability.copy_incidents import deliver
+            deliver(sys.modules[__name__])
+        except Exception as error:
+            app.logger.error("Alerte impayé en attente : %s", type(error).__name__)
+
     if context["status"] in {"active", "trialing"}:
         try:
             sync_brevo_member_contact(member_email)
@@ -5636,8 +6255,14 @@ def stripe_analysis_credits_webhook():
         return jsonify({"ok": False}), 400
     try:
         event = json.loads(raw_body.decode("utf-8"))
+        from stripe_reliability.environment import validate_event
+        validate_event(event)
         event_type = str(event.get("type", ""))
         stripe_object = (event.get("data") or {}).get("object") or {}
+        if stripe_reliability_enabled():
+            from stripe_reliability.service import EVENT_TYPES
+            if event_type in EVENT_TYPES and (not event_type.startswith('checkout.') or stripe_object.get('mode')=='subscription'):
+                return jsonify(ok=True, **billing_service().receive(event))
         academy_event_types = {
             "checkout.session.completed",
             "checkout.session.expired",
@@ -5715,6 +6340,36 @@ def stripe_analysis_credits_webhook():
         return jsonify({"ok": False}), 500
 
 
+
+@app.after_request
+def expose_legal_information(response):
+    """Keep contract and withdrawal pages reachable from public/member HTML."""
+    path = request.path
+    if path.rstrip("/") != "/vip":
+        return response
+    if (request.method != "GET" or response.status_code != 200 or
+            not response.headers.get("Content-Type", "").startswith("text/html") or
+            path.startswith(("/admin", "/api/", "/internal/", "/static/"))):
+        return response
+    response.direct_passthrough = False
+    body = response.get_data(as_text=True)
+    links = ("mentions-legales", "cgv", "retractation", "confidentialite")
+    if "</body>" not in body or all('href="/legal/' + slug + '"' in body for slug in links):
+        return response
+    footer = ('<div id="bectanse-legal-links" style="position:relative;clear:both;padding:24px 18px 110px;'
+              'background:#10120f;color:#ddd;font:13px/1.7 Arial,sans-serif;text-align:center">'
+              '<nav aria-label="Informations contractuelles" style="display:flex;justify-content:center;'
+              'flex-wrap:wrap;gap:12px 20px">'
+              '<a style="color:#ffb580" href="/legal/mentions-legales">Mentions légales</a>'
+              '<a style="color:#ffb580" href="/legal/cgv">Conditions générales de vente</a>'
+              '<a style="color:#ffb580" href="/legal/retractation">Remboursements et rétractation</a>'
+              '<a style="color:#ffb580" href="/legal/confidentialite">Confidentialité</a>'
+              '</nav></div>')
+    response.set_data(body.replace("</body>", footer + "</body>", 1))
+    response.headers.pop("ETag", None)
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
 LEGAL_PAGES = {"mentions-legales", "cgv", "confidentialite", "cookies", "retractation"}
 
 
@@ -5734,21 +6389,28 @@ def calculateur():
     return render_template("calculateur.html", member=member,
                            demo_mode=_current_demo_mode(code, member))
 
+@app.route("/live")
+def deployment_liveness():
+    """Process-only probe; /health remains the database and scheduler readiness probe."""
+    return jsonify({"status": "alive", "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")})
+
+
 @app.route("/health")
 def health():
-    if not _DATABASE_READY.is_set():
-        return jsonify({"status": "starting", "database": "not_ready"}), 503
-    conn = None
     try:
-        conn = get_conn()
-        conn.run("SELECT 1")
-        return jsonify({"status": "ok", "database": "ok"}), 200
-    except Exception as error:
-        app.logger.warning("healthcheck database readiness failed: %s", type(error).__name__)
-        return jsonify({"status": "not_ready", "database": "unavailable"}), 503
-    finally:
-        if conn is not None:
+        conn=get_conn()
+        try:
+            conn.run('SELECT 1')
+            rows=conn.run("SELECT value,updated_at FROM canal_runtime WHERE name='health'")
+        finally:
             conn.close()
+        ready=bool(_runtime_scheduler and _runtime_scheduler.running)
+        canal_state=json.loads(rows[0][0]).get('status','unknown') if rows else 'unknown'
+        return jsonify({"status":"ok" if ready else "starting", "database":"ok",
+            "scheduler":"running" if ready else "starting", "canal":canal_state,
+            "release":"2026-10-10-billing-access-1"}), 200 if ready else 503
+    except Exception:
+        return jsonify({"status":"unavailable","release":"2026-10-10-billing-access-1"}),503
 
 @app.route("/", methods=["GET","POST"])
 def login():
@@ -5814,7 +6476,7 @@ def login():
                     error = "Impossible de préparer ton accès pour le moment. Réessaie dans quelques instants."
             return render_template("login.html", error=error, notice=notice,
                                    explorer_gate_enabled=explorer_gate_enabled)
-        member = get_member(code)
+        member = get_member(code) if not code.startswith("ADM-TRADING-") else None
         if not member:
             with _ADMIN_LOGIN_LOCK:
                 recent.append(now)
@@ -5823,7 +6485,12 @@ def login():
         else:
             with _ADMIN_LOGIN_LOCK:
                 _ADMIN_LOGIN_ATTEMPTS.pop("member:" + remote, None)
+            pending_billing = session.pop("pending_billing_return", False)
             pending_plan = session.pop("pending_academy_plan", "")
+            pending_promo = session.pop("pending_academy_promo", "")
+            pending_offers = session.pop("pending_academy_offers", False)
+            pending_trial = session.pop("pending_broker_invitation", "")
+            pending_discovery = session.get("broker_discovery_id", "")
             session.clear()
             session.permanent = True
             session["member_code"] = member["code"]
@@ -5832,8 +6499,19 @@ def login():
                 conn.run("UPDATE members SET last_login=NOW() WHERE code=:c", c=code)
                 conn.close()
             except: pass
+            if pending_discovery:
+                session["broker_discovery_id"] = pending_discovery
+            if pending_billing:
+                return redirect(url_for("abonnement") + "?reprise=1#formules")
+            if pending_trial:
+                return redirect(url_for("broker_trial_invitation", token=pending_trial))
             if pending_plan in ACADEMY_PLAN_BY_ID:
-                return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
+                return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan,
+                                        promo=pending_promo if pending_promo == BECTANSE100_CODE else None))
+            if pending_offers:
+                return redirect(url_for("offres"))
+            if pending_discovery:
+                return redirect('/decouverte/commencer')
             return redirect(url_for("accueil"))
     return render_template("login.html", error=error, notice=notice,
                            explorer_gate_enabled=explorer_gate_enabled)
@@ -5844,7 +6522,7 @@ def confirm_explorer_email(token):
     token_hash = hashlib.sha256((token or "").encode("utf-8")).hexdigest()
     try:
         conn = get_conn()
-        rows = conn.run("""SELECT email, prenom FROM prospect_email_verifications
+        rows = conn.run("""SELECT email, prenom, payload FROM prospect_email_verifications
             WHERE token_hash=:token_hash AND source='explorer'
               AND status='pending' AND expires_at > NOW()""",
             token_hash=token_hash)
@@ -5853,7 +6531,11 @@ def confirm_explorer_email(token):
             return render_template("login.html",
                 error="Ce lien de confirmation est invalide ou a expiré.", notice=None,
                 explorer_gate_enabled=True), 400
-        email, prenom = rows[0]
+        email, prenom, verification_payload = rows[0]
+        try:
+            discovery_id = json.loads(verification_payload or '{}').get('broker_discovery_id','')
+        except (ValueError,TypeError,AttributeError):
+            discovery_id = ''
         member_code = _create_or_reuse_explorer(conn, email, prenom)
         conn.run("""UPDATE prospect_email_verifications SET status='verified', verified_at=NOW(),
                     account_code=:code WHERE token_hash=:token_hash""",
@@ -5873,9 +6555,18 @@ def confirm_explorer_email(token):
         session.pop("analysis_account_code", None)
         session.permanent = True
         session["member_code"] = member_code
+        if discovery_id:
+            session['broker_discovery_id'] = discovery_id
+            return redirect('/decouverte/commencer')
         pending_plan = session.pop("pending_academy_plan", "")
+        pending_promo = session.pop("pending_academy_promo", "")
         if pending_plan in ACADEMY_PLAN_BY_ID:
-            return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
+            return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan,
+                                    promo=pending_promo if pending_promo == BECTANSE100_CODE else None))
+        if session.pop("pending_academy_offers", False):
+            return redirect(url_for("offres"))
+        if session.get('broker_discovery_id'):
+            return redirect('/decouverte/commencer')
         return redirect(url_for("explorer_home"))
     except Exception as exc:
         app.logger.error("Confirmation prospect Explorer: %s", exc)
@@ -5906,7 +6597,11 @@ def dashboard():
         now = datetime.now()
         if hasattr(date_fin, 'year'):
             delta = date_fin - now
-            jours_restants = max(0, delta.days)
+            if str(member.get("access_level") or "").lower() == "broker_trial":
+                from trading_journal.entitlements import broker_trial_remaining_days
+                jours_restants = broker_trial_remaining_days(member)
+            else:
+                jours_restants = max(0, delta.days)
             if jours_restants == 0: statut_abo = "expiré"
             elif jours_restants <= 7: statut_abo = "expire_bientot"
     alerte_lue = member.get("alerte_lue", True)
@@ -5930,7 +6625,8 @@ def dashboard():
         afficher_notif=afficher_notif
     ,
         demo_mode=_current_demo_mode(code, member),
-        copy_trading_consent_version=(os.environ.get("COPY_TRADING_CONSENT_VERSION") or "").strip())
+        copy_config_enabled=copy_config_enabled(),
+        copy_pilot_enabled=pilot_authorized(code))
 
 
 @app.route("/abonnement")
@@ -5944,18 +6640,26 @@ def abonnement():
         return redirect(url_for("login"))
 
     price_id = str(member.get("stripe_price_id") or "")
-    plan = ACADEMY_SUBSCRIPTION_PLANS.get(price_id)
+    plan = TRACKED_ACADEMY_SUBSCRIPTION_PLANS.get(price_id)
     billing_status = str(member.get("billing_status") or "legacy").lower()
     has_academy_access = _member_has_academy_access(member)
     renewal_date = member.get("billing_current_period_end") or member.get("date_fin")
+    restart={'ended':False,'allowed':False,'manual':bool(member.get('admin_suspended')),'unavailable':False}
+    if member.get('stripe_subscription_id'):
+        try:
+            from stripe_reliability.restart import state as restart_state
+            from stripe_reliability.stripe_api import StripeReader
+            restart.update(restart_state(member,StripeReader()))
+        except Exception as error:
+            restart['unavailable']=True
+            app.logger.error('Vérification reprise abonnement : %s',type(error).__name__)
     return render_template(
         "abonnement.html",
         member=member,
+        restart=restart,
+        restart_notice=session.pop('billing_restart_notice',''),
         current_plan=plan,
         plans=list(ACADEMY_SUBSCRIPTION_PLANS.values()),
-        promo_active=time.time() < ACADEMY_FLASH_PROMO_END,
-        promo_end_timestamp=ACADEMY_FLASH_PROMO_END,
-        promo_deadline_label=datetime.fromtimestamp(ACADEMY_FLASH_PROMO_END, PARIS_TZ).strftime("%d/%m à %H:%M"),
         billing_status=billing_status,
         has_academy_access=has_academy_access,
         renewal_date=renewal_date,
@@ -5977,6 +6681,24 @@ def create_billing_portal_session():
             "error": "Aucun abonnement Stripe n’est encore rattaché à ce compte.",
             "fallback_url": url_for("vip_landing"),
         }), 404
+    try:
+        from stripe_reliability.restart import state as restart_state
+        from stripe_reliability.stripe_api import StripeReader
+        restart=restart_state(member,StripeReader())
+        if restart['ended']:
+            return jsonify(ok=False,fallback_url='/abonnement#formules',mode='restart_required')
+    except Exception as error:
+        app.logger.error('Vérification paiement abonnement : %s',type(error).__name__)
+        return jsonify(ok=False,error='La vérification de ton abonnement est indisponible. Réessaie avant de payer.'),503
+    if str(member.get('billing_status') or '').lower() in {'past_due','unpaid'}:
+        try:
+            from stripe_reliability.copy_incidents import unpaid_invoice_url
+            from stripe_reliability.stripe_api import StripeReader
+            invoice_url=unpaid_invoice_url(member,StripeReader())
+            if invoice_url:
+                return jsonify(ok=True,url=invoice_url,mode='unpaid_invoice')
+        except Exception as error:
+            app.logger.error('Lecture facture de régularisation : %s',type(error).__name__)
     if not STRIPE_SECRET_KEY:
         app.logger.error("Portail abonnement: STRIPE_SECRET_KEY absente")
         return jsonify({"ok": False, "error": "Le portail est momentanément indisponible."}), 503
@@ -6030,10 +6752,28 @@ def telecharger_guide_robot():
         download_name="Guide-Bectanse-AUTO.pdf",
     )
 
-@app.route("/offres")
+@app.route("/offres", strict_slashes=False)
 @login_required
 def offres():
-    return redirect(url_for("vip_landing"))
+    response = make_response(render_template("academy_offers_public.html",
+        plans=list(ACADEMY_SUBSCRIPTION_PLANS.values())))
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+def _save_copy_configuration(code, payload, *, toggle=False):
+    try:
+        result = copy_configuration_service.save(code, payload, toggle=toggle)
+        if pilot_authorized(code):
+            return jsonify(ok=True, configuration=result, mode="DEMO_ONLY",
+                           message="Réglages enregistrés pour le pilote démo. En attente de confirmation du moteur.")
+        return jsonify(ok=True, configuration=result, mode="SIMULATION",
+                       message="Paramètres enregistrés, en attente de validation en simulation. Aucun ordre envoyé.")
+    except ValueError as error:
+        return jsonify(ok=False, error=str(error)), 400
+    except Exception:
+        app.logger.exception("Copy configuration save failed")
+        return jsonify(ok=False, error="Impossible d’enregistrer la configuration. Réessayez."), 503
+
 
 @app.route("/save", methods=["POST"])
 @login_required
@@ -6042,123 +6782,35 @@ def save():
     code = session["member_code"]
     member = get_member(code)
     if not member: return jsonify({"ok": False})
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return jsonify({"ok": False, "error": "Paramètres invalides."}), 400
-
-    def request_flag(name):
-        value = data.get(name, False)
-        if isinstance(value, str):
-            return value.strip().lower() in {"1", "true", "yes", "on"}
-        return bool(value)
-
-    for name, default, maximum in (
-        ("drawdown_pct", 5, 100), ("drawdown_gain_pct", 5, 10000),
-        ("objectif_gain_pct", 5, 10000), ("objectif_perte_pct", 3, 100),
-    ):
-        try:
-            value = float(data.get(name, default))
-        except (TypeError, ValueError, OverflowError):
-            return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                            "error": f"Le seuil {name} doit être numérique."}), 400
-        if not math.isfinite(value) or value < 0.1 or value > maximum:
-            return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                            "error": f"Le seuil {name} doit être compris entre 0,1 et {maximum}."}), 400
-    if str(data.get("objectif_periode", "Mensuel")) not in {"Quotidien", "Hebdomadaire", "Mensuel"}:
-        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                        "error": "La période d’objectif est invalide."}), 400
-    unsupported_pending = ["convertir_pending_invalide"] if request_flag("convertir_pending_invalide") else []
-    if unsupported_pending:
-        return jsonify({
-            "ok": False,
-            "code": "PENDING_ORDER_COPY_NOT_SUPPORTED",
-            "error": "La conversion automatique d’un ordre en attente invalide en ordre au marché n’est pas prise en charge. Désactive cette option; les ordres en attente valides peuvent être copiés séparément.",
-            "settings": unsupported_pending,
-        }), 409
-    calendar_currencies = data.get("calendar_currencies", "")
-    if isinstance(calendar_currencies, (list, tuple)):
-        calendar_currencies = ",".join(str(value) for value in calendar_currencies)
-    if not isinstance(calendar_currencies, str):
-        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                        "error": "La liste de devises du calendrier est invalide."}), 400
-    currencies = sorted({value.strip().upper() for value in calendar_currencies.split(",") if value.strip()})
-    if any(not value.isalnum() or len(value) > 8 for value in currencies):
-        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                        "error": "Les devises doivent être séparées par des virgules (ex. USD,EUR)."}), 400
-    try:
-        calendar_min_importance = int(data.get("calendar_min_importance", 2))
-        calendar_minutes_before = int(data.get("calendar_minutes_before", 30))
-        calendar_minutes_after = int(data.get("calendar_minutes_after", 30))
-    except (TypeError, ValueError, OverflowError):
-        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                        "error": "Les paramètres de fenêtre calendrier doivent être entiers."}), 400
-    if (calendar_min_importance not in (1, 2, 3) or
-            not 0 <= calendar_minutes_before <= 360 or
-            not 0 <= calendar_minutes_after <= 360):
-        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                        "error": "Importance doit être 1–3 et chaque marge doit être comprise entre 0 et 360 minutes."}), 400
-    calendar_timezone = str(data.get("calendar_timezone") or "UTC").strip()
-    if len(calendar_timezone) > 64:
-        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                        "error": "Le fuseau horaire IANA est invalide."}), 400
-    try:
-        ZoneInfo(calendar_timezone)
-    except Exception:
-        return jsonify({"ok": False, "code": "ACADEMY_SETTINGS_INVALID",
-                        "error": "Choisis un fuseau horaire IANA reconnu (ex. Europe/Paris)."}), 400
-    calendar_preferences = {
-        "filtre_news": request_flag("filtre_news"),
-        "calendar_currencies": ",".join(currencies),
-        "calendar_min_importance": calendar_min_importance,
-        "calendar_minutes_before": calendar_minutes_before,
-        "calendar_minutes_after": calendar_minutes_after,
-        "calendar_timezone": calendar_timezone,
-        "calendar_region": str(data.get("calendar_region") or "ALL").strip()[:40] or "ALL",
-    }
-    if calendar_preferences["filtre_news"]:
-        try:
-            enabled, calendar_state = copy_trading_service.calendar_allows(
-                academy_settings(calendar_preferences),
-                region=calendar_preferences["calendar_region"],
-                preferences=calendar_preferences,
-            )
-        except Exception:
-            enabled, calendar_state = False, "CALENDAR_STALE_OR_UNAVAILABLE"
-        if not enabled and calendar_state in {
-            "CALENDAR_PROVIDER_NOT_CONFIGURED", "CALENDAR_STALE_OR_UNAVAILABLE",
-            "CALENDAR_SETTINGS_INVALID",
-        }:
-            return jsonify({
-                "ok": False, "code": calendar_state,
-                "error": "Le filtre reste inchangé : le flux Trading Economics n’est pas configuré et synchronisé récemment, ou sa politique de panne bloque l’activation.",
-            }), 409
-
+    if copy_config_enabled():
+        return _save_copy_configuration(code, request.get_json(silent=True))
+    data = request.get_json()
     p = {
         "mode_risque": data.get("mode_risque","Lots fixes"),
         "lots": float(data.get("lots",0.01)),
         "lots_max": float(data.get("lots_max",5)),
         "slippage": int(data.get("slippage",100)),
-        "forcer_lot_minimum": request_flag("forcer_lot_minimum"),
-        "inverser_trades": request_flag("inverser_trades"),
-        "copier_ordres_en_attente": request_flag("copier_ordres_en_attente"),
-        "convertir_pending_invalide": request_flag("convertir_pending_invalide"),
-        "copier_sl": request_flag("copier_sl"),
-        "drawdown_actif": request_flag("drawdown_actif"),
+        "forcer_lot_minimum": bool(data.get("forcer_lot_minimum")),
+        "inverser_trades": bool(data.get("inverser_trades")),
+        "copier_ordres_en_attente": bool(data.get("copier_ordres_en_attente")),
+        "convertir_pending_invalide": bool(data.get("convertir_pending_invalide")),
+        "copier_sl": bool(data.get("copier_sl")),
+        "drawdown_actif": bool(data.get("drawdown_actif")),
         "drawdown_pct": float(data.get("drawdown_pct",5)),
-        "drawdown_gain_actif": request_flag("drawdown_gain_actif"),
+        "drawdown_gain_actif": bool(data.get("drawdown_gain_actif")),
         "drawdown_gain_pct": float(data.get("drawdown_gain_pct",5)),
-        "objectif_actif": request_flag("objectif_actif"),
+        "objectif_actif": bool(data.get("objectif_actif")),
         "objectif_gain_pct": float(data.get("objectif_gain_pct",5)),
         "objectif_perte_pct": float(data.get("objectif_perte_pct",3)),
         "objectif_periode": data.get("objectif_periode","Mensuel"),
-        **calendar_preferences,
+        "filtre_news": bool(data.get("filtre_news")),
         "risque_pct": float(data.get("risque_pct",1)),
         "multiplicateur": float(data.get("multiplicateur",1)),
         "risque_balance_pct": float(data.get("risque_balance_pct",1)),
         "risque_equity_pct": float(data.get("risque_equity_pct",1)),
         "lot_symboles": data.get("lot_symboles",{}),
     }
-    hist_entry = {"date": datetime.now().strftime("%d/%m/%Y %H:%M"), "statut": "en_attente", "params": p}
+    hist_entry = {"date": datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y %H:%M"), "statut": "en_attente", "params": p}
     try:
         conn = get_conn()
         rows = conn.run("SELECT historique FROM members WHERE code=:c", c=code)
@@ -6192,26 +6844,13 @@ def toggle_copy():
     code = session["member_code"]
     member = get_member(code)
     if not member: return jsonify({"ok": False})
+    if copy_config_enabled():
+        return _save_copy_configuration(code, {}, toggle=True)
     try:
         conn = get_conn()
         rows = conn.run("SELECT copy_actif FROM members WHERE code=:c", c=code)
         current = rows[0][0] if rows and rows[0][0] is not None else True
         new_state = not current
-        if new_state:
-            consent_version = (os.environ.get("COPY_TRADING_CONSENT_VERSION") or "").strip()
-            consent = conn.run(
-                """SELECT consent_version,consented_at,revoked_at FROM copy_trading_consents
-                   WHERE member_code=:code""", code=code,
-            ) if consent_version else []
-            if not consent or consent[0][0] != consent_version or not consent[0][1] or consent[0][2]:
-                conn.close()
-                return jsonify({"ok": False, "code": "CONSENT_REQUIRED",
-                                "error": "Lis et accepte d’abord les conditions du copy trading."}), 409
-            params = dict(member.get("params") or {})
-            if not params.get("mt_login") or not (params.get("serveur") or params.get("mt_server")) or not params.get("mt_password"):
-                conn.close()
-                return jsonify({"ok": False, "code": "MT5_PROFILE_INCOMPLETE",
-                                "error": "Configure ton compte MetaTrader avant l’activation."}), 409
         conn.run("UPDATE members SET copy_actif=:s WHERE code=:c", s=new_state, c=code)
         conn.close()
         icon = "✅" if new_state else "⏸️"
@@ -6221,7 +6860,7 @@ def toggle_copy():
             f"👤 *{member['nom']}* | `{code}`\n"
             f"💰 *{member['capital']}*\n"
             f"🕐 {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
-          + ("✅ Préférence Copy ON enregistrée." if new_state else "⏸️ Préférence Copy OFF enregistrée.")
+            + ("✅ Copy actif." if new_state else "⚠️ *Action requise* — Désactiver sur notre système.")
         )
         return jsonify({"ok": True, "copy_actif": new_state})
     except Exception as e:
@@ -6403,11 +7042,13 @@ def confirm_member_registration(token):
     send_brevo_explorer_ready(email, payload["prenom"], code)
     sync_brevo_prospect_contact(email, payload["prenom"], "Inscription confirmée — Explorer")
     pending_plan = session.get("pending_academy_plan", "")
+    pending_promo = session.get("pending_academy_promo", "")
     session.clear()
     session.permanent = True
     session["member_code"] = code
     if pending_plan in ACADEMY_PLAN_BY_ID:
-        return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan))
+        return redirect(url_for("academy_subscription_checkout", plan_id=pending_plan,
+                                promo=pending_promo if pending_promo == BECTANSE100_CODE else None))
     return redirect(url_for("explorer_home"))
 
 @app.route("/admin/api/brevo/sync-members", methods=["POST"])
@@ -6431,6 +7072,8 @@ def admin_sync_brevo_members():
 
 @app.route("/confirm/<code>")
 def confirm_params(code):
+    if copy_config_enabled():
+        return "La confirmation manuelle est désactivée pendant la simulation du nouveau moteur.", 409
     payload = _action_payload(request.args.get("token", ""), "confirm_params")
     if not payload or payload.get("code") != code:
         return "<h2 style='padding:40px;font-family:Arial;color:red'>⛔ Non autorisé</h2>", 403
@@ -6468,6 +7111,8 @@ def confirm_params(code):
 
 @app.route("/problem/<code>")
 def problem_params(code):
+    if copy_config_enabled():
+        return "Le statut est maintenant fourni par le validateur de configuration.", 409
     payload = _action_payload(request.args.get("token", ""), "problem_params")
     if not payload or payload.get("code") != code:
         return "<h2 style='padding:40px;font-family:Arial;color:red'>⛔ Non autorisé</h2>", 403
@@ -6973,9 +7618,25 @@ def _handle_bot_publication_callback(chat_id, cb_data, callback_id):
 def bot_webhook():
     """Reçoit les messages/commandes du bot Telegram"""
     try:
-        data = request.get_json()
-        if not data:
+        # When candidate phone verification is enabled, authenticate every update
+        # before accepting contacts or dispatching existing administrative commands.
+        candidate_enabled = os.environ.get("CANDIDATURE_ENABLED") == "1"
+        if candidate_enabled:
+            supplied = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+            if not hmac.compare_digest(supplied, candidature_runtime["service"].telegram_secret):
+                return jsonify({"ok": False}), 403
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
             return jsonify({"ok": True})
+        if candidate_enabled:
+            try:
+                candidate_reply = candidature_runtime["service"].telegram_handle(data)
+            except Exception:
+                app.logger.exception("Vérification Telegram candidature indisponible")
+                return jsonify({"ok": False}), 503
+            if candidate_reply:
+                candidature_runtime["service"].telegram_reply(candidate_reply)
+                return jsonify({"ok": True})
 
         # Message normal
         message = data.get("message", {})
@@ -7147,7 +7808,9 @@ def handle_prolonger(chat_id, code, jours):
         else:
             nouvelle_date = now + timedelta(days=jours)
 
-        conn.run("UPDATE members SET date_fin=:df WHERE code=:c", df=nouvelle_date, c=code)
+        from stripe_reliability.exceptions import extend as record_extension
+        record_extension(conn, code, nouvelle_date, 'telegram-admin:' + str(chat_id),
+                         'control_center', f'Prolongation administrative de {jours} jours')
         conn.close()
 
         bot_send(chat_id,
@@ -7194,7 +7857,7 @@ def tg_download_and_upload(file_id, bot_token, resource_type="image"):
         ext = file_path.split(".")[-1] if "." in file_path else "jpg"
         return upload_to_cloudinary(file_bytes, resource_type, f"bectanse_{file_id}.{ext}")
     except Exception as e:
-        app.logger.error(f"tg_download_and_upload: {e}")
+        app.logger.error("Telegram media transfer failed: %s",type(e).__name__)
         return ""
 
 
@@ -7392,11 +8055,15 @@ def register_webhook():
     """Enregistre le webhook Telegram au démarrage"""
     try:
         webhook_url = "https://bectanse-auto.up.railway.app/bot-webhook"
-        requests.post(
+        response = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
-            json={"url": webhook_url, "allowed_updates": ["message", "callback_query"]},
+            json={"url": webhook_url, "allowed_updates": ["message", "callback_query"],
+                **({"secret_token": candidature_runtime["service"].telegram_secret}
+                   if os.environ.get("CANDIDATURE_ENABLED") == "1" else {})},
             timeout=10
         )
+        if response.status_code != 200 or response.json().get("ok") is not True:
+            raise RuntimeError("Telegram a refusé l’enregistrement du webhook")
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/setMyCommands",
             json={"commands": [
@@ -7408,7 +8075,9 @@ def register_webhook():
             ]},
             timeout=10
         )
-    except: pass
+    except Exception:
+        app.logger.exception("Échec de configuration du webhook Telegram principal")
+        raise
 
 
 # ── EMAILS RELANCE AUTOMATIQUES ─────────────────────────────────────────────
@@ -7460,7 +8129,6 @@ def send_email_relance(member, jours_restants):
               {stripe_html}
             </div>
             <p style="color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6">
-              Une question ? Contacte-nous sur WhatsApp : <a href="https://wa.me/436785328698" style="color:#F59E0B">+43 678 532 8698</a><br>
               Ton code d'accès : <strong style="color:#C4B5FD">{code}</strong>
             </p>
           </div>
@@ -7844,7 +8512,7 @@ def email_bienvenue_membre(prenom, email, code_acces):
         "Accéder à mon espace", "https://acces.bectanse-academie.com",
         preheader=f"Bienvenue {prenom}, ton accès Bectanse est prêt",
         code=code_acces, note="Conserve ce code pour te connecter.")
-    send_brevo_membre(email, prenom, "Bienvenue "+prenom+" - Ton code Bectanse AUTO", html, "bienvenue")
+    return send_brevo_membre(email, prenom, "Bienvenue "+prenom+" - Ton code Bectanse AUTO", html, "bienvenue")
 
 RENEWAL_STAGE_CONTENT = {
     "j-7": ("Ton accès expire dans 7 jours", "Anticipe ton renouvellement", "Ton accès Bectanse AUTO arrive à échéance dans 7 jours. Renouvelle maintenant pour conserver ton espace et éviter toute interruption.", "#FF6A00"),
@@ -7945,7 +8613,9 @@ def job_relances_quotidiennes():
         conn = get_conn()
         membres = conn.run("""
             SELECT code, nom, email, date_fin, capital
-            FROM members WHERE date_fin IS NOT NULL
+            FROM members m WHERE date_fin IS NOT NULL
+              AND NOT (COALESCE(to_jsonb(m)->>'broker_trial_id','')<>''
+                       AND COALESCE(access_level,'member') IN ('explorer','demo','broker_trial'))
         """)
         conn.close()
 
@@ -7992,7 +8662,7 @@ def job_relances_quotidiennes():
                 f"👤 *{nom}*\n"
                 f"🔑 `{code}`\n"
                 f"💰 Capital : {capital}\n\n"
-                f"_Email de relance envoyé automatiquement._"
+                f"_Vérifier le suivi des relances dans le tableau marketing._"
             )
             markup = {"inline_keyboard": [[
                 {"text": "➕ Prolonger 30j", "url": f"{BASE_URL}/admin-panel"},
@@ -8198,13 +8868,21 @@ def _send_scheduled_telegram(
     if not ECO_BOT_TOKEN or not target_channel:
         app.logger.error("Publication Telegram annulée : ECO_BOT_TOKEN ou canal absent")
         return False
-    post_type = post_type if post_type in {"message", "quiz", "poll"} else "message"
+    post_type = post_type if post_type in {"message", "sticker", "quiz", "poll"} else "message"
     if post_type == "message":
         max_length = 1024 if image_url else 4096
         if (not text and not image_url) or len(text) > max_length:
             app.logger.error(f"Publication Telegram invalide : limite {max_length} caractères")
             return False
         claim_content = text or f"[image] {image_url}"
+    elif post_type == "sticker":
+        sticker_key = _telegram_sticker_key_from_text(text)
+        sticker_item = _telegram_motion_item("sticker", sticker_key)
+        sticker_file_id = str((sticker_item or {}).get("telegram_file_id") or "").strip()
+        if not sticker_key or not sticker_file_id:
+            app.logger.error("Sticker Bectanse Telegram introuvable ou non publié")
+            return False
+        claim_content = f"[sticker] {sticker_key}"
     else:
         poll_options = _payload_list(poll_options)
         poll_correct_option_ids = [
@@ -8230,6 +8908,8 @@ def _send_scheduled_telegram(
             app.logger.warning(f"Média Telegram ignoré pour {slot_key}: {error}")
             image_url = ""
 
+    message_html, has_custom_emoji = _telegram_motion_html(text) if post_type == "message" else ("", False)
+    message_fallback = _telegram_motion_plain_text(text) if post_type == "message" else ""
     last_error = "erreur Telegram inconnue"
     for attempt in range(3):
         try:
@@ -8256,16 +8936,21 @@ def _send_scheduled_telegram(
                             "explanation": poll_explanation,
                             "explanation_parse_mode": "Markdown"
                         })
+            elif post_type == "sticker":
+                endpoint = "sendSticker"
+                payload["sticker"] = sticker_file_id
             else:
-                payload["parse_mode"] = "Markdown"
+                use_fallback = has_custom_emoji and attempt > 0
+                rendered_text = message_fallback if use_fallback else message_html
+                payload["parse_mode"] = "Markdown" if use_fallback else "HTML"
                 if image_url:
                     endpoint = "sendPhoto"
                     payload["photo"] = image_url
                     if text:
-                        payload["caption"] = text
+                        payload["caption"] = rendered_text
                 else:
                     endpoint = "sendMessage"
-                    payload.update({"text": text, "disable_web_page_preview": True})
+                    payload.update({"text": rendered_text, "disable_web_page_preview": True})
             if endpoint == "sendPhoto" and image_file:
                 multipart_payload = dict(payload)
                 multipart_payload["reply_markup"] = json.dumps(
@@ -8288,6 +8973,16 @@ def _send_scheduled_telegram(
             result = response.json()
             if result.get("ok"):
                 message_id = result.get("result", {}).get("message_id")
+                published = result.get("result", {})
+                private, _edited = private_message({"message": published}, CANAL_GROUP_ID)
+                if private:
+                    conn = get_conn()
+                    try:
+                        conn.run("""INSERT INTO canal_inbox(update_key,payload) VALUES (:key,:payload)
+                            ON CONFLICT(update_key) DO NOTHING""",
+                            key=f"scheduled-{message_id}",payload=json.dumps({"message":published}))
+                    finally:
+                        conn.close()
                 _finish_scheduled_publication(slot_key, "sent", message_id=message_id)
                 app.logger.info(f"Publication Telegram envoyée : {slot_key}")
                 return True
@@ -8313,7 +9008,8 @@ def _resolve_telegram_targets(post=None, publish_all_channels=False, fallback_ch
         if use_all:
             rows = conn.run(
                 """SELECT id, name, chat_id FROM telegram_channels
-                   WHERE active=TRUE AND deleted=FALSE ORDER BY id"""
+                   WHERE active=TRUE AND deleted=FALSE AND audience='public'
+                   ORDER BY id"""
             )
         elif post.get("channel_ids"):
             channel_ids = sorted({int(channel_id) for channel_id in post["channel_ids"]})
@@ -8805,11 +9501,11 @@ def send_push_to_all(title, body, url="/canal"):
         from pywebpush import webpush, WebPushException
         enforce_member_access_state()
         conn = get_conn()
-        subs = conn.run("""SELECT ps.endpoint, ps.p256dh, ps.auth, ps.member_code
+        audience = VIP_ELIGIBLE if url == "/canal" else "m.actif=TRUE AND NOT COALESCE(m.admin_suspended,FALSE) AND (m.date_fin IS NULL OR m.date_fin>NOW()) AND m.code<>'BCT-DEMO2026'"
+        subs = conn.run(f"""SELECT ps.endpoint, ps.p256dh, ps.auth, ps.member_code
             FROM push_subscriptions ps
             JOIN members m ON m.code=ps.member_code
-            WHERE m.actif=TRUE AND (m.date_fin IS NULL OR m.date_fin > NOW())
-              AND m.code <> 'BCT-DEMO2026'""")
+            WHERE {audience}""")
         conn.close()
         result["registered"] = len(subs)
         result["members"] = len({row[3] for row in subs})
@@ -8929,21 +9625,6 @@ def send_push_to_member(member_code, title, body, url="/accueil"):
 
 def _dispatch_canal_push(tg_msg_id, msg_type, text_content):
     """Déclenche une seule notification par publication VIP, quel que soit son chemin d'entrée."""
-    conn = None
-    try:
-        conn = get_conn()
-        claimed = conn.run("""UPDATE canal_messages SET push_notified_at=NOW()
-            WHERE tg_msg_id=:mid AND push_notified_at IS NULL RETURNING id""", mid=tg_msg_id)
-        if not claimed:
-            return {"registered": 0, "delivered": 0, "failed": 0, "members": 0, "skipped": True}
-    except Exception as error:
-        app.logger.error("Claim push Canal VIP %s: %s", tg_msg_id, error)
-        return {"registered": 0, "delivered": 0, "failed": 0, "members": 0, "error": str(error)}
-    finally:
-        if conn:
-            try: conn.close()
-            except: pass
-
     labels = {
         "signal": "📊 Nouveau signal VIP",
         "resultat": "✅ Nouveau résultat VIP",
@@ -8956,22 +9637,24 @@ def _dispatch_canal_push(tg_msg_id, msg_type, text_content):
     preview = clean_preview[:110] + ("…" if len(clean_preview) > 110 else "")
     if not preview:
         preview = "Une nouvelle publication est disponible dans ton espace membre."
-    result = send_push_to_all(labels.get(msg_type, "💬 Nouveau message VIP"), preview, "/canal")
-    result["skipped"] = False
-    if result.get("registered", 0) and not result.get("delivered", 0):
-        try:
-            conn = get_conn()
-            conn.run("UPDATE canal_messages SET push_notified_at=NULL WHERE tg_msg_id=:mid", mid=tg_msg_id)
-            conn.close()
-        except Exception: pass
-    app.logger.info("Push Canal VIP %s: %s", tg_msg_id, result)
+    result = enqueue_canal_push(get_conn, tg_msg_id,
+        labels.get(msg_type, "💬 Nouveau message VIP"), preview)
+    app.logger.info("Push Canal VIP queued %s: %s", tg_msg_id, result)
     return result
+
 
 # ── CANAL VIP ─────────────────────────────────────────────────────────────────
 
-CANAL_BOT_TOKEN = os.environ.get("CANAL_BOT_TOKEN", "")
+# Le bot déjà présent dans le groupe privé doit aussi télécharger ses médias :
+# les file_id Telegram ne peuvent pas être relus par un autre bot.
+CANAL_BOT_TOKEN = (
+    os.environ.get("ECO_BOT_TOKEN", "").strip()
+    or os.environ.get("CANAL_BOT_TOKEN", "").strip()
+)
 CANAL_GROUP_ID  = int(os.environ.get("CANAL_GROUP_ID", "-1003605441967"))
 CANAL_ADMIN_CODE = "BCT-LERIS"
+
+
 def detect_msg_type(text):
     """Détecte automatiquement le type de message selon les mots-clés."""
     t = (text or "").lower()
@@ -8985,114 +9668,286 @@ def detect_msg_type(text):
         return "annonce"
     return "message"
 
+def _canal_webhook_secret():
+    return os.environ.get("CANAL_WEBHOOK_SECRET", "").strip() or hmac.new(
+        app.secret_key.encode(), b"bectanse-private-canal-webhook-v1", hashlib.sha256).hexdigest()
+
+
 def register_canal_webhook():
-    """Enregistre le webhook du bot canal VIP."""
-    try:
-        webhook_url = "https://bectanse-auto.up.railway.app/canal-webhook"
-        r = requests.post(
-            f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/setWebhook",
-            json={"url": webhook_url, "allowed_updates": ["message", "edited_message"]},
-            timeout=10
-        )
-        app.logger.info(f"Canal webhook: {r.json()}")
-    except Exception as e:
-        app.logger.error(f"register_canal_webhook: {e}")
+    response = requests.post(
+        f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/setWebhook",
+        json={"url": BASE_URL + "/canal-webhook", "allowed_updates": ["message", "edited_message"],
+              "secret_token": _canal_webhook_secret()}, timeout=15)
+    result = response.json()
+    if not result.get("ok"):
+        raise RuntimeError("Telegram rejected private webhook registration")
+    app.logger.info("Private Canal VIP webhook registered")
+
 
 @app.route("/canal-webhook", methods=["POST"])
 def canal_webhook():
-    """Reçoit les messages du groupe VIP Telegram et les stocke en base."""
+    if not hmac.compare_digest(request.headers.get("X-Telegram-Bot-Api-Secret-Token", ""), _canal_webhook_secret()):
+        return jsonify({"ok": False}), 403
+    data = request.get_json(silent=True) or {}
+    message, edited = private_message(data, CANAL_GROUP_ID)
+    if not message:
+        return jsonify({"ok": True})
+    key = str(data.get("update_id") or hashlib.sha256(json.dumps(data,sort_keys=True).encode()).hexdigest())
+    conn = get_conn()
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"ok": True})
-
-        message = data.get("message")
-        edited  = data.get("edited_message")
-        msg     = message or edited
-        if not msg:
-            return jsonify({"ok": True})
-
-        chat_id = msg.get("chat", {}).get("id")
-        if int(chat_id) != int(CANAL_GROUP_ID):
-            return jsonify({"ok": True})
-
-        tg_msg_id = msg.get("message_id")
-
-        # Ignorer les messages de service Telegram
-        is_service = any(k in msg for k in [
-            "new_chat_members","left_chat_member","new_chat_title",
-            "new_chat_photo","delete_chat_photo","group_chat_created",
-            "pinned_message","migrate_to_chat_id","migrate_from_chat_id"
-        ])
-        if is_service:
-            return jsonify({"ok": True})
-
-        text_content = msg.get("text") or msg.get("caption") or ""
-        msg_type = detect_msg_type(text_content)
-        photo_url = None
-        audio_url = None
-
-        # Photo → Cloudinary (URL permanente)
-        photos = msg.get("photo")
-        if photos:
-            file_id = photos[-1]["file_id"]
-            photo_url = tg_download_and_upload(file_id, CANAL_BOT_TOKEN, "image")
-            if not photo_url:
-                # Fallback URL Telegram directe
-                try:
-                    r2 = requests.get(f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
-                        params={"file_id": file_id}, timeout=8)
-                    fp = r2.json()["result"]["file_path"]
-                    photo_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{fp}"
-                except: photo_url = None
-
-        # Audio / Message vocal → Cloudinary
-        voice = msg.get("voice")
-        audio = msg.get("audio")
-        media = voice or audio
-        if media:
-            file_id = media["file_id"]
-            audio_url = tg_download_and_upload(file_id, CANAL_BOT_TOKEN, "video")
-            if not audio_url:
-                try:
-                    r2 = requests.get(f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
-                        params={"file_id": file_id}, timeout=8)
-                    fp = r2.json()["result"]["file_path"]
-                    audio_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{fp}"
-                except: audio_url = None
-            if not text_content:
-                text_content = "🎙️ Message vocal" if voice else "🎵 Audio"
-            if audio_url:
-                msg_type = "audio"
-
-        conn = get_conn()
-        if edited:
-            conn.run(
-                """UPDATE canal_messages SET text_content=:txt, msg_type=:typ, edited=TRUE,
-                   photo_url=COALESCE(:photo, photo_url),
-                   audio_url=COALESCE(:audio, audio_url)
-                   WHERE tg_msg_id=:mid""",
-                txt=text_content, typ=msg_type, photo=photo_url, audio=audio_url, mid=tg_msg_id
-            )
-        else:
-            conn.run(
-                """INSERT INTO canal_messages (tg_msg_id, text_content, msg_type, photo_url, audio_url, edited)
-                   VALUES (:mid, :txt, :typ, :photo, :audio, FALSE)
-                   ON CONFLICT (tg_msg_id) DO NOTHING""",
-                mid=tg_msg_id, txt=text_content, typ=msg_type, photo=photo_url, audio=audio_url
-            )
+        conn.run("""INSERT INTO canal_inbox(update_key,payload) VALUES (:key,:payload)
+            ON CONFLICT(update_key) DO NOTHING""",key=key,payload=json.dumps(data))
+        conn.run("""INSERT INTO canal_runtime(name,value) VALUES ('last_received',:value)
+            ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()""",value=str(message.get('message_id','')))
+    finally:
         conn.close()
-        # Web Push prioritaire si nouveau message. Le claim atomique empêche les doublons
-        # quand une publication existe à la fois dans Telegram et dans l'administration.
-        if not edited:
-            threading.Thread(
-                target=_dispatch_canal_push,
-                args=(tg_msg_id, msg_type, text_content),
-                daemon=True
-            ).start()
-    except Exception as e:
-        app.logger.error(f"canal_webhook: {e}")
     return jsonify({"ok": True})
+
+
+def _process_private_canal_message(msg, edited=False):
+    tg_msg_id = msg.get("message_id")
+
+    # Ignorer les messages de service Telegram
+    is_service = any(k in msg for k in [
+        "new_chat_members","left_chat_member","new_chat_title",
+        "new_chat_photo","delete_chat_photo","group_chat_created",
+        "pinned_message","migrate_to_chat_id","migrate_from_chat_id"
+    ])
+    if is_service:
+        return
+
+    text_content = msg.get("text") or msg.get("caption") or ""
+    msg_type = detect_msg_type(text_content)
+    photo_url = None
+    audio_url = None
+
+    # Photo → Cloudinary (URL permanente)
+    photos = msg.get("photo")
+    if photos:
+        file_id = photos[-1]["file_id"]
+        photo_url = tg_download_and_upload(file_id, CANAL_BOT_TOKEN, "image")
+        if not photo_url:
+            photo_url = "tgfile:" + file_id
+
+    # Audio / Message vocal → Cloudinary
+    voice = msg.get("voice")
+    audio = msg.get("audio")
+    media = voice or audio
+    if media:
+        file_id = media["file_id"]
+        audio_url = tg_download_and_upload(file_id, CANAL_BOT_TOKEN, "video")
+        if not audio_url:
+            audio_url = "tgfile:" + file_id
+        if not text_content:
+            text_content = "🎙️ Message vocal" if voice else "🎵 Audio"
+        if audio_url:
+            msg_type = "audio"
+
+    conn = get_conn()
+    try:
+        conn.run("""INSERT INTO canal_messages
+            (tg_msg_id,text_content,msg_type,photo_url,audio_url,edited,sent_at,topic_id)
+            VALUES (:mid,:txt,:typ,:photo,:audio,:edited,:sent,:topic)
+            ON CONFLICT(tg_msg_id) DO UPDATE SET text_content=EXCLUDED.text_content,
+                msg_type=EXCLUDED.msg_type,edited=EXCLUDED.edited,
+                photo_url=COALESCE(EXCLUDED.photo_url,canal_messages.photo_url),
+                audio_url=COALESCE(EXCLUDED.audio_url,canal_messages.audio_url),
+                topic_id=COALESCE(EXCLUDED.topic_id,canal_messages.topic_id)""",
+            mid=tg_msg_id,txt=text_content,typ=msg_type,photo=photo_url,audio=audio_url,
+            edited=edited,sent=datetime.fromtimestamp(int(msg.get("date") or time.time()),ZoneInfo("UTC")).replace(tzinfo=None),
+            topic=msg.get("message_thread_id"))
+        # Backfilled/edited publications must never become fresh trading alerts.
+        fresh = not edited and 0 <= time.time()-int(msg.get("date") or time.time()) < 600
+        if not fresh:
+            conn.run("UPDATE canal_messages SET push_notified_at=COALESCE(push_notified_at,NOW()) WHERE tg_msg_id=:mid",mid=tg_msg_id)
+    finally:
+        conn.close()
+    if fresh:
+        _dispatch_canal_push(tg_msg_id,msg_type,text_content)
+
+
+def job_canal_delivery():
+    conn = get_conn()
+    try:
+        rows = conn.run("""UPDATE canal_inbox SET status='processing',attempts=attempts+1,
+            available_at=NOW()+INTERVAL '10 minutes' WHERE update_key IN (
+                SELECT update_key FROM canal_inbox WHERE status IN ('pending','processing')
+                AND available_at<=NOW() ORDER BY created_at LIMIT 10 FOR UPDATE SKIP LOCKED)
+            RETURNING update_key,payload,attempts""")
+    finally:
+        conn.close()
+    for key,payload,attempts in rows:
+        try:
+            msg,edited=private_message(json.loads(payload),CANAL_GROUP_ID)
+            if msg:
+                _process_private_canal_message(msg,edited)
+            state,error='done',''
+        except Exception as exc:
+            app.logger.error("Canal inbox %s failed: %s",key,type(exc).__name__)
+            state,error=('failed' if attempts>=12 else 'pending'),type(exc).__name__
+        conn=get_conn()
+        try:
+            conn.run("""UPDATE canal_inbox SET status=:state,error=:error,
+                processed_at=CASE WHEN :state='done' THEN NOW() ELSE NULL END,
+                available_at=NOW()+INTERVAL '1 minute' WHERE update_key=:key""",state=state,error=error,key=key)
+        finally:
+            conn.close()
+    from pywebpush import webpush
+    def deliver(row,payload):
+        webpush(subscription_info={"endpoint":row[0],"keys":{"p256dh":row[1],"auth":row[2]}},
+            data=payload,vapid_private_key=VAPID_PRIVATE_KEY,vapid_claims=dict(VAPID_CLAIMS),
+            timeout=10,ttl=3600,headers={"Urgency":"high"})
+    return drain_canal_push(get_conn,deliver,limit=30)
+
+
+def _canal_client_media(msg_id, kind, value):
+    if value and (value.startswith(("tgfile:","enc:v1:")) or "api.telegram.org/file/bot" in value):
+        return f"/api/canal/media/{msg_id}/{kind}"
+    return value
+
+
+def job_canal_monitor():
+    """Check actual publication freshness, inbox, outbox, and Telegram registration."""
+    issues = []
+    try:
+        response = requests.get(f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getWebhookInfo",timeout=15)
+        data = response.json()
+        if not data.get('ok'):
+            issues.append('telegram_unavailable')
+        else:
+            info = data.get('result',{})
+            if info.get('url') != BASE_URL+'/canal-webhook':
+                register_canal_webhook()
+                issues.append('webhook_restored')
+            if info.get('pending_update_count',0):
+                issues.append('telegram_backlog')
+    except (requests.RequestException, ValueError, RuntimeError):
+        issues.append('telegram_unavailable')
+    conn=get_conn()
+    try:
+        last=conn.run("SELECT MAX(sent_at) FROM canal_messages WHERE NOT COALESCE(deleted,FALSE)")[0][0]
+        if not last or (datetime.now(ZoneInfo('UTC')).replace(tzinfo=None)-last).total_seconds()>72*3600:
+            issues.append('private_source_stale')
+        inbox=conn.run("""SELECT COUNT(*) FROM canal_inbox WHERE status='failed'
+            OR (status<>'done' AND created_at<NOW()-INTERVAL '15 minutes')""")[0][0]
+        failed=conn.run("""SELECT COUNT(*) FROM canal_push_deliveries WHERE status='failed'
+            AND created_at>NOW()-INTERVAL '24 hours'""")[0][0]
+        uncovered=conn.run(f"""SELECT COUNT(*) FROM members m WHERE {VIP_ELIGIBLE}
+            AND NOT EXISTS(SELECT 1 FROM push_subscriptions p WHERE p.member_code=m.code)""")[0][0]
+        if inbox: issues.append('inbox_blocked')
+        if failed: issues.append('push_failures')
+        status={'status':'degraded' if issues else 'ok','issues':issues,
+                'last_publication':str(last) if last else None,'inbox_failed_or_delayed':inbox,
+                'push_failed_24h':failed,'members_without_push':uncovered}
+        conn.run("""INSERT INTO canal_runtime(name,value) VALUES ('health',:value)
+            ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()""",value=json.dumps(status))
+        return status
+    finally:
+        conn.close()
+
+
+@app.route('/admin/api/canal/health')
+@admin_required
+def admin_canal_health():
+    conn=get_conn()
+    try:
+        rows=conn.run("SELECT value,updated_at FROM canal_runtime WHERE name='health'")
+        statuses=conn.run('SELECT status,COUNT(*) FROM canal_push_deliveries GROUP BY status')
+        return jsonify({'health':json.loads(rows[0][0]) if rows else {'status':'unknown'},
+                        'checked_at':str(rows[0][1]) if rows else None,'push':dict(statuses)})
+    finally:
+        conn.close()
+
+
+@app.route('/admin/api/service-diagnostics')
+@admin_required
+def admin_service_diagnostics():
+    conn = get_conn()
+    try:
+        rows = conn.run("""SELECT a.id,a.server,a.status,a.sync_status,
+            a.last_successful_sync_at,a.last_error_code,a.last_error_message,
+            EXISTS(SELECT 1 FROM trading_credentials c WHERE c.trading_account_id=a.id),
+            (a.user_id=:review AND UPPER(a.account_type)='DEMO')
+            FROM trading_accounts a ORDER BY a.id""", review=os.environ.get('APPLE_APP_REVIEW_MEMBER_CODE',''))
+        accounts = [dict(zip(('id','server','status','sync_status','last_sync','error_code',
+                              'error_message','has_credentials','is_demo'), row)) for row in rows]
+        failures = conn.run("""SELECT trading_account_id,error_code,worker_id,COUNT(*),MAX(created_at),native_error_code,phase
+            FROM trading_sync_events WHERE event_name IN ('sync_failed','integrity_failed')
+            AND created_at>NOW()-INTERVAL '24 hours'
+            GROUP BY trading_account_id,error_code,worker_id,native_error_code,phase
+            ORDER BY MAX(created_at) DESC""")
+        incidents = [{'account_id':row[0], 'code':row[1], 'worker':row[2],
+                      'count':row[3], 'last_seen':row[4].isoformat(),'native_code':row[5],'phase':row[6]} for row in failures]
+        for account in accounts:
+            account['last_sync'] = account['last_sync'].isoformat() if account['last_sync'] else None
+        health = conn.run("SELECT value,updated_at FROM canal_runtime WHERE name='health'")
+        canal = json.loads(health[0][0]) if health else {'status':'unknown'}
+        canal['checked_at'] = health[0][1].isoformat() if health else None
+        if health and (datetime.now(ZoneInfo('UTC'))-health[0][1]).total_seconds()>600:
+            canal['status'] = 'degraded'
+            canal['issues'] = list(dict.fromkeys([*canal.get('issues',[]),'MONITOR_STALE']))
+        canal['push'] = dict(conn.run("""SELECT status,COUNT(*) FROM canal_push_deliveries
+            WHERE created_at>NOW()-INTERVAL '24 hours' GROUP BY status"""))
+        push_rows = conn.run("""SELECT d.id,COALESCE(m.nom,'Membre'),d.tg_msg_id,d.status,
+            d.error,d.attempts,d.created_at,d.available_at
+            FROM canal_push_deliveries d LEFT JOIN members m ON m.code=d.member_code
+            WHERE d.status<>'accepted' AND d.created_at>NOW()-INTERVAL '24 hours'
+            ORDER BY d.created_at DESC LIMIT 100""")
+        canal['delivery_incidents'] = [dict(zip(('id','member','message_id','status','error',
+            'attempts','created_at','next_attempt'),row)) for row in push_rows]
+        budgets = conn.run("""SELECT trading_account_id,failures,next_attempt_at,last_error_code
+            FROM trading_account_retry_state ORDER BY trading_account_id""")
+        recovery = [{'account_id':row[0],'failures':row[1],'next_attempt':row[2].isoformat(),
+                     'error':row[3]} for row in budgets]
+        reports = conn.run("""SELECT id,trading_account_id,range_from,range_to,ABS(db_count-mt5_count),
+            repair_attempts,last_repair_at,pnl_delta FROM trading_reconciliation_reports
+            WHERE status='MISMATCH' AND resolved_at IS NULL ORDER BY created_at DESC LIMIT 100""")
+        integrity = [{'id':r[0],'account_id':r[1],'from':r[2].isoformat(),'to':r[3].isoformat(),
+                      'difference':r[4],'attempts':r[5],'last_attempt':r[6].isoformat() if r[6] else None,
+                      'pnl_delta':float(r[7] or 0)} for r in reports]
+        for incident in canal['delivery_incidents']:
+            for field in ('created_at','next_attempt'):
+                incident[field] = incident[field].isoformat() if incident[field] else None
+
+    finally:
+        conn.close()
+    return jsonify({'mt5':trading_journal_service.reliability_health(),
+                    'accounts':accounts,'incidents_24h':incidents,'canal':canal,
+                    'recovery':recovery,'integrity':integrity})
+
+
+@app.route("/api/canal/media/<int:msg_id>/<kind>")
+@login_required
+@academy_access_required
+def canal_private_media(msg_id,kind):
+    if kind not in ('photo','audio'):
+        abort(404)
+    conn=get_conn()
+    try:
+        rows=conn.run(f"SELECT {kind}_url FROM canal_messages WHERE id=:id AND NOT COALESCE(deleted,FALSE)",id=msg_id)
+    finally:
+        conn.close()
+    value=_decrypt_value(rows[0][0]) if rows else ''
+    if value.startswith('tgfile:'):
+        result=requests.get(f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
+            params={"file_id":value[7:]},timeout=15).json()
+        path=result.get('result',{}).get('file_path')
+        if not path:
+            abort(502)
+        value=f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{path}"
+    if not value.startswith('https://api.telegram.org/file/bot'):
+        abort(404)
+    headers={'Range':request.headers['Range']} if request.headers.get('Range') else {}
+    upstream=requests.get(value,headers=headers,timeout=30)
+    if upstream.status_code not in (200,206):
+        abort(502)
+    result=Response(upstream.content,status=upstream.status_code,
+        content_type=upstream.headers.get('Content-Type','application/octet-stream'))
+    for key in ('Content-Range','Accept-Ranges'):
+        if key in upstream.headers:
+            result.headers[key]=upstream.headers[key]
+    result.headers['Cache-Control']='private, max-age=300'
+    return result
 
 
 @app.route("/api/canal/messages")
@@ -9119,11 +9974,14 @@ def api_canal_messages():
             before = 0
 
         if after > 0:
+            refresh_ids = list(dict.fromkeys(int(v) for v in request.args.get("refresh", "").split(",") if v.isdigit() and 0 < int(v) < 2147483648))[:200]
+            refresh_params = {"refresh_" + str(i): value for i, value in enumerate(refresh_ids)}
+            refresh_sql = " OR id IN (" + ",".join(":" + key for key in refresh_params) + ")" if refresh_ids else ""
             rows = conn.run(
                 """SELECT id, tg_msg_id, text_content, msg_type, photo_url, audio_url, edited,
                           sent_at::text FROM canal_messages
-                   WHERE id > :after AND (deleted IS NULL OR deleted=FALSE) ORDER BY id ASC""",
-                after=after
+                   WHERE (id > :after""" + refresh_sql + """) AND (deleted IS NULL OR deleted=FALSE) ORDER BY id ASC""",
+                after=after, **refresh_params
             )
             conn.close()
         else:
@@ -9150,7 +10008,7 @@ def api_canal_messages():
                 has_more_older = False
             conn.close()
             msgs = [{"id": r[0], "tg_msg_id": r[1], "text_content": r[2], "msg_type": r[3],
-                    "photo_url": r[4], "audio_url": r[5], "edited": r[6], "sent_at": r[7]} for r in reversed(rows)]
+                    "photo_url": _canal_client_media(r[0],"photo",r[4]), "audio_url": _canal_client_media(r[0],"audio",r[5]), "edited": r[6], "sent_at": utc_iso(r[7])} for r in reversed(rows)]
             return no_cache({
                 "messages": msgs,
                 "has_more_older": has_more_older,
@@ -9158,8 +10016,8 @@ def api_canal_messages():
             })
 
         msgs = [{"id":r[0],"tg_msg_id":r[1],"text_content":r[2],"msg_type":r[3],
-                 "photo_url":r[4],"audio_url":r[5],"edited":r[6],"sent_at":r[7]} for r in rows]
-        return no_cache({"messages": msgs, "has_more_older": False, "cursor": None})
+                 "photo_url":_canal_client_media(r[0],"photo",r[4]),"audio_url":_canal_client_media(r[0],"audio",r[5]),"edited":r[6],"sent_at":utc_iso(r[7])} for r in rows]
+        return no_cache({"messages": msgs, "has_more_older": False, "cursor": None, "removed_ids": [i for i in refresh_ids if i not in {m["id"] for m in msgs}]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -9186,11 +10044,11 @@ def admin_api_canal_messages():
                 "tg_msg_id": row[1],
                 "text_content": row[2],
                 "msg_type": row[3],
-                "photo_url": row[4],
-                "audio_url": row[5],
+                "photo_url": _canal_client_media(row[0],"photo",row[4]),
+                "audio_url": _canal_client_media(row[0],"audio",row[5]),
                 "edited": row[6],
                 "deleted": row[7],
-                "sent_at": row[8],
+                "sent_at": utc_iso(row[8]),
             }
             for row in rows
         ]
@@ -9275,12 +10133,7 @@ def api_canal_publier():
                 photos = res["result"].get("photo", [])
                 if photos:
                     file_id = photos[-1]["file_id"]
-                    r2 = requests.get(
-                        f"https://api.telegram.org/bot{CANAL_BOT_TOKEN}/getFile",
-                        params={"file_id": file_id}, timeout=8
-                    )
-                    file_path = r2.json()["result"]["file_path"]
-                    photo_url = f"https://api.telegram.org/file/bot{CANAL_BOT_TOKEN}/{file_path}"
+                    photo_url = tg_download_and_upload(file_id,CANAL_BOT_TOKEN,"image") or "tgfile:"+file_id
             else:
                 return jsonify({"error": res.get("description", "Telegram error")}), 502
         else:
@@ -9542,15 +10395,121 @@ trading_journal_service = register_trading_journal(
     admin_required=admin_required,
 )
 
-copy_trading_service = register_copy_trading(
-    app=app,
-    get_conn=get_conn,
-    get_member=get_member,
-    login_required=login_required,
-    academy_access_required=academy_access_required,
-    admin_required=admin_required,
-    can_copy_member=lambda member: academy_membership_state(member)[0],
+copy_configuration_service = CopyConfigurationService(
+    lambda: get_copy_conn(), _protect_params, _protect_history,
 )
+register_admin_copy(app, AdminCopyService(lambda: get_conn(), _encrypt_value), _admin_session_valid)
+from stripe_reliability.integration import configure as configure_billing
+from stripe_reliability.admin import register_admin as register_billing_admin
+_billing_prices = {price: ('ACADEMY', plan['id']) for price, plan in TRACKED_ACADEMY_SUBSCRIPTION_PLANS.items()}
+for _journal_plan, _variable in {'JOURNAL_PRO':'STRIPE_JOURNAL_PRO_PRICE_ID','JOURNAL_ELITE':'STRIPE_JOURNAL_ELITE_PRICE_ID'}.items():
+    if os.environ.get(_variable):
+        _billing_prices[os.environ[_variable]] = ('JOURNAL', _journal_plan)
+def _verified_billing_payment_followup(code, details):
+    # Existing business actions, only after a fresh, verified invoice was committed.
+    member = get_member(code) or {}
+    conn = get_conn()
+    try:
+        conn.run('BEGIN')
+        _grant_member_beta_credits(conn, code)
+        mark_marketing_conversion(conn, code, member.get('email', ''), details['invoice_id'])
+        conn.run('COMMIT')
+    except Exception:
+        conn.run('ROLLBACK')
+        raise
+    finally:
+        conn.close()
+    contact_result = sync_brevo_member_contact(member.get('email', ''))
+    if not (contact_result or {}).get('ok'):
+        raise RuntimeError('BREVO_CONTACT_SYNC_FAILED')
+    if details.get('created_member'):
+        from stripe_reliability.effects import deliver_once
+        deliver_once(billing_service(), 'welcome:' + code, code, details,
+                     lambda: email_bienvenue_membre(str(member.get('nom') or 'Membre').split()[0], member.get('email', ''), code))
+    from trading_journal.entitlements import academy_membership_state
+    if academy_membership_state(get_member(code) or {})[0]:
+        schedule_standalone_cancellation(get_conn, code)
+    from stripe_reliability.policy import utc
+    context = {**details, 'plan': TRACKED_ACADEMY_SUBSCRIPTION_PLANS.get(details['price_id'], {}),
+               'period_end': utc(details['period_end']), 'stripe_object_id': details['invoice_id']}
+    kind, notification_key = _payment_admin_notification_identity('invoice.paid', context)
+    if notification_key:
+        conn = get_conn()
+        try:
+            previous = conn.run('SELECT status FROM admin_payment_notifications WHERE notification_key=:key', key=notification_key)
+        finally:
+            conn.close()
+        if previous and previous[0][0] != 'sent':
+            billing_service().incident('PAYMENT_NOTIFICATION_REVIEW', member=code, decision=details, status='review')
+        elif not previous:
+            if not _send_academy_payment_admin_notification(details['invoice_id'], 'invoice.paid', context, code):
+                billing_service().incident('PAYMENT_NOTIFICATION_REVIEW', member=code, decision=details, status='review')
+
+def _verified_checkout_onboarding(conn, decision, checkout):
+    from stripe_reliability.policy import ReviewRequired, sid, subscription_id
+    if (checkout.get('status') != 'complete' or checkout.get('payment_status') not in {'paid','no_payment_required'}
+            or subscription_id(checkout) != decision['subscription_id']
+            or sid(checkout.get('customer')) != decision['customer_id']):
+        raise ReviewRequired('CHECKOUT_BINDING_NOT_VERIFIED')
+    claimed = str((checkout.get('metadata') or {}).get('member_code') or checkout.get('client_reference_id') or '')
+    if claimed:
+        rows = conn.run('SELECT code,stripe_customer_id FROM members WHERE code=:code', code=claimed)
+        if not rows or (rows[0][1] and rows[0][1] != decision['customer_id']):
+            raise ReviewRequired('CHECKOUT_MEMBER_MISMATCH')
+        return claimed, False
+    details = checkout.get('customer_details') or {}
+    email = str(details.get('email') or '').strip().lower()
+    if '@' not in email:
+        raise ReviewRequired('CHECKOUT_EMAIL_MISSING')
+    conn.run('SELECT pg_advisory_xact_lock(hashtextextended(:key,0))', key='billing-onboard:' + email)
+    existing = conn.run('SELECT code,stripe_customer_id FROM members WHERE LOWER(email)=:email', email=email)
+    if existing:
+        if len(existing) != 1 or existing[0][1] != decision['customer_id']:
+            raise ReviewRequired('EXISTING_EMAIL_REQUIRES_VERIFIED_LINK')
+        return existing[0][0], False
+    return _create_or_reuse_explorer(conn, email, str(details.get('name') or 'Nouveau membre')), True
+
+from member_evidence import register_evidence
+from academy_features import ACADEMY_CURRICULUM
+record_member_evidence = register_evidence(
+    app, lambda: get_conn(), lambda code: get_member(code), _encrypt_value, _decrypt_value,
+    login_required, academy_access_required, _admin_session_valid, ACADEMY_CURRICULUM)
+
+
+def _evidence_email_sender(sender, code_index, purpose):
+    @wraps(sender)
+    def send(*args, **kwargs):
+        code = args[code_index] if len(args) > code_index else kwargs.get('code_acces', kwargs.get('member_code', ''))
+        email = args[1] if purpose == 'welcome_code' and len(args)>1 else args[0] if args else kwargs.get('to_email','')
+        try:
+            result = sender(*args, **kwargs)
+        except Exception:
+            record_member_evidence(code,'email_failed',{'purpose':purpose,'meaning':'Envoi interrompu ; résultat inconnu'},email=email,network=False)
+            raise
+        confirmed = isinstance(result, dict) and result.get('ok') is True
+        record_member_evidence(code, 'email_accepted' if confirmed else 'email_failed',
+            {'purpose':purpose,'message_id':str((result or {}).get('message_id',''))[:250] if isinstance(result,dict) else '',
+             'meaning':'Acceptation par le service d’envoi ; réception et lecture non confirmées'},email=email,network=False)
+        return result
+    return send
+
+
+email_bienvenue_membre = _evidence_email_sender(email_bienvenue_membre, 2, 'welcome_code')
+send_brevo_explorer_ready = _evidence_email_sender(send_brevo_explorer_ready, 2, 'explorer_code')
+
+configure_billing(lambda: get_conn(), _billing_prices, _verified_billing_payment_followup, _verified_checkout_onboarding)
+register_billing_admin(app, billing_service(), _admin_session_valid)
+
+from canal_reactions import register_routes as register_canal_reactions
+register_canal_reactions(app, lambda: get_conn(), login_required, academy_access_required)
+
+register_agent_routes(app, copy_configuration_service, _decrypt_value)
+register_copy_routes(app, copy_configuration_service, login_required)
+# Preparation routes are inert unless configured explicitly; no engine changes.
+from copy_trading.admission_web import register_admission_routes, factory_from_application
+register_admission_routes(app, factory_from_application(app, get_copy_conn, get_member), _admin_session_valid)
+
+register_demo_routes(app, copy_configuration_service, lambda code: get_member(code))
 
 
 def _notify_activation_member(member_code, title, body, url):
@@ -9567,6 +10526,33 @@ def _notify_activation_member(member_code, title, body, url):
         conn.close()
     return send_push_to_member(member_code, title, body, url)
 
+
+def _notify_verified_candidature(application_id):
+    # One attempt: an ambiguous response is kept for admin review, never spammed.
+    if not BOT_TOKEN or not ADMIN_ID:
+        return False
+    response = requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={"chat_id": str(ADMIN_ID),
+              "text": "Nouvelle candidature vérifiée — essai 15 jours. Consulte la fiche sécurisée pour les coordonnées et les réponses.",
+              "reply_markup": {"inline_keyboard": [[{"text": "Voir la candidature", "url": BASE_URL+"/admin/candidatures#"+application_id}]]}},
+        timeout=12)
+    return bool(response.ok and response.json().get("ok"))
+
+
+candidature_runtime = register_candidature(
+    app=app, get_conn=get_conn, admin_required=admin_required,
+    send_notification=_notify_verified_candidature,
+)
+
+
+broker_trial_runtime = register_broker_trial(
+    app=app, get_conn=get_conn, get_member=get_member,
+    login_required=login_required, admin_required=admin_required,
+    send_email=send_brevo_membre, send_telegram=send_telegram,
+    telegram_chat_id=os.environ.get('BROKER_TRIAL_TELEGRAM_CHAT_ID') or ADMIN_ID,
+    send_verification=send_brevo_prospect_verification,
+)
 
 register_activation_journey(
     app=app,
@@ -9590,10 +10576,89 @@ register_marketing_routes(
     admin_required=admin_required,
     notify_admin=send_telegram,
 )
+# The agent reads the same statistics as the admin, without browser automation
+# or transmitting prospect identities to a separate model/provider.
+from conversion_agent import ConversionAgent, register as register_conversion_agent
+from conversion_agent_ai import advise as conversion_advisor
+
+def _conversion_analytics_snapshot(period):
+    with app.test_request_context('/admin/api/analytics', query_string={'period': period, 'key': ADMIN_KEY}):
+        response = app.make_response(admin_api_analytics())
+        if response.status_code != 200:
+            return {'ok': False}
+        return response.get_json()
+
+conversion_agent = ConversionAgent(
+    get_conn, _conversion_analytics_snapshot,
+    lambda: run_marketing_automation(get_conn, send_brevo_membre, _action_token, notify_admin=send_telegram, agent_only=True), advisor=conversion_advisor)
+register_conversion_agent(app, conversion_agent, _admin_session_valid)
+
 register_seo_features(
     app=app,
     admin_required=admin_required,
     get_conn=get_conn,
+)
+
+
+def send_market_agent_telegram(text, reply_markup=None, chat_id=None):
+    """Publie uniquement avec le bot dédié à l'agent de marché."""
+    token = os.environ.get("MARKET_AGENT_BOT_TOKEN", "").strip()
+    target = (
+        str(chat_id).strip() if chat_id else ""
+    ) or os.environ.get("MARKET_AGENT_TELEGRAM_CHAT_ID", "").strip()
+    if not token or not target:
+        return False
+
+    if reply_markup is None:
+        reply_markup = market_agent_keyboard("M15")
+    payload = {
+        "chat_id": target,
+        "text": str(text or "")[:4090],
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    for attempt in range(3):
+        try:
+            if attempt:
+                time.sleep(3)
+            response = requests.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json=payload,
+                timeout=15,
+            )
+            result = response.json()
+            if result.get("ok"):
+                return True
+            if "parse" in str(result.get("description", "")).lower():
+                fallback_payload = dict(payload)
+                fallback_payload.pop("parse_mode", None)
+                fallback_response = requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json=fallback_payload,
+                    timeout=15,
+                )
+                if fallback_response.json().get("ok"):
+                    return True
+            app.logger.error(
+                "Telegram agent GOLD tentative %s: %s",
+                attempt + 1,
+                result.get("description", "erreur inconnue"),
+            )
+        except Exception as error:
+            app.logger.error(
+                "Telegram agent GOLD tentative %s: %s", attempt + 1, error
+            )
+    return False
+
+
+market_agent_runtime = register_market_agent(
+    app=app,
+    get_conn=get_conn,
+    send_telegram=send_market_agent_telegram,
+    openai_api_key=OPENAI_API_KEY,
+    default_model=OPENAI_ANALYSIS_MODEL,
 )
 
 
@@ -9623,6 +10688,32 @@ def job_marketing_lifecycle():
             )
 
 
+def job_mt5_reliability_monitor():
+    """Auto-répare la file MT5 ; diagnostics conservés dans le dashboard admin."""
+    try:
+        result = trading_journal_service.reliability_cycle()
+        if result.get("status") == "skipped":
+            return
+        status = str(result.get("status") or "degraded")
+        actions = result.get("actions") or {}
+        workers = result.get("workers") or {}
+        queue = result.get("queue") or {}
+        action_count = sum(int(value or 0) for value in actions.values())
+        log = app.logger.warning if status != "ok" else app.logger.info
+        log(
+            "MT5 reliability status=%s workers=%s queue=%s stale=%s actions=%s issues=%s",
+            status,
+            workers.get("online", 0),
+            queue.get("queue_depth", 0),
+            queue.get("stale_accounts", 0),
+            action_count,
+            ",".join(result.get("issues") or []) or "none",
+        )
+
+    except Exception:
+        app.logger.exception("MT5 reliability monitor failed")
+
+
 def job_submit_indexnow():
     """Notifie les moteurs une fois le nouveau déploiement devenu accessible."""
     result = submit_indexnow_urls()
@@ -9630,18 +10721,31 @@ def job_submit_indexnow():
 
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
+_runtime_scheduler = None
+
+
 def _startup():
     time.sleep(1)
     try:
         if not init_db():
-            app.logger.error("DB startup failed; readiness remains unavailable")
-            return
-        _DATABASE_READY.set()
+            raise RuntimeError("Database initialization failed")
         app.logger.info("DB ready")
-        register_webhook()
-        app.logger.info("Webhook enregistré")
-        register_canal_webhook()
-        app.logger.info("Canal webhook enregistré")
+        try:
+            register_webhook()
+            app.logger.info("Webhook enregistré")
+        except Exception:
+            app.logger.exception("Webhook principal indisponible au démarrage")
+        try:
+            register_canal_webhook()
+            app.logger.info("Canal webhook enregistré")
+        except Exception:
+            app.logger.exception("Webhook canal indisponible au démarrage")
+        if market_agent_runtime.get("telegram_bot_enabled"):
+            try:
+                market_agent_runtime["register_telegram_webhook"]()
+                app.logger.info("Webhook bot GOLD enregistré")
+            except Exception:
+                app.logger.exception("Webhook bot GOLD indisponible au démarrage")
         # Publications Telegram et relances — heure de Paris.
         from apscheduler.schedulers.background import BackgroundScheduler
         scheduler = BackgroundScheduler(timezone='Europe/Paris')
@@ -9662,6 +10766,25 @@ def _startup():
             coalesce=True, max_instances=1, misfire_grace_time=900
         )
         scheduler.add_job(
+            conversion_agent.run, 'interval', minutes=5,
+            id='daily_conversion_agent', replace_existing=True,
+            next_run_time=_paris_now()+timedelta(minutes=2),
+            coalesce=True, max_instances=1, misfire_grace_time=900
+        )
+        if stripe_reliability_enabled():
+            scheduler.add_job(billing_service().reconcile, 'interval', minutes=5,
+                id='stripe_reconciliation', replace_existing=True, coalesce=True,
+                max_instances=1, next_run_time=_paris_now()+timedelta(seconds=30))
+        if os.environ.get('CANDIDATURE_ENABLED') == '1':
+            scheduler.add_job(candidature_runtime['tick'], 'interval', seconds=30,
+                id='candidature_lifecycle', replace_existing=True, coalesce=True,
+                max_instances=1, misfire_grace_time=120)
+        scheduler.add_job(
+            broker_trial_runtime['tick'], 'interval', minutes=1,
+            id='broker_trial_lifecycle', replace_existing=True,
+            next_run_time=_paris_now()+timedelta(seconds=20),
+            coalesce=True, max_instances=1, misfire_grace_time=300)
+        scheduler.add_job(
             enforce_member_access_state, 'interval', minutes=5,
             id='member_access_enforcement', replace_existing=True,
             next_run_time=_paris_now(), coalesce=True, max_instances=1,
@@ -9674,18 +10797,12 @@ def _startup():
             coalesce=True, max_instances=1, misfire_grace_time=300,
         )
         scheduler.add_job(
-            trading_journal_service.enqueue_due_accounts,
+            job_mt5_reliability_monitor,
             'interval',
-            seconds=max(60, int(os.environ.get('MT5_SYNC_INTERVAL_SECONDS', '300'))),
-            id='mt5_sync_orchestrator', replace_existing=True,
+            seconds=max(30, int(os.environ.get('MT5_MONITOR_INTERVAL_SECONDS', '60'))),
+            id='mt5_reliability_monitor', replace_existing=True,
             next_run_time=_paris_now() + timedelta(seconds=15),
             coalesce=True, max_instances=1, misfire_grace_time=120,
-        )
-        scheduler.add_job(
-            copy_trading_service.recover_dispatching_jobs, 'interval', seconds=10,
-            id='copy_trading_dispatch_recovery', replace_existing=True,
-            next_run_time=_paris_now() + timedelta(seconds=5),
-            coalesce=True, max_instances=1, misfire_grace_time=20,
         )
         scheduler.add_job(
             process_scheduled_telegram_posts, 'interval', minutes=1,
@@ -9693,24 +10810,70 @@ def _startup():
             next_run_time=_paris_now(), coalesce=True, max_instances=1,
             misfire_grace_time=120
         )
+        if market_agent_runtime.get('standalone_enabled'):
+            scheduler.add_job(
+                market_agent_runtime['run_standalone_once'],
+                'cron', minute='0,15,30,45', second=20,
+                id='gold_market_agent_m15', replace_existing=True,
+                coalesce=True, max_instances=1, misfire_grace_time=180,
+            )
+            if os.environ.get('MARKET_AGENT_RUN_ON_STARTUP', 'true').strip().lower() in {'1', 'true', 'yes', 'oui', 'on'}:
+                scheduler.add_job(
+                    market_agent_runtime['run_standalone_once'],
+                    'date', run_date=_paris_now() + timedelta(seconds=20),
+                    id='gold_market_agent_startup_check', replace_existing=True,
+                    misfire_grace_time=180,
+                )
         scheduler.add_job(
             job_submit_indexnow, 'date',
             run_date=_paris_now() + timedelta(minutes=3),
             id='seo_indexnow_deploy', replace_existing=True,
             misfire_grace_time=900
         )
-        init_demo_account()
+        scheduler.add_job(job_canal_delivery,'interval',seconds=5,
+            id='canal_delivery',replace_existing=True,coalesce=True,max_instances=1,misfire_grace_time=60)
+        scheduler.add_job(job_canal_monitor,'interval',minutes=5,
+            id='canal_monitor',replace_existing=True,coalesce=True,max_instances=1,misfire_grace_time=300,
+            next_run_time=_paris_now()+timedelta(seconds=30))
         scheduler.start()
+        try:
+            init_demo_account()
+        except Exception:
+            app.logger.exception("Initialisation du compte de démonstration ignorée")
         app.logger.info(
-            "✅ Schedulers: calendrier 8h30 + relances 9h + centre Telegram chaque minute (Europe/Paris)"
+            "✅ Schedulers: calendrier 8h30 + relances 9h + centre Telegram chaque minute"
+            + (" + agent GOLD autonome M15" if market_agent_runtime.get('standalone_enabled') else "")
+            + " (Europe/Paris)"
         )
+        return scheduler
     except Exception as e:
-        app.logger.error(f"startup: {e}")
+        app.logger.exception("startup: %s", e)
+        raise
+
+
+def _startup_supervisor():
+    """Relance tout le planificateur s'il ne démarre pas ou s'arrête."""
+    global _runtime_scheduler
+    while True:
+        try:
+            _runtime_scheduler = _startup()
+            while _runtime_scheduler.running:
+                time.sleep(30)
+            raise RuntimeError("scheduler stopped unexpectedly")
+        except Exception:
+            app.logger.exception("startup supervisor: restart in 15 seconds")
+            try:
+                if _runtime_scheduler and _runtime_scheduler.running:
+                    _runtime_scheduler.shutdown(wait=False)
+            except Exception:
+                pass
+            _runtime_scheduler = None
+            time.sleep(15)
 
 # Les aperçus locaux peuvent désactiver les services externes (DB, webhooks,
 # planificateurs) sans modifier le comportement de production.
 if os.environ.get("BECTANSE_SKIP_STARTUP") != "1":
-    threading.Thread(target=_startup, daemon=True).start()
+    threading.Thread(target=_startup_supervisor, daemon=True, name="bectanse-runtime-supervisor").start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

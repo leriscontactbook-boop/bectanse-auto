@@ -78,6 +78,12 @@ def _checkout_failure_code(error: Exception) -> str:
 
 def register_trading_journal(app, get_conn, get_member, login_required, admin_required=None):
     service = JournalService(get_conn, get_member, app.logger)
+    backend_member = get_member
+    def get_member(code):
+        if str(code or '').upper().startswith('ADM-TRADING-'):
+            return None
+        return backend_member(code)
+
 
     def mobile_entitlements(user_id: str, member: dict) -> dict:
         if _mobile_standalone_enabled() or academy_membership_state(member)[0]:
@@ -257,6 +263,48 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
 
     @app.route("/api/mobile/logout", methods=["POST"])
     def mobile_logout():
+        session.clear()
+        response = jsonify({"ok": True, "authenticated": False})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.route("/api/mobile/account", methods=["DELETE"])
+    @_rate_limited("mobile-account-delete", 3, 24 * 60 * 60)
+    def mobile_account_delete():
+        """Permanently delete a standalone Track profile and its trading data."""
+        user_id = str(session.get("member_code") or "")
+        member = get_member(user_id) if user_id else None
+        payload = request.get_json(silent=True) or {}
+        if not member:
+            session.clear()
+            return jsonify({"ok": False, "error": "Votre session a expiré."}), 401
+        if str(payload.get("mode") or "").upper() != "DELETE":
+            return jsonify({"ok": False, "error": "Confirmation de suppression manquante."}), 400
+        if not user_id.startswith("BTT-") or str(member.get("access_level") or "").lower() != "journal":
+            return jsonify({
+                "ok": False,
+                "error": "La suppression d’un compte Académie doit être demandée au support Bectanse.",
+            }), 403
+        conn = get_conn()
+        try:
+            conn.run("BEGIN")
+            conn.run("DELETE FROM trading_audit_logs WHERE user_id=:user_id", user_id=user_id)
+            conn.run("DELETE FROM stripe_journal_events WHERE user_id=:user_id", user_id=user_id)
+            deleted = conn.run(
+                "DELETE FROM members WHERE code=:user_id RETURNING code", user_id=user_id,
+            )
+            if not deleted:
+                raise LookupError("Ce compte n’existe plus.")
+            conn.run("COMMIT")
+        except Exception as error:
+            try:
+                conn.run("ROLLBACK")
+            except Exception:
+                pass
+            app.logger.error("Mobile account deletion failed %s: %s", user_id, error)
+            return _api_error(error)
+        finally:
+            conn.close()
         session.clear()
         response = jsonify({"ok": True, "authenticated": False})
         response.headers["Cache-Control"] = "no-store"
@@ -457,8 +505,20 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     def trading_account_sync(account_id):
         try:
             result = service.request_sync(session["member_code"], account_id)
-            return jsonify({"ok": True, **result}), 202 if result["queued"] else 429
+            # A sync already requested during the cooldown is a valid,
+            # idempotent response. Returning HTTP 429 here made both the web
+            # and iOS clients replace that normal state with the generic
+            # "service unavailable" error even though the backend was healthy.
+            response = jsonify({"ok": True, **result})
+            response.status_code = 202 if result["queued"] else 200
+            response.headers["Cache-Control"] = "private, no-store, max-age=0"
+            if not result["queued"]:
+                response.headers["Retry-After"] = str(max(1, int(result.get("cooldown_seconds") or 1)))
+            return response
         except Exception as error:
+            if not isinstance(error, (LookupError, PermissionError, ValueError)):
+                app.logger.error("Synchronisation manuelle MT5 %s/%s: %s",
+                                 session.get("member_code"), account_id, error)
             return _api_error(error)
 
     @app.route("/api/trading/profile", methods=["PATCH"])
@@ -786,7 +846,9 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
         try:
             worker_id, _ = worker_identity()
             payload = request.get_json(silent=True) or {}
-            result = service.fail_job(job_id, worker_id, str(payload.get("code") or "SYNC_ERROR"), bool(payload.get("retryable")))
+            result = service.fail_job(job_id, worker_id, str(payload.get("code") or "SYNC_ERROR"), bool(payload.get("retryable")),
+                native_error_code=payload.get("native_error_code"), phase=payload.get("phase", ""),
+                duration_ms=payload.get("duration_ms"))
             return jsonify({"ok": True, **result})
         except Exception as error:
             app.logger.error("MT5 worker failure report %s failed: %s", job_id, error)
@@ -817,6 +879,11 @@ def register_trading_journal(app, get_conn, get_member, login_required, admin_re
     @_admin_guard
     def trading_workers_health():
         return jsonify(service.worker_health())
+
+    @app.route("/health/reliability", methods=["GET"])
+    @_admin_guard
+    def trading_reliability_health():
+        return jsonify(service.reliability_health())
 
     @app.route("/admin/trading/jobs/<job_id>/retry", methods=["POST"])
     @_admin_guard

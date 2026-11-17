@@ -1,0 +1,24 @@
+/* The tour omits the standalone Explorer welcome banner; the member UI is unchanged. */
+html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:#50534b #090b09}
+.os-explorer-banner{display:none!important}
+body{animation:screen-arrive .65s ease both}
+@keyframes screen-arrive{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){body{animation:none}html{scroll-behavior:auto}}
+/* Access banners belong to onboarding; keep the tour focused on the member screens. */
+.gs-lock{display:none!important}
+/* Populated public examples retain the member layout and stay separate from live accounts. */
+.future-preview #market-card::after{content:none!important}
+.future-preview #market-card .os-chart-shell{display:block!important;height:365px!important;max-height:none!important;opacity:1!important;overflow:hidden}
+.future-preview #tradingview_gold{height:365px!important;width:100%!important}
+.future-preview #tradingview_gold .tradingview-widget-container__widget{height:335px!important;width:100%!important}
+.future-preview #tradingview_gold iframe{height:335px!important;min-height:0!important;width:100%!important;border:0}
+.tradingview-widget-copyright{font-size:9px;padding:7px;color:#aaa;text-align:center}
+.tour-demo-note{color:#b5aaa0!important;font-size:10px!important;line-height:1.5!important;margin:10px 0!important}
+.tour-signal{border:1px solid #ffffff16;border-radius:12px;background:#141815;padding:14px;margin-top:12px}
+.tour-signal header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tour-signal header strong{font-size:13px;color:#f4f4ef}.tour-signal header small{font-size:9px;color:#a0a399}.tour-signal header strong span{font-size:9px;color:#70dc9e;background:#71dca315;border-radius:4px;padding:4px;margin-left:6px}
+.tour-signal p{font-size:11px;color:#b6b9b0;line-height:1.6;margin:10px 0}
+.tour-levels{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;border-block:1px solid #ffffff12}
+.tour-levels span{font-size:9px;color:#8f998f}.tour-levels b{display:block;font-size:13px;color:#f2f1ec;margin-top:4px;font-variant-numeric:tabular-nums}
+.tour-signal footer{font-size:9px;color:#9a9e93;margin-top:10px}.tour-status{font-size:9px;color:#e8a763}
+.tour-event{display:flex;gap:13px;padding:16px 0;border-bottom:1px solid #ffffff12;align-items:center}.tour-event time{font-size:12px;color:#eee;font-variant-numeric:tabular-nums}.tour-event small{font-size:9px;color:#f0a576;display:block;margin-bottom:5px}.tour-event strong{font-size:11px;color:#e8ebe2;line-height:1.4;display:block}

@@ -85,7 +85,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
 .fc-desc{font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:24px;max-width:600px}
 .fc-features{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:28px}
 .fc-feature{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,0.65)}
-.fc-feature::before{content:'→';font-size:12px;flex-shrink:0;color:var(--gold)}
+.fc-feature::before{content:'';font-size:12px;flex-shrink:0;color:var(--gold)}
 .fc-cta{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--gold),#F97316);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:14px 32px;border-radius:12px;border:none;cursor:pointer;text-decoration:none;transition:all 0.2s;box-shadow:0 6px 24px rgba(245,158,11,0.3)}
 .fc-cta:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(245,158,11,0.5)}
 
@@ -191,12 +191,20 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260803">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body class="member-fintech">
+<body data-ui-screen="formation" class="product-workspace academy-universe member-fintech">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "formation" %}{% include "partials/workspace_rail.html" %}
+
 {%- if demo_mode %}
 <div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#FF6A00;padding:10px 20px;text-align:center;font-family:Arial,sans-serif;">
-  <span style="color:#fff;font-size:13px;font-weight:700;">🔒 Mode Essai Gratuit — Tu observes en lecture seule.</span>
-  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO →</a>
+  <span style="color:#fff;font-size:13px;font-weight:700;"> Mode Essai Gratuit — Tu observes en lecture seule.</span>
+  <a href="/vip" style="display:inline-block;background:#fff;color:#FF6A00;font-size:12px;font-weight:800;text-decoration:none;padding:5px 14px;border-radius:6px;margin-left:12px;">Rejoindre Bectanse AUTO </a>
 </div>
 <div style="height:44px;"></div>
 {%- endif %}
@@ -236,10 +244,10 @@ document.addEventListener('DOMContentLoaded', function() {
   max-width: 90vw;
   pointer-events: auto;
 ">
-  <div style="font-size:52px;margin-bottom:12px;">🔒</div>
+  <div style="font-size:52px;margin-bottom:12px;"></div>
   <p style="color:#fff;font-weight:800;font-size:18px;margin:0 0 8px;">Formation Bectanse AUTO</p>
   <p style="color:rgba(255,255,255,.55);font-size:13px;line-height:1.5;margin:0 0 20px;">Vidéos et guides PDF exclusifs réservés aux membres</p>
-  <a href="/vip" style="display:block;background:#FF6A00;color:#fff;font-weight:800;text-decoration:none;padding:15px 24px;border-radius:10px;font-size:15px;">Rejoindre Bectanse AUTO →</a>
+  <a href="/vip" style="display:block;background:#FF6A00;color:#fff;font-weight:800;text-decoration:none;padding:15px 24px;border-radius:10px;font-size:15px;">Rejoindre Bectanse AUTO </a>
 </div>
 
 <script>
@@ -283,43 +291,44 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="sidebar-logo">BECTANSE ACADÉMIE</div>
+      <div class="sidebar-logo">Bectanse Académie</div>
       <div class="sidebar-tagline">Espace Membre</div>
     </div>
     <div class="member-card">
       <div class="member-top">
         <div class="member-name">{{ member.nom }}</div>
-        <div style="font-size:12px;color:var(--gold);font-weight:600;margin-top:3px;">💰 {{ member.capital }}</div>
+        <div style="font-size:12px;color:var(--gold);font-weight:600;margin-top:3px;"> {{ member.capital }}</div>
       </div>
     </div>
     <nav class="nav">
       <div class="nav-section">Navigation</div>
-      <a class="nav-item" href="/dashboard"><span class="icon">⚙️</span> Mes paramètres</a>
-      <a class="nav-item" href="/vip" style="color:#F59E0B;"><span class="icon">🚀</span> Renouveler / Upgrader</a>
-      {%- if not demo_mode %}<a class="nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span class="icon">💬</span> Discuter avec un agent</a>{%- endif %}
-      <a class="nav-item active" href="/formation"><span class="icon">🎓</span> Formation</a>
-      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span class="icon">🎁</span> Parrainage VIP</a>
-      <a class="nav-item" href="/faq"><span class="icon">❓</span> FAQ & Guide</a>
-      <a class="nav-item" href="/dashboard#historique"><span class="icon">📜</span> Historique</a>
+      <a class="nav-item" href="/dashboard"><span class="icon"></span> Mes paramètres</a>
+      <a class="nav-item" href="/vip" style="color:#F59E0B;"><span class="icon"></span> Renouveler / Upgrader</a>
+      {%- if vip_support_href(member) %}<a class="nav-item" href="{{ vip_support_href(member) }}"><span class="icon"></span> Support VIP</a>{%- endif %}
+      <a class="nav-item active" href="/formation"><span class="icon"></span> Formation</a>
+      <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span class="icon"></span> Parrainage VIP</a>
+      <a class="nav-item" href="/faq"><span class="icon"></span> FAQ & Guide</a>
+      <a class="nav-item" href="/dashboard#historique"><span class="icon"></span> Historique</a>
     </nav>
     <div class="sidebar-bottom">
-      <a class="logout-btn" href="/logout"><span>🚪</span> Déconnexion</a>
+      <a class="logout-btn" href="/logout"><span></span> Déconnexion</a>
     </div>
   </aside>
 
   <div class="content">
 
     <div class="page-badge">Formation incluse — Membres Bectanse AUTO</div>
-    <div class="page-title">Formation de base</div>
+    <h1 class="page-title">Formation de base</h1>
     <div class="page-desc">Les fondamentaux pour comprendre et suivre tes trades.<br>Vidéos et guides PDF exclusifs développés par l'équipe Bectanse.</div>
 
     <div class="progress-label" id="progress-label">Progression : 0 / 13 ressources consultées</div>
     <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
 
-    <div class="section-label">VIDÉOS DE FORMATION</div>
+<label class="resource-filter">Retrouver une ressource<input type="search" id="resource-search" placeholder="Rechercher une vidéo ou un document"></label><p id="resource-filter-status" role="status"></p>
+    <div class="section-label">Vidéos de formation</div>
     <div class="videos-grid">
 
-      <div class="video-card" onclick="openVideo('xTDauJuGM-0','Comment lancer un trade','5:26')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="video-card" onclick="openVideo('xTDauJuGM-0','Comment lancer un trade','5:26')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/xTDauJuGM-0/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
           <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
@@ -330,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="video-title">Comment lancer un trade</div>
         </div>
       </div>
-      <div class="video-card" onclick="openVideo('Cc7pRmfmP84','Comment sécuriser ses trades','1:35')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="video-card" onclick="openVideo('Cc7pRmfmP84','Comment sécuriser ses trades','1:35')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/Cc7pRmfmP84/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
           <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
@@ -341,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="video-title">Comment sécuriser ses trades</div>
         </div>
       </div>
-      <div class="video-card" onclick="openVideo('P6Ikb41wwdc','Comment prendre ses profits','3:14')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="video-card" onclick="openVideo('P6Ikb41wwdc','Comment prendre ses profits','3:14')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/P6Ikb41wwdc/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
           <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
@@ -352,7 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="video-title">Comment prendre ses profits</div>
         </div>
       </div>
-      <div class="video-card" onclick="openVideo('H2_4GyTGqYQ','Comprendre le trading en 2 minutes','2:41')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="video-card" onclick="openVideo('H2_4GyTGqYQ','Comprendre le trading en 2 minutes','2:41')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/H2_4GyTGqYQ/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
           <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
@@ -363,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="video-title">Comprendre le trading en 2 minutes</div>
         </div>
       </div>
-      <div class="video-card" onclick="openVideo('kzeV1U3wbbU','Les erreurs du débutant','5:21')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="video-card" onclick="openVideo('kzeV1U3wbbU','Les erreurs du débutant','5:21')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/kzeV1U3wbbU/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
           <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
@@ -374,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="video-title">Les erreurs du débutant</div>
         </div>
       </div>
-      <div class="video-card" onclick="openVideo('PBKDkBsuXm0','À quoi sert le broker ?','1:14')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="video-card" onclick="openVideo('PBKDkBsuXm0','À quoi sert le broker ?','1:14')">
         <div class="video-thumb">
           <img src="https://img.youtube.com/vi/PBKDkBsuXm0/mqdefault.jpg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
           <div class="play-overlay"><div class="play-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></div>
@@ -387,63 +396,63 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
 
-    <div class="section-label">GUIDES PDF EXCLUSIFS</div>
+    <div class="section-label">Guides PDF exclusifs</div>
     <div class="pdfs-grid">
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6/preview','Introduction au Trading','https://drive.google.com/uc?export=download&id=1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6/preview','Introduction au Trading','https://drive.google.com/uc?export=download&id=1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6')">
         <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 01</div>
           <div class="pdf-title">Introduction au Trading</div>
-          <div class="pdf-size">17.5 KB</div>
+          <div class="pdf-size">17.5 kb</div>
         </div>
       </div>
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1H2XiDg_G8D7e1vSFwgqH6jstJn5pxr-G/preview','Analyse Technique','https://drive.google.com/uc?export=download&id=1H2XiDg_G8D7e1vSFwgqH6jstJn5pxr-G')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1H2XiDg_G8D7e1vSFwgqH6jstJn5pxr-G/preview','Analyse Technique','https://drive.google.com/uc?export=download&id=1H2XiDg_G8D7e1vSFwgqH6jstJn5pxr-G')">
         <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 02</div>
           <div class="pdf-title">Analyse Technique</div>
-          <div class="pdf-size">14.4 KB</div>
+          <div class="pdf-size">14.4 kb</div>
         </div>
       </div>
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1I1UYl2-OO6las6u2gN2FzceHkwybK_iH/preview','Analyse Fondamentale','https://drive.google.com/uc?export=download&id=1I1UYl2-OO6las6u2gN2FzceHkwybK_iH')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1I1UYl2-OO6las6u2gN2FzceHkwybK_iH/preview','Analyse Fondamentale','https://drive.google.com/uc?export=download&id=1I1UYl2-OO6las6u2gN2FzceHkwybK_iH')">
         <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 03</div>
           <div class="pdf-title">Analyse Fondamentale</div>
-          <div class="pdf-size">12.4 KB</div>
+          <div class="pdf-size">12.4 kb</div>
         </div>
       </div>
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1Low5Nj-km7gQwS3b_eOpj64FZs1TrC9P/preview','Gestion du Risque','https://drive.google.com/uc?export=download&id=1Low5Nj-km7gQwS3b_eOpj64FZs1TrC9P')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1Low5Nj-km7gQwS3b_eOpj64FZs1TrC9P/preview','Gestion du Risque','https://drive.google.com/uc?export=download&id=1Low5Nj-km7gQwS3b_eOpj64FZs1TrC9P')">
         <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 04</div>
           <div class="pdf-title">Gestion du Risque</div>
-          <div class="pdf-size">11.3 KB</div>
+          <div class="pdf-size">11.3 kb</div>
         </div>
       </div>
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1ThwdFM4CJH7Ko52W1XLIWAf7dtlC2CyI/preview','Psychologie du Trader','https://drive.google.com/uc?export=download&id=1ThwdFM4CJH7Ko52W1XLIWAf7dtlC2CyI')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1ThwdFM4CJH7Ko52W1XLIWAf7dtlC2CyI/preview','Psychologie du Trader','https://drive.google.com/uc?export=download&id=1ThwdFM4CJH7Ko52W1XLIWAf7dtlC2CyI')">
         <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 05</div>
           <div class="pdf-title">Psychologie du Trader</div>
-          <div class="pdf-size">11.1 KB</div>
+          <div class="pdf-size">11.1 kb</div>
         </div>
       </div>
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1lFlAlqvoKWq1iIKZpNlWeyQ7XLFn_OYM/preview','Stratégies Avancées','https://drive.google.com/uc?export=download&id=1lFlAlqvoKWq1iIKZpNlWeyQ7XLFn_OYM')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1lFlAlqvoKWq1iIKZpNlWeyQ7XLFn_OYM/preview','Stratégies Avancées','https://drive.google.com/uc?export=download&id=1lFlAlqvoKWq1iIKZpNlWeyQ7XLFn_OYM')">
         <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 06</div>
           <div class="pdf-title">Stratégies Avancées</div>
-          <div class="pdf-size">12.8 KB</div>
+          <div class="pdf-size">12.8 kb</div>
         </div>
       </div>
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1KZGoKND6xIDK1iB8oiDy8BNp26hRKbxD/preview','Préparation Pratique','https://drive.google.com/uc?export=download&id=1KZGoKND6xIDK1iB8oiDy8BNp26hRKbxD')">
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1KZGoKND6xIDK1iB8oiDy8BNp26hRKbxD/preview','Préparation Pratique','https://drive.google.com/uc?export=download&id=1KZGoKND6xIDK1iB8oiDy8BNp26hRKbxD')">
         <div class="pdf-icon" style="background:rgba(91,33,182,0.15);border-color:rgba(91,33,182,0.3);color:#C4B5FD;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;">PDF</div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 07</div>
           <div class="pdf-title">Préparation Pratique</div>
-          <div class="pdf-size">10.4 KB</div>
+          <div class="pdf-size">10.4 kb</div>
         </div>
       </div>
     </div>
@@ -470,11 +479,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <!-- SECTION OR -->
       <div style="grid-column:1/-1;margin:16px 0 8px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:12px">🥇 SÉRIE OR — XAUUSD<span style="flex:1;height:1px;background:rgba(245,158,11,0.2);display:block"></span></div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:12px"> série or — XAUUSD<span style="flex:1;height:1px;background:rgba(245,158,11,0.2);display:block"></span></div>
       </div>
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1raOwAR12L0oPPLuj52kf5HrG7WRurEjn/preview','Comprendre l\'Or Comme Actif Financier','https://drive.google.com/uc?export=download&id=1raOwAR12L0oPPLuj52kf5HrG7WRurEjn')">
-        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;">🥇</div>
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1raOwAR12L0oPPLuj52kf5HrG7WRurEjn/preview','Comprendre l\'Or Comme Actif Financier','https://drive.google.com/uc?export=download&id=1raOwAR12L0oPPLuj52kf5HrG7WRurEjn')">
+        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;"></div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 08</div>
           <div class="pdf-title">Comprendre l'Or Comme Actif Financier</div>
@@ -482,8 +491,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1xExENFWAYRpFr-wwlY5q61UYkglYAmdq/preview','Les Facteurs qui Font Bouger l\'Or','https://drive.google.com/uc?export=download&id=1xExENFWAYRpFr-wwlY5q61UYkglYAmdq')">
-        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;">🥇</div>
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1xExENFWAYRpFr-wwlY5q61UYkglYAmdq/preview','Les Facteurs qui Font Bouger l\'Or','https://drive.google.com/uc?export=download&id=1xExENFWAYRpFr-wwlY5q61UYkglYAmdq')">
+        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;"></div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 09</div>
           <div class="pdf-title">Les Facteurs qui Font Bouger l'Or</div>
@@ -491,8 +500,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1xJPJUdNOkAs_hTPt_01jiTENxMXdWdg0/preview','Lire le Graphique XAUUSD comme un Pro','https://drive.google.com/uc?export=download&id=1xJPJUdNOkAs_hTPt_01jiTENxMXdWdg0')">
-        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;">🥇</div>
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1xJPJUdNOkAs_hTPt_01jiTENxMXdWdg0/preview','Lire le Graphique XAUUSD comme un Pro','https://drive.google.com/uc?export=download&id=1xJPJUdNOkAs_hTPt_01jiTENxMXdWdg0')">
+        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;"></div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 10</div>
           <div class="pdf-title">Lire le Graphique XAUUSD comme un Pro</div>
@@ -500,8 +509,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1t6NzPSTpNDVm91GpFMClnE7oPTATLTrG/preview','Stratégies de Trading sur l\'Or','https://drive.google.com/uc?export=download&id=1t6NzPSTpNDVm91GpFMClnE7oPTATLTrG')">
-        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;">🥇</div>
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1t6NzPSTpNDVm91GpFMClnE7oPTATLTrG/preview','Stratégies de Trading sur l\'Or','https://drive.google.com/uc?export=download&id=1t6NzPSTpNDVm91GpFMClnE7oPTATLTrG')">
+        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;"></div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 11</div>
           <div class="pdf-title">Stratégies de Trading sur l'Or</div>
@@ -509,8 +518,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1efP-whhnYfQ09XRka-ETKLhEIUUtzfmz/preview','Money Management Spécifique à l\'Or','https://drive.google.com/uc?export=download&id=1efP-whhnYfQ09XRka-ETKLhEIUUtzfmz')">
-        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;">🥇</div>
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1efP-whhnYfQ09XRka-ETKLhEIUUtzfmz/preview','Money Management Spécifique à l\'Or','https://drive.google.com/uc?export=download&id=1efP-whhnYfQ09XRka-ETKLhEIUUtzfmz')">
+        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;"></div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 12</div>
           <div class="pdf-title">Money Management Spécifique à l'Or</div>
@@ -518,8 +527,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/18hbWOlZLpiIheOsNmXcsONAeYXUlqXN1/preview','Études de Cas Historiques sur l\'Or','https://drive.google.com/uc?export=download&id=18hbWOlZLpiIheOsNmXcsONAeYXUlqXN1')">
-        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;">🥇</div>
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/18hbWOlZLpiIheOsNmXcsONAeYXUlqXN1/preview','Études de Cas Historiques sur l\'Or','https://drive.google.com/uc?export=download&id=18hbWOlZLpiIheOsNmXcsONAeYXUlqXN1')">
+        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;"></div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 13</div>
           <div class="pdf-title">Études de Cas Historiques sur l'Or</div>
@@ -527,8 +536,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <div class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1mKO81-1wQQWOpBuO1rniQWnkY26i_Bj0/preview','Plan de Trading Complet XAUUSD','https://drive.google.com/uc?export=download&id=1mKO81-1wQQWOpBuO1rniQWnkY26i_Bj0')">
-        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;">🥇</div>
+      <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="pdf-card" onclick="openPDF('https://drive.google.com/file/d/1mKO81-1wQQWOpBuO1rniQWnkY26i_Bj0/preview','Plan de Trading Complet XAUUSD','https://drive.google.com/uc?export=download&id=1mKO81-1wQQWOpBuO1rniQWnkY26i_Bj0')">
+        <div class="pdf-icon" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:#F59E0B;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;"></div>
         <div class="pdf-info">
           <div class="pdf-num">PDF 14</div>
           <div class="pdf-title">Plan de Trading Complet XAUUSD</div>
@@ -551,8 +560,8 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="fc-feature">Accès à vie au contenu</div>
         <div class="fc-feature">Support personnalisé</div>
       </div>
-      {%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO%20et%20je%20souhaite%20acc%C3%A9der%20%C3%A0%20la%20formation%20compl%C3%A8te." target="_blank" class="fc-cta">
-        Accéder à la formation complète →
+      {%- if vip_support_href(member) %}<a href="{{ vip_support_href(member) }}" class="fc-cta">
+        Accéder à la formation complète 
       </a>{%- endif %}
     </div>
   </div>
@@ -571,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="modal-box video-modal">
     <div class="modal-header">
       <div class="modal-title" id="videoTitle">Vidéo</div>
-      <button class="modal-close" onclick="closeVideo()">×</button>
+      <button class="modal-close" aria-label="Fermer la vidéo" onclick="closeVideo()">×</button>
     </div>
     <div class="modal-video">
       <iframe id="videoIframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
@@ -585,8 +594,8 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="modal-header">
       <div class="modal-title" id="pdfTitle">PDF</div>
       <div class="modal-actions">
-        <a id="pdfDownload" href="#" target="_blank" class="modal-download">⬇ Télécharger</a>
-        <button class="modal-close" onclick="closePDF()">×</button>
+        <a id="pdfDownload" href="#" target="_blank" class="modal-download"> Télécharger</a>
+        <button class="modal-close" aria-label="Fermer le document" onclick="closePDF()">×</button>
       </div>
     </div>
     <div class="modal-pdf">
@@ -596,7 +605,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- WA FLOAT -->
-{%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
+{%- if vip_support_href(member) %}<a href="{{ vip_support_href(member) }}" class="wa-float" aria-label="Ouvrir le support VIP">
   <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
 </a>{%- endif %}
 
@@ -701,5 +710,6 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').c
 {% include "_mobile_nav.html" %}
 
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

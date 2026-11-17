@@ -32,8 +32,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260826m1">
   <link rel="stylesheet" href="/static/css/referral-hub.css?v=20260825a">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body class="member-fintech referral-page">
+<body data-ui-screen="parrainage" class="product-workspace academy-universe member-fintech referral-page">
+{% include "partials/academy_ambient.html" %}
+{% set workspace_screen = "parrainage" %}{% include "partials/workspace_rail.html" %}
+
   <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
     <symbol id="ri-arrow-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></symbol>
     <symbol id="ri-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></symbol>
@@ -60,7 +68,7 @@
     <div class="ref-topbar-inner">
       <a class="ref-brand" href="/accueil" aria-label="Bectanse Académie — Accueil">
         <span class="ref-brand-mark" aria-hidden="true"></span>
-        <span class="ref-brand-copy"><strong>BECTANSE ACADÉMIE</strong><span>Programme Ambassadeur</span></span>
+        <span class="ref-brand-copy"><strong>Bectanse Académie</strong><span>Programme Ambassadeur</span></span>
       </a>
       <a class="ref-back" href="/accueil"><svg class="ref-icon"><use href="#ri-arrow-left"></use></svg><span>Retour à l’accueil</span></a>
     </div>
@@ -73,7 +81,7 @@
     <section class="ref-hero">
       <article class="ref-card ref-hero-copy ref-reveal">
         <div class="ref-eyebrow"><i></i> Programme réservé aux membres actifs</div>
-        <h1>Ton réseau peut devenir <span>un véritable revenu.</span></h1>
+        <h1>Ton réseau peut devenir <span>un véritable revenu</span></h1>
         <p class="ref-hero-lead">Tu recommandes un écosystème que tu connais déjà. Chaque filleul validé te rapporte <strong>50 € minimum</strong> et te rapproche de récompenses pouvant transformer ton accès à l’Académie.</p>
         <div class="ref-hero-actions">
           <button class="ref-btn ref-btn-primary" type="button" data-share="native"><svg class="ref-icon"><use href="#ri-share"></use></svg>Partager mon invitation</button>
@@ -160,7 +168,7 @@
     </section>
 
     <section class="ref-section ref-reveal" aria-labelledby="process-title">
-      <div class="ref-section-head"><div><div class="ref-kicker">Processus</div><h2 id="process-title">Trois étapes. Aucun travail compliqué.</h2></div><p>Ton lien s’occupe du rattachement. L’équipe valide l’accès. Ton espace met ensuite ta progression à jour.</p></div>
+      <div class="ref-section-head"><div><div class="ref-kicker">Processus</div><h2 id="process-title">Trois étapes. Aucun travail compliqué</h2></div><p>Ton lien s’occupe du rattachement. L’équipe valide l’accès. Ton espace met ensuite ta progression à jour.</p></div>
       <div class="ref-process">
         <article class="ref-card ref-step"><div class="ref-step-head"><span class="ref-step-index">01</span><span class="ref-step-icon"><svg class="ref-icon"><use href="#ri-share"></use></svg></span></div><h3>Tu partages ton invitation</h3><p>WhatsApp, Telegram ou n’importe quelle application grâce au partage natif du téléphone.</p></article>
         <article class="ref-card ref-step"><div class="ref-step-head"><span class="ref-step-index">02</span><span class="ref-step-icon"><svg class="ref-icon"><use href="#ri-user-plus"></use></svg></span></div><h3>Ton contact rejoint Bectanse</h3><p>Il découvre l’offre via ta page personnelle et complète son accès avec ton code déjà rattaché.</p></article>
@@ -169,7 +177,7 @@
     </section>
 
     <section class="ref-section ref-card ref-message-card ref-reveal">
-      <div><div class="ref-kicker">Message prêt à envoyer</div><h3>Tu ne sais pas quoi écrire ? Utilise ce message.</h3><blockquote class="ref-message-preview">« Je voulais te partager Bectanse Académie. C’est l’écosystème que j’utilise pour accéder au robot Bectanse AUTO, au Canal VIP, à la formation et aux outils de trading. Tu peux découvrir les accès ici. »</blockquote></div>
+      <div><div class="ref-kicker">Message prêt à envoyer</div><h3>Tu ne sais pas quoi écrire ? Utilise ce message</h3><blockquote class="ref-message-preview">« Je voulais te partager Bectanse Académie. C’est l’écosystème que j’utilise pour accéder au robot Bectanse AUTO, au Canal VIP, à la formation et aux outils de trading. Tu peux découvrir les accès ici. »</blockquote></div>
       <button class="ref-btn ref-btn-secondary" type="button" data-share="message"><svg class="ref-icon"><use href="#ri-copy"></use></svg>Copier le message</button>
     </section>
 
@@ -196,7 +204,7 @@
         </div>
         <div class="ref-form" data-payment-panel="crypto" {{ '' if member.paiement_type == 'crypto' else 'hidden' }}>
           <div class="ref-form-grid">
-            <div class="ref-field"><label for="pay-reseau">Réseau</label><select id="pay-reseau"><option value="TRC20" {{ 'selected' if member.paiement_crypto_reseau == 'TRC20' }}>USDT · TRC20</option><option value="ERC20" {{ 'selected' if member.paiement_crypto_reseau == 'ERC20' }}>USDT · ERC20</option><option value="BEP20" {{ 'selected' if member.paiement_crypto_reseau == 'BEP20' }}>USDT · BEP20</option><option value="BTC" {{ 'selected' if member.paiement_crypto_reseau == 'BTC' }}>Bitcoin · BTC</option><option value="ETH" {{ 'selected' if member.paiement_crypto_reseau == 'ETH' }}>Ethereum · ETH</option></select></div>
+            <div class="ref-field"><label for="pay-reseau">Réseau</label><select id="pay-reseau"><option value="TRC20" {{ 'selected' if member.paiement_crypto_reseau == 'TRC20' }}>Usdt · trc20</option><option value="ERC20" {{ 'selected' if member.paiement_crypto_reseau == 'ERC20' }}>Usdt · erc20</option><option value="BEP20" {{ 'selected' if member.paiement_crypto_reseau == 'BEP20' }}>Usdt · bep20</option><option value="BTC" {{ 'selected' if member.paiement_crypto_reseau == 'BTC' }}>Bitcoin · BTC</option><option value="ETH" {{ 'selected' if member.paiement_crypto_reseau == 'ETH' }}>Ethereum · ETH</option></select></div>
             <div class="ref-field"><label for="pay-adresse">Adresse du wallet</label><input id="pay-adresse" type="text" autocomplete="off" maxlength="220" spellcheck="false" value="{{ member.paiement_crypto_adresse|default('',true)|e }}" placeholder="0x... ou T..."></div>
           </div>
           <button class="ref-btn ref-btn-primary" type="button" data-save-payment="crypto">Enregistrer le wallet</button>
@@ -225,5 +233,6 @@
   <script src="/static/analytics.js" defer></script>
   <script src="/static/referral-hub.js?v=20260825a" defer></script>
   <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

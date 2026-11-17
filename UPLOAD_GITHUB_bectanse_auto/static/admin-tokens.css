@@ -1,0 +1,13 @@
+/* Shared administration design tokens. Member-facing styles are not affected. */
+:root{
+ --admin-bg:#f4f3f0;--admin-surface:#ffffff;--admin-surface-muted:#faf9f7;
+ --admin-primary:#b7502b;--admin-primary-hover:#943c20;--admin-primary-soft:#f8ece6;
+ --admin-text:#282b2e;--admin-text-muted:#666c71;--admin-text-subtle:#747b81;
+ --admin-border:#e3e2de;--admin-border-strong:#d4d5d1;
+ --admin-success:#25826b;--admin-success-soft:#edf7f1;
+ --admin-warning:#9a752e;--admin-warning-soft:#fcf6e8;
+ --admin-danger:#b04458;--admin-danger-soft:#fff3f5;
+ --admin-radius-sm:8px;--admin-radius-md:14px;--admin-radius-lg:20px;
+ --admin-shadow-card:0 4px 18px rgba(35,25,80,.045);
+ --admin-control-height:38px;--admin-space-sm:8px;--admin-space-md:16px;--admin-space-lg:24px;
+}

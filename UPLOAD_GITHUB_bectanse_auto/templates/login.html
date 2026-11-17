@@ -737,14 +737,22 @@ button, input { font: inherit; }
 <meta name="apple-mobile-web-app-title" content="Bectanse Académie">
 <link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
 <link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=3">
+<link rel="stylesheet" href="/static/css/academy-access.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
+<body data-ui-screen="login" class="academy-universe">
+{% include "partials/academy_ambient.html" %}
+
 <div class="page-bg" aria-hidden="true"></div>
 
 <header class="topbar">
   <a class="brand" href="/" aria-label="Bectanse Académie — Accueil">
     <span class="brand-mark" aria-hidden="true"></span>
-    <span>BECTANSE <strong>ACADÉMIE</strong></span>
+    <span>Bectanse <strong>Académie</strong></span>
   </a>
   <div class="topbar-actions">
     <div class="topbar-status"><span class="status-dot" aria-hidden="true"></span>Espace sécurisé</div>
@@ -755,30 +763,14 @@ button, input { font: inherit; }
 <main class="login-shell">
   <section class="member-intro" aria-labelledby="member-intro-title">
     <div class="eyebrow">Espace membre</div>
-    <h1 id="member-intro-title">Ton espace de <span>pilotage.</span></h1>
-    <p class="intro-copy">Accède à ton espace personnel pour gérer ton compte.</p>
+    <h1 id="member-intro-title">Reprends là où<br><span>tu en étais</span></h1>
+    <p class="intro-copy">Ta formation, tes outils et ton suivi réunis dans une seule application</p>
 
-    <div class="system-grid" aria-label="État des services Bectanse Académie">
-      <article class="system-card">
-        <div class="system-label">Système automatique</div>
-        <div class="system-value live">Robot connecté</div>
-      </article>
-      <article class="system-card">
-        <div class="system-label">Synchronisation</div>
-        <div class="system-value">MT4 / MT5</div>
-      </article>
-      <article class="system-card">
-        <div class="system-label">Gestion</div>
-        <div class="system-value">Tous tes services</div>
-        <div class="system-detail">Formation · Calculateur de lot · Canal VIP</div>
-      </article>
-    </div>
-
-    <div class="signal-line" aria-hidden="true">
-      <strong>Bectanse Auto Engine</strong>
-      <span>Connexion en temps réel</span>
-      <i class="signal-track"></i>
-    </div>
+    <ol class="access-overview" aria-label="Les espaces de l’application">
+      <li><span>01</span><div><strong>Apprendre à ton rythme</strong><p>Ta formation et tes prochaines étapes dans Bectanse Progress</p></div></li>
+      <li><span>02</span><div><strong>Préparer tes décisions</strong><p>Les outils d’analyse, le simulateur et le canal VIP</p></div></li>
+      <li><span>03</span><div><strong>Suivre ta progression</strong><p>Ton journal et tes réglages réunis dans ton espace</p></div></li>
+    </ol>
   </section>
 
   <section class="access-panel" aria-labelledby="login-title">
@@ -790,7 +782,7 @@ button, input { font: inherit; }
       <span class="error-icon" aria-hidden="true">!</span>
       <span>{{ error }}</span>
     </div>
-    {% if notice %}<div class="notice-box" role="status"><span>✓</span><span>{{ notice }}</span></div>{% endif %}
+    {% if notice %}<div class="notice-box" role="status"><span></span><span>{{ notice }}</span></div>{% endif %}
 
     <form method="POST">
       <div class="field">
@@ -802,26 +794,18 @@ button, input { font: inherit; }
             type="text"
             name="code"
             placeholder="BCT-XXXXXXXX"
-            autocomplete="off"
+            autocomplete="username"
+            aria-describedby="member-code-help"
             autocorrect="off"
             autocapitalize="characters"
             spellcheck="false"
-            autofocus
             required
           >
         </div>
       </div>
-      <button type="submit" class="btn-login">Accéder à mon espace&nbsp; →</button>
+      <p id="member-code-help" class="access-help">Retrouve ton code dans ton e-mail de bienvenue</p>
+      <button type="submit" class="btn-login">Accéder à mon espace&nbsp; </button>
     </form>
-
-    <div class="social-proof" aria-label="3 937 membres ont déjà rejoint Bectanse">
-      <div class="proof-avatars" aria-hidden="true">
-        <span class="proof-avatar">S</span>
-        <span class="proof-avatar">W</span>
-        <span class="proof-avatar">G</span>
-      </div>
-      <span class="proof-copy"><strong>3 937 membres</strong> ont déjà rejoint Bectanse</span>
-    </div>
 
     <div class="demo-access">
       <div class="demo-divider">Ou découvrir avant de rejoindre</div>
@@ -829,12 +813,12 @@ button, input { font: inherit; }
         <input type="hidden" name="code" value="BCT-DEMO2026">
         {% if explorer_gate_enabled %}
         <div class="demo-fields">
-          <input type="text" name="demo_prenom" placeholder="Ton prénom" autocomplete="given-name" required>
-          <input type="email" name="demo_email" placeholder="Ton adresse e-mail" autocomplete="email" required>
+          <input aria-label="Ton prénom" type="text" name="demo_prenom" placeholder="Ton prénom" autocomplete="given-name" required>
+          <input aria-label="Ton adresse e-mail" type="email" name="demo_email" placeholder="Ton adresse e-mail" autocomplete="email" required>
         </div>
         <label class="demo-consent">
           <input type="checkbox" name="demo_consent" value="yes" required>
-          <span>J’accepte de recevoir mon accès Explorer et les informations de Bectanse Académie.</span>
+          <span>J’accepte de recevoir mon accès Explorer et les informations de Bectanse Académie</span>
         </label>
         {% endif %}
         <button type="submit" class="btn-demo" aria-label="Explorer l'espace Bectanse en mode démonstration">
@@ -842,17 +826,17 @@ button, input { font: inherit; }
             <strong>Explorer en mode démo</strong>
             <small>{% if explorer_gate_enabled %}E-mail vérifié · accès gratuit · lecture seule{% else %}Accès immédiat · lecture seule{% endif %}</small>
           </span>
-          <span class="demo-arrow" aria-hidden="true">→</span>
+          <span class="demo-arrow" aria-hidden="true"></span>
         </button>
-        {% if explorer_gate_enabled %}<small class="demo-verify">Aucun faux contact : l’accès s’ouvre après confirmation de l’adresse.</small>{% endif %}
+        {% if explorer_gate_enabled %}<small class="demo-verify">Confirme ton adresse e-mail pour ouvrir ton accès Explorer</small>{% endif %}
       </form>
     </div>
 
-    <div class="status-line"><span class="status-dot" aria-hidden="true"></span>Système actif</div>
+
 
     <div class="support-row">
       <span>Code perdu ?</span>
-      <a href="https://t.me/lerisluketobot" target="_blank" rel="noopener noreferrer">Contacter le support →</a>
+      <a href="https://t.me/lerisluketobot" target="_blank" rel="noopener noreferrer">Contacter le support </a>
     </div>
 
     <div class="join-panel">
@@ -886,5 +870,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

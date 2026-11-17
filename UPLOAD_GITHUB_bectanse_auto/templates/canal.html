@@ -95,7 +95,7 @@ html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark
   flex:1;overflow-y:auto;
   padding:20px 20px 16px;
   display:flex;flex-direction:column;gap:4px;
-  scroll-behavior:smooth
+  scroll-behavior:auto
 }
 .chat-feed::-webkit-scrollbar{width:4px}
 .chat-feed::-webkit-scrollbar-track{background:transparent}
@@ -294,6 +294,10 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/member-fintech.css') }}?v=20260803">
+<style>
+.reaction-options{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}.reaction{border:1px solid #ffffff18;border-radius:20px;background:#ffffff08;color:inherit;padding:5px 9px;min-height:32px;cursor:pointer}.reaction[aria-pressed=true]{border-color:#ff742d;background:#ff742d20}.reaction-count{margin-left:4px;font-size:12px}
+@media(max-width:932px){html,body{height:var(--app-viewport-height,100dvh);min-height:0;overflow:hidden}body{padding-bottom:0!important}.app{display:block;height:var(--app-viewport-height,100dvh);min-height:0;width:100%;padding:0!important}.sidebar{display:none}.m-topbar{display:flex;height:calc(52px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px)}.canal-wrap{margin:0;padding-top:calc(52px + env(safe-area-inset-top,0px));height:calc(var(--app-viewport-height,100dvh) - var(--m-app-nav-height,72px) - env(safe-area-inset-bottom,0px));min-height:0;width:100%}.chat-feed{min-height:0;flex:1;overscroll-behavior:contain}.bubble-col{max-width:calc(100vw - 72px)}.bubble-text{overflow-wrap:anywhere}.bubble-img img{max-width:100%}}
+</style><link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
 <body class="member-fintech">
 {%- if demo_mode %}
@@ -360,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <a class="nav-item" href="/dashboard"><span style="font-size:15px">⚙️</span> Mes paramètres</a>
       <a class="nav-item active" href="/canal"><span style="font-size:15px">📡</span> Canal VIP</a>
       <a class="nav-item" href="/vip" style="color:#F59E0B;"><span style="font-size:15px">🚀</span> Renouveler / Upgrader</a>
-      {%- if not demo_mode %}<a class="nav-item" href="https://wa.me/436785328698?text=Bonjour" target="_blank"><span style="font-size:15px">💬</span> Discuter avec un agent</a>{%- endif %}
+      {%- if vip_support_href(member) %}<a class="nav-item" href="{{ vip_support_href(member) }}"><span style="font-size:15px">💬</span> Support VIP</a>{%- endif %}
       <a class="nav-item" href="/calculateur"><span style="font-size:15px">📐</span> Calculateur</a>
       <a class="nav-item" href="/formation" style="color:#C4B5FD;"><span style="font-size:15px">🎓</span> Formation</a>
       <a class="nav-item" href="/parrainage" style="color:#FFD700;"><span style="font-size:15px">🎁</span> Parrainage VIP</a>
@@ -438,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- WA FLOAT -->
-{%- if not demo_mode %}<a href="https://wa.me/436785328698?text=Bonjour%2C%20je%20suis%20membre%20Bectanse%20AUTO." target="_blank" class="wa-float">
+{%- if vip_support_href(member) %}<a href="{{ vip_support_href(member) }}" class="wa-float" aria-label="Ouvrir le support VIP">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
 </a>{%- endif %}
 
@@ -466,13 +470,15 @@ function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').r
 function linkify(s){ return s.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank">$1</a>') }
 
 function formatDay(dt){
-  const now = new Date();
-  const today = new Date(now.toLocaleString('en-US',{timeZone:'Europe/Paris'}));
-  const d = new Date(new Date(dt).toLocaleString('en-US',{timeZone:'Europe/Paris'}));
-  if(d.toDateString()===today.toDateString()) return "Aujourd'hui";
-  const yest = new Date(today); yest.setDate(yest.getDate()-1);
-  if(d.toDateString()===yest.toDateString()) return 'Hier';
-  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const options={timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'};
+  const key=d=>new Intl.DateTimeFormat('en-CA',options).format(d);
+  const date=new Date(dt),today=new Date();
+  const parts=new Intl.DateTimeFormat('en-CA',options).formatToParts(today);
+  const part=t=>Number(parts.find(p=>p.type===t).value);
+  const yesterday=new Date(Date.UTC(part('year'),part('month')-1,part('day')-1,12));
+  if(key(date)===key(today))return "Aujourd'hui";
+  if(key(date)===key(yesterday))return 'Hier';
+  return date.toLocaleDateString('fr-FR',{timeZone:'Europe/Paris',day:'numeric',month:'long',year:'numeric'});
 }
 
 function formatTime(dt){
@@ -495,6 +501,23 @@ function syncCursors(msgs){
   oldestId = Math.min(oldestId || ids[0], ...ids);
 }
 
+// Keep message nodes and the visible reading anchor across polling and media loads.
+let feedRenderKeys=new Map();
+let feedAnchor=null;
+function captureFeedAnchor(){
+ const feed=document.getElementById('chat-feed'),top=feed.getBoundingClientRect().top;
+ const node=[...feed.querySelectorAll('.bubble-wrap')].find(el=>el.getBoundingClientRect().bottom>top);
+ return node?{id:node.dataset.id,offset:node.getBoundingClientRect().top-top}:null;
+}
+function restoreFeedAnchor(anchor){
+ if(!anchor)return;
+ const feed=document.getElementById('chat-feed');
+ const node=[...feed.querySelectorAll('.bubble-wrap')].find(el=>el.dataset.id===anchor.id);
+ if(node)feed.scrollTop+=node.getBoundingClientRect().top-feed.getBoundingClientRect().top-anchor.offset;
+}
+const feedSizeObserver=typeof ResizeObserver==='undefined'?null:new ResizeObserver(()=>{
+ if(isAtBottom)scrollToBottom();else restoreFeedAnchor(feedAnchor);
+});
 function buildFeed(msgs){
   const feed = document.getElementById('chat-feed');
   const empty = document.getElementById('empty-state');
@@ -512,6 +535,7 @@ function buildFeed(msgs){
   }
 
   const scrolledToBottom = isAtBottom;
+  const anchor=captureFeedAnchor();
   let html = '';
   let lastDay = '';
 
@@ -527,7 +551,6 @@ function buildFeed(msgs){
     const showAvatar = true;
     const [tagLabel, tagCls] = TYPE_TAG[m.msg_type] || TYPE_TAG.message;
     const tagHtml = tagLabel ? `<div class="bubble-type-tag ${tagCls}">${tagLabel}</div>` : '';
-    const editHtml = m.edited ? '<span class="bubble-edited"> · modifié</span>' : '';
     const imgHtml = m.photo_url ? `<div class="bubble-img"><img src="${m.photo_url}" alt="image" loading="lazy" onerror="this.parentElement.remove()"></div>` : '';
     const audioHtml = m.audio_url ? `<div class="bubble-audio"><audio controls preload="none"><source src="${m.audio_url}" type="audio/ogg"><source src="${m.audio_url}" type="audio/mpeg">Ton navigateur ne supporte pas l'audio.</audio></div>` : '';
     const delBtn = IS_ADMIN ? `<button class="bubble-del-btn" onclick="supprimerMsg(${m.id},this)" title="Supprimer">✕</button>` : '';
@@ -538,18 +561,37 @@ function buildFeed(msgs){
       <div class="bubble-col">
         <div class="bubble-meta">
           <span class="bubble-author">Bectanse AUTO</span>
-          <span class="bubble-time">${formatTime(m.sent_at)}${editHtml}</span>
+          <span class="bubble-time">${formatTime(m.sent_at)}</span>
         </div>
         <div class="bubble type-${m.msg_type}">
-          ${delBtn}${tagHtml}${textHtml}${imgHtml}${audioHtml}
+          ${delBtn}${tagHtml}${textHtml}${imgHtml}${audioHtml}<div data-reactions="${Number(m.id)}"></div>
         </div>
       </div>
     </div>`;
   });
 
-  feed.innerHTML = html;
+  const previousTop=feed.scrollTop;
+  const fragment=document.createElement('template');fragment.innerHTML=html;
+  const existing=new Map([...feed.querySelectorAll('.bubble-wrap')].map(el=>[el.dataset.id,el]));
+  const keys=new Map(sorted.map(m=>[String(m.id),JSON.stringify([m.msg_type,m.text_content,m.photo_url,m.audio_url,m.sent_at])]));
+  const dayNodes=new Map([...feed.querySelectorAll('.date-sep')].map(el=>[el.textContent,el]));
+  const desired=[...fragment.content.children].map(el=>{
+    const id=el.dataset.id;
+    if(!id)return dayNodes.get(el.textContent)||el;
+    return id&&existing.has(id)&&feedRenderKeys.get(id)===keys.get(id)?existing.get(id):el;
+  });
+  feedSizeObserver?.disconnect();
+  let cursor=feed.firstElementChild;
+  desired.forEach(el=>{if(el===cursor)cursor=cursor.nextElementSibling;else feed.insertBefore(el,cursor)});
+  while(cursor){const next=cursor.nextElementSibling;cursor.remove();cursor=next}
+  feedRenderKeys=keys;
+  if(!scrolledToBottom){feed.scrollTop=previousTop;restoreFeedAnchor(anchor)}
+  feedAnchor=captureFeedAnchor();
+  feed.querySelectorAll('.bubble-wrap').forEach(el=>feedSizeObserver?.observe(el));
+  if(window.refreshReactions)refreshReactions();
   updateCount(filtered.length);
   if(scrolledToBottom) scrollToBottom();
+  feedAnchor=captureFeedAnchor();
 }
 
 function mergeMessages(existing, incoming){
@@ -571,11 +613,19 @@ function scrollToBottom(){
   feed.scrollTop = feed.scrollHeight;
 }
 
+// Only an intentional scroll changes follow mode; media reflow must not disable it.
+let userScrollUntil=0;
+const conversation=document.getElementById('chat-feed');
+['wheel','touchmove','keydown'].forEach(type=>conversation.addEventListener(type,()=>{userScrollUntil=performance.now()+1200},{passive:true}));
+conversation.addEventListener('pointerdown',()=>{userScrollUntil=performance.now()+1200},{passive:true});
 // Détecter si on est en bas
 document.getElementById('chat-feed').addEventListener('scroll', function(){
   const feed = this;
+  if(performance.now()>userScrollUntil)return;
+  userScrollUntil=performance.now()+300;
   isAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60;
-  if(feed.scrollTop < 120 && hasMoreOlder){
+  feedAnchor=captureFeedAnchor();
+  if(feed.scrollTop < 120 && !isAtBottom && hasMoreOlder){
     loadOlderMessages();
   }
 });
@@ -611,7 +661,7 @@ async function loadOlderMessages(){
   loadingOlder = true;
   setHistoryLoader(true);
   const feed = document.getElementById('chat-feed');
-  const beforeHeight = feed.scrollHeight;
+
   try{
     const r = await fetch(`/api/canal/messages?before=${oldestId}&limit=50`);
     const data = await r.json();
@@ -620,8 +670,7 @@ async function loadOlderMessages(){
       allMsgs = mergeMessages(allMsgs, older);
       syncCursors(older);
       buildFeed(allMsgs);
-      const afterHeight = feed.scrollHeight;
-      feed.scrollTop += (afterHeight - beforeHeight);
+
     }
     hasMoreOlder = Boolean(data.has_more_older);
   }catch(e){
@@ -653,17 +702,22 @@ async function supprimerMsg(msgId, btn){
 }
 
 // POLLING
+let pollBusy=false;
 async function poll(){
+  if(pollBusy || document.hidden)return;
+  pollBusy=true;
   try{
-    const r = await fetch(`/api/canal/messages?after=${lastId}`);
+    const r = await fetch(`/api/canal/messages?after=${lastId}&refresh=${allMsgs.slice(-200).map(m=>m.id).join(",")}`);
     const data = await r.json();
     const news = data.messages||[];
-    if(news.length>0){
-      allMsgs = mergeMessages(allMsgs, news);
+    if(news.length>0 || data.removed_ids?.length){
+      const next=mergeMessages(allMsgs.filter(m=>!(data.removed_ids||[]).includes(m.id)),news);
+      if(JSON.stringify(next)===JSON.stringify(allMsgs))return;
+      allMsgs=next;
       syncCursors(news);
       buildFeed(allMsgs);
     }
-  }catch{}
+  }catch{}finally{pollBusy=false;}
 }
 
 // ADMIN — type
@@ -743,6 +797,7 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').cat
 </style>
 {% include "_mobile_nav.html" %}
 
+<div id="reaction-status" role="status" aria-live="polite" style="position:fixed;top:0;left:0;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></div><script src="/static/js/canal-reactions.js?v=20261011-restore"></script>
 <script src="/static/push.js"></script>
 
 <script src="/static/source-guard.js" defer></script>

@@ -1,5 +1,5 @@
 // Bectanse Académie — Service Worker PWA + Web Push
-const CACHE = 'bectanse-academie-v11';
+const CACHE = 'bectanse-academie-v12';
 const ASSETS = ['/static/manifest.json', '/static/icons/bectanse-icon-v2-192.png', '/static/icons/bectanse-icon-v2-512.png'];
 const BADGE_DB = 'bectanse-notification-state';
 const BADGE_STORE = 'state';
@@ -85,7 +85,8 @@ self.addEventListener('push', e => {
   } catch {}
 
   e.waitUntil((async () => {
-    const badgeCount = await incrementBadge();
+    let badgeCount = 0;
+    try { badgeCount = await incrementBadge(); } catch (_) {}
     await self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/static/icons/icon-192.png',

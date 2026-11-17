@@ -224,6 +224,13 @@ def indexable_pages():
             "changefreq": "weekly",
         },
         {
+            "path": "/lerisluketo",
+            "title": "Leris Luketo — Mon histoire, ma communauté, mon Académie",
+            "description": "Découvre le parcours de Leris Luketo, rejoins son canal Telegram et explore Bectanse Académie.",
+            "priority": "0.8",
+            "changefreq": "monthly",
+        },
+        {
             "path": "/guides",
             "title": "Guides trading gratuits — Bectanse Académie",
             "description": "Des guides clairs sur le XAU/USD, le risque, le journal de trading, la psychologie et les outils d’analyse.",
@@ -279,7 +286,7 @@ def _structured_organization():
                 "url": f"{SITE_URL}/vip",
                 "logo": f"{SITE_URL}/static/icons/bectanse-app-icon-master.png",
                 "founder": {"@type": "Person", "name": "Leris Luketo"},
-                "legalName": "LERIS CORP FZCO",
+                "legalName": "BECTANSE L.L.C.",
                 "description": "Académie en ligne consacrée à la formation, à la discipline et aux outils d’accompagnement des traders.",
             },
             {
@@ -511,4 +518,3 @@ def register_seo_features(app, admin_required, get_conn):
             except Exception:
                 pass
         return response
-

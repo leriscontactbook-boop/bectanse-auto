@@ -1,0 +1,12 @@
+{% from '_mobile_nav.html' import nav_icon %}
+<aside class="workspace-rail" aria-label="Navigation de l’Académie">
+  <a class="workspace-brand" href="/accueil"><img src="/static/icons/bectanse-icon-v2-192.png" alt=""><span>Bectanse<small>Académie</small></span></a>
+  <div class="workspace-rail-label">Ton espace</div>
+  <nav>{% for screen,path,label,icon in [('accueil','/accueil','Vue d’ensemble','home'),('academie','/academie','Ma formation','academy'),('trader_lab','/trader-lab','Trader Lab','lab'),('canal','/canal','Canal VIP','live'),('trading_journal','/journal','Journal de trading','journal')] %}
+  <a href="{{ path }}" {% if workspace_screen == screen %}aria-current="page"{% endif %}>{{ nav_icon(icon) }}<span>{{ label }}</span></a>{% endfor %}</nav>
+  <div class="workspace-rail-label">Mon compte</div>
+  <nav>{% for screen,path,label,icon in [('dashboard','/dashboard#section-profil','Profil et réglages','profile'),('abonnement','/abonnement','Mon abonnement','billing'),('parrainage','/parrainage','Parrainage','referral'),('support','/support','Contacter l’équipe','support'),('faq','/faq','Centre d’aide','faq')] %}
+  <a href="{{ path }}" {% if workspace_screen == screen %}aria-current="page"{% endif %}>{{ nav_icon(icon) }}<span>{{ label }}</span></a>{% endfor %}</nav>
+  <details class="workspace-more"><summary>Ressources et démarrage</summary><nav><a href="/demarrage">Démarrage guidé</a><a href="/guide-robot">Guide Bectanse Auto</a><a href="/presentation-academie">Présentation de l’Académie</a><a href="/explorer">Parcours Explorer</a><a href="/logout">Se déconnecter</a></nav></details>
+  <a class="workspace-bottom" href="/centre-confiance">Méthode et transparence <span></span></a>
+</aside>

@@ -12,6 +12,8 @@ import json
 import re
 from datetime import datetime
 
+from trading_journal.brokers import build_broker_catalog, _valid_server
+
 from flask import abort, jsonify, redirect, render_template, request, session, url_for
 
 
@@ -335,6 +337,7 @@ def register_activation_journey(
             broker_url=BROKER_URL,
             support_url=SUPPORT_URL,
             mt_servers=PU_PRIME_SERVERS,
+            mt_brokers=build_broker_catalog(),
             demo_mode=False,
             preview_mode=True,
         )
@@ -359,6 +362,7 @@ def register_activation_journey(
             broker_url=BROKER_URL,
             support_url=SUPPORT_URL,
             mt_servers=PU_PRIME_SERVERS,
+            mt_brokers=build_broker_catalog(),
             demo_mode=False,
         )
 
@@ -470,8 +474,8 @@ def register_activation_journey(
                     return jsonify({"ok": False, "error": "Plateforme invalide."}), 400
                 if not re.fullmatch(r"[A-Za-z0-9._-]{4,80}", login):
                     return jsonify({"ok": False, "error": "Vérifie le numéro de compte MT."}), 400
-                if server not in PU_PRIME_SERVERS[platform]:
-                    return jsonify({"ok": False, "error": "Sélectionne le serveur exact dans la liste PU Prime."}), 400
+                if not _valid_server(server):
+                    return jsonify({"ok": False, "error": "Saisis le nom exact du serveur indiqué par ton courtier (3 à 120 caractères)."}), 400
                 if len(password) < 4 or len(password) > 200:
                     return jsonify({"ok": False, "error": "Vérifie le mot de passe MT."}), 400
                 save_profile(conn, member_code, {}, {

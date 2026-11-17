@@ -25,8 +25,16 @@ from .calculations import (
 )
 from .entitlements import can_add_trading_account, resolve_entitlements
 from .billing import reconcile_trading_access
-from .brokers import broker_name_from_server, build_broker_catalog
+from .brokers import (
+    broker_identity,
+    broker_name_from_server,
+    build_broker_catalog,
+    server_identity,
+)
 from .security import CredentialCipher, EncryptedCredential
+from .copy_ownership import reserved_account_ids
+from .reliability import (record_failure, clear_failures, normalize_diagnostic,
+                          enqueue_integrity_repairs, resolve_covered_reports)
 
 
 ACCOUNT_STATUSES = {
@@ -93,6 +101,12 @@ class JournalService:
             int(os.environ.get("MT5_MANUAL_RECONCILIATION_DAYS", str(self.weekly_reconciliation_days))),
         )
         self.lease_seconds = max(60, int(os.environ.get("MT5_JOB_LEASE_SECONDS", "300")))
+        self.auth_failure_threshold = max(
+            2, int(os.environ.get("MT5_AUTH_FAILURE_THRESHOLD", "3"))
+        )
+        self.auth_recovery_window_hours = max(
+            1, int(os.environ.get("MT5_AUTH_RECOVERY_WINDOW_HOURS", "168"))
+        )
 
     def _cipher(self) -> CredentialCipher:
         return CredentialCipher.from_environment()
@@ -225,12 +239,13 @@ class JournalService:
         conn = self.get_conn()
         try:
             rows = conn.run("""SELECT DISTINCT broker,server FROM trading_accounts
-                WHERE server<>'' AND status='SYNCED' ORDER BY broker,server""")
+                WHERE server<>'' AND last_successful_sync_at IS NOT NULL
+                ORDER BY broker,server""")
             return build_broker_catalog(rows)
         finally:
             conn.close()
 
-    def create_account(self, user_id: str, payload: dict) -> dict:
+    def create_account(self, user_id: str, payload: dict, *, admin_actor: str | None = None, managed_name: str | None = None) -> dict:
         platform = str(payload.get("platform") or "MT5").upper().strip()
         if platform != "MT5":
             raise ValueError("MetaTrader 5 est la seule plateforme disponible en V1.")
@@ -248,10 +263,29 @@ class JournalService:
         if len(password) < 4 or len(password) > 256:
             raise ValueError("Le mot de passe MT5 n’est pas valide.")
 
-        member = self.get_member(user_id) or {}
+        if managed_name is not None:
+            if not admin_actor or not isinstance(managed_name, str) or not 1 <= len(managed_name.strip()) <= 80 or any(ord(c) < 32 for c in managed_name):
+                raise ValueError("Nom du dossier requis (80 caractères maximum).")
+            user_id = 'ADM-TRADING-' + uuid.uuid4().hex.upper()
+            member = dict(code=user_id, access_level='admin_trading', actif=True)
+        else:
+            member = self.get_member(user_id) or {}
         conn = self.get_conn()
         try:
             conn.run("BEGIN")
+            if managed_name is not None:
+                # Serialize duplicate identities across simultaneous admin submissions.
+                conn.run("SELECT pg_advisory_xact_lock(hashtext(:identity))", identity=server.lower() + ':' + login)
+                if conn.run("SELECT 1 FROM trading_accounts WHERE provider='MT5' AND LOWER(server)=LOWER(:server) AND login=:login", server=server, login=login):
+                    raise ValueError("Ce compte de trading est déjà enregistré.")
+                conn.run("""INSERT INTO members(code,nom,email,capital,params,historique,actif,copy_actif,access_level)
+                    VALUES(:code,:name,'',0,'{}','[]',TRUE,FALSE,'admin_trading')""", code=user_id, name=managed_name.strip())
+            if admin_actor:
+                # Serialize assisted registration with assignment; never overwrite credentials
+                # or change the identity of an already configured copy account.
+                conn.run("SELECT code FROM members WHERE code=:code FOR UPDATE", code=user_id)
+                if conn.run("SELECT 1 FROM copy_configurations WHERE member_code=:code LIMIT 1", code=user_id):
+                    raise ValueError("Un compte de copie est déjà rattaché. Sélectionnez le compte existant.")
             count = int(conn.run("SELECT COUNT(*) FROM trading_accounts WHERE user_id=:user_id AND status<>'DISCONNECTED'", user_id=user_id)[0][0])
             subscription_rows = conn.run("SELECT plan,subscription_status,current_period_end FROM trading_subscriptions WHERE user_id=:user_id", user_id=user_id)
             subscription = (
@@ -262,18 +296,60 @@ class JournalService:
             if not entitlements.allowed:
                 conn.run("ROLLBACK")
                 raise PermissionError("Un abonnement Journal actif ou une adhésion Académie est requis.")
+            requested_server = server
+            reused_verified_server = False
             existing = conn.run("""SELECT id FROM trading_accounts
                 WHERE user_id=:user_id AND provider='MT5' AND server=:server AND login=:login""",
                 user_id=user_id, server=server, login=login)
+            if not existing:
+                # Prefer the last server that actually synchronized for this
+                # broker/login.  Broker legal names and catalog brand names are
+                # often different; creating a second empty account in that case
+                # made a valid MT5 login look undetectable.
+                previous = conn.run("""SELECT id,broker,server FROM trading_accounts
+                    WHERE user_id=:user_id AND provider='MT5' AND login=:login
+                    AND last_successful_sync_at IS NOT NULL
+                    ORDER BY last_successful_sync_at DESC,id DESC""",
+                    user_id=user_id, login=login)
+                matched = next((row for row in previous
+                                if broker_identity(row[1] or row[2]) == broker_identity(broker)), None)
+                if matched:
+                    existing = [(matched[0],)]
+                    broker = str(matched[1] or broker)[:80]
+                    server = str(matched[2])
+                    reused_verified_server = server.casefold() != requested_server.casefold()
+            if not existing:
+                # A never-synchronized retry for the same broker/login replaces
+                # the empty attempt instead of consuming another account slot.
+                empty_attempts = conn.run("""SELECT a.id,a.broker,a.server
+                    FROM trading_accounts a WHERE a.user_id=:user_id
+                    AND a.provider='MT5' AND a.login=:login
+                    AND a.last_successful_sync_at IS NULL
+                    AND NOT EXISTS (SELECT 1 FROM trading_deals d
+                        WHERE d.trading_account_id=a.id)
+                    ORDER BY a.created_at DESC,a.id DESC""",
+                    user_id=user_id, login=login)
+                matched = next((row for row in empty_attempts
+                                if broker_identity(row[1] or row[2]) == broker_identity(broker)), None)
+                if matched:
+                    existing = [(matched[0],)]
             if not existing and not can_add_trading_account(entitlements, count):
                 conn.run("ROLLBACK")
                 raise PermissionError("Votre formule a atteint sa limite de comptes connectés.")
+            if existing and admin_actor:
+                raise ValueError("Ce compte est déjà enregistré. Sélectionnez-le dans la liste des comptes du membre.")
             if existing:
                 account_id = int(existing[0][0])
-                conn.run("""UPDATE trading_accounts SET display_name=:display_name,broker=:broker,status='PENDING_VERIFICATION',
+                conn.run("""UPDATE trading_accounts SET display_name=:display_name,broker=:broker,
+                    server=:server,status='PENDING_VERIFICATION',
                     sync_status='PENDING',last_error_code='',last_error_message='',updated_at=NOW()
                     WHERE id=:id AND user_id=:user_id""", id=account_id, user_id=user_id,
-                    display_name=display_name, broker=broker)
+                    display_name=display_name, broker=broker, server=server)
+                conn.run("""UPDATE trading_sync_jobs SET status='CANCELLED',completed_at=NOW(),
+                    finished_at=NOW(),last_error_code='SUPERSEDED',
+                    last_error_message='Remplacée par une nouvelle connexion.'
+                    WHERE trading_account_id=:account_id AND status IN ('PENDING','RETRY')""",
+                    account_id=account_id)
             else:
                 inserted = conn.run("""INSERT INTO trading_accounts
                     (user_id,provider,platform,display_name,login,login_masked,broker,server,status,sync_status)
@@ -293,9 +369,25 @@ class JournalService:
                 tag=encrypted.tag, key_version=key_version)
             conn.run("""UPDATE trading_accounts SET status='PENDING_VERIFICATION',access_mode='PENDING',
                 sync_status='PENDING',updated_at=NOW() WHERE id=:id""", id=account_id)
+            if managed_name is not None:
+                from copy_trading.settings import validate
+                from copy_trading.service import digest
+                configuration = dict(account_id=account_id, login=login, server=server,
+                    settings=validate({}), requested_enabled=False, mode='SIMULATION', master_assignment=None)
+                conn.run("""INSERT INTO copy_configurations(member_code,version,account_id,payload,digest,status)
+                    VALUES(:code,1,:account,CAST(:payload AS JSONB),:digest,'PENDING')""",
+                    code=user_id, account=account_id, payload=json.dumps(configuration), digest=digest(configuration))
+                conn.run("INSERT INTO copy_admin_controls(member_code,version,decision) VALUES(:code,1,'PAUSED')", code=user_id)
+                conn.run("INSERT INTO copy_admin_events(action,target,actor) VALUES('MANUAL_ACCOUNT_CREATED',:code,:actor)", code=user_id, actor=admin_actor)
             job_id = self._enqueue(conn, account_id, "FULL_HISTORY_SYNC", priority=100)
-            self._audit(conn, user_id, account_id, "ACCOUNT_CONNECTED", {"provider": "MT5", "server": server})
+            self._audit(conn, user_id, account_id, "ACCOUNT_CONNECTED", {
+                "provider": "MT5", "server": server,
+                "requested_server": requested_server,
+                "reused_verified_server": reused_verified_server,
+            })
             self._audit(conn, user_id, account_id, "CREDENTIAL_UPDATED", {"key_version": key_version})
+            if admin_actor:
+                self._audit(conn, user_id, account_id, "ADMIN_ACCOUNT_REGISTERED", {"actor": admin_actor})
             conn.run("COMMIT")
         except Exception:
             try:
@@ -306,6 +398,8 @@ class JournalService:
         finally:
             conn.close()
         account = self.get_account(user_id, account_id)
+        if managed_name is not None:
+            account["managed_code"] = user_id
         account["sync_job_id"] = job_id
         account["entitlements"] = entitlements.as_dict()
         return account
@@ -320,6 +414,8 @@ class JournalService:
 
     def _enqueue(self, conn, account_id: int, job_type: str, priority: int = 10,
                  range_from=None, range_to=None) -> str:
+        if account_id in reserved_account_ids():
+            return ""
         job_id = str(uuid.uuid4())
         inserted = conn.run("""INSERT INTO trading_sync_jobs
             (id,trading_account_id,job_type,status,priority,range_from,range_to)
@@ -333,7 +429,7 @@ class JournalService:
         conn = self.get_conn()
         try:
             conn.run("BEGIN")
-            rows = conn.run("""SELECT status,last_manual_sync_at FROM trading_accounts
+            rows = conn.run("""SELECT status,last_manual_sync_at,account_type FROM trading_accounts
                 WHERE id=:id AND user_id=:user_id FOR UPDATE""", id=account_id, user_id=user_id)
             if not rows:
                 conn.run("ROLLBACK")
@@ -342,6 +438,21 @@ class JournalService:
                 conn.run("ROLLBACK")
                 raise ValueError("Reconnectez le compte avant de le synchroniser.")
             last_manual = rows[0][1]
+            review_member_code = str(os.environ.get("APPLE_APP_REVIEW_MEMBER_CODE") or "").strip().upper()
+            if (review_member_code and str(user_id).strip().upper() == review_member_code
+                    and str(rows[0][2] or "").strip().upper() == "DEMO"):
+                conn.run("""UPDATE trading_accounts SET status='SYNCED',sync_status='SYNCED',
+                    last_manual_sync_at=NOW(),last_sync_at=NOW(),last_successful_sync_at=NOW(),
+                    last_error_code='',last_error_message='',updated_at=NOW() WHERE id=:id""",
+                    id=account_id)
+                self._audit(conn, user_id, account_id, "APP_REVIEW_DEMO_SYNC", {"verified_demo": True})
+                conn.run("COMMIT")
+                return {
+                    "queued": True,
+                    "job_id": "",
+                    "cooldown_seconds": self.manual_cooldown_seconds,
+                    "demo": True,
+                }
             if last_manual and datetime.now(timezone.utc) - as_utc(last_manual) < timedelta(seconds=self.manual_cooldown_seconds):
                 remaining = self.manual_cooldown_seconds - int((datetime.now(timezone.utc) - as_utc(last_manual)).total_seconds())
                 conn.run("ROLLBACK")
@@ -367,6 +478,24 @@ class JournalService:
     def disconnect_account(self, user_id: str, account_id: int, delete_data: bool) -> bool:
         conn = self.get_conn()
         try:
+            conn.run("BEGIN")
+            # Same member lock as copy reservations: revocation is serialized.
+            conn.run("SELECT code FROM members WHERE code=:m FOR UPDATE",m=user_id)
+            owned=conn.run("SELECT 1 FROM trading_accounts WHERE id=:a AND user_id=:m",a=account_id,m=user_id)
+            if not owned:
+                conn.run("COMMIT")
+                return False
+            installed=conn.run("SELECT to_regclass('copy_real_controls')")[0][0]
+            if installed:
+                linked=conn.run("SELECT 1 FROM copy_configurations WHERE member_code=:m AND account_id=:a LIMIT 1",m=user_id,a=account_id)
+                if linked and delete_data:
+                    raise ValueError("Ce compte possède un historique de copie. Déconnectez-le pour conserver les preuves et les positions.")
+                conn.run("""UPDATE copy_real_controls SET desired='STOPPED',revision=revision+1,
+                    confirmed='REQUEST_RECEIVED',confirmed_at=NULL
+                    WHERE member_code=:m AND account_id=:a AND desired<>'STOPPED'""",m=user_id,a=account_id)
+                conn.run("""UPDATE copy_admin_controls SET decision='PAUSED',updated_at=NOW()
+                    WHERE member_code=:m AND EXISTS(SELECT 1 FROM copy_configurations
+                    WHERE member_code=:m AND account_id=:a AND version=copy_admin_controls.version)""",m=user_id,a=account_id)
             if delete_data:
                 self._audit(conn, user_id, account_id, "ACCOUNT_DATA_DELETED")
                 rows = conn.run("DELETE FROM trading_accounts WHERE id=:id AND user_id=:user_id RETURNING id", id=account_id, user_id=user_id)
@@ -377,17 +506,49 @@ class JournalService:
                 if rows:
                     conn.run("DELETE FROM trading_credentials WHERE trading_account_id=:id", id=account_id)
                     self._audit(conn, user_id, account_id, "ACCOUNT_DISCONNECTED")
+            conn.run("COMMIT")
             return bool(rows)
+        except Exception:
+            conn.run("ROLLBACK")
+            raise
         finally:
             conn.close()
 
     def enqueue_due_accounts(self) -> int:
         conn = self.get_conn()
         try:
+            conn.run("""UPDATE trading_workers SET status='OFFLINE',current_job_id='',updated_at=NOW()
+                WHERE last_seen_at<NOW()-INTERVAL '90 seconds' AND status<>'OFFLINE'""")
+            # A single MT5 -6 can be a transient terminal/session failure.  It
+            # must not permanently freeze an account that synchronized moments
+            # earlier.  Re-open recent accounts until the configured number of
+            # consecutive authentication failures has actually been observed.
+            conn.run("""UPDATE trading_accounts a SET status='SYNC_ERROR',sync_status='RETRYING',
+                last_error_message='Reconnexion automatique en cours.',updated_at=NOW()
+                WHERE a.status='AUTH_ERROR' AND a.last_successful_sync_at IS NOT NULL
+                AND a.last_successful_sync_at>NOW()-(:hours*INTERVAL '1 hour')
+                AND (SELECT COUNT(*) FROM trading_sync_events e
+                    WHERE e.trading_account_id=a.id AND e.event_name='sync_failed'
+                    AND e.error_code='AUTH_ERROR'
+                    AND e.created_at>a.last_successful_sync_at)<:threshold""",
+                hours=self.auth_recovery_window_hours,
+                threshold=self.auth_failure_threshold)
             conn.run("""UPDATE trading_sync_jobs SET status='RETRY',worker_id='',instance_id='',
                 locked_at=NULL,heartbeat_at=NULL,lease_expires_at=NULL,not_before=NOW(),
                 last_error_code='WORKER_TIMEOUT',last_error_message='Lease expiré; relance automatique.'
-                WHERE status IN ('LEASED','RUNNING') AND lease_expires_at < NOW()""")
+                WHERE status IN ('LEASED','RUNNING') AND (
+                    lease_expires_at<NOW() OR (
+                        heartbeat_at<NOW()-INTERVAL '90 seconds' AND NOT EXISTS (
+                            SELECT 1 FROM trading_workers w
+                            WHERE w.current_job_id=trading_sync_jobs.id
+                            AND w.last_seen_at>NOW()-INTERVAL '90 seconds')))
+                """)
+            conn.run("""UPDATE trading_sync_jobs j SET status='CANCELLED',completed_at=NOW(),
+                finished_at=NOW(),last_error_code='ACCOUNT_BLOCKED',
+                last_error_message='Connexion suspendue jusqu’à la mise à jour des identifiants.'
+                FROM trading_accounts a WHERE a.id=j.trading_account_id
+                AND a.status IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR')
+                AND j.status IN ('PENDING','RETRY')""")
             telemetry_ready = bool(conn.run("""SELECT 1 FROM trading_workers
                 WHERE version ~ '^[0-9]+[.][0-9]+[.][0-9]+$'
                 AND (CAST(split_part(version,'.',1) AS INTEGER)>1 OR
@@ -401,15 +562,17 @@ class JournalService:
                     finished_at=NOW(),last_error_code='WORKER_VERSION_UNSUPPORTED',
                     last_error_message='Télémétrie suspendue jusqu’au worker 1.2.'
                     WHERE job_type='TELEMETRY' AND status IN ('PENDING','RETRY')""")
+            created = enqueue_integrity_repairs(conn, self._enqueue)
             due = conn.run("""SELECT a.id,a.last_reconciliation_at,a.last_deep_reconciliation_at
                 FROM trading_accounts a JOIN trading_credentials c ON c.trading_account_id=a.id
                 WHERE a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR')
+                AND NOT EXISTS (SELECT 1 FROM trading_account_retry_state r
+                    WHERE r.trading_account_id=a.id AND r.next_attempt_at>NOW())
                 AND (a.last_successful_sync_at IS NULL OR
                      a.last_successful_sync_at < NOW() - (:seconds * INTERVAL '1 second'))
                 AND NOT EXISTS (SELECT 1 FROM trading_sync_jobs j
                     WHERE j.trading_account_id=a.id AND j.status IN ('PENDING','LEASED','RUNNING','RETRY'))""",
                 seconds=self.sync_interval_seconds)
-            created = 0
             now = datetime.now(timezone.utc)
             for account_id, last_reconciliation, last_deep in due:
                 if not last_deep or now - as_utc(last_deep) >= timedelta(days=7):
@@ -424,6 +587,8 @@ class JournalService:
                 telemetry_due = conn.run("""SELECT a.id
                     FROM trading_accounts a JOIN trading_credentials c ON c.trading_account_id=a.id
                     WHERE a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR')
+                AND NOT EXISTS (SELECT 1 FROM trading_account_retry_state r
+                    WHERE r.trading_account_id=a.id AND r.next_attempt_at>NOW())
                     AND (a.last_telemetry_at IS NULL OR
                          a.last_telemetry_at < NOW() - (:seconds * INTERVAL '1 second'))
                     AND NOT EXISTS (SELECT 1 FROM trading_sync_jobs j
@@ -436,6 +601,158 @@ class JournalService:
             return created
         finally:
             conn.close()
+
+    def reliability_cycle(self) -> dict:
+        """Repair recoverable MT5 state and persist one operational health check.
+
+        The cycle is deliberately idempotent: Railway can run it again after a
+        process restart, and a future second web instance cannot create duplicate
+        active jobs because the queue also has a database uniqueness constraint.
+        """
+        actions = {
+            "workers_offlined": 0,
+            "leases_requeued": 0,
+            "jobs_exhausted": 0,
+            "workers_released": 0,
+            "runs_closed": 0,
+            "circuits_closed": 0,
+            "jobs_queued": 0,
+        }
+        conn = self.get_conn()
+        acquired = True
+        try:
+            conn.run("BEGIN")
+            lock_rows = conn.run("SELECT pg_try_advisory_xact_lock(731945201)")
+            acquired = bool(lock_rows and lock_rows[0][0])
+            if not acquired:
+                conn.run("ROLLBACK")
+                return {"status": "skipped", "reason": "monitor_already_running", "actions": actions}
+
+            actions["workers_offlined"] = len(conn.run("""UPDATE trading_workers
+                SET status='OFFLINE',current_job_id='',updated_at=NOW()
+                WHERE last_seen_at<NOW()-INTERVAL '90 seconds' AND status<>'OFFLINE'
+                RETURNING worker_id"""))
+            expired = conn.run("""UPDATE trading_sync_jobs SET status='RETRY',worker_id='',instance_id='',
+                locked_at=NULL,heartbeat_at=NULL,lease_expires_at=NULL,not_before=NOW(),
+                last_error_code='WORKER_TIMEOUT',last_error_message='Lease expiré; relance automatique.'
+                WHERE status IN ('LEASED','RUNNING') AND (
+                    lease_expires_at<NOW() OR (
+                        heartbeat_at<NOW()-INTERVAL '90 seconds' AND NOT EXISTS (
+                            SELECT 1 FROM trading_workers w
+                            WHERE w.current_job_id=trading_sync_jobs.id
+                            AND w.last_seen_at>NOW()-INTERVAL '90 seconds')))
+                RETURNING id""")
+            actions["leases_requeued"] = len(expired)
+            exhausted = conn.run("""UPDATE trading_sync_jobs
+                SET status='DEAD',completed_at=NOW(),finished_at=NOW(),
+                    worker_id='',instance_id='',locked_at=NULL,heartbeat_at=NULL,
+                    lease_expires_at=NULL,
+                    last_error_code=COALESCE(NULLIF(last_error_code,''),'MAX_ATTEMPTS'),
+                    last_error_message=COALESCE(NULLIF(last_error_message,''),
+                        'Nombre maximal de tentatives atteint.')
+                WHERE status IN ('PENDING','RETRY') AND attempts>=max_attempts
+                RETURNING id,trading_account_id""")
+            actions["jobs_exhausted"] = len(exhausted)
+            for _, exhausted_account_id in exhausted:
+                record_failure(conn, int(exhausted_account_id), "WORKER_TIMEOUT")
+            actions["runs_closed"] = len(conn.run("""UPDATE trading_sync_runs r
+                SET status='FAILED',error_code='WORKER_TIMEOUT',finished_at=NOW()
+                WHERE r.status='RUNNING' AND NOT EXISTS (
+                    SELECT 1 FROM trading_sync_jobs j WHERE j.id=r.sync_job_id
+                    AND j.status IN ('LEASED','RUNNING')) RETURNING r.id"""))
+            actions["workers_released"] = len(conn.run("""UPDATE trading_workers w
+                SET status='ONLINE',current_job_id='',updated_at=NOW()
+                WHERE w.status='BUSY' AND w.last_seen_at>NOW()-INTERVAL '90 seconds'
+                AND NOT EXISTS (SELECT 1 FROM trading_sync_jobs j
+                    WHERE j.id=w.current_job_id AND j.status IN ('LEASED','RUNNING'))
+                RETURNING w.worker_id"""))
+            actions["circuits_closed"] = len(conn.run("""UPDATE trading_server_circuits
+                SET failure_count=0,opened_until=NULL,updated_at=NOW()
+                WHERE opened_until IS NOT NULL AND opened_until<=NOW()
+                RETURNING server"""))
+            conn.run("COMMIT")
+        except Exception:
+            try:
+                conn.run("ROLLBACK")
+            except Exception:
+                pass
+            raise
+        finally:
+            conn.close()
+
+        actions["jobs_queued"] = self.enqueue_due_accounts()
+        workers = self.worker_health()
+        queue = self.queue_health()
+        issues = []
+        if int(workers["online"]) == 0:
+            issues.append("NO_ONLINE_WORKER")
+        if queue.get("oldest_pending_seconds") is not None and int(queue["oldest_pending_seconds"]) > max(
+            900, self.sync_interval_seconds * 3
+        ):
+            issues.append("QUEUE_BLOCKED")
+        if int(queue["stale_accounts"]) > 0:
+            issues.append("STALE_ACCOUNTS")
+        if queue.get("integrity_incidents",0):
+            issues.append("RECONCILIATION_MISMATCH")
+        status = "degraded" if issues else "ok"
+        result = {
+            "status": status,
+            "issues": issues,
+            "actions": actions,
+            "workers": workers,
+            "queue": queue,
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        conn = self.get_conn()
+        try:
+            conn.run("""INSERT INTO trading_reliability_checks
+                (status,online_workers,queue_depth,stale_accounts,actions,details)
+                VALUES (:status,:online_workers,:queue_depth,:stale_accounts,
+                    CAST(:actions AS JSONB),CAST(:details AS JSONB))""",
+                status=status,
+                online_workers=int(workers["online"]),
+                queue_depth=int(queue["queue_depth"]),
+                stale_accounts=int(queue["stale_accounts"]),
+                actions=json.dumps(actions, separators=(",", ":")),
+                details=json.dumps({"issues": issues, "workers": workers, "queue": queue},
+                                   separators=(",", ":"), default=str))
+            conn.run("DELETE FROM trading_reliability_checks WHERE created_at<NOW()-INTERVAL '14 days'")
+        finally:
+            conn.close()
+        return result
+
+    def reliability_health(self) -> dict:
+        conn = self.get_conn()
+        try:
+            rows = conn.run("""SELECT status,online_workers,queue_depth,stale_accounts,
+                actions,details,created_at FROM trading_reliability_checks
+                ORDER BY created_at DESC LIMIT 1""")
+        finally:
+            conn.close()
+        if not rows:
+            return {"status": "initializing", "issues": ["NO_MONITOR_CHECK"]}
+        status, online, queue_depth, stale, actions, details, checked_at = rows[0]
+        if isinstance(actions, str):
+            actions = json.loads(actions)
+        if isinstance(details, str):
+            details = json.loads(details)
+        age_seconds = max(0, int((datetime.now(timezone.utc) - as_utc(checked_at)).total_seconds()))
+        issues = list((details or {}).get("issues") or [])
+        if age_seconds > max(180, self.sync_interval_seconds * 2):
+            status = "degraded"
+            if "MONITOR_STALE" not in issues:
+                issues.append("MONITOR_STALE")
+        return {
+            "status": status,
+            "online_workers": int(online or 0),
+            "queue_depth": int(queue_depth or 0),
+            "stale_accounts": int(stale or 0),
+            "actions": actions or {},
+            "issues": issues,
+            "checked_at": _iso(checked_at),
+            "age_seconds": age_seconds,
+        }
 
     def accept_worker_nonce(self, worker_id: str, nonce: str) -> bool:
         if not re.fullmatch(r"[A-Za-z0-9_-]{20,120}", nonce or ""):
@@ -522,7 +839,12 @@ class JournalService:
                 JOIN trading_credentials c ON c.trading_account_id=a.id
                 LEFT JOIN trading_server_circuits circuit ON circuit.server=a.server
                 WHERE j.status IN ('PENDING','RETRY') AND j.not_before<=NOW()
+                AND j.attempts<j.max_attempts
+                AND a.id NOT IN (SELECT CAST(value AS BIGINT)
+                    FROM jsonb_array_elements_text(CAST(:copy_reserved_ids AS JSONB)))
                 AND a.status NOT IN ('DISCONNECTED','AUTH_ERROR','ACCESS_EXPIRED')
+                AND NOT EXISTS (SELECT 1 FROM trading_account_retry_state r
+                    WHERE r.trading_account_id=a.id AND r.next_attempt_at>NOW())
                 AND (j.job_type<>'TELEMETRY' OR EXISTS (
                     SELECT 1 FROM trading_workers compatible
                     WHERE compatible.worker_id=:worker_id
@@ -533,7 +855,7 @@ class JournalService:
                     AND compatible.last_seen_at>NOW()-INTERVAL '90 seconds'))
                 AND (circuit.opened_until IS NULL OR circuit.opened_until<=NOW())
                 ORDER BY j.priority DESC,j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1""",
-                worker_id=worker_id[:100])
+                worker_id=worker_id[:100], copy_reserved_ids=json.dumps(reserved_account_ids()))
             if not rows:
                 conn.run("COMMIT")
                 return None
@@ -854,7 +1176,14 @@ class JournalService:
                 id=job_id, worker_id=worker_id)
             if not rows:
                 conn.run("ROLLBACK")
-                raise LookupError("Tâche de synchronisation introuvable.")
+                return {
+                    "ignored": True,
+                    "reason": "lease_lost",
+                    "status": "UNCHANGED",
+                    "imported_deals": 0,
+                    "received_deals": 0,
+                    "telemetry_events": 0,
+                }
             (raw_account_id, imported, stored_received, job_type, range_from, range_to,
              expected_login, expected_server) = rows[0]
             account_id = int(raw_account_id)
@@ -864,7 +1193,7 @@ class JournalService:
                 raise ValueError("Le nombre de deals reçu ne correspond pas aux lots importés.")
             if str(account.get("login") or "") != str(expected_login):
                 raise ValueError("Le compte MT5 connecté ne correspond pas au compte demandé.")
-            if str(account.get("server") or "").lower() != str(expected_server or "").lower():
+            if server_identity(account.get("server")) != server_identity(expected_server):
                 raise ValueError("Le serveur MT5 connecté ne correspond pas au serveur demandé.")
             values = {
                 "broker": str(account["broker"] or "")[:120],
@@ -880,12 +1209,11 @@ class JournalService:
             }
             is_telemetry = str(job_type) == "TELEMETRY"
             telemetry_received = positions is not None and orders is not None
-            sync_timestamp = "" if is_telemetry else ",last_successful_sync_at=NOW()"
             telemetry_timestamp = ",last_telemetry_at=NOW()" if telemetry_received else ""
             conn.run(f"""UPDATE trading_accounts SET broker=:broker,server=:server,currency=:currency,account_type=:account_type,
                 balance=:balance,equity=:equity,margin=:margin,free_margin=:free_margin,
                 leverage=:leverage,access_mode=:access_mode,status='SYNCED',sync_status='SYNCED',
-                last_error_code='',last_error_message='',updated_at=NOW(){sync_timestamp}{telemetry_timestamp}
+                last_error_code='',last_error_message='',updated_at=NOW(){telemetry_timestamp}
                 WHERE id=:account_id""", account_id=account_id, **values)
             recent_snapshot = conn.run("""SELECT 1 FROM trading_account_snapshots
                 WHERE trading_account_id=:account_id AND captured_at>NOW()-INTERVAL '5 minutes' LIMIT 1""",
@@ -923,7 +1251,7 @@ class JournalService:
                     (source_pnl is None or abs(pnl_delta) <= Decimal("0.01"))
                     else "MISMATCH"
                 )
-            if str(job_type) in {"DAILY_RECONCILIATION", "WEEKLY_RECONCILIATION"}:
+            if not is_telemetry and (str(job_type) in {"DAILY_RECONCILIATION","WEEKLY_RECONCILIATION","MANUAL","ADMIN_RECONCILIATION","INTEGRITY_REPAIR"} or recon_status != "PASS") and (str(job_type) != "INTEGRITY_REPAIR" or recon_status == "PASS"):
                 conn.run("""INSERT INTO trading_reconciliation_reports
                     (trading_account_id,sync_job_id,range_from,range_to,mt5_count,db_count,
                      missing_count,repaired_count,pnl_delta,status)
@@ -932,25 +1260,52 @@ class JournalService:
                     range_from=range_from, range_to=range_to, mt5_count=received, db_count=db_count,
                     missing=abs(db_count - received), repaired=imported,
                     pnl_delta=pnl_delta, status=recon_status)
+            if str(job_type) == "INTEGRITY_REPAIR" and recon_status != "PASS":
+                conn.run("""UPDATE trading_reconciliation_reports SET mt5_count=:mt5_count,
+                    db_count=:db_count,missing_count=:missing,pnl_delta=:pnl_delta
+                    WHERE trading_account_id=:account_id AND range_from=:range_from
+                    AND range_to=:range_to AND status='MISMATCH' AND resolved_at IS NULL""",
+                    mt5_count=received,db_count=db_count,missing=abs(db_count-received),
+                    pnl_delta=pnl_delta,account_id=account_id,range_from=range_from,range_to=range_to)
+            if not is_telemetry and recon_status == "PASS":
+                conn.run("UPDATE trading_accounts SET last_successful_sync_at=NOW() WHERE id=:id",id=account_id)
+            resolve_covered_reports(conn)
+            unresolved_integrity = bool(conn.run("""SELECT 1 FROM trading_reconciliation_reports
+                WHERE trading_account_id=:id AND status='MISMATCH' AND resolved_at IS NULL LIMIT 1""",id=account_id))
+            if unresolved_integrity:
+                conn.run("""UPDATE trading_accounts SET status='SYNC_ERROR',sync_status='SYNC_ERROR',
+                    last_error_code='RECONCILIATION_MISMATCH',
+                    last_error_message='Écart détecté dans l’historique. Vérification automatique en cours.'
+                    WHERE id=:id""",id=account_id)
             reconcile_columns = ""
             if str(job_type) == "DAILY_RECONCILIATION":
                 reconcile_columns = ",last_reconciliation_at=NOW()"
             elif str(job_type) == "WEEKLY_RECONCILIATION":
                 reconcile_columns = ",last_reconciliation_at=NOW(),last_deep_reconciliation_at=NOW()"
-            if reconcile_columns:
+            if reconcile_columns and recon_status == "PASS":
                 conn.run(f"UPDATE trading_accounts SET updated_at=NOW(){reconcile_columns} WHERE id=:id", id=account_id)
-            conn.run("""UPDATE trading_sync_jobs SET status='SUCCESS',completed_at=NOW(),finished_at=NOW(),
-                heartbeat_at=NOW(),lease_expires_at=NULL WHERE id=:id""", id=job_id)
-            conn.run("""UPDATE trading_sync_runs SET status='SUCCESS',finished_at=NOW()
-                WHERE sync_job_id=:id AND status='RUNNING'""", id=job_id)
+            conn.run("""UPDATE trading_sync_jobs SET status=:status,completed_at=NOW(),finished_at=NOW(),
+                last_error_code=:error,heartbeat_at=NOW(),lease_expires_at=NULL WHERE id=:id""",
+                id=job_id,status='SUCCESS' if recon_status=='PASS' else 'DEAD',
+                error='' if recon_status=='PASS' else 'RECONCILIATION_MISMATCH')
+            conn.run("""UPDATE trading_sync_runs SET status=:status,error_code=:error,finished_at=NOW()
+                WHERE sync_job_id=:id AND status='RUNNING'""",id=job_id,
+                status='SUCCESS' if recon_status=='PASS' else 'FAILED',
+                error='' if recon_status=='PASS' else 'RECONCILIATION_MISMATCH')
             conn.run("""UPDATE trading_workers SET status='ONLINE',current_job_id='',
                 last_seen_at=NOW(),updated_at=NOW() WHERE worker_id=:worker_id""",
                 worker_id=worker_id[:100])
             conn.run("""INSERT INTO trading_sync_events
-                (trading_account_id,sync_job_id,event_name,worker_id,duration_ms,deals_count)
-                VALUES (:account_id,:job_id,'sync_success',:worker_id,:duration,:count)""",
+                (trading_account_id,sync_job_id,event_name,worker_id,duration_ms,deals_count,error_code)
+                VALUES (:account_id,:job_id,:event,:worker_id,:duration,:count,:error)""",
                 account_id=account_id, job_id=job_id, worker_id=worker_id[:100],
-                duration=max(0, int(duration_ms or 0)), count=imported)
+                duration=max(0, int(duration_ms or 0)), count=imported,
+                event='sync_success' if recon_status=='PASS' else 'integrity_failed',
+                error='' if recon_status=='PASS' else 'RECONCILIATION_MISMATCH')
+            if recon_status == "PASS" and not unresolved_integrity:
+                clear_failures(conn, account_id)
+            elif recon_status != "PASS":
+                record_failure(conn, account_id, "RECONCILIATION_MISMATCH")
             conn.run("""INSERT INTO trading_server_circuits (server,failure_count,opened_until,last_error_code)
                 VALUES (:server,0,NULL,'') ON CONFLICT (server) DO UPDATE SET
                 failure_count=0,opened_until=NULL,last_error_code='',window_started_at=NOW(),updated_at=NOW()""",
@@ -958,7 +1313,7 @@ class JournalService:
             conn.run("COMMIT")
             return {"account_id": account_id, "imported_deals": imported,
                     "received_deals": received, "telemetry_events": telemetry_events,
-                    "status": "SYNCED", "integrity": recon_status}
+                    "status": "SYNC_ERROR" if unresolved_integrity else "SYNCED", "integrity": recon_status}
         except Exception:
             try: conn.run("ROLLBACK")
             except Exception: pass
@@ -966,7 +1321,8 @@ class JournalService:
         finally:
             conn.close()
 
-    def fail_job(self, job_id: str, worker_id: str, code: str, retryable: bool) -> dict:
+    def fail_job(self, job_id: str, worker_id: str, code: str, retryable: bool, *,
+                 native_error_code=None, phase="", duration_ms=None) -> dict:
         safe_messages = {
             "AUTH_ERROR": "Les identifiants fournis sont incorrects.",
             "TRADING_PASSWORD_REJECTED": "Utilisez uniquement le mot de passe investisseur (lecture seule).",
@@ -976,23 +1332,57 @@ class JournalService:
             "NETWORK_ERROR": "La connexion réseau du worker est momentanément indisponible.",
             "DB_ERROR": "La base de données est momentanément indisponible.",
             "SYNC_ERROR": "La synchronisation n’a pas pu se terminer.",
+            "WORKER_TIMEOUT": "Le moteur de synchronisation a été relancé automatiquement.",
         }
         normalized = code if code in safe_messages else "SYNC_ERROR"
         message = safe_messages[normalized]
         conn = self.get_conn()
         try:
             conn.run("BEGIN")
-            rows = conn.run("""SELECT j.trading_account_id,j.attempts,j.max_attempts,a.server
+            rows = conn.run("""SELECT j.trading_account_id,j.attempts,j.max_attempts,a.server,
+                    a.last_successful_sync_at,
+                    (SELECT COUNT(*) FROM trading_sync_events e
+                     WHERE e.trading_account_id=a.id AND e.event_name='sync_failed'
+                     AND e.error_code='AUTH_ERROR'
+                     AND (a.last_successful_sync_at IS NULL OR e.created_at>a.last_successful_sync_at))
                 FROM trading_sync_jobs j JOIN trading_accounts a ON a.id=j.trading_account_id
                 WHERE j.id=:id AND j.worker_id=:worker_id AND j.status IN ('LEASED','RUNNING') FOR UPDATE""",
                 id=job_id, worker_id=worker_id)
             if not rows:
                 conn.run("ROLLBACK")
-                raise LookupError("Tâche de synchronisation introuvable.")
-            account_id, attempts, max_attempts, server = int(rows[0][0]), int(rows[0][1]), int(rows[0][2]), rows[0][3]
-            should_retry = bool(retryable) and normalized != "AUTH_ERROR" and attempts < max_attempts
+                # The lease may have expired just before a slow native MT5 call
+                # returned.  Treat the late report as an idempotent no-op: the
+                # replacement owner remains authoritative and the old worker
+                # can immediately resume polling instead of entering an error
+                # loop.
+                return {
+                    "retrying": False,
+                    "retry_in_seconds": None,
+                    "ignored": True,
+                    "reason": "lease_lost",
+                }
+            (raw_account_id, raw_attempts, raw_max_attempts, server,
+             last_successful, previous_auth_failures) = rows[0]
+            account_id = int(raw_account_id)
+            attempts, max_attempts = int(raw_attempts), int(raw_max_attempts)
+            recent_success = bool(
+                last_successful and
+                datetime.now(timezone.utc) - as_utc(last_successful) <=
+                timedelta(hours=self.auth_recovery_window_hours)
+            )
+            transient_auth = bool(
+                normalized == "AUTH_ERROR" and recent_success and
+                int(previous_auth_failures or 0) + 1 < self.auth_failure_threshold
+            )
+            should_retry = bool(
+                attempts < max_attempts and
+                ((bool(retryable) and normalized != "AUTH_ERROR") or transient_auth)
+            )
+            if transient_auth:
+                message = "Connexion MT5 temporairement interrompue; nouvelle tentative automatique."
             next_status = "RETRY" if should_retry else "DEAD"
-            delay = RETRY_DELAYS_SECONDS[min(max(0, attempts - 1), len(RETRY_DELAYS_SECONDS) - 1)]
+            delay = max(RETRY_DELAYS_SECONDS[min(max(0, attempts - 1), len(RETRY_DELAYS_SECONDS) - 1)],
+                        record_failure(conn, account_id, normalized))
             conn.run("""UPDATE trading_sync_jobs SET status=:status,not_before=NOW()+(:delay*INTERVAL '1 second'),
                 last_error_code=:code,last_error_message=:message,heartbeat_at=NOW(),
                 worker_id=CASE WHEN :status='RETRY' THEN '' ELSE worker_id END,
@@ -1008,32 +1398,35 @@ class JournalService:
                 "TRADING_PASSWORD_REJECTED": "AUTH_ERROR",
                 "SERVER_NOT_FOUND": "BROKER_UNAVAILABLE",
             }.get(normalized, normalized if normalized in ACCOUNT_STATUSES else "SYNC_ERROR")
+            if transient_auth:
+                account_status = "SYNC_ERROR"
             conn.run("""UPDATE trading_accounts SET status=:status,sync_status=:sync_status,
                 last_error_code=:code,last_error_message=:message,updated_at=NOW()
                 WHERE id=:account_id""", status=account_status,
                 sync_status="RETRYING" if should_retry else account_status,
                 code=normalized, message=message, account_id=account_id)
             conn.run("""INSERT INTO trading_sync_events
-                (trading_account_id,sync_job_id,event_name,worker_id,error_code)
-                VALUES (:account_id,:job_id,'sync_failed',:worker_id,:code)""",
-                account_id=account_id, job_id=job_id, worker_id=worker_id[:100], code=normalized)
+                (trading_account_id,sync_job_id,event_name,worker_id,error_code,native_error_code,phase,duration_ms)
+                VALUES (:account_id,:job_id,'sync_failed',:worker_id,:code,:native,:phase,:duration)""",
+                account_id=account_id, job_id=job_id, worker_id=worker_id[:100], code=normalized,
+                native=normalize_diagnostic(native_error_code),
+                phase=phase if isinstance(phase,str) and phase in {'connect','identity','history','snapshot','upload','complete'} else '',
+                duration=max(0,min(int(duration_ms),86400000)) if isinstance(duration_ms,int) else None)
             conn.run("""UPDATE trading_workers SET status='ONLINE',current_job_id='',
                 last_seen_at=NOW(),updated_at=NOW() WHERE worker_id=:worker_id""",
                 worker_id=worker_id[:100])
-            if normalized in {"BROKER_UNAVAILABLE", "NETWORK_ERROR", "TERMINAL_ERROR"}:
-                threshold = max(3, int(os.environ.get("MT5_CIRCUIT_FAILURE_THRESHOLD", "50")))
+            if normalized in {"BROKER_UNAVAILABLE", "NETWORK_ERROR"}:
+                threshold = max(3, int(os.environ.get("MT5_CIRCUIT_FAILURE_THRESHOLD", "3")))
                 conn.run("""INSERT INTO trading_server_circuits
                     (server,failure_count,window_started_at,opened_until,last_error_code)
                     VALUES (:server,1,NOW(),NULL,:code)
                     ON CONFLICT (server) DO UPDATE SET
-                    failure_count=CASE WHEN trading_server_circuits.window_started_at<NOW()-INTERVAL '5 minutes'
-                        THEN 1 ELSE trading_server_circuits.failure_count+1 END,
-                    window_started_at=CASE WHEN trading_server_circuits.window_started_at<NOW()-INTERVAL '5 minutes'
+                    failure_count=trading_server_circuits.failure_count+1,
+                    window_started_at=CASE WHEN trading_server_circuits.failure_count=0
                         THEN NOW() ELSE trading_server_circuits.window_started_at END,
                     opened_until=CASE WHEN
-                        (CASE WHEN trading_server_circuits.window_started_at<NOW()-INTERVAL '5 minutes'
-                         THEN 1 ELSE trading_server_circuits.failure_count+1 END)>=:threshold
-                        THEN NOW()+INTERVAL '5 minutes' ELSE trading_server_circuits.opened_until END,
+                        trading_server_circuits.failure_count+1>=:threshold
+                        THEN NOW()+INTERVAL '15 minutes' ELSE trading_server_circuits.opened_until END,
                     last_error_code=:code,updated_at=NOW()""",
                     server=str(server), code=normalized, threshold=threshold)
             conn.run("COMMIT")
@@ -1065,7 +1458,8 @@ class JournalService:
                     OR ABS(swap)>1e15 OR ABS(fee)>1e15)""", id=account_id)[0][0] or 0)
             recon = conn.run("""SELECT status,missing_count,pnl_delta,created_at
                 FROM trading_reconciliation_reports WHERE trading_account_id=:id
-                ORDER BY created_at DESC LIMIT 1""", id=account_id)
+                AND (status<>'MISMATCH' OR resolved_at IS NULL)
+                ORDER BY (status='MISMATCH' AND resolved_at IS NULL) DESC,created_at DESC LIMIT 1""", id=account_id)
         finally:
             conn.close()
         age_seconds = None
@@ -1104,29 +1498,46 @@ class JournalService:
         conn = self.get_conn()
         try:
             row = conn.run("""SELECT
-                COUNT(*) FILTER (WHERE status IN ('PENDING','RETRY')),
-                COUNT(*) FILTER (WHERE status IN ('LEASED','RUNNING')),
-                COUNT(*) FILTER (WHERE status='DEAD' AND created_at>NOW()-INTERVAL '24 hours'),
-                MIN(created_at) FILTER (WHERE status IN ('PENDING','RETRY')),
-                COUNT(*) FILTER (WHERE status='SUCCESS' AND completed_at>NOW()-INTERVAL '24 hours'),
-                AVG(EXTRACT(EPOCH FROM (finished_at-started_at))*1000)
-                    FILTER (WHERE status='SUCCESS' AND finished_at>NOW()-INTERVAL '24 hours')
-                FROM trading_sync_jobs""")[0]
-            stale = int(conn.run("""SELECT COUNT(*) FROM trading_accounts
-                WHERE status NOT IN ('DISCONNECTED','ACCESS_EXPIRED') AND
-                (last_successful_sync_at IS NULL OR last_successful_sync_at<NOW()-(:seconds*INTERVAL '1 second'))""",
+                COUNT(*) FILTER (WHERE j.status IN ('PENDING','RETRY')
+                    AND j.not_before<=NOW()
+                    AND (circuit.opened_until IS NULL OR circuit.opened_until<=NOW())
+                    AND (budget.next_attempt_at IS NULL OR budget.next_attempt_at<=NOW())),
+                COUNT(*) FILTER (WHERE j.status IN ('LEASED','RUNNING')),
+                COUNT(*) FILTER (WHERE j.status='DEAD'
+                    AND j.created_at>NOW()-INTERVAL '24 hours'),
+                MIN(j.created_at) FILTER (WHERE j.status IN ('PENDING','RETRY')
+                    AND j.not_before<=NOW()
+                    AND (circuit.opened_until IS NULL OR circuit.opened_until<=NOW())
+                    AND (budget.next_attempt_at IS NULL OR budget.next_attempt_at<=NOW())),
+                COUNT(*) FILTER (WHERE j.status='SUCCESS'
+                    AND j.completed_at>NOW()-INTERVAL '24 hours'),
+                AVG(EXTRACT(EPOCH FROM (j.finished_at-j.started_at))*1000)
+                    FILTER (WHERE j.status='SUCCESS'
+                    AND j.finished_at>NOW()-INTERVAL '24 hours')
+                FROM trading_sync_jobs j
+                LEFT JOIN trading_accounts a ON a.id=j.trading_account_id
+                LEFT JOIN trading_server_circuits circuit ON circuit.server=a.server
+                LEFT JOIN trading_account_retry_state budget ON budget.trading_account_id=a.id""")[0]
+            stale = int(conn.run("""SELECT COUNT(*) FROM trading_accounts a
+                JOIN trading_credentials c ON c.trading_account_id=a.id
+                WHERE a.status NOT IN ('DISCONNECTED','ACCESS_EXPIRED','AUTH_ERROR') AND
+                (a.last_successful_sync_at IS NULL OR
+                 a.last_successful_sync_at<NOW()-(:seconds*INTERVAL '1 second'))""",
                 seconds=max(self.sync_interval_seconds * 3, 900))[0][0] or 0)
+            integrity = int(conn.run("""SELECT COUNT(DISTINCT trading_account_id)
+                FROM trading_reconciliation_reports WHERE status='MISMATCH' AND resolved_at IS NULL""")[0][0])
         finally:
             conn.close()
         oldest_age = None
         if row[3]:
             oldest_age = int((datetime.now(timezone.utc) - as_utc(row[3])).total_seconds())
         queue_blocked = bool(oldest_age is not None and oldest_age > max(900, self.sync_interval_seconds * 3))
-        return {"status": "degraded" if queue_blocked or int(row[2] or 0) else "ok",
+        unsuccessful = bool(int(row[2] or 0) and not int(row[4] or 0))
+        return {"status": "degraded" if queue_blocked or stale or unsuccessful or integrity else "ok",
                 "queue_depth": int(row[0] or 0), "running": int(row[1] or 0),
                 "dead_24h": int(row[2] or 0), "oldest_pending_seconds": oldest_age,
                 "success_24h": int(row[4] or 0), "average_duration_ms": round(float(row[5] or 0), 1),
-                "stale_accounts": stale}
+                "stale_accounts": stale, "integrity_incidents": integrity}
 
     def force_reconciliation(self, account_id: int, *, days: int | None = None) -> dict:
         conn = self.get_conn()

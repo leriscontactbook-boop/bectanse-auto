@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from payment_support import PAYMENT_SUPPORT_MESSAGE
+
 import os
 import secrets
 import string
@@ -24,6 +26,8 @@ def _stripe_client():
     secret = os.environ.get("STRIPE_SECRET_KEY", "").strip()
     if not secret:
         raise RuntimeError("La facturation Journal n’est pas configurée.")
+    from stripe_reliability.environment import validate_key
+    validate_key(secret)
     return stripe.StripeClient(
         secret,
         stripe_version=STRIPE_API_VERSION,
@@ -56,12 +60,14 @@ def plan_for_price(price_id: str) -> str | None:
 def _database_entitlements(conn, user_id: str):
     member_rows = conn.run("""SELECT actif,COALESCE(access_level,'member'),
         COALESCE(billing_status,'legacy'),billing_current_period_end,date_fin,
-        COALESCE(admin_suspended,FALSE) FROM members WHERE code=:user_id""", user_id=user_id)
+        COALESCE(admin_suspended,FALSE),manual_access_until,
+        broker_trial_id,broker_trial_status,broker_trial_approved_at,broker_trial_until FROM members WHERE code=:user_id""", user_id=user_id)
     member = None
     if member_rows:
         member = dict(zip(
             ("actif", "access_level", "billing_status", "billing_current_period_end",
-             "date_fin", "admin_suspended"),
+             "date_fin", "admin_suspended", "manual_access_until",
+             "broker_trial_id", "broker_trial_status", "broker_trial_approved_at", "broker_trial_until"),
             member_rows[0],
         ))
     subscription_rows = conn.run("""SELECT plan,subscription_status,current_period_end
@@ -160,6 +166,12 @@ def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: s
     price_id = price_id_for_plan(plan)
     if not os.environ.get("STRIPE_SECRET_KEY", "").strip() or not price_id:
         raise RuntimeError("La souscription Journal n’est pas encore configurée.")
+    from stripe_reliability import enabled
+    if enabled():
+        from stripe_reliability.checkout import create_checkout as verified_checkout
+        from stripe_reliability.integration import current
+        return verified_checkout(current(), user_id, 'JOURNAL', plan, root_url.rstrip('/'),
+            success_url=root_url.rstrip('/')+'/journal?checkout=success')
     params = {
         "mode": "subscription", "success_url": root_url.rstrip("/") + "/journal?checkout=success",
         "cancel_url": root_url.rstrip("/") + "/journal?checkout=cancelled",
@@ -170,6 +182,7 @@ def create_checkout(get_conn, member: dict, user_id: str, plan: str, root_url: s
         }},
         "line_items": [{"price": price_id, "quantity": 1}],
         "billing_address_collection": "auto", "allow_promotion_codes": True,
+        "custom_text": {"submit": {"message": PAYMENT_SUPPORT_MESSAGE}},
         "integration_identifier": _integration_identifier(),
     }
     customer_id = str(rows[0][0] or "") if rows else ""
@@ -232,7 +245,7 @@ def is_journal_event(event: dict, get_conn=None) -> bool:
     if any(plan_for_price(price_id) for price_id in price_ids):
         return True
     if get_conn:
-        subscription_id = _id(obj.get("subscription")) or (_id(obj.get("id")) if _id(obj.get("id")).startswith("sub_") else "")
+        subscription_id = _id(obj.get("subscription")) or _id(((obj.get("parent") or {}).get("subscription_details") or {}).get("subscription")) or (_id(obj.get("id")) if _id(obj.get("id")).startswith("sub_") else "")
         customer_id = _id(obj.get("customer"))
         conn = get_conn()
         try:
@@ -250,7 +263,7 @@ def process_webhook(event: dict, get_conn) -> dict:
     event_id, event_type = str(event.get("id") or ""), str(event.get("type") or "")
     obj = (event.get("data") or {}).get("object") or {}
     metadata = _metadata(obj)
-    subscription_id = _id(obj.get("subscription")) or (_id(obj.get("id")) if _id(obj.get("id")).startswith("sub_") else "")
+    subscription_id = _id(obj.get("subscription")) or _id(((obj.get("parent") or {}).get("subscription_details") or {}).get("subscription")) or (_id(obj.get("id")) if _id(obj.get("id")).startswith("sub_") else "")
     customer_id = _id(obj.get("customer"))
     user_id = str(metadata.get("member_code") or obj.get("client_reference_id") or "")
     price_id = ""
@@ -263,7 +276,9 @@ def process_webhook(event: dict, get_conn) -> dict:
     # line-item price is therefore authoritative whenever Stripe includes it.
     plan = str(plan_for_price(price_id) or metadata.get("journal_plan") or "JOURNAL_PRO").upper()
     status = str(obj.get("status") or "").lower()
-    if event_type in {"checkout.session.completed", "invoice.paid"}:
+    if event_type == "checkout.session.completed":
+        status = "active" if obj.get("payment_status") in {"paid","no_payment_required"} else "incomplete"
+    elif event_type == "invoice.paid":
         status = "active"
     elif event_type == "invoice.payment_failed":
         status = "past_due"

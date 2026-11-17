@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Bectanse Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{--purple:#5B21B6;--orange:#FF5C1B;--gold:#F59E0B;--dark:#0A0A0F;--d2:#111827;--d3:#1F2937;--white:#fff;--gray:rgba(255,255,255,0.5);--border:rgba(91,33,182,0.2);--green:#059669;--red:#DC2626;--sidebar-width:220px}
@@ -16,17 +16,6 @@ html,body{min-height:100vh;width:100%;max-width:100vw;overflow-x:clip;background
 .sidebar{grid-column:1;width:var(--sidebar-width);background:rgba(10,10,20,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100}
 .main{grid-column:2;margin:0;width:100%;max-width:100%;min-width:0;padding:28px clamp(18px,2.2vw,32px) 60px;overflow-x:clip}
 .main>.section{min-width:0;width:100%;max-width:100%}
-
-/* SIDEBAR */
-.s-brand{padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,0.05)}
-.s-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:0.08em}
-.s-tag{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:2px}
-.s-nav{padding:8px 0;flex:1}
-.s-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.18);padding:12px 16px 5px}
-.s-item{display:flex;align-items:center;gap:9px;padding:9px 16px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.45);cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;text-decoration:none}
-.s-item:hover,.s-item.active{color:var(--white);background:rgba(91,33,182,0.1);border-left-color:var(--purple)}
-.s-item.active{color:var(--white)}
-.s-icon{font-size:15px;flex-shrink:0}
 
 /* STATS ROW */
 .stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
@@ -154,77 +143,81 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 @media(max-width:768px){.analytics-kpis{grid-template-columns:1fr 1fr}.analytics-kpi{min-height:128px;padding:14px}.analytics-kpi strong{font-size:32px}.trend-chart{height:220px;overflow:hidden;justify-content:stretch;gap:2px}.trend-slot{flex:1 1 0;min-width:0;gap:1px}.trend-bar{min-width:2px}.behavior-grid,.behavior-grid.audience{grid-template-columns:1fr 1fr}.analytics-head{align-items:flex-start}.periods{width:100%;max-width:100%;overflow:visible;flex-wrap:wrap}.period-btn{flex:1 1 58px;white-space:nowrap}.analytics-card-head{align-items:flex-start;flex-wrap:wrap}.analytics-table,.analytics-table tbody,.analytics-table tr,.analytics-table td{display:block;width:100%}.analytics-table thead{display:none}.analytics-table tbody{padding:10px}.analytics-table tr{padding:8px 10px;margin-bottom:10px;border:1px solid rgba(255,255,255,.065);border-radius:10px;background:rgba(255,255,255,.018)}.analytics-table tr:last-child{margin-bottom:0}.analytics-table td,.analytics-table td:nth-child(n){display:grid;grid-template-columns:minmax(84px,34%) minmax(0,1fr);gap:10px;align-items:center;width:100%;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.045);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}.analytics-table td:last-child{border-bottom:0}.analytics-table td:before{content:attr(data-label);font:700 9px 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.3)}.analytics-table td[colspan]{display:block}.analytics-table td[colspan]:before{display:none}.visitor-name,.visitor-sub{white-space:normal}.journey-btn{justify-self:start}.analytics-table-wrap{border:0}.analytics-card:has(.analytics-table-wrap){padding-left:12px;padding-right:12px}}
 @media(max-width:480px){.analytics-kpis,.behavior-grid,.behavior-grid.audience{grid-template-columns:1fr}.analytics-kpi{min-height:116px}.analytics-method{padding:12px}.search-bar{flex-wrap:wrap}.search-bar .search-input{flex-basis:100%}.analytics-card{padding:13px}.analytics-table td,.analytics-table td:nth-child(n){grid-template-columns:78px minmax(0,1fr)}}
 </style>
+<link rel="stylesheet" href="/static/admin-workspace.css?v=20261010-1">
+<script src="/static/admin-workspace.js?v=20261010-1" defer></script>
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
+<body data-ui-screen="admin_panel" class="admin-workspace admin-panel-workspace">
 <div class="bg"></div>
 <div class="app">
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <div class="s-brand">
-    <div class="s-logo">B€CTAN$€ ADMIN</div>
-    <div class="s-tag">Panneau de contrôle</div>
-  </div>
-  <nav class="s-nav">
-    <div class="s-section">Tableau de bord</div>
-    <a class="s-item active" onclick="showSection('dashboard')"><span class="s-icon">📊</span> Vue d'ensemble</a>
-    <a class="s-item" onclick="showSection('analytics')"><span class="s-icon">📈</span> Statistiques & conversion</a>
-    <a class="s-item" href="/admin/intelligence"><span class="s-icon">🧠</span> Intelligence membres</a>
-    <a class="s-item" href="/admin/marketing"><span class="s-icon">◉</span> Marketing automatique</a>
-    <a class="s-item" href="/admin/seo"><span class="s-icon">◎</span> Référencement</a>
-    <a class="s-item" href="/admin/activations"><span class="s-icon">◇</span> Activations membres</a>
-    <div class="s-section">Membres</div>
-    <a class="s-item" onclick="showSection('membres')"><span class="s-icon">👥</span> Tous les membres</a>
-    <div class="s-section">Communication</div>
-    <a class="s-item" onclick="showSection('notifications')"><span class="s-icon">🔔</span> Notifications</a>
-    <a class="s-item" onclick="showSection('annonces')"><span class="s-icon">📢</span> Annonces</a>
-    <a class="s-item" onclick="showSection('telegram')"><span class="s-icon">✈️</span> Telegram</a>
-    <a class="s-item" href="/admin/telegram-automation?key={{ admin_key }}"><span class="s-icon">🤖</span> Centre Telegram</a>
-    <div class="s-section">Outils privés</div>
-    <a class="s-item" href="/analyse-ia?key={{ admin_key }}"><span class="s-icon">◈</span> Analyse IA — Bêta</a>
-    <div class="s-section">Formation</div>
-    <a class="s-item" onclick="showSection('videos')"><span class="s-icon">🎬</span> Vidéos</a>
-    <a class="s-item" onclick="showSection('pdfs')"><span class="s-icon">📚</span> PDFs</a>
-    <div class="s-section">Canal</div>
-    <a class="s-item" onclick="showSection('canal')"><span class="s-icon">📡</span> Canal VIP</a>
-  </nav>
-</aside>
+{% set admin_current = 'dashboard' %}{% set admin_title = 'Vue d’ensemble' %}
+{% include 'partials/admin_workspace.html' %}
 
 <!-- MAIN -->
-<main class="main">
+<main class="main" id="workspace-content" tabindex="-1">
 
 <!-- DASHBOARD -->
 <div class="section active" id="section-dashboard">
-  <div class="section-title">Vue d'ensemble</div>
+  <div class="aw-page-heading"><div><h1>Vue d’ensemble</h1><p>Vos membres, vos opérations et les priorités de l’académie.</p></div><a class="btn btn-purple" href="#membres">Gérer les membres <span aria-hidden="true"></span></a></div>
   <div class="stats-row" id="stats-row">
-    <button type="button" class="stat-card purple active" data-dashboard-filter="total" aria-pressed="true" onclick="appliquerFiltreDashboard('total', this)"><span class="stat-label">Total membres</span><span class="stat-value" id="s-total">—</span><span class="stat-action">Afficher tous →</span></button>
-    <button type="button" class="stat-card green" data-dashboard-filter="actifs" aria-pressed="false" onclick="appliquerFiltreDashboard('actifs', this)"><span class="stat-label">Actifs</span><span class="stat-value" id="s-actifs">—</span><span class="stat-action">Voir les actifs →</span></button>
-    <button type="button" class="stat-card gold" data-dashboard-filter="copy" aria-pressed="false" onclick="appliquerFiltreDashboard('copy', this)"><span class="stat-label">Copy ON</span><span class="stat-value" id="s-copy">—</span><span class="stat-action">Voir Copy ON →</span></button>
-    <button type="button" class="stat-card red" data-dashboard-filter="expires" aria-pressed="false" onclick="appliquerFiltreDashboard('expires', this)"><span class="stat-label">Expirés</span><span class="stat-value" id="s-expires">—</span><span class="stat-action">Voir les expirés →</span></button>
-    <button type="button" class="stat-card blue" data-dashboard-filter="nouveaux" aria-pressed="false" onclick="appliquerFiltreDashboard('nouveaux', this)"><span class="stat-label">Nouveaux 7j</span><span class="stat-value" id="s-new">—</span><span class="stat-action">Voir les nouveaux →</span></button>
-    <button type="button" class="stat-card gold" data-dashboard-filter="explorers" aria-pressed="false" onclick="appliquerFiltreDashboard('explorers', this)"><span class="stat-label">Explorers</span><span class="stat-value" id="s-explorers">—</span><span class="stat-action">Voir les prospects →</span></button>
+    <button type="button" class="stat-card purple active" data-dashboard-filter="total" aria-pressed="true" onclick="appliquerFiltreDashboard('total', this)"><span class="stat-label">Total membres</span><span class="stat-value" id="s-total">—</span><span class="stat-action">Afficher tous </span></button>
+    <button type="button" class="stat-card green" data-dashboard-filter="actifs" aria-pressed="false" onclick="appliquerFiltreDashboard('actifs', this)"><span class="stat-label">Actifs</span><span class="stat-value" id="s-actifs">—</span><span class="stat-action">Voir les actifs </span></button>
+    <button type="button" class="stat-card gold" data-dashboard-filter="copy" aria-pressed="false" onclick="appliquerFiltreDashboard('copy', this)"><span class="stat-label">Copy trading actif</span><span class="stat-value" id="s-copy">—</span><span class="stat-action">Voir Copy ON </span></button>
+    <button type="button" class="stat-card red" data-dashboard-filter="expires" aria-pressed="false" onclick="appliquerFiltreDashboard('expires', this)"><span class="stat-label">Expirés</span><span class="stat-value" id="s-expires">—</span><span class="stat-action">Voir les expirés </span></button>
+    <button type="button" class="stat-card blue" data-dashboard-filter="nouveaux" aria-pressed="false" onclick="appliquerFiltreDashboard('nouveaux', this)"><span class="stat-label">Nouveaux · 7 jours</span><span class="stat-value" id="s-new">—</span><span class="stat-action">Voir les nouveaux </span></button>
+    <button type="button" class="stat-card gold" data-dashboard-filter="explorers" aria-pressed="false" onclick="appliquerFiltreDashboard('explorers', this)"><span class="stat-label">Explorer</span><span class="stat-value" id="s-explorers">—</span><span class="stat-action">Voir les prospects </span></button>
   </div>
 
+  <div class="aw-shortcuts" aria-label="Accès rapides">
+    {% if candidature_available %}<a class="aw-shortcut" href="/admin/candidatures"><div><strong>Candidatures · Essai gratuit</strong><small>Profils vérifiés, réponses et suivi équipe</small></div></a>{% endif %}
+    <a class="aw-shortcut" href="/admin/essais-broker"><div><strong>Essais privés · 15 jours</strong><small>Inviter, vérifier le rattachement et activer</small></div></a>
+    <a class="aw-shortcut" href="/admin/activations"><span class="aw-shortcut-icon" aria-hidden="true"></span><div><strong>Activations membres</strong><small>Examiner les demandes d’accès</small></div><span aria-hidden="true"></span></a>
+    <a class="aw-shortcut" href="/admin/copy-trading"><span class="aw-shortcut-icon" aria-hidden="true"></span><div><strong>Copy trading</strong><small>Gérer les comptes et la copie</small></div><span aria-hidden="true"></span></a>
+    {% if admin_billing_available|default(true) %}
+    <a class="aw-shortcut" href="/admin/billing"><span class="aw-shortcut-icon" aria-hidden="true">€</span><div><strong>Facturation & incidents</strong><small>Suivre les paiements et les accès</small></div><span aria-hidden="true"></span></a>
+    {% else %}
+    <a class="aw-shortcut" href="/admin-panel#analytics"><span class="aw-shortcut-icon" aria-hidden="true"></span><div><strong>Statistiques</strong><small>Suivre l’activité et les conversions</small></div><span aria-hidden="true"></span></a>
+    {% endif %}
+  </div>
+  <details class="card-form" id="service-diagnostics" ontoggle="if(this.open) loadServiceDiagnostics()">
+    <summary style="cursor:pointer;font-weight:600">Suivi des services · Journal MT5 & notifications <span id="technical-incident-badge" class="badge warn">Vérification…</span></summary>
+    <p style="margin:12px 0;color:var(--muted)">Consultez les incidents et les dernières vérifications du journal de trading et des notifications.</p>
+    <button type="button" class="btn btn-purple btn-sm" onclick="loadServiceDiagnostics()">Actualiser</button>
+    <div id="service-diagnostics-content" role="status" style="margin-top:14px">Ouvrez ce panneau pour consulter les contrôles.</div>
+  </details>
+
   <!-- TABLEAU MEMBRES SUR LA PAGE D'ACCUEIL -->
-  <div class="dashboard-filter-summary" id="dashboard-filter-summary">
-    <span>Liste affichée : <strong id="dashboard-filter-label">Tous les membres</strong></span>
-    <span id="dashboard-filter-count">0 profil</span>
+  <div class="aw-members-panel">
+  <div class="aw-panel-heading"><div><h2>Répertoire des membres</h2><p class="dashboard-filter-summary" id="dashboard-filter-summary"><span><strong id="dashboard-filter-label">Tous les membres</strong> · <span id="dashboard-filter-count">0 profil</span></span></p></div><a class="aw-text-link" href="#membres">Tout gérer </a></div>
+  <div class="search-bar">
+    <input type="search" class="search-input" id="dashboard-search" aria-label="Rechercher un membre" placeholder="Nom, code ou e-mail…" oninput="filterDashboardMembres()">
+    <span class="aw-toolbar-spacer"></span>
+    <button class="btn aw-secondary" onclick="loadDashboardMembres()"> Actualiser</button>
+    <a class="btn aw-secondary" href="/admin/export-emails?key={{ admin_key }}" download> Exporter les e-mails</a>
   </div>
-  <div class="search-bar" style="margin-bottom:12px">
-    <input class="search-input" id="dashboard-search" placeholder="Rechercher par nom ou code..." oninput="filterDashboardMembres()">
-    <button class="btn btn-purple" onclick="loadDashboardMembres()">↻ Actualiser</button>
-    <a class="btn btn-green" href="/admin/export-emails?key={{ admin_key }}" download>⬇ CSV</a>
+  <div class="aw-directory-filters" data-directory-filters="dashboard">
+    <label>Statut<select data-filter="status" aria-label="Filtrer par statut"><option value="">Tous les statuts</option><option value="active">Actifs</option><option value="suspended">Suspendus</option><option value="expired">Expirés</option></select></label>
+    <label>Niveau d’accès<select data-filter="access" aria-label="Filtrer par niveau d’accès"><option value="">Tous les niveaux</option><option value="member">Membres</option><option value="explorer">Explorer</option></select></label>
+    <label>Échéance<select data-filter="expiry" aria-label="Filtrer par échéance"><option value="">Toutes les échéances</option><option value="7d">Dans les 7 jours</option></select></label>
+    <label>Trier par<select data-filter="sort" aria-label="Trier les membres"><option value="recent">Plus récents</option><option value="name">Nom · A  Z</option><option value="expiry">Échéance la plus proche</option><option value="capital">Capital décroissant</option></select></label>
+    <button type="button" class="btn aw-secondary" data-reset-directory="dashboard">Réinitialiser</button>
   </div>
+  <p class="aw-directory-status" id="dashboard-directory-status" role="status" aria-live="polite"></p>
   <div class="table-wrap">
     <table id="dashboard-membres-table">
       <thead><tr>
-        <th>Code</th><th>Nom</th><th>Capital</th><th>Statut</th>
-        <th>Copy</th><th>Expire</th><th>Jours</th><th>Actions</th>
+        <th>Membre</th><th>Capital</th><th>Accès</th>
+        <th>Copy trading</th><th>Échéance</th><th>Jours restants</th><th style="text-align:right">Actions</th>
       </tr></thead>
       <tbody id="dashboard-membres-tbody">
-        <tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr>
+        <tr><td colspan="7" class="aw-empty">Chargement des membres…</td></tr>
       </tbody>
     </table>
+  </div>
+  <div class="aw-table-footer" id="dashboard-pagination" aria-label="Pagination des membres"></div>
   </div>
 </div>
 
@@ -274,73 +267,82 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 
 <!-- MEMBRES -->
 <div class="section" id="section-membres">
-  <div class="section-title">Gestion des membres</div>
+  <div class="aw-page-heading"><div><h1>Gestion des membres</h1><p>Recherchez un profil, gérez ses accès et accompagnez son parcours.</p></div></div>
   <div class="search-bar">
-    <input class="search-input" id="membre-search" placeholder="Rechercher par nom ou code..." oninput="filterMembres()">
-    <button class="btn btn-purple" onclick="loadMembres()">↻ Actualiser</button>
+    <input type="search" aria-label="Rechercher dans tous les membres" class="search-input" id="membre-search" placeholder="Nom, code ou e-mail…" oninput="filterMembres()">
+    <button class="btn btn-purple" onclick="loadMembres()"> Actualiser</button>
     <a class="btn btn-green" href="/admin/export-emails?key={{ admin_key }}" download>
-      ⬇ Exporter emails CSV
+       Exporter emails CSV
     </a>
   </div>
+  <div class="aw-directory-filters" data-directory-filters="members">
+    <label>Statut<select data-filter="status" aria-label="Filtrer par statut"><option value="">Tous les statuts</option><option value="active">Actifs</option><option value="suspended">Suspendus</option><option value="expired">Expirés</option></select></label>
+    <label>Niveau d’accès<select data-filter="access" aria-label="Filtrer par niveau d’accès"><option value="">Tous les niveaux</option><option value="member">Membres</option><option value="explorer">Explorer</option></select></label>
+    <label>Échéance<select data-filter="expiry" aria-label="Filtrer par échéance"><option value="">Toutes les échéances</option><option value="7d">Dans les 7 jours</option></select></label>
+    <label>Trier par<select data-filter="sort" aria-label="Trier les membres"><option value="recent">Plus récents</option><option value="name">Nom · A  Z</option><option value="expiry">Échéance la plus proche</option><option value="capital">Capital décroissant</option></select></label>
+    <button type="button" class="btn aw-secondary" data-reset-directory="members">Réinitialiser</button>
+  </div>
+  <p class="aw-directory-status" id="members-directory-status" role="status" aria-live="polite"></p>
   <div class="table-wrap">
     <table id="membres-table">
       <thead><tr>
-        <th>Code</th><th>Nom</th><th>Capital</th><th>Statut</th>
-        <th>Copy</th><th>Expire</th><th>Jours</th><th>Actions</th>
+        <th>Membre</th><th>Capital</th><th>Accès</th>
+        <th>Copy trading</th><th>Échéance</th><th>Jours restants</th><th style="text-align:right">Actions</th>
       </tr></thead>
-      <tbody id="membres-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr></tbody>
+      <tbody id="membres-tbody"><tr><td colspan="7" class="aw-empty">Chargement des membres…</td></tr></tbody>
     </table>
   </div>
+  <div class="aw-table-footer" id="members-pagination" aria-label="Pagination de tous les membres"></div>
 </div>
 
 <!-- NOTIFICATIONS -->
 <div class="section" id="section-notifications">
-  <div class="section-title">Envoyer une notification</div>
+  <div class="aw-page-heading"><div><h1>Envoyer une notification</h1><p>Choisissez une communication globale ou un message destiné à un seul membre.</p></div></div>
   <div class="card-form">
     <div class="card-form-title">Notification globale — tous les membres</div>
     <div class="form-grid">
       <div class="field">
-        <label>Type</label>
+        <label for="notif-type">Type</label>
         <select id="notif-type">
-          <option value="alerte">🔴 Alerte urgente</option>
-          <option value="message">💜 Message info</option>
-          <option value="resultat">🟢 Performance</option>
-          <option value="maintenance">🔧 Maintenance</option>
+          <option value="alerte"> Alerte urgente</option>
+          <option value="message"> Message info</option>
+          <option value="resultat"> Performance</option>
+          <option value="maintenance"> Maintenance</option>
         </select>
       </div>
     </div>
     <div class="field" style="margin-bottom:16px">
-      <label>Message</label>
+      <label for="notif-contenu">Message</label>
       <textarea id="notif-contenu" placeholder="Écris ton message ici..."></textarea>
     </div>
-    <button class="btn btn-purple" onclick="envoyerNotifGlobale()">Envoyer à tous →</button>
+    <button class="btn btn-purple" onclick="envoyerNotifGlobale()">Envoyer à tous </button>
   </div>
 
   <div class="card-form">
     <div class="card-form-title">Message individuel — un membre spécifique</div>
     <div class="form-grid">
       <div class="field">
-        <label>Code membre</label>
+        <label for="notif-ind-code">Code membre</label>
         <input type="text" id="notif-ind-code" placeholder="BCT-XXXXXXXX">
       </div>
     </div>
     <div class="field" style="margin-bottom:16px">
-      <label>Message personnalisé</label>
+      <label for="notif-ind-contenu">Message personnalisé</label>
       <textarea id="notif-ind-contenu" placeholder="Message visible uniquement par ce membre..."></textarea>
     </div>
-    <button class="btn btn-gold" onclick="envoyerNotifIndividuelle()">Envoyer →</button>
+    <button class="btn btn-gold" onclick="envoyerNotifIndividuelle()">Envoyer </button>
   </div>
 </div>
 
 <!-- ANNONCES -->
 <div class="section" id="section-annonces">
-  <div class="section-title">Gestion des annonces</div>
+  <div class="aw-page-heading"><div><h1>Gestion des annonces</h1><p>Préparez une annonce et retrouvez les publications visibles dans l’académie.</p></div></div>
   <div class="card-form">
     <div class="card-form-title">Nouvelle annonce</div>
     <div class="form-grid">
-      <div class="field"><label>Titre</label><input type="text" id="ann-titre" placeholder="Titre de l'annonce"></div>
+      <div class="field"><label for="ann-titre">Titre</label><input type="text" id="ann-titre" placeholder="Titre de l'annonce"></div>
       <div class="field">
-        <label>Type</label>
+        <label for="ann-type">Type</label>
         <select id="ann-type">
           <option value="message">Message</option>
           <option value="alerte">Alerte</option>
@@ -350,13 +352,13 @@ tr:hover td{background:rgba(255,255,255,0.02)}
       </div>
     </div>
     <div class="field" style="margin-bottom:14px">
-      <label>Contenu</label>
+      <label for="ann-contenu">Contenu</label>
       <textarea id="ann-contenu" placeholder="Contenu de l'annonce..."></textarea>
     </div>
     <div class="form-grid">
-      <div class="field"><label>Lien audio (optionnel)</label><input type="text" id="ann-audio" placeholder="https://..."></div>
+      <div class="field"><label for="ann-audio">Lien audio (optionnel)</label><input type="text" id="ann-audio" placeholder="https://..."></div>
       <div class="field">
-        <label>Destinataire</label>
+        <label for="ann-cible">Destinataire</label>
         <select id="ann-cible">
           <option value="tous">Tous les membres</option>
           <option value="individuel">Membre spécifique</option>
@@ -364,67 +366,67 @@ tr:hover td{background:rgba(255,255,255,0.02)}
       </div>
     </div>
     <div class="field" id="ann-code-wrap" style="display:none;margin-bottom:14px">
-      <label>Code membre</label>
+      <label for="ann-cible-code">Code membre</label>
       <input type="text" id="ann-cible-code" placeholder="BCT-XXXXXXXX">
     </div>
-    <button class="btn btn-purple" onclick="ajouterAnnonce()">Publier l'annonce →</button>
+    <button class="btn btn-purple" onclick="ajouterAnnonce()">Publier l'annonce </button>
   </div>
   <div id="annonces-list"></div>
 </div>
 
 <!-- TELEGRAM -->
 <div class="section" id="section-telegram">
-  <div class="section-title">Envoyer sur Telegram</div>
+  <div class="aw-page-heading"><div><h1>Envoyer sur Telegram</h1><p>Envoyez un message au canal sélectionné. Vérifiez le contenu avant publication.</p></div></div>
   <div class="card-form" style="border-color:rgba(245,158,11,0.28);background:linear-gradient(135deg,rgba(245,158,11,0.08),var(--d2))">
     <div class="card-form-title" style="color:#FCD34D">Centre de commande éditorial</div>
     <p style="font-size:13px;line-height:1.65;color:rgba(255,255,255,0.55);margin-bottom:14px">Programme les jours, les heures, les images, les boutons et tous les messages envoyés automatiquement par les robots.</p>
-    <a class="btn btn-gold" href="/admin/telegram-automation?key={{ admin_key }}">🤖 Ouvrir le Centre Telegram →</a>
+    <a class="btn btn-gold" href="/admin/telegram-automation?key={{ admin_key }}"> Ouvrir le Centre Telegram </a>
   </div>
   <div class="card-form">
     <div class="card-form-title">Message sur le canal public @BECTANSE_ACADEMIE</div>
     <div class="field" style="margin-bottom:16px">
-      <label>Message</label>
+      <label for="tg-canal-msg">Message</label>
       <textarea id="tg-canal-msg" placeholder="Message pour le canal public..." rows="4"></textarea>
     </div>
-    <button class="btn btn-purple" onclick="envoyerTelegram('@BECTANSE_ACADEMIE')">Envoyer sur @BECTANSE_ACADEMIE →</button>
+    <button class="btn btn-purple" onclick="envoyerTelegram('@BECTANSE_ACADEMIE')">Envoyer sur @BECTANSE_ACADEMIE </button>
   </div>
 </div>
 
 <!-- VIDÉOS -->
 <div class="section" id="section-videos">
-  <div class="section-title">Gestion des vidéos</div>
+  <div class="aw-page-heading"><div><h1>Gestion des vidéos</h1><p>Ajoutez les vidéos de formation et organisez leur ordre dans le parcours.</p></div></div>
   <div class="card-form">
     <div class="card-form-title">Ajouter une vidéo YouTube</div>
     <div class="form-grid">
-      <div class="field"><label>Numéro</label><input type="number" id="vid-num" placeholder="07"></div>
-      <div class="field"><label>Durée</label><input type="text" id="vid-duree" placeholder="5:24"></div>
+      <div class="field"><label for="vid-num">Numéro</label><input type="number" id="vid-num" placeholder="07"></div>
+      <div class="field"><label for="vid-duree">Durée</label><input type="text" id="vid-duree" placeholder="5:24"></div>
     </div>
     <div class="form-grid">
-      <div class="field"><label>Titre</label><input type="text" id="vid-titre" placeholder="Titre de la vidéo"></div>
-      <div class="field"><label>ID YouTube</label><input type="text" id="vid-yt" placeholder="xTDauJuGM-0"></div>
+      <div class="field"><label for="vid-titre">Titre</label><input type="text" id="vid-titre" placeholder="Titre de la vidéo"></div>
+      <div class="field"><label for="vid-yt">ID YouTube</label><input type="text" id="vid-yt" placeholder="xTDauJuGM-0"></div>
     </div>
-    <button class="btn btn-purple" onclick="ajouterVideo()">Ajouter la vidéo →</button>
+    <button class="btn btn-purple" onclick="ajouterVideo()">Ajouter la vidéo </button>
   </div>
 </div>
 
 <!-- PDFs -->
 <div class="section" id="section-pdfs">
-  <div class="section-title">Gestion des PDFs</div>
+  <div class="aw-page-heading"><div><h1>Gestion des PDFs</h1><p>Ajoutez les supports PDF et gérez les documents proposés aux membres.</p></div></div>
   <div class="card-form">
     <div class="card-form-title">Ajouter un PDF Google Drive</div>
     <div class="form-grid">
-      <div class="field"><label>Numéro</label><input type="number" id="pdf-num" placeholder="08"></div>
-      <div class="field"><label>Taille</label><input type="text" id="pdf-taille" placeholder="12.5 KB"></div>
+      <div class="field"><label for="pdf-num">Numéro</label><input type="number" id="pdf-num" placeholder="08"></div>
+      <div class="field"><label for="pdf-taille">Taille</label><input type="text" id="pdf-taille" placeholder="12.5 KB"></div>
     </div>
     <div class="field" style="margin-bottom:14px">
-      <label>Titre</label>
+      <label for="pdf-titre">Titre</label>
       <input type="text" id="pdf-titre" placeholder="Titre du PDF">
     </div>
     <div class="field" style="margin-bottom:16px">
-      <label>ID Google Drive (bout de l'URL drive.google.com/file/d/ICI/view)</label>
+      <label for="pdf-drive-id">ID Google Drive (bout de l'URL drive.google.com/file/d/ICI/view)</label>
       <input type="text" id="pdf-drive-id" placeholder="1EHWq2LlH-1ltvLJ-86cXQqB5I_3K43j6">
     </div>
-    <button class="btn btn-purple" onclick="ajouterPDF()">Ajouter le PDF →</button>
+    <button class="btn btn-purple" onclick="ajouterPDF()">Ajouter le PDF </button>
   </div>
   <div id="pdfs-list"></div>
 </div>
@@ -432,9 +434,9 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 
 <!-- CANAL VIP -->
 <div class="section" id="section-canal">
-  <div class="section-title">Canal VIP — Messages</div>
+  <div class="aw-page-heading"><div><h1>Canal VIP — Messages</h1><p>Consultez les publications du canal VIP et gérez leur visibilité.</p></div></div>
   <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
-    <button class="btn btn-purple" onclick="loadCanalMessages()">↻ Actualiser</button>
+    <button class="btn btn-purple" onclick="loadCanalMessages()"> Actualiser</button>
     <span style="font-size:12px;color:rgba(255,255,255,0.3)">Les messages supprimés disparaissent de l'app membre mais restent sur Telegram</span>
   </div>
   <div id="canal-messages-list">
@@ -452,7 +454,7 @@ tr:hover td{background:rgba(255,255,255,0.02)}
     <div class="modal-title" id="profil-nom">Profil membre</div>
     <div id="profil-content" style="margin-top:16px"></div>
     <div class="modal-actions" style="margin-top:20px">
-      <button class="btn btn-purple" id="save-profil-admin" onclick="sauverProfilAdmin()">💾 Enregistrer</button>
+      <button class="btn btn-purple" id="save-profil-admin" onclick="sauverProfilAdmin()"> Enregistrer</button>
       <button class="btn btn-gold" onclick="fermerProfilAdmin()">Fermer</button>
     </div>
   </div>
@@ -468,23 +470,56 @@ tr:hover td{background:rgba(255,255,255,0.02)}
 </div>
 
 <!-- TOAST -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<!-- MODAL CONFIRMATION -->
-<div class="modal-overlay" id="confirm-modal">
-  <div class="modal">
-    <div class="modal-title" id="confirm-title">Confirmer</div>
-    <div id="confirm-body" style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6"></div>
-    <div class="modal-actions">
-      <button class="btn btn-gold" onclick="closeModal()">Annuler</button>
-      <button class="btn btn-red" id="confirm-btn">Confirmer</button>
-    </div>
-  </div>
-</div>
-
+<script src="/static/admin-members.js?v=20261018-access"></script>
 <script>
 const KEY = '{{ admin_key }}';
 const API = (path) => `${path}?key=${KEY}`;
+
+async function loadServiceDiagnostics() {
+  const target = document.getElementById('service-diagnostics-content');
+  try {
+    const response = await fetch('/admin/api/service-diagnostics', {headers: {'X-Admin-Key': KEY}});
+    if (!response.ok) throw new Error('unavailable');
+    const data = await response.json(), mt5 = data.mt5, canal = data.canal;
+    const activeIncidents = data.accounts.filter(a => !a.is_demo && (a.error_code || !a.has_credentials)).length + (canal.issues || []).length;
+    const badge = document.getElementById('technical-incident-badge');
+    badge.textContent = activeIncidents ? activeIncidents+' situation(s) à vérifier' : mt5.status === 'ok' && canal.status === 'ok' ? 'Services opérationnels' : 'Contrôle à vérifier';
+    badge.className = 'badge '+(!activeIncidents && mt5.status === 'ok' && canal.status === 'ok' ? 'on' : 'warn');
+    const date = value => value ? new Date(value).toLocaleString('fr-FR',{timeZone:'Europe/Paris'}) : 'Jamais';
+    const states = {ok:'Opérationnel',degraded:'À vérifier',unknown:'Non vérifié',initializing:'Initialisation',
+      SYNCED:'Synchronisé',SYNCING:'Synchronisation en cours',AUTH_ERROR:'Identifiants à corriger',
+      TERMINAL_ERROR:'Terminal indisponible',BROKER_UNAVAILABLE:'Broker indisponible',
+      DISCONNECTED:'À reconnecter',ACCESS_EXPIRED:'Accès expiré',SYNC_ERROR:'Erreur de synchronisation'};
+    const issues = {private_source_stale:'Aucune publication privée récente',telegram_backlog:'Réception Telegram en attente',
+      telegram_unavailable:'Telegram indisponible',webhook_restored:'Réception Telegram rétablie',
+      inbox_blocked:'Publication en attente de traitement',push_failures:'Échecs de notifications',
+      RECONCILIATION_MISMATCH:'Écart dans l’historique MT5',STALE_ACCOUNTS:'Comptes en retard',NO_ONLINE_WORKER:'Aucun moteur disponible',
+      QUEUE_BLOCKED:'File bloquée',MONITOR_STALE:'Contrôle trop ancien',NO_MONITOR_CHECK:'Premier contrôle attendu'};
+    const label = value => escapeAnalytics(states[value] || value || 'Non vérifié');
+    const incidentList = values => (values || []).map(x => escapeAnalytics(issues[x] || x)).join(' · ') || 'Aucun incident détecté';
+    target.innerHTML = `<p><strong>Journal MT5 : ${label(mt5.status)}</strong> · ${Number(mt5.online_workers || 0)} moteurs disponibles · ${Number(mt5.stale_accounts || 0)} comptes en retard<br>${incidentList(mt5.issues)}<br>Contrôle : ${escapeAnalytics(date(mt5.checked_at))}</p>
+      <p style="margin-top:12px"><strong>Canal VIP : ${label(canal.status)}</strong><br>${incidentList(canal.issues)}<br>Dernière publication : ${escapeAnalytics(date(canal.last_publication && canal.last_publication.replace(' ','T')+'Z'))}<br>
+      Notifications sur 24 h : ${Number(canal.push.accepted || 0)} acceptées, ${Number(canal.push.pending || 0)+Number(canal.push.sending || 0)} en attente, ${Number(canal.push.failed || 0)} en échec.<br>
+      ${Number(canal.members_without_push || 0)} membres sans appareil enregistré · Contrôle : ${escapeAnalytics(date(canal.checked_at))}</p>
+      <div style="overflow-x:auto;margin-top:14px"><table><thead><tr><th>Compte</th><th>Serveur</th><th>État</th><th>Dernière synchronisation</th><th>Diagnostic</th></tr></thead><tbody>${data.accounts.map(a => `<tr><td>#${Number(a.id)}</td><td>${escapeAnalytics(a.server)}</td><td>${a.is_demo ? 'Démonstration Apple' : label(a.status)}</td><td>${escapeAnalytics(date(a.last_sync))}</td><td>${escapeAnalytics(a.is_demo ? 'Compte de démonstration ; aucune synchronisation réelle attendue.' : !a.has_credentials ? 'Identifiants absents.' : a.error_message || 'Aucune erreur signalée')}</td></tr>`).join('')}</tbody></table></div>
+      <h3 style="margin:18px 0 8px;font-size:14px">Incidents MT5 des dernières 24 heures</h3>
+      <p style="margin-bottom:10px">Les erreurs restent visibles après reprise du service.</p>
+      <div style="overflow-x:auto"><table><thead><tr><th>Compte</th><th>Erreur</th><th>Moteur</th><th>Occurrences</th><th>Dernière occurrence</th></tr></thead><tbody>${data.incidents_24h.map(i => `<tr><td>#${Number(i.account_id)}</td><td>${label(i.code)}${i.native_code == null ? '' : ' · code '+Number(i.native_code)}${i.phase ? ' · '+escapeAnalytics(i.phase) : ''}</td><td>${escapeAnalytics(i.worker)}</td><td>${Number(i.count)}</td><td>${escapeAnalytics(date(i.last_seen))}</td></tr>`).join('') || '<tr><td colspan="5">Aucun échec enregistré sur cette période.</td></tr>'}</tbody></table></div>
+      <h3 style="margin:18px 0 8px;font-size:14px">Reprises MT5 programmées</h3>
+      <div>${(data.recovery || []).map(r => `<p>Compte #${Number(r.account_id)} : ${Number(r.failures)} échec(s) consécutif(s). Prochaine tentative autorisée à ${escapeAnalytics(date(r.next_attempt))}.</p>`).join('') || 'Aucune reprise différée.'}</div>
+      <h3 style="margin:18px 0 8px;font-size:14px">Écarts de données non résolus</h3>
+      <div>${(data.integrity || []).map(r => `<p>Compte #${Number(r.account_id)} : période du ${escapeAnalytics(date(r.from))} au ${escapeAnalytics(date(r.to))}, écart de ${Number(r.difference)} opération(s), écart net de ${escapeAnalytics(Number(r.pnl_delta || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}))} dans la devise du compte. ${Number(r.attempts)}/3 vérifications lancées.${r.attempts >= 3 ? ' Analyse manuelle nécessaire ; données conservées.' : ''}</p>`).join('') || 'Aucun écart non résolu.'}</div>
+      <h3 style="margin:18px 0 8px;font-size:14px">Notifications VIP à suivre — dernières 24 heures</h3>
+      <div style="overflow-x:auto"><table><thead><tr><th>Membre</th><th>Publication</th><th>État</th><th>Détail</th><th>Tentatives</th><th>Depuis</th></tr></thead><tbody>${(canal.delivery_incidents || []).map(i => `<tr><td>${escapeAnalytics(i.member)}</td><td>#${Number(i.message_id)}</td><td>${escapeAnalytics({pending:'Reprise programmée',sending:'Envoi en cours',failed:'Échec',expired:'Appareil expiré ou délai dépassé',cancelled:'Envoi annulé'}[i.status] || i.status)}</td><td>${escapeAnalytics(i.error || 'En attente')}</td><td>${Number(i.attempts)}</td><td>${escapeAnalytics(date(i.created_at))}</td></tr>`).join('') || '<tr><td colspan="6">Aucun envoi en attente ou en échec sur cette période.</td></tr>'}</tbody></table></div>`;
+  } catch (error) {
+    document.getElementById('technical-incident-badge').textContent = 'Diagnostic indisponible';
+    document.getElementById('technical-incident-badge').className = 'badge off';
+    target.textContent = 'Les diagnostics ne sont pas disponibles. Réessayez dans un instant.';
+  }
+}
+setInterval(() => { if (!document.hidden) loadServiceDiagnostics(); }, 60000);
 
 // ── TOAST
 function toast(msg, type='success') {
@@ -495,26 +530,27 @@ function toast(msg, type='success') {
 }
 
 // ── MODAL
-let confirmCallback = null;
-function confirm(title, body, cb) {
-  document.getElementById('confirm-title').textContent = title;
-  document.getElementById('confirm-body').textContent = body;
-  confirmCallback = cb;
-  document.getElementById('confirm-modal').classList.add('open');
+async function confirm(title, body, cb) {
+  if (await adminConfirm(title, body, {danger:true})) {
+    try { await cb(); } catch (error) { toast('Action impossible. Veuillez réessayer.', 'error'); }
+  }
 }
-document.getElementById('confirm-btn').onclick = () => { closeModal(); if(confirmCallback) confirmCallback(); };
-function closeModal() { document.getElementById('confirm-modal').classList.remove('open'); }
 
 // ── NAV
 function showSection(id) {
-  const currentTop = window.scrollY;
-  window.scrollTo({left: 0, top: currentTop});
-  document.documentElement.scrollLeft = 0;
-  document.body.scrollLeft = 0;
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('section-' + id).classList.add('active');
-  document.querySelectorAll('.s-item').forEach(i => i.classList.remove('active'));
-  if (typeof event !== 'undefined' && event.currentTarget) event.currentTarget.classList.add('active');
+  const section = document.getElementById('section-' + id);
+  if (!section) return;
+  document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s === section));
+  document.querySelectorAll('.aw-link').forEach(link => {
+    const active = link.dataset.space === id;
+    link.classList.toggle('is-active', active);
+    if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  });
+  const current = document.querySelector('.aw-link.is-active');
+  document.getElementById('workspace-location').textContent = current ? current.textContent.trim() : 'Administration';
+  document.title = document.getElementById('workspace-location').textContent + ' · Bectanse Admin';
+  window.scrollTo({top:0,left:0});
+  document.getElementById('workspace-content').focus({preventScroll:true});
   if (id === 'membres') loadMembres();
   if (id === 'annonces') loadAnnonces();
   if (id === 'pdfs') loadPDFs();
@@ -564,7 +600,7 @@ function closeAnalyticsModal(event) {
 }
 function formatAnalyticsDate(value) {
   if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
+  return new Intl.DateTimeFormat('fr-FR', {timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
 }
 function formatAnalyticsDuration(seconds) {
   const value = Math.max(0, Number(seconds || 0));
@@ -678,88 +714,57 @@ async function loadAnalytics(period='7d') {
     renderAnalyticsChange('a-payments-change', d.changes.confirmed_payments);
     renderAnalyticsChange('a-revenue-change', d.changes.revenue_cents);
     const rangeFrom = new Date(d.window.from), rangeTo = new Date(d.window.to);
-    document.getElementById('analytics-window').textContent = `${d.window.label} · du ${rangeFrom.toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} au ${rangeTo.toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · heure de Paris`;
+    document.getElementById('analytics-window').textContent = `${d.window.label} · du ${rangeFrom.toLocaleString('fr-FR', {timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} au ${rangeTo.toLocaleString('fr-FR', {timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · heure de Paris`;
     document.getElementById('analytics-status').textContent = d.posthog_connected ? '● Suivi interne + PostHog actifs' : '● Suivi interne actif';
     const maxTrend = Math.max(...d.trend.map(x => x.page_views), 1);
     const sparseLabel = Math.max(1, Math.ceil(d.trend.length / 8));
     document.getElementById('analytics-trend').innerHTML = d.trend.length ? d.trend.map((x,index) => {
-      const shortDate = d.window.bucket === 'hour' ? new Date(x.date).toLocaleTimeString('fr-FR',{hour:'2-digit'}) : new Date(`${x.date}T12:00:00`).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-      return `<div class="trend-slot" data-tip="${escapeAnalytics(shortDate)} · ${x.page_views.toLocaleString('fr-FR')} pages vues · ${x.visitors.toLocaleString('fr-FR')} visiteurs · ${x.sessions.toLocaleString('fr-FR')} sessions"><div class="trend-bar views" style="height:${Math.max(2,x.page_views/maxTrend*100)}%"></div><div class="trend-bar people" style="height:${Math.max(2,x.visitors/maxTrend*100)}%"></div>${index % sparseLabel === 0 || index === d.trend.length-1 ? `<span class="trend-label">${escapeAnalytics(shortDate)}</span>` : ''}</div>`;
+      const shortDate = d.window.bucket === 'hour' ? new Date(x.date).toLocaleTimeString('fr-FR',{timeZone:'Europe/Paris',hour:'2-digit'}) : new Date(`${x.date}T12:00:00`).toLocaleDateString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit'});
+      return `<div class="trend-slot" tabindex="0" role="img" aria-label="${escapeAnalytics(shortDate)} : ${Number(x.page_views)} pages vues, ${Number(x.visitors)} visiteurs" data-tip="${escapeAnalytics(shortDate)} · ${x.page_views.toLocaleString('fr-FR')} pages vues · ${x.visitors.toLocaleString('fr-FR')} visiteurs · ${x.sessions.toLocaleString('fr-FR')} sessions"><div class="trend-bar views" style="height:${Math.max(2,x.page_views/maxTrend*100)}%"></div><div class="trend-bar people" style="height:${Math.max(2,x.visitors/maxTrend*100)}%"></div>${index % sparseLabel === 0 || index === d.trend.length-1 ? `<span class="trend-label">${escapeAnalytics(shortDate)}</span>` : ''}</div>`;
     }).join('') : '<div class="analytics-empty" style="width:100%;align-self:center">Le trafic apparaîtra dès la première page vue.</div>';
     const first = Math.max(d.funnel[0]?.value || 0, 1);
-    document.getElementById('analytics-funnel').innerHTML = d.funnel.map((x,i) => `<div class="funnel-step"><div class="funnel-fill" style="width:${Math.max(x.value ? 4 : 0,x.value/first*100)}%"></div><div class="funnel-text"><span>${i+1}. ${escapeAnalytics(x.label)}</span><span>${x.value.toLocaleString('fr-FR')}</span></div><div class="funnel-rates"><span>${i ? `${x.step_rate.toLocaleString('fr-FR')} % de l’étape précédente` : 'Base de calcul'}</span><span>${x.global_rate.toLocaleString('fr-FR')} % des visiteurs</span></div></div>`).join('');
+    document.getElementById('analytics-funnel').innerHTML = d.funnel.map((x,i) => `<div class="funnel-step"><div class="funnel-fill" style="width:${Math.max(x.value ? 4 : 0,x.value/first*100)}%"></div><div class="funnel-text"><span>${i+1}. ${escapeAnalytics(x.label)}</span><span>${x.value.toLocaleString('fr-FR')}</span></div><div class="funnel-rates"><span>${i ? `${x.step_rate.toLocaleString('fr-FR')} % de l’étape précédente` : 'Base de calcul'}</span><span>${x.global_rate.toLocaleString('fr-FR')} % des visiteurs</span></div></div>`).join('') || '<div class="aw-module-empty">Aucune conversion sur cette période.</div>';
     renderBarList('analytics-sources', d.sources); renderBarList('analytics-mediums', d.mediums); renderBarList('analytics-campaigns', d.campaigns);
     renderBarList('analytics-pages', d.pages); renderBarList('analytics-entry-pages', d.entry_pages); renderBarList('analytics-exit-pages', d.exit_pages);
     renderBarList('analytics-paths', d.paths); renderBarList('analytics-devices', d.devices); renderBarList('analytics-browsers', d.browsers);
     renderAnalyticsVisitors(d.visitors);
     updateAnalyticsPagination(1, d.visitors_has_more);
-  } catch (e) { toast('Impossible de charger les statistiques', 'error'); }
+  } catch (e) { document.getElementById('analytics-status').textContent = 'Données indisponibles'; document.getElementById('analytics-window').textContent = 'La période n’a pas pu être chargée. Réessayez en sélectionnant une période.'; toast('Impossible de charger les statistiques', 'error'); }
 }
 
 // ── STATS
 async function loadStats() {
-  const r = await fetch(API('/admin/api/stats'));
-  const d = await r.json();
-  if (!d.ok) return;
-  document.getElementById('s-total').textContent = d.total;
-  document.getElementById('s-actifs').textContent = d.actifs;
-  document.getElementById('s-copy').textContent = d.copy_on;
-  document.getElementById('s-expires').textContent = d.expires;
-  document.getElementById('s-new').textContent = d.nouveaux_7j;
-  document.getElementById('s-explorers').textContent = d.explorers;
+  try {
+    const r = await fetch(API('/admin/api/stats'));
+    if (!r.ok) throw Error('unavailable');
+    const d = await r.json();
+    if (!d.ok) throw Error('unavailable');
+    for (const [id, field] of Object.entries({'s-total':'total','s-actifs':'actifs','s-copy':'copy_on','s-expires':'expires','s-new':'nouveaux_7j','s-explorers':'explorers'})) {
+      const value = d[field];
+      document.getElementById(id).textContent = value == null ? '—' : Number(value).toLocaleString('fr-FR');
+      document.getElementById(id).title = value == null ? 'Donnée indisponible' : '';
+    }
+  } catch (error) {
+    document.querySelectorAll('.stat-value').forEach(el => { el.textContent = '—'; el.title = 'Indicateur indisponible'; });
+    toast('Indicateurs indisponibles. Actualisez pour réessayer.', 'error');
+  }
 }
 
 // ── MEMBRES
 let allMembres = [];
-async function loadMembres() {
-  const tbody = document.getElementById('membres-tbody');
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr>';
-  const r = await fetch(API('/admin/api/membres'));
-  const d = await r.json();
-  if (!d.ok) { toast('Erreur chargement', 'error'); return; }
-  allMembres = d.membres;
-  renderMembres(allMembres);
-}
+async function loadMembres() { return loadAdminDirectory('members', adminMemberLists.members?.page || 1); }
 
-function filterMembres() {
-  const q = document.getElementById('membre-search').value.toLowerCase();
-  renderMembres(allMembres.filter(m => m.nom.toLowerCase().includes(q) || m.code.toLowerCase().includes(q)));
-}
+function filterMembres() { scheduleDirectorySearch('members'); }
 
-function renderMembres(membres) {
-  const tbody = document.getElementById('membres-tbody');
-  if (!membres.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Aucun membre</td></tr>';
-    return;
-  }
-  tbody.innerHTML = membres.map(m => `
-    <tr>
-      <td><code style="color:#C4B5FD;font-size:11px">${m.code}</code></td>
-      <td style="font-weight:600;color:#fff">${m.nom}</td>
-      <td>${m.capital || '—'}</td>
-      <td><span class="badge ${m.access_level === 'explorer' ? 'warn' : (m.actif ? 'on' : 'off')}">${m.access_level === 'explorer' ? 'Explorer' : (m.actif ? 'Actif' : 'Suspendu')}</span></td>
-      <td><span class="badge ${m.copy_actif ? 'on' : 'off'}">${m.copy_actif ? 'ON' : 'OFF'}</span></td>
-      <td style="font-size:12px">${m.date_fin || '—'}</td>
-      <td>${m.access_level === 'explorer' ? '—' : `<span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span>`}</td>
-      <td>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-sm" style="background:rgba(8,145,178,0.15);color:#67E8F9;border:1px solid rgba(8,145,178,0.3)" onclick="voirProfil('${m.code}')">👤</button>
-          ${m.access_level === 'explorer' ? '' : `<button class="btn btn-gold btn-sm" onclick="ajusterJours('${m.code}')">± Jours</button>`}
-          ${m.access_level === 'explorer' ? '' : `<button class="btn ${m.actif ? 'btn-red' : 'btn-green'} btn-sm" onclick="changerSuspension('${m.code}', ${m.actif ? 'true' : 'false'})">${m.actif ? 'Suspendre' : 'Réactiver'}</button>`}
-          <button class="btn btn-sm" style="background:rgba(91,33,182,0.15);color:#C4B5FD;border:1px solid rgba(91,33,182,0.3)" onclick="msgMembre('${m.code}','${m.nom}')">Msg</button>
-          <button class="btn btn-red btn-sm" onclick="supprimerMembre('${m.code}','${m.nom}')">✕</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
+function renderMembres(membres) { renderAdminMemberList('members', membres); }
 
-async function ajusterJours(code) {
-  const saisie = prompt(`Ajuster les jours de ${code} :\n\n• Pour ajouter : 10\n• Pour retirer : -10`);
-  if (saisie === null) return;
-  const jours = Number(saisie.trim());
-  if (!Number.isInteger(jours) || jours === 0) {
-    toast('Indique un nombre entier positif ou négatif, différent de zéro.', 'error');
+async function ajusterJours(code, direction = 0) {
+  const saisie = await adminConfirm(direction > 0 ? 'Ajouter des jours d’accès' : direction < 0 ? 'Retirer des jours d’accès' : 'Ajuster les jours d’accès', `Membre ${code}. ${direction ? 'Indiquez un nombre de jours positif.' : 'Nombre positif pour ajouter, négatif pour retirer.'} Cette action modifie l’accès uniquement, sans prélèvement ni annulation Stripe.`, {input:{label:'Nombre de jours',type:'number'},label:'Appliquer'});
+  if (saisie === false) return;
+  const valeur = Number(saisie.trim());
+  const jours = direction ? direction * valeur : valeur;
+  if (!Number.isInteger(jours) || jours === 0 || Math.abs(jours) > 3650 || (direction && valeur < 1)) {
+    toast('Indique un nombre entier de 1 à 3650 jours.', 'error');
     return;
   }
   const r = await fetch('/admin/api/membre/update', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code,jours})});
@@ -776,7 +781,7 @@ function changerSuspension(code, estActif) {
   const message = estActif
     ? `Suspendre temporairement l’accès de ${code} ? Le membre verra immédiatement l’écran d’accès expiré.`
     : `Réactiver l’accès de ${code} ? Le membre pourra de nouveau utiliser l’application si son abonnement n’est pas expiré.`;
-  confirm(`${action} l’accès`, message, async () => {
+  return confirm(`${action} l’accès`, message, async () => {
     const r = await fetch('/admin/api/membre/update', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -795,19 +800,19 @@ async function actualiserGestionMembres() {
 }
 
 async function msgMembre(code, nom) {
-  const msg = prompt(`Message pour ${nom} :`);
+  const msg = await adminConfirm('Envoyer un message', `Destinataire : ${nom} (${code})`, {input:{label:'Message'},label:'Envoyer'});
   if (!msg) return;
   const r = await fetch('/admin/api/notif/individuelle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code,contenu:msg})});
   const d = await r.json();
-  if (d.ok) toast(`✅ Message envoyé à ${nom}`);
+  if (d.ok) toast(` Message envoyé à ${nom}`);
   else toast('Erreur : ' + d.error, 'error');
 }
 
 async function supprimerMembre(code, nom) {
-  confirm('Supprimer le membre', `Supprimer définitivement ${nom} (${code}) ? Cette action est irréversible.`, async () => {
+  return confirm('Supprimer le membre', `Supprimer définitivement ${nom} (${code}) ? Cette action est irréversible.`, async () => {
     const r = await fetch('/admin/api/membre/supprimer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code})});
     const d = await r.json();
-    if (d.ok) { toast(`✅ ${nom} supprimé`); loadMembres(); }
+    if (d.ok) { toast(` ${nom} supprimé`); await actualiserGestionMembres(); }
     else toast('Erreur : ' + d.error, 'error');
   });
 }
@@ -817,9 +822,10 @@ async function envoyerNotifGlobale() {
   const type = document.getElementById('notif-type').value;
   const contenu = document.getElementById('notif-contenu').value.trim();
   if (!contenu) { toast('Écris un message', 'error'); return; }
+  if (!await adminConfirm('Envoyer à tous les membres ?', 'Cette notification sera envoyée à tous les membres.', {danger:false})) return;
   const r = await fetch('/admin/api/notif/globale', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,type,contenu})});
   const d = await r.json();
-  if (d.ok) { toast(`✅ Envoyé à ${d.total} membres`); document.getElementById('notif-contenu').value = ''; }
+  if (d.ok) { toast(` Envoyé à ${d.total} membres`); document.getElementById('notif-contenu').value = ''; }
   else toast('Erreur : ' + d.error, 'error');
 }
 
@@ -829,7 +835,7 @@ async function envoyerNotifIndividuelle() {
   if (!code || !contenu) { toast('Remplis tous les champs', 'error'); return; }
   const r = await fetch('/admin/api/notif/individuelle', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,code,contenu})});
   const d = await r.json();
-  if (d.ok) { toast(`✅ Message envoyé à ${d.nom}`); document.getElementById('notif-ind-contenu').value = ''; }
+  if (d.ok) { toast(` Message envoyé à ${d.nom}`); document.getElementById('notif-ind-contenu').value = ''; }
   else toast('Erreur : ' + d.error, 'error');
 }
 
@@ -843,34 +849,40 @@ async function ajouterAnnonce() {
     type:document.getElementById('ann-type').value,audio_url:document.getElementById('ann-audio').value,
     cible:document.getElementById('ann-cible').value,cible_code:document.getElementById('ann-cible-code').value};
   if (!body.contenu) { toast('Contenu vide', 'error'); return; }
+  if (!await adminConfirm('Publier cette annonce ?', 'L’annonce sera visible par les membres ciblés.', {danger:false})) return;
   const r = await fetch('/admin/api/annonces/add', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d = await r.json();
-  if (d.ok) { toast('✅ Annonce publiée'); loadAnnonces(); }
+  if (d.ok) { toast(' Annonce publiée'); loadAnnonces(); }
   else toast('Erreur : ' + d.error, 'error');
 }
 
 async function loadAnnonces() {
+  try {
   const r = await fetch(API('/admin/api/annonces'));
   const d = await r.json();
-  if (!d.ok) return;
+  if (!r.ok || !d.ok) throw Error('unavailable');
   const el = document.getElementById('annonces-list');
   if (!d.annonces.length) { el.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.25);padding:20px">Aucune annonce</div>'; return; }
   el.innerHTML = d.annonces.map(a => `
     <div style="background:var(--d2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
       <div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;color:#fff;margin-bottom:4px">${a.titre || '(sans titre)'}</div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px">${a.contenu.substring(0,80)}${a.contenu.length>80?'...':''}</div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.25)">${a.created_at} — ${a.cible}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;color:#fff;margin-bottom:4px">${escapeAnalytics(a.titre || '(sans titre)')}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px">${escapeAnalytics((a.contenu || '').substring(0,160))}${(a.contenu || '').length>160?'…':''}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.25)">${escapeAnalytics(a.created_at)} · ${escapeAnalytics(a.cible)}</div>
       </div>
-      <button class="btn btn-red btn-sm" onclick="supprimerAnnonce(${a.id})">✕</button>
+      <button class="btn btn-red btn-sm" aria-label="Supprimer cette annonce" onclick="supprimerAnnonce(${Number(a.id)})">Supprimer</button>
     </div>
   `).join('');
+  } catch (error) {
+    document.getElementById('annonces-list').innerHTML = '<div class="aw-empty aw-error"><strong>Impossible de charger les annonces</strong><button class="btn aw-secondary" onclick="loadAnnonces()">Réessayer</button></div>';
+  }
 }
 
 async function supprimerAnnonce(id) {
+  if (!await adminConfirm('Supprimer cette annonce ?', 'Cette annonce sera supprimée. Cette action est définitive.', {danger:true})) return;
   const r = await fetch('/admin/api/annonces/supprimer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,id})});
   const d = await r.json();
-  if (d.ok) { toast('✅ Annonce supprimée'); loadAnnonces(); }
+  if (d.ok) { toast(' Annonce supprimée'); loadAnnonces(); }
   else toast('Erreur', 'error');
 }
 
@@ -878,9 +890,10 @@ async function supprimerAnnonce(id) {
 async function envoyerTelegram(canal) {
   const msg = document.getElementById('tg-canal-msg').value.trim();
   if (!msg) { toast('Message vide', 'error'); return; }
+  if (!await adminConfirm('Publier sur Telegram ?', 'Ce message sera visible par les destinataires du canal sélectionné.', {danger:false})) return;
   const r = await fetch('/admin/api/telegram/envoyer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,canal,message:msg})});
   const d = await r.json();
-  if (d.ok) { toast('✅ Message envoyé sur Telegram'); document.getElementById('tg-canal-msg').value = ''; }
+  if (d.ok) { toast(' Message envoyé sur Telegram'); document.getElementById('tg-canal-msg').value = ''; }
   else toast('Erreur : ' + d.error, 'error');
 }
 
@@ -892,7 +905,7 @@ async function ajouterVideo() {
   if (!body.titre || !body.youtube_id) { toast('Remplis tous les champs', 'error'); return; }
   const r = await fetch('/admin/api/formation/videos/add', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d = await r.json();
-  if (d.ok) { toast('✅ Vidéo ajoutée'); document.getElementById('vid-titre').value = ''; document.getElementById('vid-yt').value = ''; }
+  if (d.ok) { toast(' Vidéo ajoutée'); document.getElementById('vid-titre').value = ''; document.getElementById('vid-yt').value = ''; }
   else toast('Erreur : ' + d.error, 'error');
 }
 
@@ -904,31 +917,35 @@ async function ajouterPDF() {
   if (!body.titre || !body.drive_id) { toast('Remplis tous les champs', 'error'); return; }
   const r = await fetch('/admin/api/formation/pdfs/add', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const d = await r.json();
-  if (d.ok) { toast('✅ PDF ajouté'); document.getElementById('pdf-titre').value = ''; document.getElementById('pdf-drive-id').value = ''; loadPDFs(); }
+  if (d.ok) { toast(' PDF ajouté'); document.getElementById('pdf-titre').value = ''; document.getElementById('pdf-drive-id').value = ''; loadPDFs(); }
   else toast('Erreur : ' + d.error, 'error');
 }
 
 async function loadPDFs() {
+  try {
   const r = await fetch(API('/admin/api/formation/pdfs'));
   const d = await r.json();
-  if (!d.ok) return;
+  if (!r.ok || !d.ok) throw Error('unavailable');
   const el = document.getElementById('pdfs-list');
-  if (!d.pdfs.length) { el.innerHTML = ''; return; }
+  if (!d.pdfs.length) { el.innerHTML = '<div class="aw-empty"><strong>Aucun document pour le moment</strong>Ajoutez un PDF avec le formulaire ci-dessus.</div>'; return; }
   el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>N°</th><th>Titre</th><th>Drive ID</th><th>Taille</th><th>Action</th></tr></thead><tbody>' +
     d.pdfs.map(p => `<tr>
       <td style="color:var(--gold);font-weight:700">PDF ${String(p.num).padStart(2,'0')}</td>
-      <td style="color:#fff">${p.titre}</td>
-      <td><code style="font-size:10px;color:#C4B5FD">${p.drive_id.substring(0,20)}...</code></td>
-      <td>${p.taille}</td>
-      <td><button class="btn btn-red btn-sm" onclick="supprimerPDF(${p.id},'${p.titre}')">✕ Supprimer</button></td>
+      <td style="color:#fff">${escapeAnalytics(p.titre)}</td>
+      <td><code style="font-size:10px;color:#C4B5FD">${escapeAnalytics(p.drive_id)}</code></td>
+      <td>${escapeAnalytics(p.taille)}</td>
+      <td><button class="btn btn-red btn-sm" data-delete-pdf="${Number(p.id)}" data-pdf-title="${escapeAnalytics(p.titre)}"> Supprimer</button></td>
     </tr>`).join('') + '</tbody></table></div>';
+  } catch (error) {
+    document.getElementById('pdfs-list').innerHTML = '<div class="aw-empty aw-error"><strong>Impossible de charger les documents</strong><button class="btn aw-secondary" onclick="loadPDFs()">Réessayer</button></div>';
+  }
 }
 
 async function supprimerPDF(id, titre) {
-  confirm('Supprimer le PDF', `Supprimer "${titre}" définitivement ?`, async () => {
+  return confirm('Supprimer le PDF', `Supprimer "${titre}" définitivement ?`, async () => {
     const r = await fetch('/admin/api/formation/pdfs/supprimer', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,id})});
     const d = await r.json();
-    if (d.ok) { toast('✅ PDF supprimé'); loadPDFs(); }
+    if (d.ok) { toast(' PDF supprimé'); loadPDFs(); }
     else toast('Erreur', 'error');
   });
 }
@@ -962,11 +979,11 @@ async function loadCanalMessages() {
             ${m.deleted ? '<span style="font-size:10px;color:#FCA5A5;background:rgba(220,38,38,0.1);padding:2px 8px;border-radius:10px">Supprimé</span>' : ''}
           </div>
           <div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.5;white-space:pre-wrap">${(m.text_content||'(contenu vide)').substring(0,200)}${(m.text_content||'').length>200?'...':''}</div>
-          ${m.photo_url ? `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.3)">📷 Photo jointe</div>` : ''}
-          ${m.audio_url ? `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.3)">🔊 Audio joint</div>` : ''}
+          ${m.photo_url ? `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.3)"> Photo jointe</div>` : ''}
+          ${m.audio_url ? `<div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.3)"> Audio joint</div>` : ''}
         </div>
         <div style="flex-shrink:0">
-          ${!m.deleted ? `<button class="btn btn-red btn-sm" onclick="supprimerCanalMsg(${m.id})">✕ Masquer</button>` : `<button class="btn btn-sm" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.1)" onclick="restaurerCanalMsg(${m.id})">↩ Restaurer</button>`}
+          ${!m.deleted ? `<button class="btn btn-red btn-sm" onclick="supprimerCanalMsg(${m.id})"> Masquer</button>` : `<button class="btn btn-sm" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.1)" onclick="restaurerCanalMsg(${m.id})"> Restaurer</button>`}
         </div>
       </div>
     `).join('');
@@ -979,16 +996,17 @@ async function loadCanalMessages() {
 }
 
 async function supprimerCanalMsg(id) {
+  if (!await adminConfirm('Masquer cette publication ?', 'Elle ne sera plus visible dans le canal VIP.', {danger:true})) return;
   const r = await fetch(`/api/canal/supprimer/${id}?key=${KEY}`, {method:'POST', credentials:'same-origin'});
   const d = await r.json();
-  if (d.ok) { toast('✅ Message masqué dans l\'app'); loadCanalMessages(); }
+  if (d.ok) { toast(' Message masqué dans l\'app'); loadCanalMessages(); }
   else toast('Erreur : ' + (d.error||''), 'error');
 }
 
 async function restaurerCanalMsg(id) {
   const r = await fetch(`/api/canal/restaurer/${id}?key=${KEY}`, {method:'POST', credentials:'same-origin'});
   const d = await r.json();
-  if (d.ok) { toast('✅ Message restauré'); loadCanalMessages(); }
+  if (d.ok) { toast(' Message restauré'); loadCanalMessages(); }
   else toast('Erreur : ' + (d.error||''), 'error');
 }
 
@@ -1000,38 +1018,50 @@ function profilEscape(value) {
   });
 }
 
+let adminProfileController;
 async function voirProfil(code) {
+  adminProfileController?.abort();
+  const profileController = new AbortController();
+  adminProfileController = profileController;
+  window.__profilAdminCode = null;
+  document.getElementById('save-profil-admin').disabled = true;
   document.getElementById('profil-nom').textContent = 'Chargement...';
   document.getElementById('profil-content').innerHTML = '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3)">Chargement...</div>';
   document.getElementById('profil-modal').classList.add('open');
 
-  const r = await fetch(`/admin/api/membre/profil?key=${KEY}&code=${code}`);
-  const d = await r.json();
+  let d;
+  try {
+    const r = await fetch(`/admin/api/membre/profil?key=${KEY}&code=${encodeURIComponent(code)}`, {signal:profileController.signal});
+    d = await r.json();
+    if (!r.ok || !d.member) throw Error('unavailable');
+  } catch (error) { if (error.name === 'AbortError') return; document.getElementById('profil-content').innerHTML = '<div class="aw-empty aw-error">Profil indisponible. Fermez cette fenêtre et réessayez.</div>'; return; }
   if (!d.ok) { document.getElementById('profil-content').innerHTML = '<div style="color:#FCA5A5">Erreur de chargement</div>'; return; }
 
   const m = d.member;
-  document.getElementById('profil-nom').textContent = `👤 ${m.nom} — ${m.code}`;
+  document.getElementById('profil-nom').textContent = ` ${m.nom} — ${m.code}`;
   window.__profilAdminCode = code;
+  document.getElementById('save-profil-admin').disabled = false;
   document.getElementById('profil-content').innerHTML = `
+    <section id="member-evidence" style="margin-bottom:20px;padding:16px;border:1px solid #555;border-radius:12px"><h3>Traçabilité</h3><p>Chargement de l’historique…</p></section>
     <div class="field"><label>Code accès</label><input value="${profilEscape(m.code)}" readonly></div>
     <div class="form-grid" style="margin-top:4px;">
-      <div class="field"><label>Nom complet</label><input id="ap-nom" value="${profilEscape(m.nom)}"></div>
-      <div class="field"><label>Email</label><input id="ap-email" type="email" value="${profilEscape(m.email)}"></div>
-      <div class="field"><label>Téléphone</label><input id="ap-telephone" value="${profilEscape(m.telephone)}"></div>
-      <div class="field"><label>Telegram</label><input id="ap-telegram" value="${profilEscape(m.telegram)}"></div>
-      <div class="field"><label>Capital</label><input id="ap-capital" value="${profilEscape(m.capital)}"></div>
+      <div class="field"><label for="ap-nom">Nom complet</label><input id="ap-nom" value="${profilEscape(m.nom)}"></div>
+      <div class="field"><label for="ap-email">Email</label><input id="ap-email" type="email" value="${profilEscape(m.email)}"></div>
+      <div class="field"><label for="ap-telephone">Téléphone</label><input id="ap-telephone" value="${profilEscape(m.telephone)}"></div>
+      <div class="field"><label for="ap-telegram">Telegram</label><input id="ap-telegram" value="${profilEscape(m.telegram)}"></div>
+      <div class="field"><label for="ap-capital">Capital</label><input id="ap-capital" value="${profilEscape(m.capital)}"></div>
     </div>
 
     <div style="margin-top:8px" class="form-grid">
-      <div class="field"><label>Plateforme</label>
+      <div class="field"><label for="ap-plateforme">Plateforme</label>
         <select id="ap-plateforme">
           <option value="MT4" ${m.plateforme === 'MT4' ? 'selected' : ''}>MT4</option>
           <option value="MT5" ${m.plateforme === 'MT5' ? 'selected' : ''}>MT5</option>
           <option value="Autre" ${!['MT4','MT5'].includes(m.plateforme || 'MT4') ? 'selected' : ''}>Autre</option>
         </select>
       </div>
-      <div class="field"><label>Login MT</label><input id="ap-mt-login" value="${profilEscape(m.mt_login)}"></div>
-      <div class="field"><label>Serveur MT</label><input id="ap-mt-server" value="${profilEscape(m.mt_server)}"></div>
+      <div class="field"><label for="ap-mt-login">Login MT</label><input id="ap-mt-login" value="${profilEscape(m.mt_login)}"></div>
+      <div class="field"><label for="ap-mt-server">Serveur MT</label><input id="ap-mt-server" value="${profilEscape(m.mt_server)}"></div>
       <div class="field"><label>Mot de passe MT</label>
         <div style="display:flex;gap:7px;align-items:stretch">
           <input id="ap-mt-password" type="password" autocomplete="new-password" placeholder="${m.mt_password_masked ? '•••••• (enregistré)' : 'Non renseigné'}">
@@ -1048,6 +1078,7 @@ async function voirProfil(code) {
       <div><strong>Filleuls :</strong> ${profilEscape(m.filleuls_count)} · <strong>Gains :</strong> ${profilEscape(m.gains_parrainage)} €</div>
     </div>
   `;
+  loadMemberEvidence(code);
 }
 
 let adminPasswordRevealTimer = null;
@@ -1144,7 +1175,7 @@ async function sauverProfilAdmin() {
     });
     const d = await r.json();
     if (d.ok) {
-      toast('✅ Profil membre mis à jour');
+      toast(' Profil membre mis à jour');
       fermerProfilAdmin();
       await actualiserGestionMembres();
       await loadMembres();
@@ -1155,10 +1186,11 @@ async function sauverProfilAdmin() {
     toast('Erreur réseau : ' + e.message, 'error');
   }
   btn.disabled = false;
-  btn.textContent = '💾 Enregistrer';
+  btn.textContent = ' Enregistrer';
 }
 
 function fermerProfilAdmin() {
+  adminProfileController?.abort();
   masquerMotDePasseMT();
   document.getElementById('profil-modal').classList.remove('open');
 }
@@ -1179,25 +1211,15 @@ const labelsFiltresDashboard = {
   explorers: 'Comptes Explorer confirmés'
 };
 
-async function loadDashboardMembres() {
-  const tbody = document.getElementById('dashboard-membres-tbody');
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Chargement...</td></tr>';
-  const r = await fetch(API('/admin/api/membres'));
-  const d = await r.json();
-  if (!d.ok) { toast('Erreur chargement membres', 'error'); return; }
-  allDashboardMembres = d.membres;
-  renderDashboardMembresFiltres();
-}
+async function loadDashboardMembres() { return loadAdminDirectory('dashboard', adminMemberLists.dashboard?.page || 1); }
 
-function filterDashboardMembres() {
-  renderDashboardMembresFiltres();
-}
+function filterDashboardMembres() { scheduleDirectorySearch('dashboard'); }
 
 function appliquerFiltreDashboard(filtre, carte) {
   filtreDashboardActif = labelsFiltresDashboard[filtre] ? filtre : 'total';
   document.getElementById('dashboard-search').value = '';
   document.querySelectorAll('[data-dashboard-filter]').forEach(el => {
-    const selectionnee = el === carte;
+    const selectionnee = el.dataset.dashboardFilter === filtreDashboardActif;
     el.classList.toggle('active', selectionnee);
     el.setAttribute('aria-pressed', selectionnee ? 'true' : 'false');
   });
@@ -1215,47 +1237,13 @@ function membreCorrespondAuFiltreDashboard(m) {
   return !explorer;
 }
 
-function renderDashboardMembresFiltres() {
-  const q = document.getElementById('dashboard-search').value.trim().toLowerCase();
-  const membres = allDashboardMembres.filter(m =>
-    membreCorrespondAuFiltreDashboard(m) &&
-    (!q || m.nom.toLowerCase().includes(q) || m.code.toLowerCase().includes(q))
-  );
-  document.getElementById('dashboard-filter-label').textContent = labelsFiltresDashboard[filtreDashboardActif];
-  document.getElementById('dashboard-filter-count').textContent = `${membres.length} profil${membres.length > 1 ? 's' : ''}`;
-  renderDashboardMembres(membres);
-}
+function renderDashboardMembresFiltres() { return loadAdminDirectory('dashboard'); }
 
-function renderDashboardMembres(membres) {
-  const tbody = document.getElementById('dashboard-membres-tbody');
-  if (!membres.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.25)">Aucun membre</td></tr>';
-    return;
-  }
-  tbody.innerHTML = membres.map(m => `
-    <tr>
-      <td><code style="color:#C4B5FD;font-size:11px">${m.code}</code></td>
-      <td style="font-weight:600;color:#fff">${m.nom}</td>
-      <td>${m.capital || '—'}</td>
-      <td><span class="badge ${m.access_level === 'explorer' ? 'warn' : (m.actif ? 'on' : 'off')}">${m.access_level === 'explorer' ? 'Explorer' : (m.actif ? 'Actif' : 'Suspendu')}</span></td>
-      <td><span class="badge ${m.copy_actif ? 'on' : 'off'}">${m.copy_actif ? 'ON' : 'OFF'}</span></td>
-      <td style="font-size:12px">${m.date_fin || '—'}</td>
-      <td>${m.access_level === 'explorer' ? '—' : `<span class="badge ${m.jours_restants > 7 ? 'on' : m.jours_restants > 0 ? 'warn' : 'off'}">${m.jours_restants}j</span>`}</td>
-      <td>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-sm" style="background:rgba(8,145,178,0.15);color:#67E8F9;border:1px solid rgba(8,145,178,0.3)" onclick="voirProfil('${m.code}')">👤</button>
-          ${m.access_level === 'explorer' ? '' : `<button class="btn btn-gold btn-sm" onclick="ajusterJours('${m.code}')">± Jours</button>`}
-          ${m.access_level === 'explorer' ? '' : `<button class="btn ${m.actif ? 'btn-red' : 'btn-green'} btn-sm" onclick="changerSuspension('${m.code}', ${m.actif ? 'true' : 'false'})">${m.actif ? 'Suspendre' : 'Réactiver'}</button>`}
-          <button class="btn btn-sm" style="background:rgba(91,33,182,0.15);color:#C4B5FD;border:1px solid rgba(91,33,182,0.3)" onclick="msgMembre('${m.code}','${m.nom}')">Msg</button>
-          <button class="btn btn-red btn-sm" onclick="supprimerMembre('${m.code}','${m.nom}')">✕</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
+function renderDashboardMembres(membres) { renderAdminMemberList('dashboard', membres); }
 
 // ── INIT
 loadStats();
+loadServiceDiagnostics();
 loadDashboardMembres();
 const requestedMember = new URLSearchParams(window.location.search).get('member');
 if (requestedMember && /^BCT-[A-Z0-9-]{4,40}$/i.test(requestedMember)) {
@@ -1264,5 +1252,7 @@ if (requestedMember && /^BCT-[A-Z0-9-]{4,40}$/i.test(requestedMember)) {
 }
 </script>
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/admin-interactions.js?v=20261010-1" defer></script><script src="/static/member-evidence.js?v=1"></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

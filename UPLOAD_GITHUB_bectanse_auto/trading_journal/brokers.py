@@ -14,6 +14,7 @@ import re
 
 POPULAR_BROKERS = (
     "Axi",
+    "BullWaves",
     "Exness",
     "FXS",
     "PU Prime",
@@ -22,12 +23,27 @@ POPULAR_BROKERS = (
 )
 
 
+_BROKER_IDENTITIES = {
+    "axi": ("axi", "axitrader"),
+    "bullwaves": ("bullwaves",),
+    "exness": ("exness",),
+    "fxs": ("fxs",),
+    "puprime": ("puprime", "pumarkets", "pultd"),
+    "vantage": ("vantage", "vantageinternational", "vantagemarkets"),
+    "vtmarkets": ("vtmarkets",),
+}
+
+
 # Only exact MT5 names published by the broker are seeded here. Axi, FXS and
 # Vantage explicitly assign/return the exact server in the client portal or the
 # account confirmation e-mail, so their entries intentionally start empty and
 # are enriched from successful Bectanse connections below.
 VERIFIED_SERVERS = {
-    "Exness": {"Exness-MT5Real34"},
+    # The exact live endpoint is observed on an established MT5 account.
+    # Other BullWaves endpoints remain available through the searchable
+    # catalog once verified, or via the exact server field supplied by MT5.
+    "BullWaves": {"BullWaves-LIVE"},
+    "Exness": {"Exness-MT5Real32", "Exness-MT5Real34"},
     "PU Prime": {
         "PUPrime-Demo",
         "PUPrime-Live",
@@ -40,8 +56,70 @@ VERIFIED_SERVERS = {
 }
 
 
+def broker_identity(value: str) -> str:
+    """Return a stable broker family without trusting display-name spelling.
+
+    MT5 returns legal company names (for example ``Exness Technologies Ltd``)
+    while the app catalog uses consumer brands.  Treating those as different
+    brokers created empty duplicate accounts when a user selected the wrong
+    server from the same broker family.
+    """
+    normalized = re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+    if normalized == "pu":
+        return "puprime"
+    for identity, aliases in _BROKER_IDENTITIES.items():
+        if any(alias in normalized for alias in aliases):
+            return identity
+    return normalized
+
+
 def _valid_server(server: str) -> bool:
     return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._\-/]{1,118}[A-Za-z0-9]", server))
+
+
+def server_identity(server: str) -> str:
+    """Return the comparison key MT5 uses for cosmetic server aliases.
+
+    Broker welcome e-mails and the MetaTrader directory sometimes render the
+    same server with different spaces or hyphens (for example
+    ``PU-Prime-Live6`` and ``PUPrime-Live 6``).  The account login remains the
+    authority; this key only accepts aliases whose alphanumeric content is
+    identical.
+    """
+    return re.sub(r"[^a-z0-9]", "", str(server or "").casefold())
+
+
+def server_connection_candidates(server: str) -> tuple[str, ...]:
+    """Build a small, deterministic list of safe MT5 server spellings.
+
+    The exact user-provided value is always attempted first.  We then cover
+    common directory formatting differences without guessing a different
+    broker or server number.
+    """
+    exact = str(server or "").strip()[:120]
+    if not _valid_server(exact):
+        return (exact,) if exact else ()
+    candidates = [exact]
+    compact_suffix = re.sub(r"(?i)(live|demo)\s+(\d+)$", r"\1\2", exact)
+    spaced_suffix = re.sub(r"(?i)(live|demo)(\d+)$", r"\1 \2", exact)
+    candidates.extend((compact_suffix, spaced_suffix))
+    if server_identity(exact).startswith("puprime"):
+        tail = re.sub(r"(?i)^pu(?:[ -]?prime)[ -]?", "", exact)
+        candidates.extend((f"PUPrime-{tail}", f"PU-Prime-{tail}"))
+        candidates.extend(
+            (
+                re.sub(r"(?i)(live|demo)\s+(\d+)$", r"\1\2", value)
+                for value in tuple(candidates)
+            )
+        )
+    unique = []
+    for value in candidates:
+        value = str(value or "").strip()[:120]
+        if value and _valid_server(value) and value.casefold() not in {
+            existing.casefold() for existing in unique
+        }:
+            unique.append(value)
+    return tuple(unique[:6])
 
 
 def broker_name_from_server(server: str) -> str:

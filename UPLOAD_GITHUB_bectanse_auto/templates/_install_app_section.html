@@ -1,11 +1,11 @@
 {% set install_member = install_context|default('public') == 'member' %}
 <section id="installer-app" class="ba-install{% if install_member %} ba-install-member{% endif %}" aria-labelledby="ba-install-title">
   <div class="ba-install-copy">
-    <span class="ba-install-kicker">APPLICATION BECTANSE</span>
-    <h2 id="ba-install-title">Installe Bectanse sur ton téléphone.</h2>
+    <span class="ba-install-kicker">Application Bectanse</span>
+    <h2 id="ba-install-title">Installe Bectanse sur ton téléphone</h2>
     <p>{% if install_member %}Accède plus vite à ton espace et reçois tes notifications personnelles directement sur ton téléphone.{% else %}Ajoute gratuitement la Web App à ton écran d’accueil. Aucun accès membre n’est nécessaire pour l’installer.{% endif %}</p>
     <div class="ba-install-points">
-      <span>✓ iPhone et Android</span><span>✓ Installation rapide</span><span>✓ Accès en un clic</span>
+      <span> iPhone et Android</span><span> Installation rapide</span><span> Accès en un clic</span>
     </div>
   </div>
   <div class="ba-install-actions">
@@ -18,7 +18,7 @@
 <div class="ba-install-modal" id="ba-install-modal" aria-hidden="true">
   <div class="ba-install-dialog" role="dialog" aria-modal="true" aria-labelledby="ba-guide-title">
     <button class="ba-install-close" type="button" aria-label="Fermer">×</button>
-    <span class="ba-install-kicker">GUIDE D’INSTALLATION</span>
+    <span class="ba-install-kicker">Guide d’installation</span>
     <h2 id="ba-guide-title">Installe l’app en quelques secondes</h2>
     <div class="ba-device-tabs">
       <button type="button" data-device="ios"> iPhone</button>
@@ -66,7 +66,7 @@
   modal.querySelector('.ba-install-close').addEventListener('click',closeGuide);modal.querySelector('.ba-guide-done').addEventListener('click',closeGuide);modal.addEventListener('click',function(e){if(e.target===modal)closeGuide()});
   {% if install_member %}
   var pushButton=document.getElementById('ba-push-enable');
-  if(pushButton)pushButton.addEventListener('click',async function(){pushButton.disabled=true;pushButton.textContent='Activation en cours…';var result=window.enablePushNotifications?await window.enablePushNotifications():{ok:false};pushButton.textContent=result.ok?(result.testSent?'✓ Notification test envoyée':'✓ Notifications activées'):(result.reason==='install-required'?'Installe d’abord l’application sur iPhone':'Réessayer l’activation');pushButton.disabled=false;if(result.reason==='install-required')showGuide()});
+  if(pushButton)pushButton.addEventListener('click',async function(){pushButton.disabled=true;pushButton.textContent='Activation en cours…';var result=window.enablePushNotifications?await window.enablePushNotifications():{ok:false};pushButton.textContent=result.ok?(result.testSent?' Notification test envoyée':' Notifications activées'):(result.reason==='install-required'?'Installe d’abord l’application sur iPhone':'Réessayer l’activation');pushButton.disabled=false;if(result.reason==='install-required')showGuide()});
   {% endif %}
 })();
 </script>

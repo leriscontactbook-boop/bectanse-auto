@@ -4,35 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Bectanse Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="/static/admin-workspace.css?v=20261010-1">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{min-height:100vh;background:#0A0A0F;display:flex;align-items:center;justify-content:center;font-family:'Barlow',sans-serif}
-.bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(91,33,182,0.3),transparent 60%);pointer-events:none}
-.box{background:#111827;border:1px solid rgba(91,33,182,0.3);border-radius:20px;padding:40px;width:100%;max-width:380px;position:relative;z-index:1}
-.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;color:#F59E0B;text-align:center;margin-bottom:4px;letter-spacing:0.08em}
-.sub{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.2);text-align:center;margin-bottom:32px}
-label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.4);display:block;margin-bottom:8px}
-input{width:100%;background:#1F2937;border:1px solid rgba(91,33,182,0.3);border-radius:10px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:border-color 0.15s}
-input:focus{border-color:#5B21B6}
-.btn{width:100%;background:#5B21B6;color:#fff;border:none;border-radius:10px;padding:15px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;margin-top:20px;transition:background 0.15s}
-.btn:hover{background:#4C1D95}
-.error{background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);color:#FCA5A5;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:14px;text-align:center}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#f4f3f0;color:#282b2e;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{width:100%;max-width:450px;background:#fff;border:1px solid #e3e2de;border-radius:22px;padding:38px;box-shadow:0 12px 50px #39255c08}.logo{display:flex;justify-content:center;align-items:center;gap:10px;font-size:23px;font-weight:700;letter-spacing:-.7px}.logo:before{content:'';background-image:url('/static/icons/bectanse-icon-v2-192.png');background-size:cover;display:grid;place-items:center;width:39px;height:39px;background-color:#070807;color:white;border-radius:11px;font-size:28px;letter-spacing:-2px;padding-right:3px}.sub{text-align:center;font-size:12px;color:#81788e;margin:8px 0 30px}h1{font-size:22px;line-height:1.4;letter-spacing:-.5px;margin:0 0 8px}.intro{font-size:13px;color:#81788e;margin:0 0 24px}label{display:block;font-size:12px;font-weight:550;color:#655971;margin-bottom:8px}input{width:100%;padding:13px 14px;border:1px solid #ddd5e9;border-radius:9px;background:#fdfcfe;color:#30283c;font:16px system-ui}input:focus-visible,button:focus-visible{outline:3px solid #d88d6b;outline-offset:3px}.btn{width:100%;border:0;padding:13px 18px;border-radius:10px;background:#b7502b;color:#fff;font:550 14px system-ui;margin-top:20px;cursor:pointer}.btn:hover{background:#903e20}.error{font-size:13px;color:#b04458;background:#fff3f5;border:1px solid #efd6dd;border-radius:9px;padding:12px 14px;margin-top:18px}.footer{margin:24px 0 0;color:#958c9f;font-size:11px;text-align:center}@media(max-width:480px){.box{padding:28px 23px}}
 </style>
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
-<div class="bg"></div>
-<div class="box">
-  <div class="logo">B€CTAN$€</div>
-  <div class="sub">Espace Administrateur</div>
+<body data-ui-screen="admin_login">
+
+<main class="box">
+  <div class="logo">Bectanse Académie</div>
+  <div class="sub">Espace administration</div><h1>Bienvenue dans votre espace</h1><p class="intro">Connectez-vous pour gérer les membres, les contenus et les opérations de l’académie.</p>
   <form method="POST" action="/admin-panel/login">
     <input type="hidden" name="next" value="{{ next_path or '/admin-panel' }}">
-    <label>Clé d'accès admin</label>
-    <input type="password" name="key" placeholder="••••••••••••••••••••" autofocus>
-    <button class="btn" type="submit">Accéder →</button>
-    {% if error %}<div class="error">{{ error }}</div>{% endif %}
-  </form>
-</div>
+    <label for="admin-key">Clé d’accès administrateur</label>
+    <input id="admin-key" type="password" name="key" required autocomplete="current-password" placeholder="••••••••••••••••••••">
+    <button class="btn" type="submit">Se connecter</button>
+    {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+  </form><p class="footer">Accès réservé à l’équipe Bectanse Académie.</p>
+</main>
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

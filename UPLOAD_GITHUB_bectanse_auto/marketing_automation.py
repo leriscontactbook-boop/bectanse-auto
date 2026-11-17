@@ -23,7 +23,7 @@ from flask import jsonify, redirect, render_template, request, url_for
 PARIS_TZ = ZoneInfo("Europe/Paris")
 UTC_TZ = ZoneInfo("UTC")
 BASE_URL = "https://acces.bectanse-academie.com"
-SUPPORT_URL = "https://t.me/m/PAt88QgeZDhk"
+SUPPORT_URL = "https://t.me/lerisluketobot"
 MEMBER_ONBOARDING_START = datetime(2026, 8, 28)
 
 
@@ -209,6 +209,29 @@ EXPLORER_STAGES = [
         "show_support": True,
     },
 ]
+
+
+# Permanent purchase destination; retain historical stage IDs to avoid resends.
+for _stage in EXPLORER_STAGES:
+    _stage["target_url"] = BASE_URL + "/offres"
+    _stage["cta"] = "Choisir ma formule Académie"
+    _stage["show_support"] = True
+EXPLORER_STAGES[0].update({
+    "subject": "{prenom}, ton compte Explorer est prêt : choisis la suite",
+    "preheader": "Compare les formules ou pose ta question à l’équipe",
+    "eyebrow": "TON PROCHAIN PAS", "title": "Passe à l’Académie depuis ton compte Explorer",
+    "body": ["Tu as créé ton espace Explorer. Pour accéder à la formation complète et aux services membres, choisis maintenant la durée qui te convient : 1 mois, 3 mois ou 1 an.",
+             "Compare les tarifs et les accès sur la page des formules. Connecte-toi avec ton compte existant : ton abonnement lui sera rattaché après confirmation du paiement.",
+             "Une question sur les accès ou la configuration ? L’équipe est disponible sur Telegram avant de te décider."],
+    "highlight": "Un seul compte pour découvrir, choisir et retrouver ton abonnement."
+})
+for _stage in EXPLORER_STAGES:
+    if _stage["stage"] in {"jour-7", "jour-10", "jour-14", "jour-21"}:
+        _stage.update({"subject": "Une question avant de rejoindre l’Académie ?",
+            "title": "Vérifie les accès et choisis ton accompagnement",
+            "body": ["La formation, les outils du Trader Lab, le Journal et le Canal VIP sont réunis dans ton espace Académie.",
+                     "La page des formules présente les tarifs et le renouvellement. Tu peux choisir ton abonnement ou demander à l’équipe de t’aider à comprendre les accès avant de payer."],
+            "highlight": "Compare les formules et garde ton compte Explorer actuel."})
 
 
 EXPLORER_WEEKLY_CONTENT = [
@@ -752,6 +775,8 @@ def _now():
 
 def ensure_marketing_schema(conn):
     """Schéma additive-only du moteur marketing."""
+    from conversion_agent import ensure_schema
+    ensure_schema(conn)
     conn.run("""CREATE TABLE IF NOT EXISTS marketing_contacts (
         member_code TEXT PRIMARY KEY,
         email TEXT NOT NULL,
@@ -1051,6 +1076,11 @@ def _utm_url(journey, stage, anchor=""):
 def _tracked_email_url(raw_url, journey, stage):
     """Ajoute le suivi e-mail sans casser le chemin, les paramètres ou l’ancre."""
     parts = urlsplit(raw_url)
+    if parts.netloc == urlsplit(BASE_URL).netloc:
+        if parts.path == "/support":
+            return SUPPORT_URL
+        if (parts.path == "/vip" and parts.fragment in {"offres", "temoignages", "preuve", "decision", "capture"}) or (parts.path in {"/trader-lab", "/abonnement"} and journey not in {"member_onboarding", "reactivation", "reactivation_monthly"}):
+            parts = parts._replace(path="/offres", fragment="")
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query.update({
         "utm_source": "brevo",
@@ -1148,12 +1178,16 @@ def _personalized_subject(template, first_name):
 
 
 def _email_html(prenom, content, journey, stage, unsubscribe_url):
+    if journey in {'reactivation','reactivation_monthly'}:
+        content={**content,'cta':'Reprendre un abonnement',
+            'target_url':BASE_URL+'/abonnement?reprise=1#formules',
+            'highlight':'Connecte-toi avec ton compte existant. Un abonnement résilié nécessite une nouvelle souscription ; payer une ancienne facture ne le réactive pas.'}
     clean_name = str(prenom or "").strip()
     greeting = "Bonjour" + (" " + html.escape(clean_name) if clean_name else "")
     cta_url = _tracked_email_url(
-        content.get("target_url") or _utm_url(
+        (BASE_URL + "/offres" if journey in {"explorer", "explorer_weekly", "checkout_abandon"} else content.get("target_url")) or _utm_url(
             journey, stage,
-            "offres" if journey not in {"explorer", "legacy_reactivation"} else "capture",
+            "offres",
         ),
         journey,
         stage,
@@ -1207,7 +1241,7 @@ def _email_html(prenom, content, journey, stage, unsubscribe_url):
           {html.escape(content['highlight'])}</div>
         {_email_cta(content['cta'], cta_url)}
         {disclaimer}
-        {_email_signature(bool(content.get('show_support')))}
+        {_email_signature(bool(content.get('show_support')) or journey in {'explorer', 'explorer_weekly', 'checkout_abandon', 'conversion_agent'})}
       </div>
     </td></tr>
     {_email_footer(unsubscribe_url)}
@@ -1449,7 +1483,22 @@ def _claim_email(conn, contact, journey, content, reference, due_at):
 
 
 def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
-                             force=False, notify_admin=None):
+                             force=False, notify_admin=None, agent_only=False):
+    # One dispatcher across workers, daily agent and manual requests. Keep the
+    # session advisory lock until the last provider response has been recorded.
+    lock = get_conn()
+    try:
+        if not lock.run("SELECT pg_try_advisory_lock(81423072)")[0][0]:
+            return {"ok": True, "busy": True, "sent": 0, "candidates": []}
+        return _run_marketing_automation_unlocked(get_conn, send_email, action_token,
+            dry_run=dry_run, force=force, notify_admin=notify_admin, agent_only=agent_only)
+    finally:
+        try: lock.run("SELECT pg_advisory_unlock(81423072)")
+        finally: lock.close()
+
+
+def _run_marketing_automation_unlocked(get_conn, send_email, action_token, dry_run=False,
+                             force=False, notify_admin=None, agent_only=False):
     """Sélectionne puis envoie au maximum un message pertinent par contact."""
     conn = get_conn()
     try:
@@ -1520,6 +1569,8 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
             m.stripe_subscription_id,m.billing_cancel_at_period_end,m.date_souscription
             FROM marketing_contacts mc JOIN members m ON m.code=mc.member_code
             WHERE mc.unsubscribed_at IS NULL
+              AND NOT (COALESCE(to_jsonb(m)->>'broker_trial_id','')<>''
+                       AND COALESCE(m.access_level,'member') IN ('explorer','demo','broker_trial'))
               AND mc.email LIKE '%@%'
             ORDER BY CASE mc.segment WHEN 'suspended' THEN 0 WHEN 'active' THEN 1
                 WHEN 'expiring' THEN 2 WHEN 'expired' THEN 3
@@ -1555,7 +1606,12 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
                     continue
             if not _contact_rate_allowed(conn, contact[0], int(weekly_limit), int(min_gap)):
                 continue
-            candidate = _checkout_candidate(conn, contact)
+            from conversion_agent import candidate as conversion_candidate
+            candidate = conversion_candidate(conn, contact)
+            if agent_only and not candidate:
+                continue
+            if not candidate:
+                candidate = _checkout_candidate(conn, contact)
             if not candidate:
                 candidate = _journal_launch_candidate(conn, contact)
             if not candidate:
@@ -1594,6 +1650,11 @@ def run_marketing_automation(get_conn, send_email, action_token, dry_run=False,
         code, email, first_name = contact[0], contact[1], contact[2]
         conn = get_conn()
         try:
+            if journey == 'conversion_agent':
+                from conversion_agent import candidate as conversion_candidate
+                current = conversion_candidate(conn, contact)
+                if not current or current[1]['stage'] != content['stage']:
+                    continue
             claimed = _claim_email(conn, contact, journey, content, reference, due_at)
         finally:
             conn.close()
@@ -1746,9 +1807,11 @@ def _record_brevo_events(conn, payload):
         canonical = json.dumps(item, sort_keys=True, ensure_ascii=False, default=str)
         event_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         log_rows = conn.run("""SELECT id,journey,stage FROM marketing_email_log
-            WHERE LOWER(recipient_email)=LOWER(:email)
+            WHERE LOWER(recipient_email)=LOWER(:email) AND (:provider='' OR provider_message_id=:provider)
             ORDER BY CASE WHEN provider_message_id<>'' AND provider_message_id=:provider THEN 0 ELSE 1 END,
                 created_at DESC LIMIT 1""", email=email, provider=provider_id)
+        if log_rows and log_rows[0][1] == "conversion_agent" and not provider_id:
+            log_rows = []
         journey = str(log_rows[0][1]) if log_rows else ""
         stage = str(log_rows[0][2]) if log_rows else ""
         inserted = conn.run("""INSERT INTO marketing_email_events

@@ -49,57 +49,80 @@ html,body{min-height:100vh;background:#0A0A0F;font-family:'Barlow',sans-serif;co
 .logout-link{font-size:12px;color:rgba(255,255,255,0.2);text-decoration:none;display:block;margin-top:8px}
 .logout-link:hover{color:rgba(255,255,255,0.4)}
 </style>
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-5">
+<link rel="stylesheet" href="/static/css/site-finishes.css?v=20261011-viewport2">
 </head>
-<body>
-<div class="bg"></div>
-<div class="logo">BECTANSE ACADÉMIE</div>
+<body data-ui-screen="expire" class="academy-universe">
+{% include "partials/academy_ambient.html" %}
 
-<div class="card">
-  <div class="lock-icon">🔒</div>
-  <div class="title">Accès suspendu</div>
-  <div class="subtitle">Abonnement expiré</div>
+<div class="bg"></div>
+<div class="logo">Bectanse Académie</div>
+
+<main class="card access-recovery">
+  <div class="recovery-label">Accès membre</div>
+  <h1 class="title">Ton accès est arrivé à échéance</h1>
+
   <div class="desc">
     Bonjour <strong style="color:#fff">{{ member.nom.split()[0] }}</strong>,<br>
-    ton abonnement Bectanse AUTO a expiré.<br>
-    Renouvelle maintenant pour retrouver l'accès complet.
+    ton abonnement à l’Académie a expiré<br>
+    Retrouve tes outils et reprends là où tu en étais
   </div>
 
   <!-- Sections verrouillées -->
-  <div class="locked-sections">
-    <div class="locked-item"><span class="li">⚙️</span>Paramètres</div>
-    <div class="locked-item"><span class="li">📡</span>Canal VIP</div>
-    <div class="locked-item"><span class="li">🎓</span>Formation</div>
-    <div class="locked-item"><span class="li">🎁</span>Parrainage</div>
-    <div class="locked-item"><span class="li">📅</span>Calendrier</div>
-    <div class="locked-item"><span class="li">📊</span>Historique</div>
+  <details class="recovery-services"><summary>Les services liés à ton accès</summary><div class="locked-sections">
+    <div class="locked-item"><span class="li"></span>Paramètres</div>
+    <div class="locked-item"><span class="li"></span>Canal VIP</div>
+    <div class="locked-item"><span class="li"></span>Formation</div>
+    <div class="locked-item"><span class="li"></span>Parrainage</div>
+    <div class="locked-item"><span class="li"></span>Calendrier</div>
+    <div class="locked-item"><span class="li"></span>Historique</div>
   </div>
 
+  </details>
+  {% if request.args.get('renewal') == 'unavailable' %}<p role="alert">La remise ne peut pas être appliquée pour le moment. Contacte l’équipe avant de régler ton renouvellement</p>{% elif request.args.get('renewal') == 'expired' %}<p role="status">La période de validité de cette offre est terminée</p>{% endif %}
+  {% if renewal_offer %}
+  <section class="renewal-offer" data-renewal-offer data-deadline="{{ renewal_offer.deadline }}" aria-labelledby="renewal-title">
+    <div class="renewal-offer-top"><span>Ton retour à l’Académie</span><span class="renewal-window">48 h maximum</span></div>
+    <h2 id="renewal-title">Reprends ta progression<br><em>avec 100 € de moins</em></h2>
+    <p>Une remise sur le premier paiement de ton renouvellement, valable pendant les 48 heures qui suivent l’expiration de ton accès</p>
+    <div class="renewal-countdown" aria-label="Temps restant pour profiter de la remise">
+      <div><strong data-hours>—</strong><span>heures</span></div><span class="renewal-colon" aria-hidden="true">:</span>
+      <div><strong data-minutes>—</strong><span>minutes</span></div><span class="renewal-colon" aria-hidden="true">:</span>
+      <div><strong data-seconds>—</strong><span>secondes</span></div>
+    </div>
+    <p class="renewal-deadline">Fin de l’offre le <time datetime="{{ renewal_offer.deadline }}" data-deadline-label>{{ renewal_offer.label }}</time></p>
+    <div class="renewal-code"><div><span>Ton code de renouvellement</span><strong>RETOUR100</strong></div><button type="button" data-copy-renewal>Copier le code</button></div>
+    <span class="renewal-copy-status" role="status" aria-live="polite"></span>
+    <small>Remise unique de 100 € · hors paiements suivants · non cumulable<br>Active le code avant l’échéance ; tu disposes ensuite de 30 minutes pour terminer ton paiement</small>
+    <p class="renewal-ended" role="status" hidden>Cette offre est terminée<br>Tu peux toujours renouveler ton accès aux tarifs habituels</p>
+    <noscript>La date de fin indiquée ci-dessus reste applicable</noscript>
+  </section>
+  {% endif %}
   <!-- Offres -->
   <div class="offres-title">Choisir mon offre</div>
   <div class="offres-grid">
-    <a href="/vip" class="offre-btn">
+    <a href="/abonnement/checkout/1_month{% if renewal_offer %}?promo=RETOUR100{% endif %}" class="offre-btn" data-renewal-plan="1_month">
       <div class="offre-duree">1 mois</div>
-      <div class="offre-prix">500€</div>
+      <div class="offre-prix" data-standard-price="500€">{% if renewal_offer %}<s>500€</s> 400 €{% else %}500€{% endif %}</div>
     </a>
-    <a href="/vip" class="offre-btn">
+    <a href="/abonnement/checkout/3_months{% if renewal_offer %}?promo=RETOUR100{% endif %}" class="offre-btn" data-renewal-plan="3_months">
       <div class="offre-duree">3 mois</div>
-      <div class="offre-prix">1 000€</div>
+      <div class="offre-prix" data-standard-price="1 000€">{% if renewal_offer %}<s>1 000€</s> 900 €{% else %}1 000€{% endif %}</div>
     </a>
-    <a href="/vip" class="offre-btn">
+    <a href="/abonnement/checkout/1_year{% if renewal_offer %}?promo=RETOUR100{% endif %}" class="offre-btn" data-renewal-plan="1_year">
       <div class="offre-duree">1 an</div>
-      <div class="offre-prix">4 000€</div>
+      <div class="offre-prix" data-standard-price="4 000€">{% if renewal_offer %}<s>4 000€</s> 3 900 €{% else %}4 000€{% endif %}</div>
     </a>
   </div>
 
-  <!-- WhatsApp -->
-  <a href="https://wa.me/436785328698?text=Bonjour%2C%20mon%20abonnement%20Bectanse%20AUTO%20a%20expir%C3%A9%20({{ member.code }})%20et%20je%20souhaite%20le%20renouveler." target="_blank" class="wa-btn">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.526 5.845L.057 23.882l6.219-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.7-.5-5.26-1.39l-.38-.22-3.69.97.98-3.6-.25-.39A10 10 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
-    Contacter sur WhatsApp
-  </a>
+  <div class="recovery-actions"><a href="/support">Contacter l’équipe</a><a href="/logout" class="logout-link">Se déconnecter</a></div>
+</main>
 
-  <a href="/logout" class="logout-link">Se déconnecter</a>
-</div>
-
+<script src="/static/js/renewal-offer.js?v=1" defer></script>
 <script src="/static/source-guard.js" defer></script>
+<script src="/static/js/academy-product.js?v=20261011-viewport2" defer></script>
 </body>
 </html>

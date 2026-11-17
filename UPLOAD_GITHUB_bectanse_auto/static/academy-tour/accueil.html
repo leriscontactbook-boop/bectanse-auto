@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; script-src 'self' https://s3.tradingview.com; frame-src https://www.tradingview.com https://s.tradingview.com https://www.tradingview-widget.com; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bectanse Académie — Espace membre</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bectanse Académie">
+<link rel="apple-touch-icon" href="/static/icons/bectanse-apple-icon-v2.png">
+<link rel="icon" type="image/png" href="/static/icons/bectanse-icon-v2-192.png">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B21B6;--gold:#F59E0B;--dark:#0A0A0F;--dark-2:#111827;--dark-3:#1F2937;--white:#fff;--border:rgba(91,33,182,0.2)}
+html,body{min-height:100vh;font-family:'Barlow',sans-serif;background:var(--dark);color:var(--white);overflow-x:hidden}
+
+/* BG */
+.bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 50% at 50% -5%,rgba(91,33,182,0.35) 0%,transparent 60%),
+             radial-gradient(ellipse 50% 40% at 90% 100%,rgba(245,158,11,0.1) 0%,transparent 55%)}
+
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh;position:relative;z-index:1}
+
+/* SIDEBAR */
+.sidebar{background:rgba(11,11,20,0.95);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-brand{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.sidebar-logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.08em;color:var(--gold)}
+.sidebar-tagline{font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.2);margin-top:2px}
+.member-card{margin:10px 12px;background:linear-gradient(135deg,rgba(91,33,182,0.15),rgba(59,7,100,0.1));border:1px solid rgba(91,33,182,0.3);border-radius:14px;position:relative;overflow:hidden}
+.member-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),var(--gold),var(--purple))}
+.member-top{padding:12px 14px 10px}
+.member-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff}
+.nav{padding:8px 0;flex:1}
+.nav-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.2);padding:14px 20px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.5);text-decoration:none;transition:all 0.15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--white);background:rgba(91,33,182,0.1);border-left-color:var(--purple)}
+.nav-item.active{color:var(--white);background:rgba(91,33,182,0.15);border-left-color:var(--purple)}
+.sidebar-bottom{padding:12px;border-top:1px solid rgba(255,255,255,0.05);margin-top:auto}
+.logout-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,0.3);text-decoration:none;font-size:13px;transition:all 0.15s}
+.logout-btn:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05)}
+
+/* CONTENT */
+.content{padding:36px 40px 60px;max-width:900px}
+
+/* HERO SALUTATION */
+.hero{margin-bottom:28px}
+.hero-date{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:6px}
+.hero-greeting{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:0.03em;color:var(--white);line-height:0.95;margin-bottom:4px}
+.hero-greeting span{color:var(--gold)}
+.hero-sub{font-size:13px;color:rgba(255,255,255,0.35)}
+
+/* GRID */
+.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.dashboard-grid.three{grid-template-columns:1fr 1fr 1fr}
+.full-width{grid-column:1/-1}
+
+/* CARDS */
+.card{background:rgba(17,24,39,0.8);border:1px solid var(--border);border-radius:18px;padding:20px;position:relative;overflow:hidden;transition:border-color 0.2s}
+.card:hover{border-color:rgba(91,33,182,0.4)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.card.purple::before{background:linear-gradient(90deg,var(--purple),rgba(91,33,182,0.3))}
+.card.gold::before{background:linear-gradient(90deg,var(--gold),rgba(245,158,11,0.3))}
+.card.green::before{background:linear-gradient(90deg,#059669,rgba(5,150,105,0.3))}
+.card.red::before{background:linear-gradient(90deg,#DC2626,rgba(220,38,38,0.3))}
+.card.teal::before{background:linear-gradient(90deg,#0891B2,rgba(8,145,178,0.3))}
+
+.card-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px}
+
+/* MARCHÉ */
+.market-status{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.market-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.market-dot.open{background:#059669;box-shadow:0 0 8px rgba(5,150,105,0.6);animation:pulse-dot 2s ease-in-out infinite}
+.market-dot.closed{background:#DC2626;box-shadow:0 0 8px rgba(220,38,38,0.4)}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 6px rgba(5,150,105,0.6)}50%{box-shadow:0 0 16px rgba(5,150,105,0.9)}}
+.market-text{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:0.04em}
+.market-text.open{color:#6EE7B7}
+.market-text.closed{color:#FCA5A5}
+.market-detail{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+.market-countdown{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--white);margin-top:4px;letter-spacing:0.06em}
+
+/* SESSION PILLS */
+.sessions{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.session-pill{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.08em;padding:4px 10px;border-radius:20px;border:1px solid}
+.session-pill.active{background:rgba(5,150,105,0.15);color:#6EE7B7;border-color:rgba(5,150,105,0.3)}
+.session-pill.inactive{background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.08)}
+.session-pill.overlap{background:rgba(245,158,11,0.12);color:#FCD34D;border-color:rgba(245,158,11,0.3)}
+
+/* WIDGET TV dans card marché */
+.market-tv-divider{border:none;border-top:1px solid rgba(255,255,255,0.06);margin:14px 0 10px}
+.market-tv-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(245,158,11,0.6);margin-bottom:8px}
+
+/* STATUT COMPTE */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{font-size:12px;color:rgba(255,255,255,0.4)}
+.stat-value{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--white)}
+.stat-value.green{color:#6EE7B7}
+.stat-value.gold{color:var(--gold)}
+.stat-value.red{color:#FCA5A5}
+.copy-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700}
+.copy-badge.on{background:rgba(5,150,105,0.15);color:#6EE7B7;border:1px solid rgba(5,150,105,0.3)}
+.copy-badge.off{background:rgba(220,38,38,0.12);color:#FCA5A5;border:1px solid rgba(220,38,38,0.25)}
+.copy-dot{width:6px;height:6px;border-radius:50%}
+.copy-badge.on .copy-dot{background:#6EE7B7}
+.copy-badge.off .copy-dot{background:#FCA5A5}
+
+/* NOTIFICATION */
+/* APERÇU CANAL VIP */
+.canal-preview-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);align-items:flex-start}
+.canal-preview-item:last-child{border-bottom:none}
+.cpi-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.cpi-dot.signal{background:var(--gold)}
+.cpi-dot.resultat{background:#059669}
+.cpi-dot.alerte{background:#DC2626}
+.cpi-dot.annonce{background:#7C3AED}
+.cpi-dot.message{background:rgba(255,255,255,0.25)}
+.cpi-body{flex:1;min-width:0}
+.cpi-text{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpi-meta{display:flex;align-items:center;gap:6px;margin-top:2px}
+.cpi-type{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.25)}
+.cpi-time{font-size:10px;color:rgba(255,255,255,0.18)}
+.canal-preview-footer{margin-top:12px}
+.canal-voir-tout{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(91,33,182,0.7);text-decoration:none;transition:color 0.15s}
+.canal-voir-tout:hover{color:var(--purple)}
+
+/* NOTIF INLINE dans card compte */
+.notif-inline{margin-top:12px;padding:10px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px}
+.notif-inline-badge{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.notif-inline-msg{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.5}
+.notif-inline-dismiss{margin-top:8px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.25);cursor:pointer;background:none;border:none;padding:0;transition:color 0.15s}
+.notif-inline-dismiss:hover{color:rgba(255,255,255,0.5)}
+.notif-card{background:linear-gradient(135deg,rgba(91,33,182,0.12),rgba(59,7,100,0.08));border:1px solid rgba(91,33,182,0.3)}
+.notif-type-badge{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;padding:2px 10px;border-radius:20px;margin-bottom:10px}
+.notif-msg{font-size:14px;color:rgba(255,255,255,0.85);line-height:1.6;font-weight:500}
+.notif-time{font-size:11px;color:rgba(255,255,255,0.25);margin-top:8px}
+.no-notif{font-size:13px;color:rgba(255,255,255,0.25);font-style:italic}
+.notif-dismiss-btn{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:6px 14px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;transition:all 0.15s}
+.notif-dismiss-btn:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7)}
+
+/* ACTU ECO */
+.eco-list{display:flex;flex-direction:column;gap:8px}
+.eco-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.eco-item:last-child{border-bottom:none}
+.eco-impact{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.eco-impact.high{background:#DC2626}
+.eco-impact.medium{background:#F59E0B}
+.eco-time{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:rgba(255,255,255,0.5);width:40px;flex-shrink:0}
+.eco-currency{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--gold);width:28px;flex-shrink:0}
+.eco-title{font-size:12px;color:rgba(255,255,255,0.7);flex:1;line-height:1.3}
+.eco-loading{font-size:12px;color:rgba(255,255,255,0.25);text-align:center;padding:12px 0}
+
+/* CANAL */
+.canal-card{background:linear-gradient(135deg,rgba(0,136,204,0.1),rgba(0,100,160,0.06));border:1px solid rgba(0,136,204,0.25)}
+.canal-inner{display:flex;align-items:center;gap:14px}
+.canal-icon{width:44px;height:44px;background:rgba(0,136,204,0.15);border:1px solid rgba(0,136,204,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.canal-info{flex:1}
+.canal-name{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--white)}
+.canal-desc{font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px}
+.canal-btn{background:#0088CC;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-block;transition:all 0.2s;flex-shrink:0}
+.canal-btn:hover{background:#0077B5;transform:translateY(-1px)}
+
+/* ACCÈS RAPIDE */
+.quick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.quick-item{background:rgba(17,24,39,0.7);border:1px solid var(--border);border-radius:14px;padding:16px 12px;text-align:center;text-decoration:none;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:8px}
+.quick-item:hover{border-color:rgba(91,33,182,0.5);background:rgba(91,33,182,0.08);transform:translateY(-3px)}
+.quick-icon{font-size:24px;line-height:1}
+.quick-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.5)}
+.quick-item:hover .quick-label{color:var(--white)}
+
+/* PARAMÉTRER CTA */
+.params-cta{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.params-cta-text .title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--white);margin-bottom:4px}
+.params-cta-text .desc{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+.params-btn{background:var(--purple);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;text-decoration:none;display:inline-block;transition:all 0.2s;white-space:nowrap;flex-shrink:0}
+.params-btn:hover{background:#4C1D95;transform:translateY(-1px)}
+
+/* FADE IN */
+.fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.5s ease,transform 0.5s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+.delay-1{transition-delay:0.05s}.delay-2{transition-delay:0.1s}.delay-3{transition-delay:0.15s}.delay-4{transition-delay:0.2s}.delay-5{transition-delay:0.25s}
+
+/* MOBILE TOP BAR — séparé du wa-float */
+.m-topbar{display:none}
+
+/* WA FLOAT — bouton WhatsApp flottant */
+.wa-float{position:fixed;bottom:28px;right:28px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);text-decoration:none;animation:wa-pulse 2.5s ease-in-out infinite}
+@keyframes wa-pulse{0%,100%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 0 rgba(37,211,102,0.3)}50%{box-shadow:0 4px 20px rgba(37,211,102,0.4),0 0 0 10px rgba(37,211,102,0)}}
+
+@media(max-width:768px){
+  .app{display:block}
+  .sidebar{display:none}
+  .content{padding:72px 14px 88px;max-width:100%}
+  .dashboard-grid{grid-template-columns:1fr}
+  .dashboard-grid.three{grid-template-columns:1fr}
+  .quick-grid{grid-template-columns:repeat(5,1fr);gap:8px}
+  .quick-item{padding:12px 8px}
+  .quick-icon{font-size:20px}
+  .quick-label{font-size:10px}
+  .params-cta{flex-direction:column;align-items:flex-start;gap:12px}
+  .hero-greeting{font-size:32px}
+  .m-topbar{display:flex;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,10,15,0.97);border-bottom:1px solid rgba(91,33,182,0.2);z-index:200;align-items:center;justify-content:space-between;padding:0 16px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+  .m-logo{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:0.06em}
+  .m-member{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:rgba(255,255,255,0.6)}
+  .wa-float{bottom:78px;width:48px;height:48px}
+  body{padding-bottom:78px}
+}
+</style>
+
+<style>
+/* Masquer bouton WhatsApp flottant + lien agent en mode demo */
+a[href*="wa.me"],
+a[href*="whatsapp"],
+.wa-float,
+.whatsapp-btn,
+[class*="whatsapp"],
+[class*="wa-"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+</style>
+
+
+
+<style>
+/* ================================================================
+   BECTANSE AUTO — TRADING OS / PREVIEW VISUELLE
+   Cette couche est active uniquement avec /accueil?preview=future.
+   ================================================================ */
+:root{
+  --purple:#f45a00;
+  --gold:#ff6a00;
+  --dark:#050608;
+  --dark-2:#0b0e12;
+  --dark-3:#151a21;
+  --border:rgba(255,106,0,.18);
+  --signal:#ff6a00;
+  --signal-soft:rgba(255,106,0,.12);
+  --steel:#8f9aa8;
+}
+html,body{background:#050608}
+body.future-preview{
+  background:
+    radial-gradient(ellipse 70% 50% at 82% 0%,rgba(255,106,0,.08),transparent 62%),
+    linear-gradient(180deg,#050608 0%,#080a0d 100%);
+}
+.future-preview .bg-glow{
+  opacity:.9;
+  background:
+    linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px),
+    radial-gradient(circle at 70% 12%,rgba(255,106,0,.11),transparent 28%);
+  background-size:48px 48px,48px 48px,auto;
+  mask-image:linear-gradient(to bottom,#000,transparent 82%);
+}
+.future-preview .app{grid-template-columns:226px minmax(0,1fr)}
+.future-preview .sidebar{
+  background:#090a0c;
+  border-right:1px solid rgba(255,255,255,.07);
+  box-shadow:none;
+}
+.future-preview .sidebar-brand{padding:22px 18px 17px;border-color:rgba(255,255,255,.06)}
+.future-preview .sidebar-logo{font-size:20px;color:#fff;text-shadow:none}
+.future-preview .sidebar-logo::after{content:'  / AUTO';color:var(--signal);font-size:10px;letter-spacing:.14em}
+.future-preview .sidebar-tagline{color:rgba(255,255,255,.33);margin-top:6px}
+.future-preview .member-card{
+  margin:14px 12px 6px;
+  background:#111214;
+  border-color:rgba(255,255,255,.08);
+  border-radius:12px;
+}
+.future-preview .member-card::before{background:linear-gradient(90deg,transparent,var(--signal),transparent)}
+.future-preview .nav{padding-top:12px}
+.future-preview .nav-item{margin:2px 8px;padding:10px 11px;border:1px solid transparent;border-left:0;border-radius:8px;font-size:12px}
+.future-preview .nav-item:hover{background:rgba(255,106,0,.06);border-color:rgba(255,106,0,.12)}
+.future-preview .nav-item.active{background:linear-gradient(90deg,rgba(255,106,0,.14),rgba(255,106,0,.025));border-color:rgba(255,106,0,.2);box-shadow:inset 3px 0 0 var(--signal)}
+.future-preview .content{max-width:1440px;width:100%;padding:24px 30px 58px}
+.future-command-bar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.future-command-title{font:700 18px 'Barlow',sans-serif;color:#fff;letter-spacing:-.02em}
+.future-command-sub{font-size:10px;color:rgba(255,255,255,.3);margin-top:4px}
+.future-command-actions{display:flex;align-items:center;gap:8px}
+.future-command-btn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 12px;border:1px solid rgba(255,255,255,.09);border-radius:8px;background:#111315;color:rgba(255,255,255,.72);font-size:11px;font-weight:600;text-decoration:none;transition:.18s ease}
+.future-command-btn:hover{color:#fff;border-color:rgba(255,106,0,.35);background:#171411}
+.future-command-btn.primary{background:var(--signal);border-color:var(--signal);color:#fff;box-shadow:0 8px 22px rgba(255,106,0,.14)}
+.future-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#ff7b27,#c84400);color:#fff;font:700 13px 'Barlow',sans-serif;border:2px solid rgba(255,255,255,.12)}
+.future-preview .hero{display:block;margin-bottom:16px}
+.future-preview .hero-date{color:rgba(255,106,0,.75)}
+.future-preview .hero-greeting{font-size:34px;letter-spacing:.015em;line-height:1.04}
+.future-preview .hero-greeting span{color:var(--signal)}
+.future-preview .hero-sub{color:rgba(255,255,255,.42);margin-top:7px}
+.future-system-rail{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:18px;
+}
+.future-system-segment{
+  min-height:68px;
+  padding:12px 14px;
+  background:#111315;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;
+  display:flex;align-items:center;gap:11px;
+}
+.future-status-orb{width:10px;height:10px;border-radius:50%;background:#2ddd9d;box-shadow:0 0 0 5px rgba(45,221,157,.08),0 0 18px rgba(45,221,157,.65);animation:futurePulse 2s ease-in-out infinite}
+.future-segment-kicker{font:700 9px 'Barlow Condensed',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.32)}
+.future-segment-value{font:700 15px 'Barlow Condensed',sans-serif;color:#fff;margin-top:3px;letter-spacing:.035em}
+.future-segment-value strong{color:var(--signal)}
+@keyframes futurePulse{50%{transform:scale(.72);opacity:.7}}
+.future-preview .dashboard-grid{gap:12px;margin-bottom:12px;align-items:stretch}
+.future-preview .dashboard-grid.primary-row{grid-template-columns:minmax(0,1.55fr) minmax(310px,.72fr)}
+.future-preview .dashboard-grid.activity-row{grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr)}
+.future-preview .dashboard-grid.actions-row{grid-template-columns:1fr 1fr}
+.future-preview .dashboard-grid>.card{height:100%}
+.future-preview .card{
+  background:#111315;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:18px;
+  box-shadow:none;
+}
+.future-preview .card:hover{border-color:rgba(255,106,0,.28);transform:none}
+.future-preview .card::before{height:1px;background:linear-gradient(90deg,transparent,var(--signal),transparent)!important;opacity:.8}
+.future-preview .card-label{color:rgba(255,255,255,.42)}
+.future-preview #market-card{min-height:0;background:#101214;display:flex;flex-direction:column}
+.future-preview #market-card::after{content:'LIVE MARKET FEED';position:absolute;right:20px;top:19px;font:700 9px 'Barlow Condensed',sans-serif;letter-spacing:.18em;color:rgba(255,255,255,.22)}
+.future-preview .market-tv-divider{border-color:rgba(255,255,255,.08);margin-top:20px}
+.future-preview .market-tv-label{color:rgba(255,106,0,.8)}
+.future-preview .tradingview-widget-container{height:340px!important;min-height:340px;margin-top:auto!important;border:1px solid rgba(255,255,255,.07);border-radius:10px;overflow:hidden;background:#080a0d}
+.future-preview #tradingview_gold,.future-preview #tradingview_gold>div,.future-preview #tradingview_gold iframe{width:100%!important;height:340px!important;display:block}
+.future-preview .card.purple{background:#111315}
+.future-preview .primary-row>.card.purple{display:flex;flex-direction:column}
+.future-preview .primary-row>.card.purple>div:last-child{margin-top:auto!important;padding-top:14px}
+.future-robot-core{display:flex;align-items:center;gap:13px;padding:12px;margin:-1px 0 13px;border-radius:11px;background:#17191c;border:1px solid rgba(255,255,255,.07)}
+.future-chip{position:relative;width:46px;height:46px;border:1px solid rgba(255,106,0,.42);border-radius:12px;display:grid;place-items:center;background:rgba(255,106,0,.08);box-shadow:none}
+.future-chip::before,.future-chip::after{content:'';position:absolute;inset:8px;border:1px solid rgba(255,106,0,.28);border-radius:9px;animation:futureScan 2.8s linear infinite}
+.future-chip::after{inset:16px;border-radius:5px;animation-direction:reverse}
+.future-chip-mark{font:700 12px 'Barlow Condensed',sans-serif;color:#fff;z-index:1;letter-spacing:.08em}
+@keyframes futureScan{to{transform:rotate(360deg)}}
+.future-core-title{font:700 16px 'Barlow Condensed',sans-serif;color:#fff}
+.future-core-meta{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px}
+.future-core-live{color:#54e6b3}
+.future-preview .params-btn{background:linear-gradient(90deg,#d94b00,#ff6a00);box-shadow:0 10px 30px rgba(255,106,0,.18)}
+.future-preview .params-btn:hover{background:#ff6a00}
+.future-preview .quick-grid{gap:12px}
+.future-preview .quick-item{background:#111315;border-color:rgba(255,255,255,.08);border-radius:12px;padding:13px 10px}
+.future-preview .quick-item:hover{border-color:rgba(255,106,0,.35);background:rgba(255,106,0,.06)}
+.future-preview .quick-icon{font-size:0;filter:none;opacity:.86}
+.future-preview .quick-icon::before{display:grid;place-items:center;width:30px;height:30px;border:1px solid rgba(255,106,0,.24);border-radius:8px;color:var(--signal);font:700 14px 'Barlow',sans-serif;background:rgba(255,106,0,.05)}
+.future-preview .quick-item:nth-child(1) .quick-icon::before{content:'◎'}
+.future-preview .quick-item:nth-child(2) .quick-icon::before{content:'▤'}
+.future-preview .quick-item:nth-child(3) .quick-icon::before{content:'◇'}
+.future-preview .quick-item:nth-child(4) .quick-icon::before{content:''}
+.future-preview .quick-item:nth-child(5) .quick-icon::before{content:'?'}
+.future-preview .canal-voir-tout{color:rgba(255,106,0,.75)}
+.future-preview .m-topbar,.future-preview .m-univ-nav{background:rgba(5,7,9,.96);border-color:rgba(255,106,0,.18)}
+.future-preview .m-univ-nav-item.active{border-top-color:var(--signal)}
+@media(max-width:768px){
+  .future-preview .app{display:block}
+  .future-preview .content{padding:68px 12px 94px}
+  .future-command-bar{align-items:flex-start;margin-bottom:16px;padding-bottom:12px}
+  .future-command-sub{display:none}
+  .future-command-actions{gap:6px}
+  .future-command-btn{padding:0 9px;font-size:10px}
+  .future-command-btn.secondary{display:none}
+  .future-avatar{width:32px;height:32px}
+  .future-preview .hero{display:block}
+  .future-preview .hero-greeting{font-size:31px}
+  .future-system-rail{grid-template-columns:1fr;margin-top:16px;gap:8px}
+  .future-system-segment{min-height:58px;padding:11px 14px}
+  .future-preview .dashboard-grid.primary-row,.future-preview .dashboard-grid.activity-row,.future-preview .dashboard-grid.actions-row{grid-template-columns:1fr}
+  .future-preview #market-card{min-height:0}
+  .future-preview .tradingview-widget-container{height:278px!important;min-height:278px}
+  .future-preview #tradingview_gold,.future-preview #tradingview_gold>div,.future-preview #tradingview_gold iframe{height:278px!important}
+  .future-preview .card{padding:16px;border-radius:13px}
+  .future-preview .quick-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+
+<link rel="stylesheet" href="/static/css/member-fintech.css?v=20260907-mobile2">
+<link rel="stylesheet" href="/static/css/lifestyle-background.css?v=1">
+<link rel="stylesheet" href="/static/css/academy-universe.css?v=20261011-3">
+<link rel="stylesheet" href="/static/css/academy-pages.css?v=20261011-3">
+<link rel="stylesheet" href="/static/css/academy-product.css?v=20261011-3">
+<link rel="stylesheet" href="/static/academy-tour/tour-screen.css?v=2"></head>
+<body data-ui-screen="accueil" class="product-workspace academy-universe member-fintech future-preview">
+<div class="ambient academy-ambient" aria-hidden="true"><div class="ambient-light"></div><div class="ambient-copper"></div><div class="ambient-violet"></div><div class="ambient-beam"></div><div class="ambient-dust"></div><div class="ambient-grid"></div></div>
+
+<aside class="workspace-rail" aria-label="Navigation de l’Académie">
+  <a class="workspace-brand" href="/accueil"><img src="/static/icons/bectanse-icon-v2-192.png" alt=""><span>Bectanse<small>Académie</small></span></a>
+  <div class="workspace-rail-label">Ton espace</div>
+  <nav>
+  <a href="/accueil" aria-current="page"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="m3 10 9-7 9 7"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9 21v-7h6v7"></path>
+  
+</svg><span>Vue d’ensemble</span></a>
+  <a href="/academie" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M2 4.5h6a4 4 0 0 1 4 4V21a3 3 0 0 0-3-3H2z"></path><path d="M22 4.5h-6a4 4 0 0 0-4 4V21a3 3 0 0 1 3-3h7z"></path>
+  
+</svg><span>Ma formation</span></a>
+  <a href="/trader-lab" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M4 19V5"></path><path d="M4 19h16"></path><path d="m7 15 4-4 3 3 5-7"></path><path d="M16 7h3v3"></path>
+  
+</svg><span>Trader Lab</span></a>
+  <a href="/canal" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="12" cy="12" r="2"></circle><path d="M8.5 8.5a5 5 0 0 0 0 7"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M5.6 5.6a9 9 0 0 0 0 12.8"></path><path d="M18.4 5.6a9 9 0 0 1 0 12.8"></path>
+  
+</svg><span>Canal VIP</span></a>
+  <a href="/journal" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M6 3h12a2 2 0 0 1 2 2v16H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M8 3v18"></path><path d="M12 8h4"></path><path d="M12 12h4"></path>
+  
+</svg><span>Journal de trading</span></a></nav>
+  <div class="workspace-rail-label">Mon compte</div>
+  <nav>
+  <a href="/dashboard#section-profil" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path>
+  
+</svg><span>Profil et réglages</span></a>
+  <a href="/abonnement" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path>
+  
+</svg><span>Mon abonnement</span></a>
+  <a href="/parrainage" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path>
+  
+</svg><span>Parrainage</span></a>
+  <a href="/support" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M4 14a8 8 0 0 1 16 0"></path><path d="M18 19c0 1.1-.9 2-2 2h-3"></path><path d="M4 14v3a2 2 0 0 0 2 2h1v-7H6a2 2 0 0 0-2 2Z"></path><path d="M20 14v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2Z"></path>
+  
+</svg><span>Contacter l’équipe</span></a>
+  <a href="/faq" ><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="12" cy="12" r="9"></circle><path d="M9.7 9a2.4 2.4 0 1 1 3.8 1.9c-.9.6-1.5 1.1-1.5 2.3"></path><path d="M12 17h.01"></path>
+  
+</svg><span>Centre d’aide</span></a></nav>
+  <details class="workspace-more"><summary>Ressources et démarrage</summary><nav><a href="/demarrage">Démarrage guidé</a><a href="/guide-robot">Guide Bectanse Auto</a><a href="/presentation-academie">Présentation de l’Académie</a><a href="/explorer">Parcours Explorer</a><a href="/logout">Se déconnecter</a></nav></details>
+  <a class="workspace-bottom" href="/centre-confiance">Méthode et transparence <span></span></a>
+</aside>
+
+
+<div class="os-app">
+  <aside class="os-sidebar">
+    <a class="os-brand" href="/accueil" aria-label="Bectanse Académie — Accueil">
+      <span class="os-brand-mark" aria-hidden="true"></span>
+      <span>Bectanse <strong>Académie</strong></span>
+    </a>
+
+    <div class="os-nav-group">
+      <div class="os-nav-title">Navigation</div>
+      <nav class="os-nav">
+        <a class="os-nav-item active" href="/accueil"><span>01</span>Accueil</a>
+        <a class="os-nav-item" href="/dashboard"><span>02</span>Mes paramètres</a>
+        <a class="os-nav-item" href="/canal"><span>03</span>Canal VIP</a>
+        <a class="os-nav-item" href="/vip"><span>04</span>Renouveler / Upgrader</a>
+      </nav>
+    </div>
+
+    <div class="os-nav-group">
+      <div class="os-nav-title">Académie</div>
+      <nav class="os-nav">
+        <a class="os-nav-item" href="/academie"><span>06</span>Bectanse Progress</a>
+        <a class="os-nav-item" href="/trader-lab"><span>07</span>Trader Lab</a>
+        <a class="os-nav-item" href="/centre-confiance"><span>08</span>Centre de confiance</a>
+        <a class="os-nav-item" href="/parrainage"><span>09</span>Parrainage VIP</a>
+        <a class="os-nav-item" href="/faq"><span>10</span>FAQ &amp; Guide</a>
+      </nav>
+    </div>
+
+    <div class="os-member-access is-explorer">
+      <div class="os-access-kicker">Mode Explorer</div>
+      <div class="os-access-name">Visiteur</div>
+      <div class="os-access-meta">Application visible en lecture seule</div>
+      <div class="os-access-progress"><span></span></div>
+      <div class="os-access-days"><span>Compte gratuit</span><strong>Verrouillé</strong></div>
+    </div>
+    <a class="os-logout" href="/logout">Déconnexion</a>
+  </aside>
+
+  <main class="os-main">
+    
+    <section class="os-explorer-banner" aria-labelledby="os-explorer-banner-title">
+      <div class="os-explorer-banner-copy">
+        <span>Mode explorer · application réelle</span>
+        <h1 id="os-explorer-banner-title">Tu es bien dans l’application Bectanse</h1>
+        <p>Explore l’interface et le graphique en direct avec un compte fictif. Les outils réservés restent verrouillés jusqu’à l’activation de ton accès.</p>
+      </div>
+      <div class="os-explorer-banner-actions">
+        <a href="/explorer">Continuer mon parcours</a>
+        <a class="primary" href="/vip#offres">Débloquer l’accès</a>
+      </div>
+    </section>
+    
+    <section class="os-mobile-cockpit" aria-labelledby="os-mobile-title">
+      <header class="os-mobile-header">
+        <div>
+          <div class="os-mobile-eyebrow">Ton espace Bectanse</div>
+          <h1 id="os-mobile-title"><span id="os-mobile-greeting">Bonjour</span>, Visiteur</h1>
+          <p id="os-mobile-date">Ton application Explorer est prête</p>
+        </div>
+        <a class="os-mobile-avatar" href="/dashboard#section-profil" aria-label="Ouvrir mon profil">V</a>
+      </header>
+
+      <article class="os-mobile-summary">
+        <div class="os-mobile-summary-top">
+          <span>Capital de démonstration</span>
+          <span class="os-mobile-live"><i></i> Aperçu</span>
+        </div>
+        <div class="os-mobile-balance-row">
+          <strong class="os-mobile-balance" data-capital="0">0 €</strong>
+          <span class="os-mobile-account-type">Compte fictif</span>
+        </div>
+
+        <div class="os-mobile-status-grid">
+          <a href="/dashboard#section-parametres" class="os-mobile-status">
+            <span class="os-mobile-status-icon">◎</span>
+            <span><small>Bectanse Auto</small><strong>Verrouillé · MT5</strong></span>
+            <b class=""></b>
+          </a>
+          <a href="/dashboard#section-profil" class="os-mobile-status">
+            <span class="os-mobile-status-icon">◷</span>
+            <span><small>Accès membre</small><strong>Mode Explorer</strong></span>
+            <b class="is-on"></b>
+          </a>
+        </div>
+
+        <div class="os-mobile-summary-actions">
+          <a class="primary" href="/explorer">Continuer le parcours <span></span></a>
+          <a href="/analyse-ia">Analyse IA</a>
+        </div>
+      </article>
+
+      
+
+      <nav class="os-mobile-launchers" aria-label="Accès rapides">
+        <a href="/academie"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h7l2 2 2-2h7v15h-7l-2 2-2-2H3zM12 7v15"/></svg></span><strong>Académie</strong><small>Continuer</small></a>
+        <a href="/trader-lab"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v17h17M7 15l4-5 4 3 6-8"/></svg></span><strong>Trader Lab</strong><small>Analyser</small></a>
+        <a href="/canal"><span class="live"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M7 6a8 8 0 0 0 0 12M17 6a8 8 0 0 1 0 12"/></svg></span><strong>Canal Live</strong><small>Consulter</small></a>
+        <a href="/journal"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><strong>Journal</strong><small>Progresser</small></a>
+      </nav>
+    </section>
+
+    <section class="os-overview" aria-labelledby="os-overview-title">
+      <div class="os-overview-head">
+        <h1 id="os-overview-title">Accueil</h1>
+        <div class="os-overview-actions">
+          <a class="os-overview-action" href="/academie">Académie</a>
+          
+          <a class="os-overview-action primary" href="/vip#offres">Débloquer mon accès</a>
+          <span class="os-overview-avatar" aria-label="Profil de Visiteur">V</span>
+        </div>
+      </div>
+
+      <div class="os-overview-grid">
+        <article class="os-overview-card">
+          <div class="os-overview-card-top">
+            <span class="os-overview-label">Capital de démonstration</span>
+            <span class="os-overview-pill">Compte fictif</span>
+          </div>
+          <div class="os-overview-value">0 €</div>
+          <div class="os-overview-meta">Données fictives pour découvrir l’interface</div>
+        </article>
+
+        <article class="os-overview-card">
+          <div class="os-overview-card-top">
+            <span class="os-overview-label">Bectanse Auto</span>
+            <span class="os-overview-pill">MT5</span>
+          </div>
+          <div class="os-overview-value">Verrouillé</div>
+          <div class="os-overview-meta ">Activation disponible avec un abonnement</div>
+        </article>
+
+        <article class="os-overview-card">
+          <div class="os-overview-card-top">
+            <span class="os-overview-label">Accès membre</span>
+            <span class="os-overview-pill">Gratuit</span>
+          </div>
+          <div class="os-overview-value">Explorer</div>
+          <div class="os-overview-meta">Navigation en lecture seule</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="os-market-panel" id="market-card">
+      <div class="os-market-heading">
+        <div>
+          <div class="os-kicker">Or / dollar · XAUUSD</div>
+          <div class="os-market-state"><span class="market-dot" id="market-dot"></span><strong id="market-text">Chargement...</strong></div>
+          <div class="market-detail" id="market-detail"></div>
+          <div class="market-countdown" id="market-countdown"></div>
+        </div>
+        <div class="sessions" id="sessions-pills" aria-label="Sessions de marché"></div>
+      </div>
+      <div class="os-chart-shell">
+        <div id="tradingview_gold"></div>
+      </div>
+      <div class="academy-chart-help"><span>Graphique TradingView</span><a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener">Ouvrir en grand </a></div>
+      <button class="os-chart-toggle" type="button" aria-expanded="false">
+        <span>Développer le graphique</span>
+        <b aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="M4 12 12 4M6 4h6v6"/></svg></b>
+      </button>
+    </section>
+
+    <div class="os-lower-grid">
+      <section class="os-panel os-account-panel">
+        <div class="os-panel-heading">
+          <div class="os-engine-mark">Auto</div>
+          <div><h2>Compte Explorer</h2><p><span>●</span> Système verrouillé · aperçu fictif</p></div>
+        </div>
+        <div class="os-account-row"><span>Bectanse Auto</span><strong class="">Verrouillé</strong></div>
+        <div class="os-account-row"><span>Capital</span><strong>0 € · démo</strong></div>
+        
+        <div class="os-account-row"><span>Accès</span><strong class="">Lecture seule</strong></div>
+        
+        <a class="os-action" href="/vip#offres">Débloquer mon compte </a>
+      </section>
+
+      <section class="os-panel os-channel-panel">
+        <div class="os-panel-title-row"><div><h2>Canal VIP</h2><p>Section visible, contenu réservé aux membres</p></div><strong>Verrouillé</strong></div>
+        
+        <div class="os-explorer-lock-panel">
+          <span>Canal privé</span>
+          <h3>Les alertes restent protégées</h3>
+          <p>Tu peux découvrir l’organisation de l’application. L’historique et les nouvelles publications se débloquent avec ton accès membre.</p>
+        </div>
+        <a class="os-feed-link" href="/vip#offres">Découvrir les accès </a>
+        
+      </section>
+    </div>
+
+    <section class="os-panel os-eco-panel">
+      <div class="os-panel-title-row"><div><h2>Actualité économique du jour</h2><p>Événements importants susceptibles d'influencer le marché</p></div><a href="/faq">Voir le guide </a></div>
+      <div class="eco-list" id="eco-list"><div class="eco-loading">Chargement des annonces...</div></div>
+    </section>
+  </main>
+</div>
+
+
+
+
+
+<!-- MOBILE NAV UNIVERSELLE -->
+<style>
+.m-univ-nav { display: none; }
+@media(max-width:768px){
+  .m-univ-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 68px;
+    background: rgba(10,10,15,0.98);
+    border-top: 1px solid rgba(91,33,182,0.2);
+    z-index: 500;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .m-univ-nav::-webkit-scrollbar { display: none; }
+  .m-univ-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 68px;
+    gap: 3px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.38);
+    border-top: 2px solid transparent;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 8px 4px 10px;
+    white-space: nowrap;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .m-univ-nav-item .mni { font-size: 20px; line-height: 1; }
+  .m-univ-nav-item.active { color: #fff; border-top-color: #5B21B6; }
+  .m-univ-nav-item.gold { color: #F59E0B; }
+}
+</style>
+
+
+
+
+
+
+<style>
+  .m-univ-nav,.m-app-sheet,.m-app-sheet-backdrop{display:none}
+  @media(max-width:768px),(max-width:932px) and (max-height:500px) and (orientation:landscape){
+    :root{
+      --safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);
+      --safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px);
+      --app-height:100vh;--m-app-nav-height:72px;--m-app-content-gap:20px;
+      --z-content:0;--z-sticky:10;--z-header:30;--z-bottom-nav:40;
+      --z-dropdown:50;--z-drawer:60;--z-modal:70;--z-toast:80;
+    }
+    @supports(height:100dvh){:root{--app-height:100dvh}}
+    html,body{width:100%;max-width:100%;min-height:100%;overflow-x:clip!important;background:#050605!important}
+    body{min-height:var(--app-height);overscroll-behavior-y:none}
+    html{scroll-padding-bottom:calc(var(--m-app-nav-height) + var(--safe-bottom) + var(--m-app-content-gap))}
+    body{padding-bottom:calc(var(--m-app-nav-height) + var(--safe-bottom) + var(--m-app-content-gap))!important}
+    body.m-app-nav-open{position:fixed!important;left:0;right:0;width:100%;overflow:hidden!important;touch-action:none}
+    body>*{max-width:100%}
+    .m-univ-nav,.m-univ-nav *,.m-app-sheet,.m-app-sheet *{box-sizing:border-box}
+    .m-univ-nav{
+      display:grid!important;visibility:visible!important;opacity:1!important;
+      grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;
+      position:fixed!important;left:0!important;right:0!important;bottom:0!important;
+      width:100%!important;height:calc(var(--m-app-nav-height) + var(--safe-bottom))!important;
+      margin:0!important;padding:5px max(6px,var(--safe-right)) var(--safe-bottom) max(6px,var(--safe-left))!important;
+      overflow:visible!important;isolation:isolate;z-index:var(--z-bottom-nav)!important;
+      border:0!important;border-top:1px solid rgba(255,255,255,.08)!important;
+      border-radius:0!important;background:rgba(5,6,5,.965)!important;
+      box-shadow:0 -18px 55px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.025)!important;
+      backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+      backface-visibility:hidden;-webkit-backface-visibility:hidden;
+      overscroll-behavior:none;touch-action:manipulation;
+    }
+    .m-univ-nav::before{content:"";position:absolute;left:50%;top:-1px;width:58px;height:2px;transform:translateX(-50%);border-radius:0 0 99px 99px;background:linear-gradient(90deg,transparent,#ff641e,transparent);opacity:.72}
+    .m-univ-nav-item{
+      appearance:none!important;-webkit-appearance:none!important;min-width:0!important;min-height:44px!important;height:64px!important;
+      margin:0!important;padding:5px 2px 4px!important;display:flex!important;flex-direction:column!important;
+      align-items:center!important;justify-content:center!important;gap:4px!important;
+      border:0!important;border-radius:14px!important;outline:0;background:transparent!important;
+      color:#777b74!important;text-decoration:none!important;white-space:nowrap!important;
+      font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+      font-size:9px!important;font-weight:750!important;line-height:1!important;
+      letter-spacing:.01em!important;text-transform:none!important;cursor:pointer;
+      -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+      transition:color .2s ease,background .2s ease,transform .16s ease!important;
+    }
+    .m-univ-nav-item:active{transform:scale(.94)}
+    .m-univ-nav-item:focus-visible{box-shadow:inset 0 0 0 2px rgba(255,100,30,.9)}
+    .m-app-icon-shell{position:relative;width:32px;height:32px;display:grid;place-items:center;border-radius:10px;color:#9a9e96;background:linear-gradient(145deg,#171a16,#0d0f0d);border:1px solid rgba(255,255,255,.075);box-shadow:inset 0 1px 0 rgba(255,255,255,.055);transition:color .22s ease,border-color .22s ease,background .22s ease,box-shadow .22s ease,transform .22s ease}
+    .m-app-icon{width:20px;height:20px;display:block;overflow:visible}
+    .m-univ-nav-item.active{color:#fff!important;background:linear-gradient(180deg,rgba(255,100,30,.08),transparent 78%)!important}
+    .m-univ-nav-item.active .m-app-icon-shell,.m-univ-nav-item[aria-expanded="true"] .m-app-icon-shell{color:#fff;background:linear-gradient(145deg,#ff762f,#e84d0b);border-color:rgba(255,151,102,.75);box-shadow:0 7px 22px rgba(255,87,18,.28),inset 0 1px 0 rgba(255,255,255,.38);transform:translateY(-2px)}
+    .m-univ-nav-item.active .m-app-icon-shell::after{content:"";position:absolute;bottom:-7px;left:50%;width:18px;height:2px;transform:translateX(-50%);border-radius:99px;background:#ff641e;box-shadow:0 0 10px rgba(255,100,30,.85)}
+    .m-app-live-pulse{position:absolute;right:-2px;top:-2px;width:8px;height:8px;border:2px solid #090a09;border-radius:50%;background:#64dc82;box-shadow:0 0 0 0 rgba(100,220,130,.55);animation:mAppPulse 2.2s ease-out infinite}
+    @keyframes mAppPulse{0%{box-shadow:0 0 0 0 rgba(100,220,130,.5)}65%,100%{box-shadow:0 0 0 7px rgba(100,220,130,0)}}
+    .m-app-sheet-backdrop{display:block;position:fixed;inset:0;z-index:var(--z-dropdown);background:rgba(0,0,0,.72);opacity:0;visibility:hidden;pointer-events:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:opacity .28s ease,visibility .28s ease}
+    .m-app-sheet-backdrop.is-open{opacity:1;visibility:visible;pointer-events:auto}
+    .m-app-sheet{display:flex;flex-direction:column;position:fixed;left:max(8px,var(--safe-left));right:max(8px,var(--safe-right));bottom:calc(var(--m-app-nav-height) + var(--safe-bottom) + 8px);z-index:var(--z-drawer);max-height:min(68dvh,590px);overflow:hidden;border:1px solid rgba(255,255,255,.11);border-radius:25px;background:linear-gradient(155deg,rgba(22,25,21,.995),rgba(7,9,7,.999) 68%);box-shadow:0 30px 90px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.07);transform:translateY(calc(100% + var(--m-app-nav-height) + 32px));opacity:0;visibility:hidden;transition:transform .34s cubic-bezier(.2,.82,.24,1),opacity .24s ease,visibility .34s ease}
+    .m-app-sheet.is-open{transform:translate3d(0,var(--m-app-sheet-drag,0px),0);opacity:1;visibility:visible}
+    .m-app-sheet::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 82% 0,rgba(255,100,30,.14),transparent 34%),linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:auto,28px 28px,28px 28px}
+    .m-app-sheet-head{position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 18px 12px;touch-action:none}
+    .m-app-sheet-grip{position:absolute;top:7px;left:50%;width:38px;height:4px;transform:translateX(-50%);border-radius:99px;background:#4a4e47}
+    .m-app-sheet-kicker{display:block;margin-bottom:3px;color:#ff7a38;font:800 9px/1 Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase}
+    .m-app-sheet-title{margin:0;color:#fff;font:800 22px/1.05 'Barlow Condensed',Inter,sans-serif;letter-spacing:.02em}
+    .m-app-sheet-close{width:38px;height:38px;display:grid;place-items:center;flex:none;border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#b7bbb3;background:#111410;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .m-app-sheet-close .m-app-icon{width:19px;height:19px}
+    .m-app-sheet-scroll{position:relative;padding:3px 14px 18px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+    .m-app-sheet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+    .m-app-tool{min-width:0;min-height:91px;padding:11px 7px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(255,255,255,.075);border-radius:16px;color:#c4c8c0;background:linear-gradient(145deg,rgba(25,28,24,.9),rgba(11,13,11,.94));text-align:center;text-decoration:none;font:750 10px/1.15 Inter,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.035);transition:transform .16s ease,border-color .2s ease,color .2s ease,background .2s ease;-webkit-tap-highlight-color:transparent}
+    .m-app-tool:active{transform:scale(.96)}
+    .m-app-tool .m-app-icon-shell{width:38px;height:38px;border-radius:12px;color:#aeb2aa}
+    .m-app-tool .m-app-icon{width:20px;height:20px}
+    .m-app-tool.active{color:#fff;border-color:rgba(255,100,30,.35);background:linear-gradient(145deg,rgba(255,100,30,.14),rgba(14,16,13,.96))}
+    .m-app-tool.active .m-app-icon-shell{color:#ff8143;border-color:rgba(255,100,30,.35);background:rgba(255,100,30,.08)}
+    .m-app-sheet-foot{margin-top:12px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(255,100,30,.14);border-radius:14px;background:rgba(255,100,30,.045)}
+    .m-app-sheet-foot strong{display:block;color:#f4f5f1;font:800 11px/1.15 Inter,sans-serif}.m-app-sheet-foot small{display:block;margin-top:4px;color:#777c74;font:600 9px/1.3 Inter,sans-serif}
+    .m-app-sheet-foot a{flex:none;padding:8px 10px;border-radius:9px;color:#fff;background:#e95111;text-decoration:none;font:800 9px/1 Inter,sans-serif;text-transform:uppercase}
+    .wa-float,#notif-fab{
+      bottom:calc(var(--m-app-nav-height) + var(--safe-bottom) + 12px)!important;
+    }
+  }
+  @media(max-width:350px){.m-univ-nav{padding-left:1px!important;padding-right:1px!important}.m-univ-nav-item{font-size:8px!important}.m-app-icon-shell{width:29px;height:29px}.m-app-icon{width:18px;height:18px}.m-app-sheet-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:932px) and (max-height:500px) and (orientation:landscape){:root{--m-app-nav-height:56px}.m-univ-nav-item{height:50px!important;gap:1px!important}.m-app-icon-shell{width:27px;height:27px}.m-app-icon{width:17px;height:17px}.m-app-sheet{max-height:calc(var(--app-height) - var(--m-app-nav-height) - var(--safe-top) - var(--safe-bottom) - 16px)}}
+  @media(prefers-reduced-motion:reduce){.m-univ-nav *,.m-app-sheet,.m-app-sheet *,.m-app-sheet-backdrop{animation:none!important;transition:none!important}}
+</style>
+
+
+
+
+
+<nav class="m-univ-nav" aria-label="Navigation principale de l’application">
+  <a class="m-univ-nav-item active" href="/accueil" aria-current="page"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="m3 10 9-7 9 7"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9 21v-7h6v7"></path>
+  
+</svg></span><span>Accueil</span></a>
+  <a class="m-univ-nav-item" href="/academie"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M2 4.5h6a4 4 0 0 1 4 4V21a3 3 0 0 0-3-3H2z"></path><path d="M22 4.5h-6a4 4 0 0 0-4 4V21a3 3 0 0 1 3-3h7z"></path>
+  
+</svg></span><span>Académie</span></a>
+  <a class="m-univ-nav-item" href="/trader-lab"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M4 19V5"></path><path d="M4 19h16"></path><path d="m7 15 4-4 3 3 5-7"></path><path d="M16 7h3v3"></path>
+  
+</svg></span><span>Trader Lab</span></a>
+  <a class="m-univ-nav-item" href="/canal"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="12" cy="12" r="2"></circle><path d="M8.5 8.5a5 5 0 0 0 0 7"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M5.6 5.6a9 9 0 0 0 0 12.8"></path><path d="M18.4 5.6a9 9 0 0 1 0 12.8"></path>
+  
+</svg><i class="m-app-live-pulse" aria-hidden="true"></i></span><span>Live</span></a>
+  <a class="m-univ-nav-item" href="/faq"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="12" cy="12" r="9"></circle><path d="M9.7 9a2.4 2.4 0 1 1 3.8 1.9c-.9.6-1.5 1.1-1.5 2.3"></path><path d="M12 17h.01"></path>
+  
+</svg></span><span>FAQ</span></a>
+  <button class="m-univ-nav-item m-app-more" type="button" aria-controls="mAppSheet" aria-expanded="false"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><rect x="14" y="14" width="7" height="7" rx="2"></rect>
+  
+</svg></span><span>Plus</span></button>
+</nav>
+
+<div class="m-app-sheet-backdrop" data-m-app-close aria-hidden="true"></div>
+<section class="m-app-sheet" id="mAppSheet" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mAppSheetTitle" tabindex="-1">
+  <header class="m-app-sheet-head"><span class="m-app-sheet-grip" aria-hidden="true"></span><div><span class="m-app-sheet-kicker">Bectanse Command Center</span><h2 class="m-app-sheet-title" id="mAppSheetTitle">Tous les outils</h2></div><button class="m-app-sheet-close" type="button" data-m-app-close aria-label="Fermer le menu"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+  
+</svg></button></header>
+  <div class="m-app-sheet-scroll">
+    <div class="m-app-sheet-grid">
+      <a class="m-app-tool" href="/explorer"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M2 4.5h6a4 4 0 0 1 4 4V21a3 3 0 0 0-3-3H2z"></path><path d="M22 4.5h-6a4 4 0 0 0-4 4V21a3 3 0 0 1 3-3h7z"></path>
+  
+</svg></span><span>Mon parcours</span></a>
+      
+      <a class="m-app-tool dashboard-anchor" data-dashboard-section="section-profil" href="/dashboard#section-profil"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path>
+  
+</svg></span><span>Mon profil</span></a>
+      <a class="m-app-tool" href="/analyse-ia"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="m7 15 3-3 2 2 5-5"></path>
+  
+</svg></span><span>Analyse IA</span></a>
+      <a class="m-app-tool" href="/calculateur"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="4" y="2" width="16" height="20" rx="2"></rect><path d="M8 6h8"></path><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path>
+  
+</svg></span><span>Calculateur</span></a>
+      <a class="m-app-tool" href="/simulateur"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M9 3h6"></path><path d="M10 9V3"></path><path d="M14 9V3"></path><path d="m8 9-4.5 8.5A2.4 2.4 0 0 0 5.6 21h12.8a2.4 2.4 0 0 0 2.1-3.5L16 9"></path><path d="M6.5 15h11"></path>
+  
+</svg></span><span>Simulateur</span></a>
+      <a class="m-app-tool" href="/journal"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M6 3h12a2 2 0 0 1 2 2v16H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"></path><path d="M8 3v18"></path><path d="M12 8h4"></path><path d="M12 12h4"></path>
+  
+</svg></span><span>Journal</span></a>
+      <a class="m-app-tool" href="/trade-score"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M3.5 19a9 9 0 1 1 17 0"></path><path d="m12 14 4-5"></path><circle cx="12" cy="14" r="1.5"></circle>
+  
+</svg></span><span>Trade Score</span></a>
+      <a class="m-app-tool" href="/parrainage"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path>
+  
+</svg></span><span>Parrainage</span></a>
+      <a class="m-app-tool" href="/abonnement"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3 10h18"></path><path d="M7 15h4"></path>
+  
+</svg></span><span>Mon abonnement</span></a>
+      <a class="m-app-tool" href="/support"><span class="m-app-icon-shell"><svg class="m-app-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M4 14a8 8 0 0 1 16 0"></path><path d="M18 19c0 1.1-.9 2-2 2h-3"></path><path d="M4 14v3a2 2 0 0 0 2 2h1v-7H6a2 2 0 0 0-2 2Z"></path><path d="M20 14v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2Z"></path>
+  
+</svg></span><span>Support</span></a>
+    </div>
+    <div class="m-app-sheet-foot"><div><strong>Ton parcours Explorer</strong><small>Reprends la découverte guidée avant de choisir.</small></div><a href="/explorer">Continuer</a></div>
+  </div>
+</section>
+
+
+
+
+
+
+
+<!-- POPUP INSTALLATION PWA -->
+<div id="pwa-popup" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:flex-end;justify-content:center;">
+  <div style="background:#111827;border:1px solid rgba(91,33,182,0.4);border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;position:relative;">
+    <!-- Handle -->
+    <div style="width:40px;height:4px;background:rgba(255,255,255,0.15);border-radius:4px;margin:0 auto 24px;"></div>
+    
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+      <div style="width:52px;height:52px;background:linear-gradient(135deg,#5B21B6,#F59E0B);border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:#fff;letter-spacing:0.05em;flex-shrink:0;">B€</div>
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:#fff;">Activer les notifications</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">Reçois les signaux en temps réel</div>
+      </div>
+    </div>
+
+    <!-- Steps container — affiché selon détection -->
+    <div id="pwa-step-ios" style="display:none;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:14px;">3 étapes sur iPhone</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 14px;">
+          <div style="width:28px;height:28px;background:rgba(91,33,182,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">1</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Appuie sur <strong style="color:#F59E0B;">Partager</strong> <span style="font-size:16px;">⎋</span> en bas de Safari</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 14px;">
+          <div style="width:28px;height:28px;background:rgba(91,33,182,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">2</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Sélectionne <strong style="color:#F59E0B;">"Sur l'écran d'accueil"</strong> <span style="font-size:16px;">＋</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 14px;">
+          <div style="width:28px;height:28px;background:rgba(91,33,182,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">3</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Ouvre l'app depuis l'écran d'accueil et <strong style="color:#F59E0B;">accepte les notifications</strong> </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pwa-step-android" style="display:none;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:14px;">2 étapes sur Android</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 14px;">
+          <div style="width:28px;height:28px;background:rgba(91,33,182,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">1</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Appuie sur <strong style="color:#F59E0B;">"Ajouter à l'écran d'accueil"</strong> dans le menu Chrome ⋮</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px 14px;">
+          <div style="width:28px;height:28px;background:rgba(91,33,182,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">2</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.4;">Ouvre l'app et <strong style="color:#F59E0B;">accepte les notifications</strong> quand demandé </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pwa-step-notif" style="display:none;">
+      <div style="background:rgba(5,150,105,0.1);border:1px solid rgba(5,150,105,0.3);border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:center;">
+        <span style="font-size:24px;"></span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#6EE7B7;">App déjà installée !</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;">Il te reste juste à activer les notifications.</div>
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <button style="width:100%;background:linear-gradient(135deg,#5B21B6,#4C1D95);color:#fff;border:none;border-radius:12px;padding:14px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
+           Activer les notifications
+        </button>
+      </div>
+    </div>
+
+    <!-- Bouton fermer -->
+    <button style="width:100%;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">
+      Plus tard
+    </button>
+  </div>
+</div>
+
+<!-- BOUTON FLOTTANT NOTIFICATIONS (visible si pas encore activé) -->
+<div id="notif-fab" style="display:none;position:fixed;bottom:88px;left:16px;z-index:800;">
+  <button style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#5B21B6,#4C1D95);color:#fff;border:none;border-radius:20px;padding:9px 16px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 16px rgba(91,33,182,0.4);">
+     Activer les notifications
+  </button>
+</div>
+
+
+
+
+
+
+
+
+
+<script src="/static/academy-tour/tour-screen.js?v=3"></script></body>
+</html>

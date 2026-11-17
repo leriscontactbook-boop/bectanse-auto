@@ -1,0 +1,1 @@
+(()=>{const el=document.querySelector('.trial-price');if(!el)return;if(!('IntersectionObserver' in window)){el.classList.add('reveal');return}const obs=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){el.classList.add('reveal');obs.disconnect()}},{threshold:.3});obs.observe(el)})();
