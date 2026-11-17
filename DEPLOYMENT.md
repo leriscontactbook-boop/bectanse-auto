@@ -26,6 +26,10 @@ The staging environment starts with no copied production variables, database or 
 
 ## Promotion gates
 
+The GitHub OAuth connection lacks the `workflow` permission. The CI definition is therefore delivered as `deployment-templates/deployment-validation.yml`, not installed or active. After the permission is granted, place it at `.github/workflows/deployment-validation.yml` and require its successful check before promotion. No branch protection is claimed to be active.
+
+Local validation: application syntax/import checks and `pip check` pass. The full regression suite stops at three collection errors. A separate diagnostic run excluding only those three files reached 24 passing tests and five failing tests before stopping; this is not a passing regression result. Linux Docker builds have not run locally because Docker is unavailable. The attempted staging apply was not approved, so the prepared service remains staged and has no deployment.
+
 1. Reconcile remaining production assets and data-independent configuration.
 2. Reconcile the legacy test suite with the current application interfaces. Current collection errors reference removed register_copy_trading and CopyTradingService symbols; do not suppress these errors or add compatibility shims just to make tests green.
 3. Obtain passing Linux builds, dependency checks and regression tests.
